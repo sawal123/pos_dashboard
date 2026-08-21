@@ -44,6 +44,19 @@ class Business extends Model
     ];
 
     /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Business $business) {
+            SaleItem::where('business_id', $business->id)->delete();
+            Sale::where('business_id', $business->id)->delete();
+            Product::where('business_id', $business->id)->delete();
+            Category::where('business_id', $business->id)->delete();
+        });
+    }
+
+    /**
      * The users that belong to the business.
      *
      * @return BelongsToMany<User, $this>

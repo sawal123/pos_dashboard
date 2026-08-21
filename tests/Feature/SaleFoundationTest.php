@@ -1107,4 +1107,73 @@ class SaleFoundationTest extends TestCase
         $this->assertDatabaseHas('sales', ['id' => $saleB->id]);
         $this->assertDatabaseHas('sale_items', ['id' => $itemB->id]);
     }
+
+    public function test_deleting_business_cleans_all_tenant_sales_dependencies(): void
+    {
+        $businessA = Business::factory()->create();
+        $outletA = Outlet::factory()->create(['business_id' => $businessA->id]);
+        $customerA = Customer::factory()->create(['business_id' => $businessA->id]);
+        $productA = Product::factory()->create(['business_id' => $businessA->id]);
+
+        $saleA = Sale::create([
+            'business_id' => $businessA->id,
+            'outlet_id' => $outletA->id,
+            'customer_id' => $customerA->id,
+            'transaction_number' => 'TRX-FULL-A',
+            'subtotal' => 10000,
+            'total_amount' => 10000,
+            'sold_at' => now(),
+        ]);
+        $itemA = SaleItem::create([
+            'business_id' => $businessA->id,
+            'sale_id' => $saleA->id,
+            'product_id' => $productA->id,
+            'product_name' => $productA->name,
+            'product_sku' => $productA->sku,
+            'unit_price' => 10000,
+            'quantity' => 1,
+            'line_total' => 10000,
+        ]);
+
+        $businessB = Business::factory()->create();
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+        $customerB = Customer::factory()->create(['business_id' => $businessB->id]);
+        $productB = Product::factory()->create(['business_id' => $businessB->id]);
+
+        $saleB = Sale::create([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'customer_id' => $customerB->id,
+            'transaction_number' => 'TRX-FULL-B',
+            'subtotal' => 20000,
+            'total_amount' => 20000,
+            'sold_at' => now(),
+        ]);
+        $itemB = SaleItem::create([
+            'business_id' => $businessB->id,
+            'sale_id' => $saleB->id,
+            'product_id' => $productB->id,
+            'product_name' => $productB->name,
+            'product_sku' => $productB->sku,
+            'unit_price' => 20000,
+            'quantity' => 1,
+            'line_total' => 20000,
+        ]);
+
+        $businessA->delete();
+
+        $this->assertDatabaseMissing('businesses', ['id' => $businessA->id]);
+        $this->assertDatabaseMissing('outlets', ['id' => $outletA->id]);
+        $this->assertDatabaseMissing('customers', ['id' => $customerA->id]);
+        $this->assertDatabaseMissing('products', ['id' => $productA->id]);
+        $this->assertDatabaseMissing('sales', ['id' => $saleA->id]);
+        $this->assertDatabaseMissing('sale_items', ['id' => $itemA->id]);
+
+        $this->assertDatabaseHas('businesses', ['id' => $businessB->id]);
+        $this->assertDatabaseHas('outlets', ['id' => $outletB->id]);
+        $this->assertDatabaseHas('customers', ['id' => $customerB->id]);
+        $this->assertDatabaseHas('products', ['id' => $productB->id]);
+        $this->assertDatabaseHas('sales', ['id' => $saleB->id]);
+        $this->assertDatabaseHas('sale_items', ['id' => $itemB->id]);
+    }
 }
