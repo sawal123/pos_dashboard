@@ -22,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, User> $users
  * @property-read Collection<int, User> $owners
  * @property-read Collection<int, Outlet> $outlets
+ * @property-read Collection<int, Category> $categories
+ * @property-read Collection<int, Product> $products
  * @property-read Subscription|null $subscription
  */
 #[Fillable(['name', 'slug', 'status'])]
@@ -69,6 +71,26 @@ class Business extends Model
     public function outlets(): HasMany
     {
         return $this->hasMany(Outlet::class);
+    }
+
+    /**
+     * The categories belonging to the business.
+     *
+     * @return HasMany<Category, $this>
+     */
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
+    /**
+     * The products belonging to the business.
+     *
+     * @return HasMany<Product, $this>
+     */
+    public function products(): HasMany
+    {
+        return $this->hasMany(Product::class);
     }
 
     /**
