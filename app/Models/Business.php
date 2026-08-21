@@ -29,6 +29,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Shift> $shifts
  * @property-read Collection<int, Expense> $expenses
  * @property-read Collection<int, Device> $devices
+ * @property-read SyncCounter|null $syncCounter
+ * @property-read Collection<int, SyncRequest> $syncRequests
  * @property-read Subscription|null $subscription
  */
 #[Fillable(['name', 'slug', 'status'])]
@@ -56,9 +58,11 @@ class Business extends Model
             Sale::where('business_id', $business->id)->delete();
             Expense::where('business_id', $business->id)->delete();
             Shift::where('business_id', $business->id)->delete();
+            SyncRequest::where('business_id', $business->id)->delete();
             Device::where('business_id', $business->id)->delete();
             Product::where('business_id', $business->id)->delete();
             Category::where('business_id', $business->id)->delete();
+            SyncCounter::where('business_id', $business->id)->delete();
         });
     }
 
@@ -162,6 +166,26 @@ class Business extends Model
     public function devices(): HasMany
     {
         return $this->hasMany(Device::class);
+    }
+
+    /**
+     * The sync counter associated with the business.
+     *
+     * @return HasOne<SyncCounter, $this>
+     */
+    public function syncCounter(): HasOne
+    {
+        return $this->hasOne(SyncCounter::class);
+    }
+
+    /**
+     * The sync requests associated with the business.
+     *
+     * @return HasMany<SyncRequest, $this>
+     */
+    public function syncRequests(): HasMany
+    {
+        return $this->hasMany(SyncRequest::class);
     }
 
     /**

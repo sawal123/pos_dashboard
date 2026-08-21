@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSyncMetadata;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -20,6 +21,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $barcode
  * @property int $price
  * @property string $status
+ * @property string $sync_id
+ * @property int $sync_version
+ * @property int $sync_sequence
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
@@ -30,7 +34,7 @@ use Illuminate\Support\Carbon;
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
-    use HasFactory;
+    use HasFactory, HasSyncMetadata;
 
     /**
      * The model's default attribute values.
