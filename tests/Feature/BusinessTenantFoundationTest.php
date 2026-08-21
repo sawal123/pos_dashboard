@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -13,8 +14,8 @@ class BusinessTenantFoundationTest extends TestCase
     public function test_business_can_be_created(): void
     {
         $business = Business::create([
-            'name'   => 'Warung Kopi Bahagia',
-            'slug'   => 'warung-kopi-bahagia',
+            'name' => 'Warung Kopi Bahagia',
+            'slug' => 'warung-kopi-bahagia',
             'status' => 'active',
         ]);
 
@@ -28,16 +29,16 @@ class BusinessTenantFoundationTest extends TestCase
     public function test_business_slug_must_be_unique(): void
     {
         Business::create([
-            'name'   => 'Toko A',
-            'slug'   => 'toko-a',
+            'name' => 'Toko A',
+            'slug' => 'toko-a',
             'status' => 'active',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Business::create([
-            'name'   => 'Toko A Duplikat',
-            'slug'   => 'toko-a',
+            'name' => 'Toko A Duplikat',
+            'slug' => 'toko-a',
             'status' => 'active',
         ]);
     }
@@ -51,7 +52,7 @@ class BusinessTenantFoundationTest extends TestCase
 
         $this->assertSame('inactive', $business->status);
         $this->assertDatabaseHas('businesses', [
-            'slug'   => 'toko-baru',
+            'slug' => 'toko-baru',
             'status' => 'inactive',
         ]);
     }

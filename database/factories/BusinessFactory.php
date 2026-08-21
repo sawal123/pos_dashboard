@@ -21,8 +21,8 @@ class BusinessFactory extends Factory
         $name = fake()->unique()->company();
 
         return [
-            'name'   => $name,
-            'slug'   => Str::slug($name).'-'.Str::random(6),
+            'name' => $name,
+            'slug' => Str::slug($name).'-'.Str::random(6),
             'status' => 'inactive',
         ];
     }
