@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
@@ -20,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
  * @property-read Collection<int, User> $owners
+ * @property-read Collection<int, Outlet> $outlets
  * @property-read Subscription|null $subscription
  */
 #[Fillable(['name', 'slug', 'status'])]
@@ -57,6 +59,16 @@ class Business extends Model
     public function owners(): BelongsToMany
     {
         return $this->users()->wherePivot('role', 'owner');
+    }
+
+    /**
+     * The outlets belonging to the business.
+     *
+     * @return HasMany<Outlet, $this>
+     */
+    public function outlets(): HasMany
+    {
+        return $this->hasMany(Outlet::class);
     }
 
     /**
