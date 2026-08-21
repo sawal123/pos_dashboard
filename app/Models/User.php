@@ -6,7 +6,9 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
@@ -27,6 +29,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property string|null $remember_token
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
+ * @property-read Collection<int, Business> $businesses
  */
 #[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
@@ -58,5 +61,36 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
         return Str::length($initials) > 1
             ? Str::substr($initials, 0, 1).Str::substr($initials, -1)
             : $initials;
+    }
+
+    /**
+     * The businesses that the user belongs to.
+     *
+     * @return BelongsToMany<Business, $this>
+     */
+    public function businesses(): BelongsToMany
+    {
+        return $this->belongsToMany(Business::class)
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
+    /**
+     * Determine if the user belongs to the given business.
+     */
+    public function belongsToBusiness(Business $business): bool
+    {
+        return $this->businesses()->where('businesses.id', $business->id)->exists();
+    }
+
+    /**
+     * Determine if the user owns the given business.
+     */
+    public function ownsBusiness(Business $business): bool
+    {
+        return $this->businesses()
+            ->where('businesses.id', $business->id)
+            ->wherePivot('role', 'owner')
+            ->exists();
     }
 }
