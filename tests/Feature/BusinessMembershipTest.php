@@ -148,4 +148,14 @@ class BusinessMembershipTest extends TestCase
         ]);
         $this->assertDatabaseHas('users', ['id' => $user->id]);
     }
+
+    public function test_membership_requires_explicit_role(): void
+    {
+        $user = User::factory()->create();
+        $business = Business::factory()->create();
+
+        $this->expectException(QueryException::class);
+
+        $business->users()->attach($user->id);
+    }
 }

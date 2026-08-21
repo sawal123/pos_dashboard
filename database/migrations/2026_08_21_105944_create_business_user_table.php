@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('business_id')->constrained('businesses')->cascadeOnDelete();
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->string('role')->default('owner');
+            $table->string('role');
             $table->timestamps();
 
             $table->unique(['business_id', 'user_id']);
