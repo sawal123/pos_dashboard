@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -22,6 +24,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Category|null $category
+ * @property-read Collection<int, SaleItem> $saleItems
  */
 #[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'status'])]
 class Product extends Model
@@ -68,5 +71,15 @@ class Product extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * The sale items referencing the product.
+     *
+     * @return HasMany<SaleItem, $this>
+     */
+    public function saleItems(): HasMany
+    {
+        return $this->hasMany(SaleItem::class);
     }
 }
