@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Collection<int, Sale> $sales
+ * @property-read Collection<int, Device> $devices
  */
 #[Fillable(['business_id', 'name', 'code', 'status', 'address'])]
 class Outlet extends Model
@@ -56,5 +57,15 @@ class Outlet extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    /**
+     * The devices belonging to the outlet.
+     *
+     * @return HasMany<Device, $this>
+     */
+    public function devices(): HasMany
+    {
+        return $this->hasMany(Device::class);
     }
 }
