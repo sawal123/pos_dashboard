@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Category> $categories
  * @property-read Collection<int, Product> $products
  * @property-read Collection<int, Customer> $customers
+ * @property-read Collection<int, Sale> $sales
  * @property-read Subscription|null $subscription
  */
 #[Fillable(['name', 'slug', 'status'])]
@@ -41,6 +42,19 @@ class Business extends Model
     protected $attributes = [
         'status' => 'inactive',
     ];
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (Business $business) {
+            SaleItem::where('business_id', $business->id)->delete();
+            Sale::where('business_id', $business->id)->delete();
+            Product::where('business_id', $business->id)->delete();
+            Category::where('business_id', $business->id)->delete();
+        });
+    }
 
     /**
      * The users that belong to the business.
@@ -102,6 +116,16 @@ class Business extends Model
     public function customers(): HasMany
     {
         return $this->hasMany(Customer::class);
+    }
+
+    /**
+     * The sales belonging to the business.
+     *
+     * @return HasMany<Sale, $this>
+     */
+    public function sales(): HasMany
+    {
+        return $this->hasMany(Sale::class);
     }
 
     /**
