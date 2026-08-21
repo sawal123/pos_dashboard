@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $business_id
  * @property int $outlet_id
  * @property int|null $customer_id
+ * @property int|null $shift_id
  * @property string $transaction_number
  * @property string $status
  * @property int $subtotal
@@ -26,9 +27,10 @@ use Illuminate\Support\Carbon;
  * @property-read Business|null $business
  * @property-read Outlet|null $outlet
  * @property-read Customer|null $customer
+ * @property-read Shift|null $shift
  * @property-read Collection<int, SaleItem> $items
  */
-#[Fillable(['business_id', 'outlet_id', 'customer_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'sold_at'])]
+#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'sold_at'])]
 class Sale extends Model
 {
     /**
@@ -86,6 +88,16 @@ class Sale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * The shift during which the sale took place.
+     *
+     * @return BelongsTo<Shift, $this>
+     */
+    public function shift(): BelongsTo
+    {
+        return $this->belongsTo(Shift::class);
     }
 
     /**
