@@ -28,6 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Sale> $sales
  * @property-read Collection<int, Shift> $shifts
  * @property-read Collection<int, Expense> $expenses
+ * @property-read Collection<int, Device> $devices
  * @property-read Subscription|null $subscription
  */
 #[Fillable(['name', 'slug', 'status'])]
@@ -55,6 +56,7 @@ class Business extends Model
             Sale::where('business_id', $business->id)->delete();
             Expense::where('business_id', $business->id)->delete();
             Shift::where('business_id', $business->id)->delete();
+            Device::where('business_id', $business->id)->delete();
             Product::where('business_id', $business->id)->delete();
             Category::where('business_id', $business->id)->delete();
         });
@@ -150,6 +152,16 @@ class Business extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);
+    }
+
+    /**
+     * The devices belonging to the business.
+     *
+     * @return HasMany<Device, $this>
+     */
+    public function devices(): HasMany
+    {
+        return $this->hasMany(Device::class);
     }
 
     /**
