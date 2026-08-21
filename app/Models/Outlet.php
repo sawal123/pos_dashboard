@@ -22,6 +22,8 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Collection<int, Sale> $sales
+ * @property-read Collection<int, Shift> $shifts
+ * @property-read Collection<int, Expense> $expenses
  * @property-read Collection<int, Device> $devices
  */
 #[Fillable(['business_id', 'name', 'code', 'status', 'address'])]
@@ -57,6 +59,26 @@ class Outlet extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    /**
+     * The shifts belonging to the outlet.
+     *
+     * @return HasMany<Shift, $this>
+     */
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(Shift::class);
+    }
+
+    /**
+     * The expenses belonging to the outlet.
+     *
+     * @return HasMany<Expense, $this>
+     */
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
     }
 
     /**
