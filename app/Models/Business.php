@@ -53,7 +53,15 @@ class Business extends Model
      */
     protected static function booted(): void
     {
-        static::deleting(function (Business $business) {
+        static::created(function (Business $business): void {
+            SyncCounter::firstOrCreate([
+                'business_id' => $business->id,
+            ], [
+                'current_sequence' => 0,
+            ]);
+        });
+
+        static::deleting(function (Business $business): void {
             SaleItem::where('business_id', $business->id)->delete();
             Sale::where('business_id', $business->id)->delete();
             Expense::where('business_id', $business->id)->delete();

@@ -4,6 +4,7 @@ namespace App\Services\Sync;
 
 use App\Models\Business;
 use App\Models\SyncCounter;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class SyncSequence
@@ -20,13 +21,27 @@ class SyncSequence
             $counter = SyncCounter::where('business_id', $businessId)->lockForUpdate()->first();
 
             if (! $counter) {
-                $counter = SyncCounter::create([
-                    'business_id' => $businessId,
-                    'current_sequence' => 0,
-                ]);
+                $createException = null;
+                try {
+                    SyncCounter::firstOrCreate([
+                        'business_id' => $businessId,
+                    ], [
+                        'current_sequence' => 0,
+                    ]);
+                } catch (QueryException $e) {
+                    $createException = $e;
+                }
 
-                /** @var SyncCounter $counter */
-                $counter = SyncCounter::where('id', $counter->id)->lockForUpdate()->firstOrFail();
+                /** @var SyncCounter|null $counter */
+                $counter = SyncCounter::where('business_id', $businessId)->lockForUpdate()->first();
+
+                if (! $counter && $createException) {
+                    throw $createException;
+                }
+
+                if (! $counter) {
+                    $counter = SyncCounter::where('business_id', $businessId)->lockForUpdate()->firstOrFail();
+                }
             }
 
             $counter->increment('current_sequence');

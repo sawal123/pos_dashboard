@@ -84,6 +84,23 @@ class SyncPushService
                 ],
             ], 409);
         } catch (QueryException) {
+            // Check if duplicate request_id race occurred and was committed by concurrent request
+            $duplicate = SyncRequest::where('business_id', $business->id)
+                ->where('device_id', $device->id)
+                ->where('request_id', $requestId)
+                ->exists();
+
+            if ($duplicate) {
+                $device->update(['last_seen_at' => now()]);
+
+                return response()->json([
+                    'data' => [
+                        'request_id' => $requestId,
+                        'duplicate' => true,
+                    ],
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Sync data conflict.',
                 'code' => 'SYNC_DATA_CONFLICT',
@@ -111,6 +128,7 @@ class SyncPushService
 
             $record = Category::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('categories', $record, $syncId, $baseVersion);
@@ -142,6 +160,7 @@ class SyncPushService
 
             $record = Product::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('products', $record, $syncId, $baseVersion);
@@ -192,6 +211,7 @@ class SyncPushService
 
             $record = Customer::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('customers', $record, $syncId, $baseVersion);
@@ -231,6 +251,7 @@ class SyncPushService
 
             $record = Shift::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('shifts', $record, $syncId, $baseVersion, $outletId);
@@ -273,6 +294,7 @@ class SyncPushService
 
             $record = Sale::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('sales', $record, $syncId, $baseVersion, $outletId);
@@ -342,13 +364,14 @@ class SyncPushService
 
             $record = SaleItem::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             if ($record) {
                 // Ensure sale belongs to device outlet
                 $saleOutletId = Sale::where('id', $record->sale_id)->value('outlet_id');
                 if ($saleOutletId !== $outletId) {
-                    throw new SyncConflictException('sale_items', $syncId, $record->sync_version);
+                    throw new SyncConflictException('sale_items', $syncId, (int) $record->sync_version);
                 }
             }
 
@@ -408,6 +431,7 @@ class SyncPushService
 
             $record = Expense::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
+                ->lockForUpdate()
                 ->first();
 
             $this->validateConcurrency('expenses', $record, $syncId, $baseVersion, $outletId);

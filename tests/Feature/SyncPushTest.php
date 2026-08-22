@@ -12,6 +12,7 @@ use App\Models\Sale;
 use App\Models\Shift;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Sync\SyncSequence;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -388,5 +389,344 @@ class SyncPushTest extends TestCase
             'message' => 'Sync data conflict.',
             'code' => 'SYNC_DATA_CONFLICT',
         ]);
+    }
+
+    public function test_push_malformed_category_missing_sync_id_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'categories' => [
+                        [
+                            'name' => 'Category without Sync ID',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.categories.0.sync_id']);
+    }
+
+    public function test_push_malformed_category_invalid_uuid_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'categories' => [
+                        [
+                            'sync_id' => 'not-a-valid-uuid',
+                            'name' => 'Invalid UUID Category',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.categories.0.sync_id']);
+    }
+
+    public function test_push_product_negative_price_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'products' => [
+                        [
+                            'sync_id' => (string) Str::uuid(),
+                            'name' => 'Negative Price Item',
+                            'sku' => 'NEG-01',
+                            'price' => -500,
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.products.0.price']);
+    }
+
+    public function test_push_shift_invalid_date_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'shifts' => [
+                        [
+                            'sync_id' => (string) Str::uuid(),
+                            'shift_number' => 'SHIFT-BAD-DATE',
+                            'opened_at' => 'not-a-date',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.shifts.0.opened_at']);
+    }
+
+    public function test_push_sale_missing_transaction_number_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'sales' => [
+                        [
+                            'sync_id' => (string) Str::uuid(),
+                            'subtotal' => 10000,
+                            'total_amount' => 10000,
+                            'sold_at' => '2026-08-21 10:00:00',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.sales.0.transaction_number']);
+    }
+
+    public function test_push_sale_item_quantity_zero_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'sale_items' => [
+                        [
+                            'sync_id' => (string) Str::uuid(),
+                            'sale_sync_id' => (string) Str::uuid(),
+                            'product_sync_id' => (string) Str::uuid(),
+                            'product_name' => 'Burger',
+                            'product_sku' => 'BGR-01',
+                            'unit_price' => 10000,
+                            'quantity' => 0,
+                            'line_total' => 0,
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.sale_items.0.quantity']);
+    }
+
+    public function test_push_expense_negative_amount_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'expenses' => [
+                        [
+                            'sync_id' => (string) Str::uuid(),
+                            'description' => 'Invalid Expense',
+                            'amount' => -1000,
+                            'occurred_at' => '2026-08-21 11:00:00',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes.expenses.0.amount']);
+    }
+
+    public function test_push_unknown_entity_key_returns_422(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'unsupported_entity' => [
+                        ['some_field' => 'value'],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors(['changes']);
+    }
+
+    public function test_correct_base_sync_version_increments_version(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $catSyncId = (string) Str::uuid();
+
+        $category = new Category([
+            'name' => 'Initial Name',
+        ]);
+        $category->business_id = $env['business']->id;
+        $category->sync_id = $catSyncId;
+        $category->save();
+
+        // Simulate version 3 on server
+        $category->sync_version = 3;
+        $category->saveQuietly();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'categories' => [
+                        [
+                            'sync_id' => $catSyncId,
+                            'base_sync_version' => 3,
+                            'name' => 'Updated Name V4',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+        $category->refresh();
+        $this->assertSame('Updated Name V4', $category->name);
+        $this->assertSame(4, $category->sync_version);
+    }
+
+    public function test_stale_version_returns_409_and_does_not_overwrite_server_data(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $catSyncId = (string) Str::uuid();
+
+        $category = new Category([
+            'name' => 'Server Authoritative Name',
+        ]);
+        $category->business_id = $env['business']->id;
+        $category->sync_id = $catSyncId;
+        $category->save();
+
+        // Simulate version 4 on server
+        $category->sync_version = 4;
+        $category->saveQuietly();
+
+        // Client pushes with base version 3
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'categories' => [
+                        [
+                            'sync_id' => $catSyncId,
+                            'base_sync_version' => 3,
+                            'name' => 'Stale Overwrite Attempt',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(409);
+        $response->assertJson([
+            'message' => 'Sync conflict.',
+            'code' => 'SYNC_CONFLICT',
+            'conflicts' => [
+                [
+                    'entity' => 'categories',
+                    'sync_id' => $catSyncId,
+                    'server_sync_version' => 4,
+                ],
+            ],
+        ]);
+
+        $category->refresh();
+        $this->assertSame('Server Authoritative Name', $category->name);
+        $this->assertSame(4, $category->sync_version);
+    }
+
+    public function test_existing_record_with_null_base_version_returns_409(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $catSyncId = (string) Str::uuid();
+
+        $category = new Category([
+            'name' => 'Existing Category',
+        ]);
+        $category->business_id = $env['business']->id;
+        $category->sync_id = $catSyncId;
+        $category->save();
+
+        // Client pushes with base_sync_version = null
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'categories' => [
+                        [
+                            'sync_id' => $catSyncId,
+                            'base_sync_version' => null,
+                            'name' => 'Attempted Overwrite without Base Version',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(409);
+        $category->refresh();
+        $this->assertSame('Existing Category', $category->name);
+    }
+
+    public function test_sync_counter_created_automatically_on_business_creation(): void
+    {
+        $business = Business::factory()->create();
+
+        $this->assertDatabaseHas('sync_counters', [
+            'business_id' => $business->id,
+            'current_sequence' => 0,
+        ]);
+    }
+
+    public function test_sync_sequence_next_monotonic(): void
+    {
+        $business = Business::factory()->create();
+
+        $seq1 = SyncSequence::next($business);
+        $seq2 = SyncSequence::next($business);
+        $seq3 = SyncSequence::next($business->id);
+
+        $this->assertSame(1, $seq1);
+        $this->assertSame(2, $seq2);
+        $this->assertSame(3, $seq3);
     }
 }

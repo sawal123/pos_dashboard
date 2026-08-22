@@ -228,4 +228,36 @@ class SyncPullTest extends TestCase
         $this->assertFalse($res3->json('data.has_more'));
         $this->assertSame($res3->json('data.server_sequence'), $res3->json('data.next_cursor'));
     }
+
+    public function test_pull_pagination_across_mixed_entities_bounded_and_complete(): void
+    {
+        $env = $this->setupPullEnvironment();
+
+        $c1 = Category::create(['business_id' => $env['business']->id, 'name' => 'Cat 1']);
+        $p1 = Product::create(['business_id' => $env['business']->id, 'name' => 'Prod 1', 'sku' => 'P-1', 'price' => 1000]);
+        $c2 = Category::create(['business_id' => $env['business']->id, 'name' => 'Cat 2']);
+        $p2 = Product::create(['business_id' => $env['business']->id, 'name' => 'Prod 2', 'sku' => 'P-2', 'price' => 2000]);
+        $c3 = Category::create(['business_id' => $env['business']->id, 'name' => 'Cat 3']);
+
+        $allPulled = [];
+        $cursor = 0;
+        $hasMore = true;
+
+        while ($hasMore) {
+            $res = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+                ->getJson("/api/sync/pull?business_id={$env['business']->id}&device_identifier=DEV-A&after={$cursor}&limit=2");
+
+            $res->assertStatus(200);
+            $records = $res->json('data.records');
+            $hasMore = $res->json('data.has_more');
+            $cursor = $res->json('data.next_cursor');
+
+            foreach ($records as $r) {
+                $allPulled[] = $r['data']['sync_id'];
+            }
+        }
+
+        $this->assertCount(5, $allPulled);
+        $this->assertSame([$c1->sync_id, $p1->sync_id, $c2->sync_id, $p2->sync_id, $c3->sync_id], $allPulled);
+    }
 }

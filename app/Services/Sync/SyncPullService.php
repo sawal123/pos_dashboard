@@ -32,6 +32,7 @@ class SyncPullService
 
         // 1. Capture snapshot server sequence
         $serverSequence = (int) (SyncCounter::where('business_id', $business->id)->value('current_sequence') ?? 0);
+        $fetchLimit = $limit + 1;
 
         // 2. Fetch changes across syncable entities within sequence window
         $records = [];
@@ -40,6 +41,8 @@ class SyncPullService
         $categories = Category::where('business_id', $business->id)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->get();
 
         foreach ($categories as $cat) {
@@ -59,6 +62,8 @@ class SyncPullService
         $products = Product::where('business_id', $business->id)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->with('category')
             ->get();
 
@@ -83,6 +88,8 @@ class SyncPullService
         $customers = Customer::where('business_id', $business->id)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->get();
 
         foreach ($customers as $cust) {
@@ -107,6 +114,8 @@ class SyncPullService
             ->where('outlet_id', $outletId)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->get();
 
         foreach ($shifts as $shift) {
@@ -132,6 +141,8 @@ class SyncPullService
             ->where('outlet_id', $outletId)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->with(['customer', 'shift'])
             ->get();
 
@@ -161,6 +172,8 @@ class SyncPullService
             ->where('sales.outlet_id', $outletId)
             ->where('sale_items.sync_sequence', '>', $after)
             ->where('sale_items.sync_sequence', '<=', $serverSequence)
+            ->orderBy('sale_items.sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->select('sale_items.*')
             ->with(['sale', 'product'])
             ->get();
@@ -188,6 +201,8 @@ class SyncPullService
             ->where('outlet_id', $outletId)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
             ->with('shift')
             ->get();
 
