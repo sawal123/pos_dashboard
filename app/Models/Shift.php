@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +21,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon $opened_at
  * @property Carbon|null $closed_at
  * @property string|null $notes
+ * @property string $sync_id
+ * @property int $sync_version
+ * @property int $sync_sequence
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
@@ -30,6 +34,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'shift_number', 'status', 'opening_cash', 'closing_cash', 'opened_at', 'closed_at', 'notes'])]
 class Shift extends Model
 {
+    use HasSyncMetadata;
+
     /**
      * The model's default attribute values.
      *

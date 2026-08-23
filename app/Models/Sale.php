@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -22,6 +23,9 @@ use Illuminate\Support\Carbon;
  * @property int $tax_amount
  * @property int $total_amount
  * @property Carbon $sold_at
+ * @property string $sync_id
+ * @property int $sync_version
+ * @property int $sync_sequence
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
@@ -33,6 +37,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'sold_at'])]
 class Sale extends Model
 {
+    use HasSyncMetadata;
+
     /**
      * The model's default attribute values.
      *

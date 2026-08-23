@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,9 @@ use Illuminate\Support\Carbon;
  * @property int $unit_price
  * @property int $quantity
  * @property int $line_total
+ * @property string $sync_id
+ * @property int $sync_version
+ * @property int $sync_sequence
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Sale|null $sale
@@ -25,6 +29,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'sale_id', 'product_id', 'product_name', 'product_sku', 'unit_price', 'quantity', 'line_total'])]
 class SaleItem extends Model
 {
+    use HasSyncMetadata;
+
     /**
      * Get the attributes that should be cast.
      *

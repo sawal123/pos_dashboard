@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,9 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property Carbon $occurred_at
  * @property string|null $notes
+ * @property string $sync_id
+ * @property int $sync_version
+ * @property int $sync_sequence
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
@@ -26,6 +30,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'amount', 'status', 'occurred_at', 'notes'])]
 class Expense extends Model
 {
+    use HasSyncMetadata;
+
     /**
      * The model's default attribute values.
      *
