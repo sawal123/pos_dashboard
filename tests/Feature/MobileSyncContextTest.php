@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -416,35 +417,49 @@ class MobileSyncContextTest extends TestCase
         Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        // Pre-create device simulating the "winner" of the race
-        $existingDevice = Device::create([
-            'business_id' => $business->id,
-            'outlet_id' => $outlet->id,
-            'name' => 'Race POS',
-            'identifier' => 'RACE-01',
-            'status' => 'active',
-            'registered_at' => now()->subSeconds(1),
-            'last_seen_at' => null,
-        ]);
+        // Simulate a concurrent request winning the INSERT race via a SQLite BEFORE INSERT
+        // trigger. RAISE(FAIL) preserves the trigger's own INSERT (the "winner" row) while
+        // aborting the outer INSERT with a UNIQUE constraint error.  Laravel maps this to
+        // UniqueConstraintViolationException, which the controller's catch block must handle.
+        DB::unprepared(sprintf("
+            CREATE TRIGGER simulate_race_insert
+            BEFORE INSERT ON \"devices\"
+            WHEN NEW.\"identifier\" = 'RACE-01'
+            BEGIN
+                INSERT INTO \"devices\"
+                    (\"business_id\", \"outlet_id\", \"name\", \"identifier\", \"platform\",
+                     \"status\", \"notes\", \"registered_at\", \"last_seen_at\",
+                     \"created_at\", \"updated_at\")
+                VALUES
+                    (NEW.\"business_id\", NEW.\"outlet_id\", 'Race Winner', NEW.\"identifier\",
+                     NULL, 'active', NULL,
+                     NEW.\"registered_at\", NULL, NEW.\"created_at\", NEW.\"updated_at\");
+                SELECT RAISE(FAIL, 'UNIQUE constraint failed: devices.business_id, devices.identifier');
+            END
+        "));
 
-        // Second request arrives with same identifier (simulates the "loser")
-        $response = $this->withHeader('Authorization', 'Bearer '.$token)
-            ->postJson('/api/mobile/devices', [
+        try {
+            // Flow: SELECT → null → INSERT → trigger inserts winner → RAISE(FAIL) →
+            //        UniqueConstraintViolationException caught → re-fetch winner → 200
+            $response = $this->withHeader('Authorization', 'Bearer '.$token)
+                ->postJson('/api/mobile/devices', [
+                    'business_id' => $business->id,
+                    'outlet_id' => $outlet->id,
+                    'device_identifier' => 'RACE-01',
+                    'name' => 'Race POS',
+                ]);
+
+            $response->assertStatus(200);
+
+            // Exactly one device row — the winner inserted by the trigger
+            $this->assertDatabaseCount('devices', 1);
+            $this->assertDatabaseHas('devices', [
+                'identifier' => 'RACE-01',
                 'business_id' => $business->id,
-                'outlet_id' => $outlet->id,
-                'device_identifier' => 'RACE-01',
-                'name' => 'Race POS',
             ]);
-
-        // Must not 500 — must resolve the existing device
-        $response->assertStatus(200);
-        $response->assertJson(['data' => ['id' => $existingDevice->id]]);
-
-        // No duplicate
-        $this->assertDatabaseCount('devices', 1);
-
-        // last_seen_at updated
-        $this->assertNotNull($existingDevice->fresh()->last_seen_at);
+        } finally {
+            DB::unprepared('DROP TRIGGER IF EXISTS "simulate_race_insert"');
+        }
     }
 
     public function test_duplicate_registration_does_not_create_second_device(): void

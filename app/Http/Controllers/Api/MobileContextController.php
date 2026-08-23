@@ -1,10 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\Device;
+use App\Models\Outlet;
+use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -27,28 +33,40 @@ class MobileContextController extends Controller
         /** @var User $user */
         $user = $request->user();
 
+        /** @var Collection<int, Business> $businesses */
         $businesses = $user->businesses()->with(['subscription', 'outlets'])->get();
 
         $deviceIdentifier = (string) $request->query('device_identifier', '');
 
-        $businessData = $businesses->map(function ($business) use ($deviceIdentifier) {
+        /** @var array<int, array{id: int, name: string, subscription: array{plan: string, status: string}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
+        $businessData = $businesses->map(function (Business $business) use ($deviceIdentifier): array {
+            /** @var Subscription|null $subscription */
             $subscription = $business->subscription;
+
             $cloudAccess = $business->hasCloudAccess();
 
-            $outlets = $business->outlets->map(fn ($outlet) => [
-                'id' => $outlet->id,
-                'name' => $outlet->name,
-                'code' => $outlet->code,
-                'status' => $outlet->status,
-            ])->values();
+            /** @var list<array{id: int, name: string, code: string, status: string}> $outlets */
+            $outlets = $business->outlets
+                ->map(function (Outlet $outlet): array {
+                    return [
+                        'id' => $outlet->id,
+                        'name' => $outlet->name,
+                        'code' => $outlet->code,
+                        'status' => $outlet->status,
+                    ];
+                })
+                ->values()
+                ->all();
 
+            /** @var array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null $deviceContext */
             $deviceContext = null;
+
             if ($deviceIdentifier !== '') {
                 $device = Device::where('business_id', $business->id)
                     ->where('identifier', $deviceIdentifier)
                     ->first();
 
-                if ($device) {
+                if ($device instanceof Device) {
                     $deviceContext = [
                         'id' => $device->id,
                         'identifier' => $device->identifier,
@@ -63,7 +81,7 @@ class MobileContextController extends Controller
             return [
                 'id' => $business->id,
                 'name' => $business->name,
-                'subscription' => $subscription ? [
+                'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,
                 ] : null,
@@ -71,7 +89,7 @@ class MobileContextController extends Controller
                 'outlets' => $outlets,
                 'device_context' => $deviceContext,
             ];
-        })->values();
+        })->values()->all();
 
         return response()->json([
             'data' => [
