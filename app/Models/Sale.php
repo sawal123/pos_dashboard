@@ -22,6 +22,17 @@ use Illuminate\Support\Carbon;
  * @property int $discount_amount
  * @property int $tax_amount
  * @property int $total_amount
+ * @property string|null $payment_method
+ * @property string $payment_status
+ * @property Carbon|null $paid_at
+ * @property int|null $cash_received
+ * @property int|null $change_amount
+ * @property string $gross_profit
+ * @property string|null $order_status
+ * @property Carbon|null $estimated_completed_at
+ * @property string|null $note
+ * @property array<string, mixed>|null $customer_snapshot
+ * @property array<string, mixed>|null $business_snapshot
  * @property Carbon $sold_at
  * @property string $sync_id
  * @property int $sync_version
@@ -34,7 +45,7 @@ use Illuminate\Support\Carbon;
  * @property-read Shift|null $shift
  * @property-read Collection<int, SaleItem> $items
  */
-#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'sold_at'])]
+#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
 class Sale extends Model
 {
     use HasSyncMetadata;
@@ -48,6 +59,8 @@ class Sale extends Model
         'status' => 'completed',
         'discount_amount' => 0,
         'tax_amount' => 0,
+        'payment_status' => 'paid',
+        'gross_profit' => 0,
     ];
 
     /**
@@ -62,6 +75,13 @@ class Sale extends Model
             'discount_amount' => 'integer',
             'tax_amount' => 'integer',
             'total_amount' => 'integer',
+            'cash_received' => 'integer',
+            'change_amount' => 'integer',
+            'paid_at' => 'datetime',
+            'gross_profit' => 'decimal:2',
+            'estimated_completed_at' => 'datetime',
+            'customer_snapshot' => 'array',
+            'business_snapshot' => 'array',
             'sold_at' => 'datetime',
         ];
     }

@@ -9,16 +9,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 /**
+ * Device-ledgered physical cash movements (cash in / cash out), synced with a
+ * stable sync identity. A retry of the same logical entry reuses the same
+ * sync_id and unique business reference, so cash entries are never doubled.
+ *
  * @property int $id
  * @property int $business_id
  * @property int $outlet_id
  * @property int|null $shift_id
- * @property string $description
- * @property string|null $category
+ * @property string $type
  * @property int $amount
- * @property string $status
+ * @property string|null $category
+ * @property string|null $note
+ * @property string|null $reference_id
+ * @property string|null $sale_sync_id
  * @property Carbon $occurred_at
- * @property string|null $notes
  * @property string $sync_id
  * @property int $sync_version
  * @property int $sync_sequence
@@ -28,19 +33,13 @@ use Illuminate\Support\Carbon;
  * @property-read Outlet|null $outlet
  * @property-read Shift|null $shift
  */
-#[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'category', 'amount', 'status', 'occurred_at', 'notes'])]
-class Expense extends Model
+#[Fillable(['business_id', 'outlet_id', 'shift_id', 'type', 'amount', 'category', 'note', 'reference_id', 'sale_sync_id', 'occurred_at'])]
+class CashLedger extends Model
 {
-    use HasSyncMetadata;
+    /** @var string */
+    protected $table = 'cash_ledger';
 
-    /**
-     * The model's default attribute values.
-     *
-     * @var array<string, mixed>
-     */
-    protected $attributes = [
-        'status' => 'recorded',
-    ];
+    use HasSyncMetadata;
 
     /**
      * Get the attributes that should be cast.
@@ -56,7 +55,7 @@ class Expense extends Model
     }
 
     /**
-     * The business that owns the expense.
+     * The business that owns the cash entry.
      *
      * @return BelongsTo<Business, $this>
      */
@@ -66,7 +65,7 @@ class Expense extends Model
     }
 
     /**
-     * The outlet where the expense occurred.
+     * The outlet where the cash movement occurred.
      *
      * @return BelongsTo<Outlet, $this>
      */
@@ -76,7 +75,7 @@ class Expense extends Model
     }
 
     /**
-     * The shift during which the expense occurred.
+     * The shift during which the cash movement occurred.
      *
      * @return BelongsTo<Shift, $this>
      */

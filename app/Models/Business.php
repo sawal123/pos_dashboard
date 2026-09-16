@@ -28,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, Sale> $sales
  * @property-read Collection<int, Shift> $shifts
  * @property-read Collection<int, Expense> $expenses
+ * @property-read Collection<int, CashLedger> $cashLedger
+ * @property-read Collection<int, StockMovement> $stockMovements
  * @property-read Collection<int, Device> $devices
  * @property-read SyncCounter|null $syncCounter
  * @property-read Collection<int, SyncRequest> $syncRequests
@@ -62,6 +64,8 @@ class Business extends Model
         });
 
         static::deleting(function (Business $business): void {
+            StockMovement::where('business_id', $business->id)->delete();
+            CashLedger::where('business_id', $business->id)->delete();
             SaleItem::where('business_id', $business->id)->delete();
             Sale::where('business_id', $business->id)->delete();
             Expense::where('business_id', $business->id)->delete();
@@ -164,6 +168,26 @@ class Business extends Model
     public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);
+    }
+
+    /**
+     * The cash ledger entries belonging to the business.
+     *
+     * @return HasMany<CashLedger, $this>
+     */
+    public function cashLedger(): HasMany
+    {
+        return $this->hasMany(CashLedger::class);
+    }
+
+    /**
+     * The stock movements belonging to the business.
+     *
+     * @return HasMany<StockMovement, $this>
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
     }
 
     /**

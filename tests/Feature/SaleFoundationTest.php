@@ -849,7 +849,7 @@ class SaleFoundationTest extends TestCase
     // G. QUANTITY & TOTALS
     // ==========================================
 
-    public function test_quantity_is_stored_as_integer(): void
+    public function test_quantity_supports_decimal_for_laundry_services(): void
     {
         $business = Business::factory()->create();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
@@ -859,8 +859,8 @@ class SaleFoundationTest extends TestCase
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-QTY',
-            'subtotal' => 30000,
-            'total_amount' => 30000,
+            'subtotal' => 25000,
+            'total_amount' => 25000,
             'sold_at' => now(),
         ]);
 
@@ -871,12 +871,11 @@ class SaleFoundationTest extends TestCase
             'product_name' => $product->name,
             'product_sku' => $product->sku,
             'unit_price' => 10000,
-            'quantity' => 3,
-            'line_total' => 30000,
+            'quantity' => 2.5,
+            'line_total' => 25000,
         ]);
 
-        $this->assertIsInt($item->quantity);
-        $this->assertSame(3, $item->quantity);
+        $this->assertEquals(2.5, (float) $item->quantity);
     }
 
     public function test_line_total_is_stored_as_integer(): void
