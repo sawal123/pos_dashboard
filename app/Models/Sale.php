@@ -31,8 +31,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $order_status
  * @property Carbon|null $estimated_completed_at
  * @property string|null $note
- * @property array|null $customer_snapshot
- * @property array|null $business_snapshot
+ * @property array<string, mixed>|null $customer_snapshot
+ * @property array<string, mixed>|null $business_snapshot
  * @property Carbon $sold_at
  * @property string $sync_id
  * @property int $sync_version

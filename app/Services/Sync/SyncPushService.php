@@ -464,7 +464,7 @@ class SyncPushService
                 }
             }
 
-            $category = isset($item['category']) && $item['category'] !== null && $item['category'] !== ''
+            $category = isset($item['category']) && $item['category'] !== ''
                 ? (string) $item['category']
                 : null;
 
@@ -577,6 +577,9 @@ class SyncPushService
         return $fields;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     protected function normalizeCustomerSnapshot(mixed $snapshot, ?int $resolvedCustomerId): ?array
     {
         if ($snapshot === null) {
@@ -590,11 +593,14 @@ class SyncPushService
         return [
             'id' => $snapshot['id'] ?? $resolvedCustomerId,
             'name' => isset($snapshot['name']) ? (string) $snapshot['name'] : '',
-            'phone' => isset($snapshot['phone']) && $snapshot['phone'] !== null ? (string) $snapshot['phone'] : '',
-            'email' => isset($snapshot['email']) && $snapshot['email'] !== null ? (string) $snapshot['email'] : '',
+            'phone' => isset($snapshot['phone']) ? (string) $snapshot['phone'] : '',
+            'email' => isset($snapshot['email']) ? (string) $snapshot['email'] : '',
         ];
     }
 
+    /**
+     * @return array<string, string>|null
+     */
     protected function normalizeBusinessSnapshot(mixed $snapshot): ?array
     {
         if ($snapshot === null) {
@@ -608,7 +614,7 @@ class SyncPushService
         return [
             'name' => isset($snapshot['name']) ? (string) $snapshot['name'] : '',
             'outlet' => isset($snapshot['outlet']) ? (string) $snapshot['outlet'] : '',
-            'phone' => isset($snapshot['phone']) && $snapshot['phone'] !== null ? (string) $snapshot['phone'] : '',
+            'phone' => isset($snapshot['phone']) ? (string) $snapshot['phone'] : '',
         ];
     }
 
@@ -810,7 +816,7 @@ class SyncPushService
 
             $this->validateConcurrency($entity, $record, $syncId, $baseVersion, $expectedOutlet);
 
-            $record->status = $entity === 'expenses' ? 'void' : 'deleted';
+            $record->setAttribute('status', $entity === 'expenses' ? 'void' : 'deleted');
             $record->save();
         }
     }
