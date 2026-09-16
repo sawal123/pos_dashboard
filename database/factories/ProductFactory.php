@@ -25,6 +25,14 @@ class ProductFactory extends Factory
             'sku' => 'SKU-'.fake()->unique()->randomNumber(5, true),
             'barcode' => null,
             'price' => fake()->numberBetween(5000, 150000),
+            'kind' => 'product',
+            'cost' => fake()->numberBetween(1000, 50000),
+            'stock' => fake()->numberBetween(0, 1000),
+            'unit' => 'pcs',
+            'min_stock' => 0,
+            'pricing_unit' => 'pcs',
+            'min_quantity' => 0,
+            'estimated_duration' => null,
             'status' => 'active',
         ];
     }

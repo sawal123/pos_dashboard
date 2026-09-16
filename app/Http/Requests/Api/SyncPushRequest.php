@@ -46,6 +46,14 @@ class SyncPushRequest extends FormRequest
             'changes.products.*.sku' => ['required', 'string', 'max:255'],
             'changes.products.*.barcode' => ['nullable', 'string', 'max:255'],
             'changes.products.*.price' => ['required', 'integer', 'min:0'],
+            'changes.products.*.kind' => ['sometimes', 'string', 'in:product,service'],
+            'changes.products.*.cost' => ['sometimes', 'numeric', 'min:0'],
+            'changes.products.*.stock' => ['sometimes', 'numeric', 'min:0'],
+            'changes.products.*.unit' => ['sometimes', 'string', 'max:50'],
+            'changes.products.*.min_stock' => ['sometimes', 'numeric', 'min:0'],
+            'changes.products.*.pricing_unit' => ['sometimes', 'string', 'max:50'],
+            'changes.products.*.min_quantity' => ['sometimes', 'numeric', 'min:0'],
+            'changes.products.*.estimated_duration' => ['nullable', 'string', 'max:255'],
             'changes.products.*.status' => ['sometimes', 'string'],
 
             // Customers
@@ -86,6 +94,11 @@ class SyncPushRequest extends FormRequest
             'changes.sales.*.discount_amount' => ['sometimes', 'integer', 'min:0'],
             'changes.sales.*.tax_amount' => ['sometimes', 'integer', 'min:0'],
             'changes.sales.*.total_amount' => ['required', 'integer', 'min:0'],
+            'changes.sales.*.payment_method' => ['nullable', 'string', 'max:50'],
+            'changes.sales.*.payment_status' => ['sometimes', 'string', 'in:paid,unpaid'],
+            'changes.sales.*.paid_at' => ['nullable', 'date'],
+            'changes.sales.*.cash_received' => ['nullable', 'integer', 'min:0'],
+            'changes.sales.*.change_amount' => ['nullable', 'integer', 'min:0'],
             'changes.sales.*.sold_at' => ['required', 'date'],
 
             // Sale Items
@@ -98,7 +111,7 @@ class SyncPushRequest extends FormRequest
             'changes.sale_items.*.product_name' => ['required', 'string', 'max:255'],
             'changes.sale_items.*.product_sku' => ['required', 'string', 'max:255'],
             'changes.sale_items.*.unit_price' => ['required', 'integer', 'min:0'],
-            'changes.sale_items.*.quantity' => ['required', 'integer', 'min:1'],
+            'changes.sale_items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'changes.sale_items.*.line_total' => ['required', 'integer', 'min:0'],
 
             // Expenses
@@ -112,6 +125,36 @@ class SyncPushRequest extends FormRequest
             'changes.expenses.*.status' => ['sometimes', 'string'],
             'changes.expenses.*.occurred_at' => ['required', 'date'],
             'changes.expenses.*.notes' => ['nullable', 'string'],
+
+            // Cash ledger
+            'changes.cash_ledger' => ['sometimes', 'array', 'max:100'],
+            'changes.cash_ledger.*' => ['array'],
+            'changes.cash_ledger.*.sync_id' => ['required', 'uuid'],
+            'changes.cash_ledger.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
+            'changes.cash_ledger.*.shift_sync_id' => ['nullable', 'uuid'],
+            'changes.cash_ledger.*.type' => ['required', 'string', 'in:in,out'],
+            'changes.cash_ledger.*.amount' => ['required', 'integer', 'min:1'],
+            'changes.cash_ledger.*.category' => ['nullable', 'string', 'max:255'],
+            'changes.cash_ledger.*.note' => ['nullable', 'string'],
+            'changes.cash_ledger.*.reference_id' => ['nullable', 'string', 'max:255'],
+            'changes.cash_ledger.*.sale_sync_id' => ['nullable', 'uuid'],
+            'changes.cash_ledger.*.occurred_at' => ['required', 'date'],
+
+            // Stock movements
+            'changes.stock_movements' => ['sometimes', 'array', 'max:100'],
+            'changes.stock_movements.*' => ['array'],
+            'changes.stock_movements.*.sync_id' => ['required', 'uuid'],
+            'changes.stock_movements.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
+            'changes.stock_movements.*.product_sync_id' => ['required', 'uuid'],
+            'changes.stock_movements.*.movement_type' => ['required', 'string', 'max:50'],
+            'changes.stock_movements.*.quantity_change' => ['required', 'numeric'],
+            'changes.stock_movements.*.stock_before' => ['sometimes', 'numeric', 'min:0'],
+            'changes.stock_movements.*.stock_after' => ['sometimes', 'numeric', 'min:0'],
+            'changes.stock_movements.*.reference_id' => ['nullable', 'string', 'max:255'],
+            'changes.stock_movements.*.category' => ['nullable', 'string', 'max:255'],
+            'changes.stock_movements.*.note' => ['nullable', 'string'],
+            'changes.stock_movements.*.sale_sync_id' => ['nullable', 'uuid'],
+            'changes.stock_movements.*.occurred_at' => ['required', 'date'],
         ];
     }
 
@@ -123,7 +166,7 @@ class SyncPushRequest extends FormRequest
         $validator->after(function (Validator $v): void {
             $changes = $this->input('changes');
             if (is_array($changes)) {
-                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses'];
+                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements'];
                 $unknownKeys = array_diff(array_keys($changes), $allowedKeys);
                 if (! empty($unknownKeys)) {
                     $v->errors()->add('changes', 'The changes payload contains unsupported entity types.');

@@ -20,6 +20,14 @@ use Illuminate\Support\Carbon;
  * @property string $sku
  * @property string|null $barcode
  * @property int $price
+ * @property string $kind
+ * @property string $cost
+ * @property string $stock
+ * @property string $unit
+ * @property string $min_stock
+ * @property string $pricing_unit
+ * @property string $min_quantity
+ * @property string|null $estimated_duration
  * @property string $status
  * @property string $sync_id
  * @property int $sync_version
@@ -30,7 +38,7 @@ use Illuminate\Support\Carbon;
  * @property-read Category|null $category
  * @property-read Collection<int, SaleItem> $saleItems
  */
-#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'status'])]
+#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -42,6 +50,13 @@ class Product extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
+        'kind' => 'product',
+        'cost' => 0,
+        'stock' => 0,
+        'unit' => 'pcs',
+        'min_stock' => 0,
+        'pricing_unit' => 'pcs',
+        'min_quantity' => 0,
         'status' => 'active',
     ];
 
@@ -54,6 +69,10 @@ class Product extends Model
     {
         return [
             'price' => 'integer',
+            'cost' => 'decimal:2',
+            'stock' => 'decimal:3',
+            'min_stock' => 'decimal:3',
+            'min_quantity' => 'decimal:3',
         ];
     }
 

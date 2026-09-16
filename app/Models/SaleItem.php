@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property string $product_name
  * @property string $product_sku
  * @property int $unit_price
- * @property int $quantity
+ * @property string $quantity
  * @property int $line_total
  * @property string $sync_id
  * @property int $sync_version
@@ -40,7 +40,7 @@ class SaleItem extends Model
     {
         return [
             'unit_price' => 'integer',
-            'quantity' => 'integer',
+            'quantity' => 'decimal:3',
             'line_total' => 'integer',
         ];
     }

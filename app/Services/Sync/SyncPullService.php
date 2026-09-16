@@ -3,6 +3,7 @@
 namespace App\Services\Sync;
 
 use App\Models\Business;
+use App\Models\CashLedger;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Device;
@@ -11,6 +12,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Shift;
+use App\Models\StockMovement;
 use App\Models\SyncCounter;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -79,6 +81,14 @@ class SyncPullService
                     'sku' => $prod->sku,
                     'barcode' => $prod->barcode,
                     'price' => (int) $prod->price,
+                    'kind' => $prod->kind,
+                    'cost' => (float) $prod->cost,
+                    'stock' => (float) $prod->stock,
+                    'unit' => $prod->unit,
+                    'min_stock' => (float) $prod->min_stock,
+                    'pricing_unit' => $prod->pricing_unit,
+                    'min_quantity' => (float) $prod->min_quantity,
+                    'estimated_duration' => $prod->estimated_duration,
                     'status' => $prod->status,
                 ],
             ];
@@ -161,6 +171,11 @@ class SyncPullService
                     'discount_amount' => (int) $sale->discount_amount,
                     'tax_amount' => (int) $sale->tax_amount,
                     'total_amount' => (int) $sale->total_amount,
+                    'payment_method' => $sale->payment_method,
+                    'payment_status' => $sale->payment_status,
+                    'paid_at' => $this->formatDate($sale->paid_at),
+                    'cash_received' => $sale->cash_received !== null ? (int) $sale->cash_received : null,
+                    'change_amount' => $sale->change_amount !== null ? (int) $sale->change_amount : null,
                     'sold_at' => $this->formatDate($sale->sold_at),
                 ],
             ];
@@ -190,7 +205,7 @@ class SyncPullService
                     'product_name' => $item->product_name,
                     'product_sku' => $item->product_sku,
                     'unit_price' => (int) $item->unit_price,
-                    'quantity' => (int) $item->quantity,
+                    'quantity' => (float) $item->quantity,
                     'line_total' => (int) $item->line_total,
                 ],
             ];
@@ -219,6 +234,65 @@ class SyncPullService
                     'status' => $exp->status,
                     'occurred_at' => $this->formatDate($exp->occurred_at),
                     'notes' => $exp->notes,
+                ],
+            ];
+        }
+
+        // Cash ledger (Outlet-specific)
+        $cashEntries = CashLedger::where('business_id', $business->id)
+            ->where('outlet_id', $outletId)
+            ->where('sync_sequence', '>', $after)
+            ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
+            ->with('shift')
+            ->get();
+
+        foreach ($cashEntries as $entry) {
+            $records[] = [
+                'entity' => 'cash_ledger',
+                'sync_sequence' => (int) $entry->sync_sequence,
+                'data' => [
+                    'sync_id' => $entry->sync_id,
+                    'sync_version' => (int) $entry->sync_version,
+                    'shift_sync_id' => $entry->shift?->sync_id,
+                    'type' => $entry->type,
+                    'amount' => (int) $entry->amount,
+                    'category' => $entry->category,
+                    'note' => $entry->note,
+                    'reference_id' => $entry->reference_id,
+                    'sale_sync_id' => $entry->sale_sync_id,
+                    'occurred_at' => $this->formatDate($entry->occurred_at),
+                ],
+            ];
+        }
+
+        // Stock movements (Business-wide; parents are resolved by product identity)
+        $movements = StockMovement::where('business_id', $business->id)
+            ->where('sync_sequence', '>', $after)
+            ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
+            ->with('product')
+            ->get();
+
+        foreach ($movements as $movement) {
+            $records[] = [
+                'entity' => 'stock_movements',
+                'sync_sequence' => (int) $movement->sync_sequence,
+                'data' => [
+                    'sync_id' => $movement->sync_id,
+                    'sync_version' => (int) $movement->sync_version,
+                    'product_sync_id' => $movement->product?->sync_id,
+                    'movement_type' => $movement->movement_type,
+                    'quantity_change' => (float) $movement->quantity_change,
+                    'stock_before' => (float) $movement->stock_before,
+                    'stock_after' => (float) $movement->stock_after,
+                    'reference_id' => $movement->reference_id,
+                    'category' => $movement->category,
+                    'note' => $movement->note,
+                    'sale_sync_id' => $movement->sale_sync_id,
+                    'occurred_at' => $this->formatDate($movement->occurred_at),
                 ],
             ];
         }

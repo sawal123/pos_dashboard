@@ -3,6 +3,7 @@
 namespace App\Services\Sync;
 
 use App\Models\Business;
+use App\Models\CashLedger;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Device;
@@ -11,6 +12,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Shift;
+use App\Models\StockMovement;
 use App\Models\SyncRequest;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -63,6 +65,8 @@ class SyncPushService
                 $this->processSales($business, $outletId, $changes['sales'] ?? []);
                 $this->processSaleItems($business, $outletId, $changes['sale_items'] ?? []);
                 $this->processExpenses($business, $outletId, $changes['expenses'] ?? []);
+                $this->processCashLedger($business, $outletId, $changes['cash_ledger'] ?? []);
+                $this->processStockMovements($business, $changes['stock_movements'] ?? []);
 
                 SyncRequest::create([
                     'business_id' => $business->id,
@@ -176,23 +180,26 @@ class SyncPushService
                 }
             }
 
+            $semantic = $this->productSemanticFields($item);
+
             if ($record) {
                 $record->category_id = $categoryId;
                 $record->name = (string) $item['name'];
                 $record->sku = (string) $item['sku'];
                 $record->barcode = isset($item['barcode']) ? (string) $item['barcode'] : null;
                 $record->price = (int) $item['price'];
+                $record->fill($semantic);
                 $record->status = (string) ($item['status'] ?? 'active');
                 $record->save();
             } else {
-                $product = new Product([
+                $product = new Product(array_merge([
                     'category_id' => $categoryId,
                     'name' => (string) $item['name'],
                     'sku' => (string) $item['sku'],
                     'barcode' => isset($item['barcode']) ? (string) $item['barcode'] : null,
                     'price' => (int) $item['price'],
                     'status' => (string) ($item['status'] ?? 'active'),
-                ]);
+                ], $semantic));
                 $product->business_id = $business->id;
                 $product->sync_id = $syncId;
                 $product->save();
@@ -322,6 +329,8 @@ class SyncPushService
                 }
             }
 
+            $payment = $this->salePaymentFields($item);
+
             if ($record) {
                 $record->customer_id = $customerId;
                 $record->shift_id = $shiftId;
@@ -331,10 +340,11 @@ class SyncPushService
                 $record->discount_amount = (int) ($item['discount_amount'] ?? 0);
                 $record->tax_amount = (int) ($item['tax_amount'] ?? 0);
                 $record->total_amount = (int) $item['total_amount'];
+                $record->fill($payment);
                 $record->sold_at = Carbon::parse((string) $item['sold_at']);
                 $record->save();
             } else {
-                $sale = new Sale([
+                $sale = new Sale(array_merge([
                     'customer_id' => $customerId,
                     'shift_id' => $shiftId,
                     'transaction_number' => (string) $item['transaction_number'],
@@ -344,7 +354,7 @@ class SyncPushService
                     'tax_amount' => (int) ($item['tax_amount'] ?? 0),
                     'total_amount' => (int) $item['total_amount'],
                     'sold_at' => (string) $item['sold_at'],
-                ]);
+                ], $payment));
                 $sale->business_id = $business->id;
                 $sale->outlet_id = $outletId;
                 $sale->sync_id = $syncId;
@@ -400,7 +410,7 @@ class SyncPushService
                 $record->product_name = (string) $item['product_name'];
                 $record->product_sku = (string) $item['product_sku'];
                 $record->unit_price = (int) $item['unit_price'];
-                $record->quantity = (int) $item['quantity'];
+                $record->quantity = $item['quantity'];
                 $record->line_total = (int) $item['line_total'];
                 $record->save();
             } else {
@@ -410,7 +420,7 @@ class SyncPushService
                     'product_name' => (string) $item['product_name'],
                     'product_sku' => (string) $item['product_sku'],
                     'unit_price' => (int) $item['unit_price'],
-                    'quantity' => (int) $item['quantity'],
+                    'quantity' => $item['quantity'],
                     'line_total' => (int) $item['line_total'],
                 ]);
                 $saleItem->business_id = $business->id;
@@ -469,6 +479,187 @@ class SyncPushService
                 $expense->outlet_id = $outletId;
                 $expense->sync_id = $syncId;
                 $expense->save();
+            }
+        }
+    }
+
+    /**
+     * Extract optional product semantic fields present in the payload.
+     * Fields absent from the payload are left untouched on update.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected function productSemanticFields(array $item): array
+    {
+        $fields = [];
+        $semanticKeys = ['kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration'];
+
+        foreach ($semanticKeys as $key) {
+            if (array_key_exists($key, $item) && $item[$key] !== null) {
+                $fields[$key] = $item[$key];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * Extract optional sale payment snapshot fields present in the payload.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected function salePaymentFields(array $item): array
+    {
+        $fields = [];
+
+        if (array_key_exists('payment_method', $item)) {
+            $fields['payment_method'] = $item['payment_method'] !== null ? (string) $item['payment_method'] : null;
+        }
+
+        if (array_key_exists('payment_status', $item)) {
+            $fields['payment_status'] = (string) $item['payment_status'];
+        }
+
+        foreach (['paid_at', 'cash_received', 'change_amount'] as $key) {
+            if (array_key_exists($key, $item) && $item[$key] !== null) {
+                $fields[$key] = $item[$key];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    protected function processCashLedger(Business $business, int $outletId, array $items): void
+    {
+        foreach ($items as $item) {
+            $syncId = (string) $item['sync_id'];
+            $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
+
+            // A replay that keeps the same sync_id is processed idempotently
+            // through the standard paths (same request_id -> duplicate, or
+            // same sync_id with matching base version -> same record update).
+            // A replay that invents a NEW sync_id for an already-synced
+            // business reference must not create a second row: resolve the
+            // existing record by reference and reject the unknown sync_id.
+            $record = CashLedger::where('business_id', $business->id)
+                ->where('sync_id', $syncId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $record && ! empty($item['reference_id'])) {
+                $byReference = CashLedger::where('business_id', $business->id)
+                    ->where('reference_id', (string) $item['reference_id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($byReference) {
+                    throw new SyncConflictException('cash_ledger', $syncId, 0);
+                }
+            }
+
+            $this->validateConcurrency('cash_ledger', $record, $syncId, $baseVersion, $outletId);
+
+            $shiftId = null;
+            if (! empty($item['shift_sync_id'])) {
+                $shiftId = Shift::where('business_id', $business->id)
+                    ->where('outlet_id', $outletId)
+                    ->where('sync_id', (string) $item['shift_sync_id'])
+                    ->value('id');
+
+                if (! $shiftId) {
+                    throw new SyncConflictException('cash_ledger', $syncId, 0);
+                }
+            }
+
+            $attributes = [
+                'type' => (string) $item['type'],
+                'amount' => (int) $item['amount'],
+                'category' => isset($item['category']) ? (string) $item['category'] : null,
+                'note' => isset($item['note']) ? (string) $item['note'] : null,
+                'reference_id' => isset($item['reference_id']) ? (string) $item['reference_id'] : null,
+                'sale_sync_id' => isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : null,
+                'occurred_at' => Carbon::parse((string) $item['occurred_at']),
+                'shift_id' => $shiftId,
+            ];
+
+            if ($record) {
+                $record->fill($attributes);
+                $record->save();
+            } else {
+                $entry = new CashLedger($attributes);
+                $entry->business_id = $business->id;
+                $entry->outlet_id = $outletId;
+                $entry->sync_id = $syncId;
+                $entry->save();
+            }
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    protected function processStockMovements(Business $business, array $items): void
+    {
+        foreach ($items as $item) {
+            $syncId = (string) $item['sync_id'];
+            $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
+
+            // A replay that keeps the same sync_id is idempotent through the
+            // standard paths. A replay that invents a NEW sync_id for an
+            // already-synced business reference is rejected so the quantity
+            // change is never applied a second time.
+            $record = StockMovement::where('business_id', $business->id)
+                ->where('sync_id', $syncId)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $record && ! empty($item['reference_id'])) {
+                $byReference = StockMovement::where('business_id', $business->id)
+                    ->where('reference_id', (string) $item['reference_id'])
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($byReference) {
+                    throw new SyncConflictException('stock_movements', $syncId, 0);
+                }
+            }
+
+            $this->validateConcurrency('stock_movements', $record, $syncId, $baseVersion);
+
+            $productId = Product::where('business_id', $business->id)
+                ->where('sync_id', (string) $item['product_sync_id'])
+                ->value('id');
+
+            if (! $productId) {
+                throw new SyncConflictException('stock_movements', $syncId, 0);
+            }
+
+            $attributes = [
+                'product_id' => $productId,
+                'movement_type' => (string) $item['movement_type'],
+                'quantity_change' => $item['quantity_change'],
+                'stock_before' => $item['stock_before'] ?? 0,
+                'stock_after' => $item['stock_after'] ?? 0,
+                'reference_id' => isset($item['reference_id']) ? (string) $item['reference_id'] : null,
+                'category' => isset($item['category']) ? (string) $item['category'] : null,
+                'note' => isset($item['note']) ? (string) $item['note'] : null,
+                'sale_sync_id' => isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : null,
+                'occurred_at' => Carbon::parse((string) $item['occurred_at']),
+            ];
+
+            if ($record) {
+                $record->fill($attributes);
+                $record->save();
+            } else {
+                $movement = new StockMovement($attributes);
+                $movement->business_id = $business->id;
+                $movement->sync_id = $syncId;
+                $movement->save();
             }
         }
     }

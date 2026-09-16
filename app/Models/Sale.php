@@ -22,6 +22,11 @@ use Illuminate\Support\Carbon;
  * @property int $discount_amount
  * @property int $tax_amount
  * @property int $total_amount
+ * @property string|null $payment_method
+ * @property string $payment_status
+ * @property Carbon|null $paid_at
+ * @property int|null $cash_received
+ * @property int|null $change_amount
  * @property Carbon $sold_at
  * @property string $sync_id
  * @property int $sync_version
@@ -34,7 +39,7 @@ use Illuminate\Support\Carbon;
  * @property-read Shift|null $shift
  * @property-read Collection<int, SaleItem> $items
  */
-#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'sold_at'])]
+#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'sold_at'])]
 class Sale extends Model
 {
     use HasSyncMetadata;
@@ -48,6 +53,7 @@ class Sale extends Model
         'status' => 'completed',
         'discount_amount' => 0,
         'tax_amount' => 0,
+        'payment_status' => 'paid',
     ];
 
     /**
@@ -62,6 +68,9 @@ class Sale extends Model
             'discount_amount' => 'integer',
             'tax_amount' => 'integer',
             'total_amount' => 'integer',
+            'cash_received' => 'integer',
+            'change_amount' => 'integer',
+            'paid_at' => 'datetime',
             'sold_at' => 'datetime',
         ];
     }
