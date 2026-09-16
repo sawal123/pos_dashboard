@@ -44,7 +44,6 @@ return new class extends Migration
             $table->unsignedBigInteger('sync_sequence')->default(0);
 
             $table->unique(['business_id', 'sync_id']);
-            $table->unique(['business_id', 'reference_id']);
             $table->index(['business_id', 'sync_sequence']);
 
             $table->foreign(['business_id', 'outlet_id'])
@@ -78,7 +77,6 @@ return new class extends Migration
             $table->unsignedBigInteger('sync_sequence')->default(0);
 
             $table->unique(['business_id', 'sync_id']);
-            $table->unique(['business_id', 'reference_id']);
             $table->index(['business_id', 'sync_sequence']);
 
             $table->foreign(['business_id', 'product_id'])

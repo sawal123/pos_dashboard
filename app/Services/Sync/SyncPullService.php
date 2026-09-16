@@ -176,6 +176,12 @@ class SyncPullService
                     'paid_at' => $this->formatDate($sale->paid_at),
                     'cash_received' => $sale->cash_received !== null ? (int) $sale->cash_received : null,
                     'change_amount' => $sale->change_amount !== null ? (int) $sale->change_amount : null,
+                    'gross_profit' => (float) $sale->gross_profit,
+                    'order_status' => $sale->order_status,
+                    'estimated_completed_at' => $this->formatDate($sale->estimated_completed_at),
+                    'note' => $sale->note,
+                    'customer_snapshot' => $sale->customer_snapshot,
+                    'business_snapshot' => $sale->business_snapshot,
                     'sold_at' => $this->formatDate($sale->sold_at),
                 ],
             ];
@@ -207,6 +213,11 @@ class SyncPullService
                     'unit_price' => (int) $item->unit_price,
                     'quantity' => (float) $item->quantity,
                     'line_total' => (int) $item->line_total,
+                    'cost_snapshot' => (float) $item->cost_snapshot,
+                    'unit' => $item->unit,
+                    'kind' => $item->kind,
+                    'pricing_unit' => $item->pricing_unit,
+                    'line_cost' => (float) $item->line_cost,
                 ],
             ];
         }
@@ -230,6 +241,7 @@ class SyncPullService
                     'sync_version' => (int) $exp->sync_version,
                     'shift_sync_id' => $exp->shift?->sync_id,
                     'description' => $exp->description,
+                    'category' => $exp->category,
                     'amount' => (int) $exp->amount,
                     'status' => $exp->status,
                     'occurred_at' => $this->formatDate($exp->occurred_at),

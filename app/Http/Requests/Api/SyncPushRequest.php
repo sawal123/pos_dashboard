@@ -99,6 +99,19 @@ class SyncPushRequest extends FormRequest
             'changes.sales.*.paid_at' => ['nullable', 'date'],
             'changes.sales.*.cash_received' => ['nullable', 'integer', 'min:0'],
             'changes.sales.*.change_amount' => ['nullable', 'integer', 'min:0'],
+            'changes.sales.*.gross_profit' => ['sometimes', 'numeric'],
+            'changes.sales.*.order_status' => ['nullable', 'string', 'in:Masuk,Diproses,Siap Diambil,Selesai'],
+            'changes.sales.*.estimated_completed_at' => ['nullable', 'date'],
+            'changes.sales.*.note' => ['nullable', 'string'],
+            'changes.sales.*.customer_snapshot' => ['nullable', 'array'],
+            'changes.sales.*.customer_snapshot.id' => ['nullable'],
+            'changes.sales.*.customer_snapshot.name' => ['nullable', 'string', 'max:255'],
+            'changes.sales.*.customer_snapshot.phone' => ['nullable', 'string', 'max:255'],
+            'changes.sales.*.customer_snapshot.email' => ['nullable', 'string', 'max:255'],
+            'changes.sales.*.business_snapshot' => ['nullable', 'array'],
+            'changes.sales.*.business_snapshot.name' => ['nullable', 'string', 'max:255'],
+            'changes.sales.*.business_snapshot.outlet' => ['nullable', 'string', 'max:255'],
+            'changes.sales.*.business_snapshot.phone' => ['nullable', 'string', 'max:255'],
             'changes.sales.*.sold_at' => ['required', 'date'],
 
             // Sale Items
@@ -113,6 +126,11 @@ class SyncPushRequest extends FormRequest
             'changes.sale_items.*.unit_price' => ['required', 'integer', 'min:0'],
             'changes.sale_items.*.quantity' => ['required', 'numeric', 'min:0.001'],
             'changes.sale_items.*.line_total' => ['required', 'integer', 'min:0'],
+            'changes.sale_items.*.cost_snapshot' => ['sometimes', 'numeric', 'min:0'],
+            'changes.sale_items.*.unit' => ['sometimes', 'string', 'max:50'],
+            'changes.sale_items.*.kind' => ['sometimes', 'string', 'in:product,service'],
+            'changes.sale_items.*.pricing_unit' => ['sometimes', 'string', 'max:50'],
+            'changes.sale_items.*.line_cost' => ['sometimes', 'numeric', 'min:0'],
 
             // Expenses
             'changes.expenses' => ['sometimes', 'array', 'max:100'],
@@ -121,6 +139,7 @@ class SyncPushRequest extends FormRequest
             'changes.expenses.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
             'changes.expenses.*.shift_sync_id' => ['nullable', 'uuid'],
             'changes.expenses.*.description' => ['required', 'string', 'max:255'],
+            'changes.expenses.*.category' => ['nullable', 'string', 'max:255'],
             'changes.expenses.*.amount' => ['required', 'integer', 'min:0'],
             'changes.expenses.*.status' => ['sometimes', 'string'],
             'changes.expenses.*.occurred_at' => ['required', 'date'],
@@ -155,6 +174,13 @@ class SyncPushRequest extends FormRequest
             'changes.stock_movements.*.note' => ['nullable', 'string'],
             'changes.stock_movements.*.sale_sync_id' => ['nullable', 'uuid'],
             'changes.stock_movements.*.occurred_at' => ['required', 'date'],
+
+            // Tombstone deletions (non-destructive deactivation)
+            'changes.deletions' => ['sometimes', 'array', 'max:100'],
+            'changes.deletions.*' => ['array'],
+            'changes.deletions.*.entity' => ['required', 'string', 'in:categories,products,customers,expenses'],
+            'changes.deletions.*.sync_id' => ['required', 'uuid'],
+            'changes.deletions.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -166,7 +192,7 @@ class SyncPushRequest extends FormRequest
         $validator->after(function (Validator $v): void {
             $changes = $this->input('changes');
             if (is_array($changes)) {
-                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements'];
+                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'deletions'];
                 $unknownKeys = array_diff(array_keys($changes), $allowedKeys);
                 if (! empty($unknownKeys)) {
                     $v->errors()->add('changes', 'The changes payload contains unsupported entity types.');

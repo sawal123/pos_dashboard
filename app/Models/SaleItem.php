@@ -18,6 +18,11 @@ use Illuminate\Support\Carbon;
  * @property int $unit_price
  * @property string $quantity
  * @property int $line_total
+ * @property string $cost_snapshot
+ * @property string $unit
+ * @property string $kind
+ * @property string $pricing_unit
+ * @property string $line_cost
  * @property string $sync_id
  * @property int $sync_version
  * @property int $sync_sequence
@@ -26,7 +31,7 @@ use Illuminate\Support\Carbon;
  * @property-read Sale|null $sale
  * @property-read Product|null $product
  */
-#[Fillable(['business_id', 'sale_id', 'product_id', 'product_name', 'product_sku', 'unit_price', 'quantity', 'line_total'])]
+#[Fillable(['business_id', 'sale_id', 'product_id', 'product_name', 'product_sku', 'unit_price', 'quantity', 'line_total', 'cost_snapshot', 'unit', 'kind', 'pricing_unit', 'line_cost'])]
 class SaleItem extends Model
 {
     use HasSyncMetadata;
@@ -42,6 +47,8 @@ class SaleItem extends Model
             'unit_price' => 'integer',
             'quantity' => 'decimal:3',
             'line_total' => 'integer',
+            'cost_snapshot' => 'decimal:2',
+            'line_cost' => 'decimal:2',
         ];
     }
 

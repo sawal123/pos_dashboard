@@ -14,6 +14,7 @@ use Illuminate\Support\Carbon;
  * @property int $outlet_id
  * @property int|null $shift_id
  * @property string $description
+ * @property string|null $category
  * @property int $amount
  * @property string $status
  * @property Carbon $occurred_at
@@ -27,7 +28,7 @@ use Illuminate\Support\Carbon;
  * @property-read Outlet|null $outlet
  * @property-read Shift|null $shift
  */
-#[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'amount', 'status', 'occurred_at', 'notes'])]
+#[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'category', 'amount', 'status', 'occurred_at', 'notes'])]
 class Expense extends Model
 {
     use HasSyncMetadata;

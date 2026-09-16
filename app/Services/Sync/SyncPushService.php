@@ -67,6 +67,7 @@ class SyncPushService
                 $this->processExpenses($business, $outletId, $changes['expenses'] ?? []);
                 $this->processCashLedger($business, $outletId, $changes['cash_ledger'] ?? []);
                 $this->processStockMovements($business, $changes['stock_movements'] ?? []);
+                $this->processDeletions($business, $outletId, $changes['deletions'] ?? []);
 
                 SyncRequest::create([
                     'business_id' => $business->id,
@@ -330,6 +331,7 @@ class SyncPushService
             }
 
             $payment = $this->salePaymentFields($item);
+            $snapshots = $this->saleSnapshotFields($item, $customerId);
 
             if ($record) {
                 $record->customer_id = $customerId;
@@ -341,6 +343,7 @@ class SyncPushService
                 $record->tax_amount = (int) ($item['tax_amount'] ?? 0);
                 $record->total_amount = (int) $item['total_amount'];
                 $record->fill($payment);
+                $record->fill($snapshots);
                 $record->sold_at = Carbon::parse((string) $item['sold_at']);
                 $record->save();
             } else {
@@ -354,7 +357,7 @@ class SyncPushService
                     'tax_amount' => (int) ($item['tax_amount'] ?? 0),
                     'total_amount' => (int) $item['total_amount'],
                     'sold_at' => (string) $item['sold_at'],
-                ], $payment));
+                ], $payment, $snapshots));
                 $sale->business_id = $business->id;
                 $sale->outlet_id = $outletId;
                 $sale->sync_id = $syncId;
@@ -404,6 +407,8 @@ class SyncPushService
                 throw new SyncConflictException('sale_items', $syncId, 0);
             }
 
+            $snapshots = $this->saleItemSnapshotFields($item);
+
             if ($record) {
                 $record->sale_id = $saleId;
                 $record->product_id = $productId;
@@ -412,9 +417,10 @@ class SyncPushService
                 $record->unit_price = (int) $item['unit_price'];
                 $record->quantity = $item['quantity'];
                 $record->line_total = (int) $item['line_total'];
+                $record->fill($snapshots);
                 $record->save();
             } else {
-                $saleItem = new SaleItem([
+                $saleItem = new SaleItem(array_merge([
                     'sale_id' => $saleId,
                     'product_id' => $productId,
                     'product_name' => (string) $item['product_name'],
@@ -422,7 +428,7 @@ class SyncPushService
                     'unit_price' => (int) $item['unit_price'],
                     'quantity' => $item['quantity'],
                     'line_total' => (int) $item['line_total'],
-                ]);
+                ], $snapshots));
                 $saleItem->business_id = $business->id;
                 $saleItem->sync_id = $syncId;
                 $saleItem->save();
@@ -458,9 +464,14 @@ class SyncPushService
                 }
             }
 
+            $category = isset($item['category']) && $item['category'] !== null && $item['category'] !== ''
+                ? (string) $item['category']
+                : null;
+
             if ($record) {
                 $record->shift_id = $shiftId;
                 $record->description = (string) $item['description'];
+                $record->category = $category ?? $record->category;
                 $record->amount = (int) $item['amount'];
                 $record->status = (string) ($item['status'] ?? 'recorded');
                 $record->occurred_at = Carbon::parse((string) $item['occurred_at']);
@@ -470,6 +481,7 @@ class SyncPushService
                 $expense = new Expense([
                     'shift_id' => $shiftId,
                     'description' => (string) $item['description'],
+                    'category' => $category,
                     'amount' => (int) $item['amount'],
                     'status' => (string) ($item['status'] ?? 'recorded'),
                     'occurred_at' => (string) $item['occurred_at'],
@@ -506,6 +518,7 @@ class SyncPushService
 
     /**
      * Extract optional sale payment snapshot fields present in the payload.
+     * Fields absent from the payload are left untouched on update.
      *
      * @param  array<string, mixed>  $item
      * @return array<string, mixed>
@@ -532,6 +545,105 @@ class SyncPushService
     }
 
     /**
+     * Extract the immutable historical sale snapshot fields.
+     * Fields absent from the payload are left untouched on update; the
+     * customer/business snapshots are stored as-is and never recomputed.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected function saleSnapshotFields(array $item, ?int $resolvedCustomerId): array
+    {
+        $fields = [];
+
+        if (array_key_exists('gross_profit', $item) && $item['gross_profit'] !== null) {
+            $fields['gross_profit'] = $item['gross_profit'];
+        }
+
+        foreach (['order_status', 'estimated_completed_at', 'note'] as $key) {
+            if (array_key_exists($key, $item)) {
+                $fields[$key] = $item[$key] !== null ? $item[$key] : null;
+            }
+        }
+
+        if (array_key_exists('customer_snapshot', $item)) {
+            $fields['customer_snapshot'] = $this->normalizeCustomerSnapshot($item['customer_snapshot'], $resolvedCustomerId);
+        }
+
+        if (array_key_exists('business_snapshot', $item)) {
+            $fields['business_snapshot'] = $this->normalizeBusinessSnapshot($item['business_snapshot']);
+        }
+
+        return $fields;
+    }
+
+    protected function normalizeCustomerSnapshot(mixed $snapshot, ?int $resolvedCustomerId): ?array
+    {
+        if ($snapshot === null) {
+            return null;
+        }
+
+        if (! is_array($snapshot)) {
+            return null;
+        }
+
+        return [
+            'id' => $snapshot['id'] ?? $resolvedCustomerId,
+            'name' => isset($snapshot['name']) ? (string) $snapshot['name'] : '',
+            'phone' => isset($snapshot['phone']) && $snapshot['phone'] !== null ? (string) $snapshot['phone'] : '',
+            'email' => isset($snapshot['email']) && $snapshot['email'] !== null ? (string) $snapshot['email'] : '',
+        ];
+    }
+
+    protected function normalizeBusinessSnapshot(mixed $snapshot): ?array
+    {
+        if ($snapshot === null) {
+            return null;
+        }
+
+        if (! is_array($snapshot)) {
+            return null;
+        }
+
+        return [
+            'name' => isset($snapshot['name']) ? (string) $snapshot['name'] : '',
+            'outlet' => isset($snapshot['outlet']) ? (string) $snapshot['outlet'] : '',
+            'phone' => isset($snapshot['phone']) && $snapshot['phone'] !== null ? (string) $snapshot['phone'] : '',
+        ];
+    }
+
+    /**
+     * Extract the historical per-item snapshot fields.
+     * Fields absent from the payload are left untouched on update; historical
+     * HPP is always the pushed snapshot, never recomputed from Product.cost.
+     *
+     * @param  array<string, mixed>  $item
+     * @return array<string, mixed>
+     */
+    protected function saleItemSnapshotFields(array $item): array
+    {
+        $fields = [];
+
+        foreach (['cost_snapshot', 'line_cost'] as $key) {
+            if (array_key_exists($key, $item) && $item[$key] !== null) {
+                $fields[$key] = $item[$key];
+            }
+        }
+
+        foreach (['unit', 'pricing_unit'] as $key) {
+            if (array_key_exists($key, $item) && $item[$key] !== null && $item[$key] !== '') {
+                $fields[$key] = (string) $item[$key];
+            }
+        }
+
+        if (array_key_exists('kind', $item) && in_array($item['kind'], ['product', 'service'], true)) {
+            $fields['kind'] = $item['kind'];
+        }
+
+        return $fields;
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $items
      */
     protected function processCashLedger(Business $business, int $outletId, array $items): void
@@ -540,27 +652,13 @@ class SyncPushService
             $syncId = (string) $item['sync_id'];
             $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
 
-            // A replay that keeps the same sync_id is processed idempotently
-            // through the standard paths (same request_id -> duplicate, or
-            // same sync_id with matching base version -> same record update).
-            // A replay that invents a NEW sync_id for an already-synced
-            // business reference must not create a second row: resolve the
-            // existing record by reference and reject the unknown sync_id.
+            // Stable idempotency is the sync_id: a retry of the same request
+            // replays the same sync_id through request_id dedupe or the update
+            // path below, and is applied exactly once.
             $record = CashLedger::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
                 ->lockForUpdate()
                 ->first();
-
-            if (! $record && ! empty($item['reference_id'])) {
-                $byReference = CashLedger::where('business_id', $business->id)
-                    ->where('reference_id', (string) $item['reference_id'])
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($byReference) {
-                    throw new SyncConflictException('cash_ledger', $syncId, 0);
-                }
-            }
 
             $this->validateConcurrency('cash_ledger', $record, $syncId, $baseVersion, $outletId);
 
@@ -609,25 +707,14 @@ class SyncPushService
             $syncId = (string) $item['sync_id'];
             $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
 
-            // A replay that keeps the same sync_id is idempotent through the
-            // standard paths. A replay that invents a NEW sync_id for an
-            // already-synced business reference is rejected so the quantity
-            // change is never applied a second time.
+            // Stable idempotency is the sync_id: one sale may emit several
+            // movements sharing the same business reference (one per product),
+            // so the reference alone is never a uniqueness key. A retry keeps
+            // the same sync_id and resolves to the same record below.
             $record = StockMovement::where('business_id', $business->id)
                 ->where('sync_id', $syncId)
                 ->lockForUpdate()
                 ->first();
-
-            if (! $record && ! empty($item['reference_id'])) {
-                $byReference = StockMovement::where('business_id', $business->id)
-                    ->where('reference_id', (string) $item['reference_id'])
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($byReference) {
-                    throw new SyncConflictException('stock_movements', $syncId, 0);
-                }
-            }
 
             $this->validateConcurrency('stock_movements', $record, $syncId, $baseVersion);
 
@@ -660,7 +747,71 @@ class SyncPushService
                 $movement->business_id = $business->id;
                 $movement->sync_id = $syncId;
                 $movement->save();
+
+                // Keep the server current stock consistent with the accepted
+                // movement. The row is locked above, stock converges to the
+                // accepted stock_after, and retries resolve to the same record
+                // above so the effect is applied exactly once.
+                $lockedProduct = Product::where('business_id', $business->id)
+                    ->where('id', $productId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($lockedProduct) {
+                    $lockedProduct->stock = $attributes['stock_after'];
+                    $lockedProduct->save();
+                }
             }
+        }
+    }
+
+    /**
+     * Apply non-destructive tombstone deletions for mutable master entities.
+     * Rows are marked deleted/inactive, never hard-deleted, so historical
+     * sales, items, cash and stock rows keep their references intact.
+     * Immutable history entities are always rejected.
+     *
+     * @param  list<array<string, mixed>>  $items
+     */
+    protected function processDeletions(Business $business, int $outletId, array $items): void
+    {
+        $tombstoneTargets = [
+            'categories' => Category::class,
+            'products' => Product::class,
+            'customers' => Customer::class,
+            'expenses' => Expense::class,
+        ];
+
+        foreach ($items as $item) {
+            $entity = (string) ($item['entity'] ?? '');
+            $syncId = (string) ($item['sync_id'] ?? '');
+            $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
+
+            if (! isset($tombstoneTargets[$entity])) {
+                throw new SyncConflictException('deletions', $syncId !== '' ? $syncId : 'unknown', 0);
+            }
+
+            $modelClass = $tombstoneTargets[$entity];
+
+            /** @var ?Model $record */
+            $record = $modelClass::where('business_id', $business->id)
+                ->where('sync_id', $syncId)
+                ->lockForUpdate()
+                ->first();
+
+            // Missing record: idempotent success, nothing to tombstone.
+            if (! $record) {
+                continue;
+            }
+
+            // Categories, products and customers are business-wide; only
+            // expenses are outlet-scoped and need the outlet isolation check.
+            $expectedOutlet = $entity === 'expenses' ? $outletId : null;
+
+            $this->validateConcurrency($entity, $record, $syncId, $baseVersion, $expectedOutlet);
+
+            $record->status = $entity === 'expenses' ? 'void' : 'deleted';
+            $record->save();
         }
     }
 
