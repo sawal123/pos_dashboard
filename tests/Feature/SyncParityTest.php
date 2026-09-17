@@ -337,7 +337,7 @@ class SyncParityTest extends TestCase
         $moveSyncId = (string) Str::uuid();
         $requestId = (string) Str::uuid();
 
-        $product = new Product(['name' => 'Beras', 'sku' => 'BRS-01', 'price' => 12000]);
+        $product = new Product(['name' => 'Beras', 'sku' => 'BRS-01', 'price' => 12000, 'stock' => 50]);
         $product->business_id = $env['business']->id;
         $product->sync_id = $prodSyncId;
         $product->save();
@@ -386,7 +386,7 @@ class SyncParityTest extends TestCase
         // (one per product): both are valid because the stable idempotency
         // key is the sync_id, not the reference.
         $secondMoveSyncId = (string) Str::uuid();
-        $otherProduct = new Product(['name' => 'Minyak', 'sku' => 'MNK-01', 'price' => 20000]);
+        $otherProduct = new Product(['name' => 'Minyak', 'sku' => 'MNK-01', 'price' => 20000, 'stock' => 30]);
         $otherProduct->business_id = $env['business']->id;
         $otherProduct->sync_id = (string) Str::uuid();
         $otherProduct->save();
@@ -753,11 +753,11 @@ class SyncParityTest extends TestCase
         $moveSyncId = (string) Str::uuid();
         $requestId = (string) Str::uuid();
 
-        $product = new Product(['name' => 'Beras', 'sku' => 'BRS-01', 'price' => 12000]);
+        $product = new Product(['name' => 'Beras', 'sku' => 'BRS-01', 'price' => 12000, 'stock' => 50]);
         $product->business_id = $env['business']->id;
         $product->sync_id = $prodSyncId;
         $product->save();
-        $this->assertEquals(0, (float) $product->fresh()->stock);
+        $this->assertEquals(50, (float) $product->fresh()->stock);
 
         $changes = [
             'stock_movements' => [
