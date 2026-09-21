@@ -1,12 +1,13 @@
 @props([
     'transactions' => [],
 ])
+{{-- $transactions: LengthAwarePaginator with ->through() mapped arrays --}}
 
 <div class="block md:hidden space-y-3" id="mobileTransactionsContainer">
     @foreach($transactions as $trx)
         @php
-            $isPaid = $trx['payment_status'] === 'Lunas';
-            $isCancelled = $trx['status'] === 'Dibatalkan';
+            $isPaid = ($trx['payment_status_raw'] ?? $trx['payment_status']) === 'paid';
+            $isCancelled = in_array($trx['status_raw'] ?? $trx['status'], ['cancelled', 'canceled']);
             $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
         @endphp
         <div

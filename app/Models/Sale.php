@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasSyncMetadata;
+use Database\Factories\SaleFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -48,7 +50,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
 class Sale extends Model
 {
-    use HasSyncMetadata;
+    /** @use HasFactory<SaleFactory> */
+    use HasFactory, HasSyncMetadata;
 
     /**
      * The model's default attribute values.

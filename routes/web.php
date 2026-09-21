@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Dashboard\BusinessContextController;
+use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use Illuminate\Support\Facades\Route;
 
@@ -8,7 +9,7 @@ Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
     Route::view('dashboard', 'dashboard')->name('dashboard');
-    Route::view('transactions', 'transactions.index')->name('transactions.index');
+    Route::get('transactions', [TransactionsController::class, 'index'])->name('transactions.index');
     Route::view('products', 'products.index')->name('products.index');
     Route::view('stock', 'stock.index')->name('stock.index');
     Route::view('cash', 'cash.index')->name('cash.index');

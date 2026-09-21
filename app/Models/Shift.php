@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasSyncMetadata;
+use Database\Factories\ShiftFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -34,7 +36,8 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'shift_number', 'status', 'opening_cash', 'closing_cash', 'opened_at', 'closed_at', 'notes'])]
 class Shift extends Model
 {
-    use HasSyncMetadata;
+    /** @use HasFactory<ShiftFactory> */
+    use HasFactory, HasSyncMetadata;
 
     /**
      * The model's default attribute values.

@@ -1,6 +1,7 @@
 @props([
     'transactions' => [],
 ])
+{{-- $transactions: LengthAwarePaginator with ->through() mapped arrays --}}
 
 <div class="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
     <div class="overflow-x-auto">
@@ -20,8 +21,8 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200" id="desktopTransactionsBody">
                 @foreach($transactions as $trx)
                     @php
-                        $isPaid = $trx['payment_status'] === 'Lunas';
-                        $isCancelled = $trx['status'] === 'Dibatalkan';
+                        $isPaid = ($trx['payment_status_raw'] ?? $trx['payment_status']) === 'paid';
+                        $isCancelled = in_array($trx['status_raw'] ?? $trx['status'], ['cancelled', 'canceled']);
                         $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
                     @endphp
                     <tr
