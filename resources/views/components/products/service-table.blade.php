@@ -24,7 +24,7 @@
                         $formattedPrice = 'Rp ' . number_format($service['price'], 0, ',', '.');
                         $unitStr = !empty($service['pricing_unit']) ? $service['pricing_unit'] : (!empty($service['unit']) ? $service['unit'] : '');
                         $pricingRateLabel = $unitStr !== '' ? 'Per ' . $unitStr : '-';
-                        $priceDisplay = $unitStr !== '' ? $formattedPrice . '/' . $unitStr : $formattedPrice;
+                        $rawStatus = $service['status_raw'] ?? $service['status'];
                     @endphp
                     <tr
                         class="service-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -32,7 +32,7 @@
                         data-name="{{ $service['name'] }}"
                         data-sku="{{ $service['sku'] }}"
                         data-category="{{ $service['category_name'] }}"
-                        data-status="{{ $service['status'] }}"
+                        data-status="{{ $rawStatus }}"
                         data-raw="{{ json_encode($service) }}"
                     >
                         {{-- 1. Nama Layanan --}}
@@ -74,7 +74,7 @@
 
                         {{-- 6. Minimum Quantity --}}
                         <td class="py-3 px-4 text-center tabular-nums text-slate-700 dark:text-slate-300">
-                            {{ $service['min_quantity'] }} {{ $service['unit'] }}
+                            {{ $service['min_quantity'] }}{{ !empty($service['unit']) ? ' ' . $service['unit'] : '' }}
                         </td>
 
                         {{-- 7. Estimasi Durasi --}}
@@ -87,15 +87,20 @@
 
                         {{-- 8. Status --}}
                         <td class="py-3 px-4 text-center">
-                            @if($service['status'] === 'active')
+                            @if($rawStatus === 'active')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     <span>Aktif</span>
                                 </span>
-                            @else
+                            @elseif($rawStatus === 'inactive')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                                     <span>Nonaktif</span>
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                    <span>{{ $service['status'] ?? $rawStatus }}</span>
                                 </span>
                             @endif
                         </td>

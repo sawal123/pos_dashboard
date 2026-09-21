@@ -36,7 +36,7 @@
             <span class="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums tracking-tight">
                 {{ number_format($summary['total_services'], 0, ',', '.') }}
             </span>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Jasa & laundry kiloan</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Item layanan</p>
         </div>
     </div>
 

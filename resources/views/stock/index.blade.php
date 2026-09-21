@@ -1,9 +1,3 @@
-@php
-    $loadFixtures = require resource_path('views/stock/fixtures.php');
-    $fixtureData = $loadFixtures();
-    $hasData = !empty($fixtureData['items']);
-@endphp
-
 <x-layouts::app :title="'Stok'">
     <main id="mainContent" data-stock-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
@@ -26,54 +20,74 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-stock.summary-cards :summary="$fixtureData['summary']" />
+        <x-stock.summary-cards :summary="$summary" />
 
         {{-- ==================== 2. FILTER BAR ==================== --}}
-        <x-stock.filter-bar :categories="$fixtureData['categories']" />
+        <x-stock.filter-bar :categories="$categories" :filters="$filters" />
 
         {{-- ==================== 3. DATA LIST / EMPTY STATE ==================== --}}
-        @if($hasData)
+        @if($items->total() > 0)
             {{-- Desktop Table View (>= md) --}}
-            <x-stock.table :items="$fixtureData['items']" />
+            <x-stock.table :items="$items" />
 
             {{-- Mobile Cards View (< md) --}}
-            <x-stock.mobile-cards :items="$fixtureData['items']" />
-
-            {{-- Filter Empty State (Shown when search/filter has no match) --}}
-            <x-stock.empty-state mode="no-results" />
+            <x-stock.mobile-cards :items="$items" />
 
             {{-- ==================== 4. PAGINATION ==================== --}}
             <div id="stockPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
                 <div class="text-slate-500 dark:text-slate-400 font-medium">
-                    Menampilkan <span id="stockVisibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['items']) }}</span> dari <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['items']) }}</span> item
+                    Menampilkan
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->firstItem() ?? 0 }}</span>
+                    –
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->lastItem() ?? 0 }}</span>
+                    dari
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->total() }}</span>
+                    item
                 </div>
                 <nav class="flex items-center gap-1" aria-label="Navigasi Halaman Stok">
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        type="button"
-                        class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-current="page"
-                    >
-                        1
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Berikutnya
-                    </button>
+                    {{-- Previous --}}
+                    @if($items->onFirstPage())
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Sebelumnya
+                        </span>
+                    @else
+                        <a href="{{ $items->previousPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Sebelumnya
+                        </a>
+                    @endif
+
+                    {{-- Page numbers (up to 7 windows) --}}
+                    @foreach($items->getUrlRange(max(1, $items->currentPage() - 3), min($items->lastPage(), $items->currentPage() + 3)) as $page => $url)
+                        @if($page === $items->currentPage())
+                            <span
+                                class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center"
+                                aria-current="page"
+                            >{{ $page }}</span>
+                        @else
+                            <a href="{{ $url }}"
+                               class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endforeach
+
+                    {{-- Next --}}
+                    @if($items->hasMorePages())
+                        <a href="{{ $items->nextPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Berikutnya
+                        </a>
+                    @else
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Berikutnya
+                        </span>
+                    @endif
                 </nav>
             </div>
         @else
-            {{-- Initial Empty State (Non-local / Production before data integration) --}}
-            <x-stock.empty-state mode="no-data" />
+            {{-- Empty State (Filtered or Truly Empty) --}}
+            <x-stock.empty-state :mode="($hasAnyStock ?? false) ? 'no-results' : 'no-data'" />
         @endif
 
         {{-- ==================== 5. DETAIL MOVEMENT DRAWER ==================== --}}
@@ -90,19 +104,6 @@
             }
             root.dataset.stockInitialized = 'true';
 
-            const searchInput = document.getElementById('searchStockInput');
-            const filterCategory = document.getElementById('filterStockCategory');
-            const filterStatus = document.getElementById('filterStockStatus');
-            const resetFilterBtn = document.getElementById('resetStockFilterBtn');
-
-            const rows = document.querySelectorAll('.stock-row');
-            const cards = document.querySelectorAll('.stock-card');
-            const filterEmptyState = document.getElementById('stockFilterEmptyState');
-            const desktopTable = document.getElementById('desktopStockTable')?.closest('.rounded-2xl');
-            const mobileContainer = document.getElementById('mobileStockCards');
-            const paginationEl = document.getElementById('stockPagination');
-            const visibleCountEl = document.getElementById('stockVisibleCount');
-
             // Drawer Elements
             const drawerWrapper = document.getElementById('stockDrawerWrapper');
             const drawerBackdrop = document.getElementById('stockDrawerBackdrop');
@@ -111,65 +112,7 @@
             const closeDrawerFooterBtn = document.getElementById('closeStockDrawerFooterBtn');
 
             let lastTriggerElement = null;
-
-            // Client-side Filtering
-            function applyFilters() {
-                const search = (searchInput?.value || '').trim().toLowerCase();
-                const category = filterCategory?.value || 'all';
-                const status = filterStatus?.value || 'all';
-
-                let matchedCount = 0;
-
-                const checkMatch = (el) => {
-                    const name = (el.getAttribute('data-name') || '').toLowerCase();
-                    const sku = (el.getAttribute('data-sku') || '').toLowerCase();
-                    const elCategory = el.getAttribute('data-category');
-                    const elStatus = el.getAttribute('data-stock-status');
-
-                    const matchSearch = !search || name.includes(search) || sku.includes(search);
-                    const matchCategory = category === 'all' || elCategory === category;
-                    const matchStatus = status === 'all' || elStatus === status;
-
-                    return matchSearch && matchCategory && matchStatus;
-                };
-
-                rows.forEach(r => {
-                    const m = checkMatch(r);
-                    r.style.display = m ? '' : 'none';
-                    if (m) matchedCount++;
-                });
-
-                cards.forEach(c => {
-                    c.style.display = checkMatch(c) ? '' : 'none';
-                });
-
-                if (visibleCountEl) visibleCountEl.textContent = matchedCount;
-
-                if (matchedCount === 0) {
-                    if (filterEmptyState) filterEmptyState.classList.remove('hidden');
-                    if (desktopTable) desktopTable.classList.add('hidden');
-                    if (mobileContainer) mobileContainer.classList.add('hidden');
-                    if (paginationEl) paginationEl.classList.add('hidden');
-                } else {
-                    if (filterEmptyState) filterEmptyState.classList.add('hidden');
-                    if (desktopTable) desktopTable.classList.remove('hidden');
-                    if (mobileContainer) mobileContainer.classList.remove('hidden');
-                    if (paginationEl) paginationEl.classList.remove('hidden');
-                }
-            }
-
-            if (searchInput) searchInput.addEventListener('input', applyFilters);
-            if (filterCategory) filterCategory.addEventListener('change', applyFilters);
-            if (filterStatus) filterStatus.addEventListener('change', applyFilters);
-
-            if (resetFilterBtn) {
-                resetFilterBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterCategory) filterCategory.value = 'all';
-                    if (filterStatus) filterStatus.value = 'all';
-                    applyFilters();
-                });
-            }
+            let currentAbortController = null;
 
             // Basic Focus Trap for Detail Drawer
             function handleStockDrawerTrap(e) {
@@ -205,9 +148,10 @@
             }
 
             // Safe DOM Rendering for Stock Detail Drawer
-            function openDrawer(itemData) {
-                if (!drawerWrapper || !itemData) return;
+            function openDrawer(itemData, movementsUrl) {
+                if (!drawerWrapper || !itemData || !movementsUrl) return;
 
+                // Set product summary headers
                 document.getElementById('stockDrawerTitle').textContent = itemData.name || '-';
                 document.getElementById('stockDetailSku').textContent = itemData.sku || '-';
                 document.getElementById('stockDetailCurrent').textContent = `${itemData.current_stock} ${itemData.unit}`;
@@ -254,12 +198,63 @@
                 badgeEl.appendChild(dot);
                 badgeEl.appendChild(label);
 
-                // Populate Movement List via safe DOM methods
+                // Initial loading state in movements container
                 const movementsContainer = document.getElementById('stockMovementsContainer');
+                const hasMoreInfoEl = document.getElementById('stockMovementsHasMoreInfo');
                 movementsContainer.textContent = '';
+                if (hasMoreInfoEl) hasMoreInfoEl.classList.add('hidden');
 
-                if (itemData.movements && itemData.movements.length > 0) {
-                    itemData.movements.forEach(m => {
+                const loadingP = document.createElement('p');
+                loadingP.className = 'text-xs text-slate-500 dark:text-slate-400 text-center py-6 italic';
+                loadingP.textContent = 'Memuat riwayat stok...';
+                movementsContainer.appendChild(loadingP);
+
+                // Show Drawer with Smooth Animation
+                drawerWrapper.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    drawerBackdrop.classList.remove('opacity-0');
+                    drawerBackdrop.classList.add('opacity-100');
+                    drawerPanel.classList.remove('translate-x-full');
+                    drawerPanel.classList.add('translate-x-0');
+                    closeDrawerBtn?.focus();
+                });
+
+                document.addEventListener('keydown', handleStockDrawerTrap);
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+
+                // Fetch movements asynchronously from server
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                }
+                currentAbortController = new AbortController();
+
+                fetch(movementsUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    signal: currentAbortController.signal,
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network error: ' + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    movementsContainer.textContent = '';
+
+                    const movements = data.movements || [];
+                    if (movements.length === 0) {
+                        const emptyP = document.createElement('p');
+                        emptyP.className = 'text-xs text-slate-400 text-center py-6 italic';
+                        emptyP.textContent = 'Belum ada riwayat pergerakan stok.';
+                        movementsContainer.appendChild(emptyP);
+                        return;
+                    }
+
+                    movements.forEach(m => {
                         const card = document.createElement('div');
                         card.className = 'p-3 sm:p-3.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-1.5 text-xs';
 
@@ -268,7 +263,7 @@
 
                         const typeSpan = document.createElement('span');
                         typeSpan.className = 'font-bold text-slate-800 dark:text-slate-200';
-                        typeSpan.textContent = m.movement_type_label || m.movement_type;
+                        typeSpan.textContent = m.movement_type || m.movement_type_raw || 'Pergerakan Stok';
 
                         const qtySpan = document.createElement('span');
                         const qtyNum = Number(m.quantity_change);
@@ -300,7 +295,7 @@
 
                         const dateP = document.createElement('p');
                         dateP.className = 'font-mono text-[10px] text-slate-400';
-                        dateP.textContent = m.occurred_at;
+                        dateP.textContent = m.occurred_at || m.occurred_at_raw || '';
 
                         balanceRow.appendChild(changeP);
                         balanceRow.appendChild(dateP);
@@ -339,31 +334,34 @@
 
                         movementsContainer.appendChild(card);
                     });
-                } else {
-                    const emptyP = document.createElement('p');
-                    emptyP.className = 'text-xs text-slate-400 text-center py-4 italic';
-                    emptyP.textContent = 'Belum ada catatan riwayat pergerakan stok.';
-                    movementsContainer.appendChild(emptyP);
-                }
 
-                // Show Drawer with Smooth Animation
-                drawerWrapper.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-                requestAnimationFrame(() => {
-                    drawerBackdrop.classList.remove('opacity-0');
-                    drawerBackdrop.classList.add('opacity-100');
-                    drawerPanel.classList.remove('translate-x-full');
-                    drawerPanel.classList.add('translate-x-0');
-                    closeDrawerBtn?.focus();
+                    if (hasMoreInfoEl) {
+                        if (data.has_more) {
+                            hasMoreInfoEl.classList.remove('hidden');
+                        } else {
+                            hasMoreInfoEl.classList.add('hidden');
+                        }
+                    }
+                })
+                .catch(err => {
+                    if (err.name === 'AbortError') return;
+                    console.error('Failed to load stock movements', err);
+                    movementsContainer.textContent = '';
+                    const errorP = document.createElement('p');
+                    errorP.className = 'text-xs text-rose-500 text-center py-6';
+                    errorP.textContent = 'Riwayat stok tidak dapat dimuat.';
+                    movementsContainer.appendChild(errorP);
+                    if (hasMoreInfoEl) hasMoreInfoEl.classList.add('hidden');
                 });
-
-                document.addEventListener('keydown', handleStockDrawerTrap);
-
-                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
             function closeDrawer() {
                 if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
+
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                    currentAbortController = null;
+                }
 
                 document.removeEventListener('keydown', handleStockDrawerTrap);
 
@@ -387,11 +385,12 @@
                     lastTriggerElement = btn;
                     const rowOrCard = btn.closest('.stock-row, .stock-card');
                     if (rowOrCard) {
+                        const movementsUrl = btn.dataset.movementsUrl || rowOrCard.dataset.movementsUrl;
                         const raw = rowOrCard.getAttribute('data-raw');
-                        if (raw) {
+                        if (raw && movementsUrl) {
                             try {
                                 const data = JSON.parse(raw);
-                                openDrawer(data);
+                                openDrawer(data, movementsUrl);
                             } catch (e) {
                                 console.error('Failed to parse stock data', e);
                             }

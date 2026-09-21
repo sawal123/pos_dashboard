@@ -47,19 +47,9 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 @foreach($items as $item)
                     @php
-                        $st = (float) $item['current_stock'];
-                        $mst = (float) $item['min_stock'];
-                        if ($st < 0) {
-                            $stockStatus = 'negative';
-                        } elseif ($st == 0.0) {
-                            $stockStatus = 'empty';
-                        } elseif ($st <= $mst) {
-                            $stockStatus = 'low';
-                        } else {
-                            $stockStatus = 'safe';
-                        }
+                        $stockStatus = $item['stock_status'] ?? 'safe';
                         $badge = $getStockItemBadge($stockStatus);
-                        $isNegative = $st < 0;
+                        $isNegative = $stockStatus === 'negative';
                     @endphp
                     <tr
                         class="stock-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -68,7 +58,8 @@
                         data-sku="{{ $item['sku'] }}"
                         data-category="{{ $item['category_name'] }}"
                         data-stock-status="{{ $stockStatus }}"
-                        data-raw="{{ json_encode(array_merge($item, ['stock_status' => $stockStatus])) }}"
+                        data-movements-url="{{ route('stock.movements', ['productId' => $item['id']]) }}"
+                        data-raw="{{ json_encode($item) }}"
                     >
                         {{-- 1. Produk --}}
                         <td class="py-3 px-4">
@@ -124,6 +115,7 @@
                         <td class="py-3 px-4 text-right">
                             <button
                                 type="button"
+                                data-movements-url="{{ route('stock.movements', ['productId' => $item['id']]) }}"
                                 class="view-movement-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
                                 Lihat Riwayat

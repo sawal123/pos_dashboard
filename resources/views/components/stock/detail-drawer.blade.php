@@ -73,6 +73,9 @@
                 <div id="stockMovementsContainer" class="space-y-2.5">
                     {{-- Dynamically populated with safe DOM methods --}}
                 </div>
+                <div id="stockMovementsHasMoreInfo" class="hidden text-[11px] text-slate-500 dark:text-slate-400 text-center py-2 font-medium">
+                    Menampilkan 50 pergerakan terbaru.
+                </div>
             </div>
 
         </div>

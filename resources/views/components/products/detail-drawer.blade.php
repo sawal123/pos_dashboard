@@ -141,7 +141,6 @@
             <button
                 type="button"
                 id="drawerEditCatalogBtn"
-                onclick="showToast('info', 'Fitur pengelolaan akan tersedia setelah integrasi data.')"
                 class="flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-h-[42px]"
             >
                 <i data-lucide="pencil" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
