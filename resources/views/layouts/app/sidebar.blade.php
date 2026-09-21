@@ -80,7 +80,7 @@
                 });
             }
 
-            // ========== SIDEBAR MANAGEMENT ==========
+            // ========== SIDEBAR MANAGEMENT & PERSISTENCE ==========
             const sidebar = document.getElementById('sidebar');
             const mobileBackdrop = document.getElementById('mobileBackdrop');
             const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -88,34 +88,86 @@
             const desktopCollapseBtn = document.getElementById('desktopCollapseBtn');
             const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
             const collapseIcon = document.getElementById('collapseIcon');
+            const collapseLabel = document.getElementById('collapseLabel');
             const mainWrapper = document.getElementById('mainWrapper');
 
+            function getStoredSidebarCollapse() {
+                return localStorage.getItem('nexa-sidebar-collapsed') === 'true';
+            }
+
+            function applyDesktopCollapseUI(collapsed) {
+                if (!sidebar || !mainWrapper) return;
+                if (collapsed) {
+                    sidebar.classList.add('sidebar-collapsed', 'w-20');
+                    sidebar.classList.remove('w-72');
+                    mainWrapper.classList.add('md:ml-20');
+                    mainWrapper.classList.remove('md:ml-72');
+                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-right');
+                    if (collapseLabel) collapseLabel.textContent = 'Bentangkan';
+                    if (collapseSidebarBtn) {
+                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Bentangkan Sidebar');
+                        collapseSidebarBtn.setAttribute('aria-expanded', 'false');
+                    }
+                    if (desktopCollapseBtn) {
+                        desktopCollapseBtn.setAttribute('data-tooltip', 'Bentangkan Sidebar');
+                        desktopCollapseBtn.setAttribute('aria-expanded', 'false');
+                    }
+                } else {
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-72');
+                    mainWrapper.classList.remove('md:ml-20');
+                    mainWrapper.classList.add('md:ml-72');
+                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-left');
+                    if (collapseLabel) collapseLabel.textContent = 'Ciutkan';
+                    if (collapseSidebarBtn) {
+                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Ciutkan Sidebar');
+                        collapseSidebarBtn.setAttribute('aria-expanded', 'true');
+                    }
+                    if (desktopCollapseBtn) {
+                        desktopCollapseBtn.setAttribute('data-tooltip', 'Ciutkan Sidebar');
+                        desktopCollapseBtn.setAttribute('aria-expanded', 'true');
+                    }
+                }
+                initIcons();
+            }
+
+            function applySidebarStateForViewport() {
+                if (!sidebar || !mainWrapper) return;
+                if (window.innerWidth < 768) {
+                    // Mobile: Always full width, never collapsed in drawer, DO NOT touch localStorage
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-72');
+                    mainWrapper.classList.remove('md:ml-20');
+                    mainWrapper.classList.add('md:ml-72');
+                } else {
+                    // Desktop: Restore preference from localStorage
+                    const shouldCollapse = getStoredSidebarCollapse();
+                    applyDesktopCollapseUI(shouldCollapse);
+                }
+            }
+
+            function toggleDesktopCollapse() {
+                if (window.innerWidth < 768) return;
+                const willCollapse = !sidebar.classList.contains('sidebar-collapsed');
+                localStorage.setItem('nexa-sidebar-collapsed', willCollapse ? 'true' : 'false');
+                applyDesktopCollapseUI(willCollapse);
+            }
+
             function openMobileSidebar() {
+                // Ensure mobile drawer is always w-72 and never collapsed
+                sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                sidebar.classList.add('w-72');
                 sidebar.classList.remove('-translate-x-full');
                 mobileBackdrop.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
+                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'true');
             }
 
             function closeMobileSidebar() {
                 sidebar.classList.add('-translate-x-full');
                 mobileBackdrop.classList.add('hidden');
                 document.body.style.overflow = '';
-            }
-
-            function toggleDesktopCollapse() {
-                sidebar.classList.toggle('sidebar-collapsed');
-                sidebar.classList.toggle('w-72');
-                sidebar.classList.toggle('w-20');
-                mainWrapper.classList.toggle('md:ml-72');
-                mainWrapper.classList.toggle('md:ml-20');
-                if (collapseIcon) {
-                    if (sidebar.classList.contains('sidebar-collapsed')) {
-                        collapseIcon.setAttribute('data-lucide', 'chevrons-right');
-                    } else {
-                        collapseIcon.setAttribute('data-lucide', 'chevrons-left');
-                    }
-                    initIcons();
-                }
+                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'false');
             }
 
             if (hamburgerBtn) hamburgerBtn.addEventListener('click', openMobileSidebar);
@@ -124,46 +176,130 @@
             if (desktopCollapseBtn) desktopCollapseBtn.addEventListener('click', toggleDesktopCollapse);
             if (collapseSidebarBtn) collapseSidebarBtn.addEventListener('click', toggleDesktopCollapse);
 
+            // Apply initial viewport state
+            applySidebarStateForViewport();
+
+            // Window resize adjustment
+            window.addEventListener('resize', () => {
+                applySidebarStateForViewport();
+                if (window.innerWidth >= 768) {
+                    if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                        closeMobileSidebar();
+                    }
+                }
+            });
+
+            // ========== FLOATING TOOLTIP FOR COLLAPSED SIDEBAR ==========
+            let floatingTooltip = document.getElementById('sidebarFloatingTooltip');
+            if (!floatingTooltip) {
+                floatingTooltip = document.createElement('div');
+                floatingTooltip.id = 'sidebarFloatingTooltip';
+                floatingTooltip.className = 'fixed z-[100] pointer-events-none px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-900 dark:bg-slate-800 border border-slate-700/80 shadow-xl opacity-0 transition-opacity duration-150 whitespace-nowrap';
+                document.body.appendChild(floatingTooltip);
+            }
+
+            function showFloatingTooltip(el) {
+                if (window.innerWidth < 768) return;
+                const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                // Only show floating tooltip when sidebar is collapsed (or for collapse button itself)
+                if (!isCollapsed && el.id !== 'collapseSidebarBtn') return;
+                const text = el.getAttribute('data-tooltip-right');
+                if (!text) return;
+                const rect = el.getBoundingClientRect();
+                floatingTooltip.textContent = text;
+                floatingTooltip.style.left = `${rect.right + 12}px`;
+                floatingTooltip.style.top = `${rect.top + rect.height / 2}px`;
+                floatingTooltip.style.transform = 'translateY(-50%)';
+                floatingTooltip.classList.remove('opacity-0');
+                floatingTooltip.classList.add('opacity-100');
+            }
+
+            function hideFloatingTooltip() {
+                if (floatingTooltip) {
+                    floatingTooltip.classList.remove('opacity-100');
+                    floatingTooltip.classList.add('opacity-0');
+                }
+            }
+
+            document.querySelectorAll('#sidebar [data-tooltip-right]').forEach(el => {
+                el.addEventListener('mouseenter', () => showFloatingTooltip(el));
+                el.addEventListener('mouseleave', hideFloatingTooltip);
+                el.addEventListener('focus', () => showFloatingTooltip(el));
+                el.addEventListener('blur', hideFloatingTooltip);
+            });
+
+            // ========== SIDEBAR ROADMAP ITEM PLACEHOLDER ==========
             document.querySelectorAll('.sidebar-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    if (window.innerWidth < 768) closeMobileSidebar();
+                const hasRoute = item.getAttribute('data-has-route') === 'true';
+                const label = item.getAttribute('data-nav-label') || 'Modul';
+
+                item.addEventListener('click', (e) => {
+                    if (window.innerWidth < 768) {
+                        closeMobileSidebar();
+                    }
+                    if (!hasRoute) {
+                        e.preventDefault();
+                        showToast('info', `Modul ${label} akan tersedia pada pembaruan berikutnya.`);
+                    }
                 });
             });
 
-            // ========== DROPDOWN MANAGEMENT ==========
+            // ========== DROPDOWN MANAGEMENT & ARIA STATE ==========
             const profileDropdownBtn = document.getElementById('profileDropdownBtn');
             const profileDropdown = document.getElementById('profileDropdown');
             const notificationBtn = document.getElementById('notificationBtn');
             const notificationDropdown = document.getElementById('notificationDropdown');
 
-            function toggleDropdown(dropdown) {
-                dropdown.classList.toggle('dropdown-hidden');
+            function closeDropdown(dropdown, btn) {
+                if (dropdown && !dropdown.classList.contains('dropdown-hidden')) {
+                    dropdown.classList.add('dropdown-hidden');
+                }
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            function openDropdown(dropdown, btn) {
+                if (dropdown) {
+                    dropdown.classList.remove('dropdown-hidden');
+                }
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'true');
+                }
             }
 
             function closeAllDropdowns(exceptDropdown) {
-                const allDropdowns = [profileDropdown, notificationDropdown];
-                allDropdowns.forEach(d => {
-                    if (d && d !== exceptDropdown && !d.classList.contains('dropdown-hidden')) {
-                        d.classList.add('dropdown-hidden');
+                if (profileDropdown !== exceptDropdown) {
+                    closeDropdown(profileDropdown, profileDropdownBtn);
+                }
+                if (notificationDropdown !== exceptDropdown) {
+                    closeDropdown(notificationDropdown, notificationBtn);
+                }
+            }
+
+            if (profileDropdownBtn && profileDropdown) {
+                profileDropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const willOpen = profileDropdown.classList.contains('dropdown-hidden');
+                    closeAllDropdowns(profileDropdown);
+                    if (willOpen) {
+                        openDropdown(profileDropdown, profileDropdownBtn);
+                    } else {
+                        closeDropdown(profileDropdown, profileDropdownBtn);
                     }
                 });
             }
 
-            if (profileDropdownBtn) {
-                profileDropdownBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    closeAllDropdowns(profileDropdown);
-                    toggleDropdown(profileDropdown);
-                    profileDropdownBtn.setAttribute('aria-expanded', !profileDropdown.classList.contains('dropdown-hidden'));
-                });
-            }
-
-            if (notificationBtn) {
+            if (notificationBtn && notificationDropdown) {
                 notificationBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const willOpen = notificationDropdown.classList.contains('dropdown-hidden');
                     closeAllDropdowns(notificationDropdown);
-                    toggleDropdown(notificationDropdown);
-                    notificationBtn.setAttribute('aria-expanded', !notificationDropdown.classList.contains('dropdown-hidden'));
+                    if (willOpen) {
+                        openDropdown(notificationDropdown, notificationBtn);
+                    } else {
+                        closeDropdown(notificationDropdown, notificationBtn);
+                    }
                 });
             }
 
@@ -243,6 +379,10 @@
 
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
+                    if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                        closeMobileSidebar();
+                    }
+                    hideFloatingTooltip();
                     const addProductModal = document.getElementById('addProductModal');
                     const deleteModal = document.getElementById('deleteModal');
                     if (addProductModal && !addProductModal.classList.contains('hidden')) closeModal(addProductModal);
@@ -322,9 +462,14 @@
             });
 
             // ========== MANAGE PLAN BUTTON ==========
+            const managePlanHandler = () => showToast('info', 'Halaman kelola paket langganan akan segera tersedia.');
             const managePlanBtn = document.getElementById('managePlanBtn');
+            const managePlanMiniBtn = document.getElementById('managePlanMiniBtn');
             if (managePlanBtn) {
-                managePlanBtn.addEventListener('click', () => showToast('info', 'Subscription plan management is not available yet.'));
+                managePlanBtn.addEventListener('click', managePlanHandler);
+            }
+            if (managePlanMiniBtn) {
+                managePlanMiniBtn.addEventListener('click', managePlanHandler);
             }
 
             // ========== ACTION DROPDOWNS ==========

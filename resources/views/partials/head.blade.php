@@ -49,9 +49,8 @@
     .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
     [data-tooltip] { position: relative; }
-    [data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 0.4rem 0.7rem; background: #1e293b; color: #fff; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; white-space: nowrap; z-index: 200; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-    .dark [data-tooltip]:hover::after { background: #334155; }
-    [data-tooltip-right]:hover::after { content: attr(data-tooltip-right); position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); padding: 0.4rem 0.7rem; background: #1e293b; color: #fff; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; white-space: nowrap; z-index: 200; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+    [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 0.4rem 0.7rem; background: #0f172a; color: #fff; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; white-space: nowrap; z-index: 200; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
+    .dark [data-tooltip]:hover::after, .dark [data-tooltip]:focus-visible::after { background: #1e293b; border: 1px solid #334155; }
 
     .modal-backdrop { transition: opacity 0.25s ease; }
     .modal-panel { transition: transform 0.25s ease, opacity 0.25s ease; }
@@ -70,11 +69,16 @@
     .dark .skeleton { background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; }
     @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-    .sidebar-transition { transition: width 0.3s ease, transform 0.3s ease; }
-    .sidebar-collapsed .sidebar-label, .sidebar-collapsed .sidebar-section-label, .sidebar-collapsed .sidebar-cloud-card { display: none; }
-    .sidebar-collapsed .sidebar-item { justify-content: center; padding: 0.75rem; }
-    .sidebar-collapsed .sidebar-item span { display: none; }
-    .sidebar-collapsed .sidebar-logo-text { display: none; }
+    .sidebar-transition { transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
+    .sidebar-collapsed .sidebar-label,
+    .sidebar-collapsed .sidebar-section-label,
+    .sidebar-collapsed .sidebar-cloud-card,
+    .sidebar-collapsed .sidebar-logo-text,
+    .sidebar-collapsed .sidebar-item-label,
+    .sidebar-collapsed .sidebar-item-badge,
+    .sidebar-collapsed .sidebar-active-indicator { display: none !important; }
+    .sidebar-collapsed .sidebar-cloud-mini { display: flex !important; }
+    .sidebar-collapsed .sidebar-item { justify-content: center; padding: 0.625rem; width: 2.75rem; height: 2.75rem; margin-left: auto; margin-right: auto; }
 
     .table-row:hover { background: #f8fafc; }
     .dark .table-row:hover { background: #1e293b; }
