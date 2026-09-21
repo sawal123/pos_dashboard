@@ -90,6 +90,7 @@
             <x-ui.sidebar-item
                 icon="receipt"
                 label="Transaksi"
+                route="transactions.index"
             />
             <x-ui.sidebar-item
                 icon="package"
