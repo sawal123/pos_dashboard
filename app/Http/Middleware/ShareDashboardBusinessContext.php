@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Services\Dashboard\DashboardBusinessContext;
 use Closure;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
 use Symfony\Component\HttpFoundation\Response;
@@ -30,8 +31,11 @@ class ShareDashboardBusinessContext
             $cloudAccess = $this->businessContext->hasCloudAccess($currentBusiness);
 
             $businessRole = null;
-            if ($currentBusiness) {
-                $businessRole = $currentBusiness->pivot?->role;
+            if ($currentBusiness && $currentBusiness->relationLoaded('pivot')) {
+                $pivot = $currentBusiness->getRelation('pivot');
+                if ($pivot instanceof Pivot) {
+                    $businessRole = $pivot->getAttribute('role');
+                }
             }
 
             // Expose to request attributes for downstream controllers

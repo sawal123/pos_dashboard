@@ -272,9 +272,15 @@ class DashboardBusinessContextTest extends TestCase
         $state = $context->subscriptionState($context->current($user));
 
         $this->assertEquals('subscriber', $state);
-        // Sidebar renders subscriber badge
+        // Sidebar renders subscriber badge without animate-pulse and with neutral cloud access wording
         $response->assertSee('Paket Cloud');
-        $response->assertSee('Sinkronisasi otomatis aktif');
+        $response->assertSee('Akses sinkronisasi Cloud aktif');
+        $response->assertDontSee('Sinkronisasi otomatis aktif');
+
+        $sidebarView = $this->blade('<x-ui.sidebar subscription="subscriber" />');
+        $sidebarView->assertDontSee('animate-pulse');
+        $sidebarView->assertSee('Akses sinkronisasi Cloud aktif');
+        $sidebarView->assertDontSee('Sinkronisasi otomatis aktif');
     }
 
     public function test_free_subscription_maps_to_free(): void
@@ -298,7 +304,8 @@ class DashboardBusinessContextTest extends TestCase
         $state = $context->subscriptionState($context->current($user));
 
         $this->assertEquals('free', $state);
-        $response->assertSee('Fitur sinkronisasi terbatas');
+        $response->assertSee('Mode lokal tanpa sinkronisasi Cloud');
+        $response->assertDontSee('Fitur sinkronisasi terbatas');
         $response->assertSee('Tingkatkan Paket');
     }
 
@@ -325,6 +332,7 @@ class DashboardBusinessContextTest extends TestCase
 
         $this->assertNotEquals('subscriber', $state);
         $this->assertEquals('unknown', $state);
+        $response->assertDontSee('Akses sinkronisasi Cloud aktif');
         $response->assertDontSee('Sinkronisasi otomatis aktif');
     }
 

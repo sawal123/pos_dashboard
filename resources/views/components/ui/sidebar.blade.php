@@ -7,9 +7,9 @@
     $subConfig = match($subscription) {
         'subscriber' => [
             'badgeClass' => 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400',
-            'dotClass' => 'bg-emerald-500 animate-pulse',
+            'dotClass' => 'bg-emerald-500',
             'badgeText' => 'Aktif',
-            'description' => 'Sinkronisasi otomatis aktif',
+            'description' => 'Akses sinkronisasi Cloud aktif',
             'buttonText' => 'Kelola Paket',
             'miniDotClass' => 'bg-emerald-500 ring-1 ring-white dark:ring-slate-900',
             'miniTooltip' => 'Paket Cloud: Subscriber Aktif',
@@ -19,7 +19,7 @@
             'badgeClass' => 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400',
             'dotClass' => 'bg-slate-400',
             'badgeText' => 'Gratis',
-            'description' => 'Fitur sinkronisasi terbatas',
+            'description' => 'Mode lokal tanpa sinkronisasi Cloud',
             'buttonText' => 'Tingkatkan Paket',
             'miniDotClass' => 'bg-slate-400 ring-1 ring-white dark:ring-slate-900',
             'miniTooltip' => 'Paket Cloud: Versi Gratis',
