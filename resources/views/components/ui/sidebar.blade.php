@@ -1,12 +1,49 @@
 @props([
     'businessContext' => 'cafe', // 'cafe', 'laundry', 'grosir'
+    'subscription' => 'unknown', // 'subscriber', 'free', 'unknown'
 ])
+
+@php
+    $subConfig = match($subscription) {
+        'subscriber' => [
+            'badgeClass' => 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400',
+            'dotClass' => 'bg-emerald-500 animate-pulse',
+            'badgeText' => 'Aktif',
+            'description' => 'Sinkronisasi otomatis aktif',
+            'buttonText' => 'Kelola Paket',
+            'miniDotClass' => 'bg-emerald-500 ring-1 ring-white dark:ring-slate-900',
+            'miniTooltip' => 'Paket Cloud: Subscriber Aktif',
+            'miniAria' => 'Status Paket Cloud: Subscriber Aktif',
+        ],
+        'free' => [
+            'badgeClass' => 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400',
+            'dotClass' => 'bg-slate-400',
+            'badgeText' => 'Gratis',
+            'description' => 'Fitur sinkronisasi terbatas',
+            'buttonText' => 'Tingkatkan Paket',
+            'miniDotClass' => 'bg-slate-400 ring-1 ring-white dark:ring-slate-900',
+            'miniTooltip' => 'Paket Cloud: Versi Gratis',
+            'miniAria' => 'Status Paket Cloud: Versi Gratis',
+        ],
+        default => [ // 'unknown'
+            'badgeClass' => 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400',
+            'dotClass' => 'bg-slate-400 dark:bg-slate-500',
+            'badgeText' => 'Standar',
+            'description' => 'Status belum terhubung',
+            'buttonText' => 'Kelola Paket',
+            'miniDotClass' => 'bg-slate-400 ring-1 ring-white dark:ring-slate-900',
+            'miniTooltip' => 'Paket Cloud: Belum Terhubung',
+            'miniAria' => 'Status Paket Cloud: Belum Terhubung',
+        ],
+    };
+@endphp
 
 {{-- ==================== SIDEBAR COMPONENT ==================== --}}
 <aside
     id="sidebar"
     class="fixed top-0 left-0 z-50 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200/90 dark:border-slate-800 sidebar-transition flex flex-col -translate-x-full md:translate-x-0 select-none"
     aria-label="Navigasi Utama"
+    data-business-context="{{ $businessContext }}"
 >
     {{-- Sidebar Header / Brand Logo --}}
     <div class="flex items-center justify-between h-16 px-4 sm:px-5 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
@@ -44,6 +81,12 @@
 
         {{-- 2. OPERASIONAL --}}
         <x-ui.sidebar-section title="Operasional">
+            @if($businessContext === 'laundry')
+                <x-ui.sidebar-item
+                    icon="washing-machine"
+                    label="Pesanan Laundry"
+                />
+            @endif
             <x-ui.sidebar-item
                 icon="receipt"
                 label="Transaksi"
@@ -122,20 +165,20 @@
                     <i data-lucide="cloud" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400"></i>
                     <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paket Cloud</span>
                 </div>
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold">
-                    <span class="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Aktif
+                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold {{ $subConfig['badgeClass'] }}">
+                    <span class="w-1 h-1 rounded-full {{ $subConfig['dotClass'] }}"></span>
+                    {{ $subConfig['badgeText'] }}
                 </span>
             </div>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                Sinkronisasi otomatis siap
+                {{ $subConfig['description'] }}
             </p>
             <button
                 type="button"
                 id="managePlanBtn"
                 class="mt-2 w-full py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
-                Kelola Paket
+                {{ $subConfig['buttonText'] }}
             </button>
         </div>
 
@@ -145,11 +188,11 @@
                 type="button"
                 id="managePlanMiniBtn"
                 class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                data-tooltip-right="Paket Cloud: Subscriber Aktif"
-                aria-label="Status Paket Cloud: Subscriber Aktif"
+                data-tooltip-right="{{ $subConfig['miniTooltip'] }}"
+                aria-label="{{ $subConfig['miniAria'] }}"
             >
                 <i data-lucide="cloud" class="w-4 h-4"></i>
-                <span class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-emerald-500 ring-1 ring-white dark:ring-slate-900"></span>
+                <span class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full {{ $subConfig['miniDotClass'] }}"></span>
             </button>
         </div>
     </div>

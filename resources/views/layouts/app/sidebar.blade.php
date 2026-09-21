@@ -95,7 +95,7 @@
                 return localStorage.getItem('nexa-sidebar-collapsed') === 'true';
             }
 
-            function setSidebarCollapsed(collapsed) {
+            function applyDesktopCollapseUI(collapsed) {
                 if (!sidebar || !mainWrapper) return;
                 if (collapsed) {
                     sidebar.classList.add('sidebar-collapsed', 'w-20');
@@ -128,16 +128,35 @@
                         desktopCollapseBtn.setAttribute('aria-expanded', 'true');
                     }
                 }
-                localStorage.setItem('nexa-sidebar-collapsed', collapsed ? 'true' : 'false');
                 initIcons();
             }
 
+            function applySidebarStateForViewport() {
+                if (!sidebar || !mainWrapper) return;
+                if (window.innerWidth < 768) {
+                    // Mobile: Always full width, never collapsed in drawer, DO NOT touch localStorage
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-72');
+                    mainWrapper.classList.remove('md:ml-20');
+                    mainWrapper.classList.add('md:ml-72');
+                } else {
+                    // Desktop: Restore preference from localStorage
+                    const shouldCollapse = getStoredSidebarCollapse();
+                    applyDesktopCollapseUI(shouldCollapse);
+                }
+            }
+
             function toggleDesktopCollapse() {
-                const isCurrentlyCollapsed = sidebar.classList.contains('sidebar-collapsed');
-                setSidebarCollapsed(!isCurrentlyCollapsed);
+                if (window.innerWidth < 768) return;
+                const willCollapse = !sidebar.classList.contains('sidebar-collapsed');
+                localStorage.setItem('nexa-sidebar-collapsed', willCollapse ? 'true' : 'false');
+                applyDesktopCollapseUI(willCollapse);
             }
 
             function openMobileSidebar() {
+                // Ensure mobile drawer is always w-72 and never collapsed
+                sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                sidebar.classList.add('w-72');
                 sidebar.classList.remove('-translate-x-full');
                 mobileBackdrop.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
@@ -157,19 +176,15 @@
             if (desktopCollapseBtn) desktopCollapseBtn.addEventListener('click', toggleDesktopCollapse);
             if (collapseSidebarBtn) collapseSidebarBtn.addEventListener('click', toggleDesktopCollapse);
 
-            // Apply stored collapse preference on desktop initialization
-            if (window.innerWidth >= 768 && getStoredSidebarCollapse()) {
-                setSidebarCollapsed(true);
-            }
+            // Apply initial viewport state
+            applySidebarStateForViewport();
 
             // Window resize adjustment
             window.addEventListener('resize', () => {
+                applySidebarStateForViewport();
                 if (window.innerWidth >= 768) {
                     if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
                         closeMobileSidebar();
-                    }
-                    if (getStoredSidebarCollapse()) {
-                        setSidebarCollapsed(true);
                     }
                 }
             });
@@ -183,8 +198,13 @@
                 document.body.appendChild(floatingTooltip);
             }
 
-            function showFloatingTooltip(el, text) {
-                if (!sidebar.classList.contains('sidebar-collapsed') || window.innerWidth < 768) return;
+            function showFloatingTooltip(el) {
+                if (window.innerWidth < 768) return;
+                const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                // Only show floating tooltip when sidebar is collapsed (or for collapse button itself)
+                if (!isCollapsed && el.id !== 'collapseSidebarBtn') return;
+                const text = el.getAttribute('data-tooltip-right');
+                if (!text) return;
                 const rect = el.getBoundingClientRect();
                 floatingTooltip.textContent = text;
                 floatingTooltip.style.left = `${rect.right + 12}px`;
@@ -202,10 +222,9 @@
             }
 
             document.querySelectorAll('#sidebar [data-tooltip-right]').forEach(el => {
-                const text = el.getAttribute('data-tooltip-right');
-                el.addEventListener('mouseenter', () => showFloatingTooltip(el, text));
+                el.addEventListener('mouseenter', () => showFloatingTooltip(el));
                 el.addEventListener('mouseleave', hideFloatingTooltip);
-                el.addEventListener('focus', () => showFloatingTooltip(el, text));
+                el.addEventListener('focus', () => showFloatingTooltip(el));
                 el.addEventListener('blur', hideFloatingTooltip);
             });
 
@@ -225,40 +244,62 @@
                 });
             });
 
-            // ========== DROPDOWN MANAGEMENT ==========
+            // ========== DROPDOWN MANAGEMENT & ARIA STATE ==========
             const profileDropdownBtn = document.getElementById('profileDropdownBtn');
             const profileDropdown = document.getElementById('profileDropdown');
             const notificationBtn = document.getElementById('notificationBtn');
             const notificationDropdown = document.getElementById('notificationDropdown');
 
-            function toggleDropdown(dropdown) {
-                dropdown.classList.toggle('dropdown-hidden');
+            function closeDropdown(dropdown, btn) {
+                if (dropdown && !dropdown.classList.contains('dropdown-hidden')) {
+                    dropdown.classList.add('dropdown-hidden');
+                }
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            function openDropdown(dropdown, btn) {
+                if (dropdown) {
+                    dropdown.classList.remove('dropdown-hidden');
+                }
+                if (btn) {
+                    btn.setAttribute('aria-expanded', 'true');
+                }
             }
 
             function closeAllDropdowns(exceptDropdown) {
-                const allDropdowns = [profileDropdown, notificationDropdown];
-                allDropdowns.forEach(d => {
-                    if (d && d !== exceptDropdown && !d.classList.contains('dropdown-hidden')) {
-                        d.classList.add('dropdown-hidden');
+                if (profileDropdown !== exceptDropdown) {
+                    closeDropdown(profileDropdown, profileDropdownBtn);
+                }
+                if (notificationDropdown !== exceptDropdown) {
+                    closeDropdown(notificationDropdown, notificationBtn);
+                }
+            }
+
+            if (profileDropdownBtn && profileDropdown) {
+                profileDropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const willOpen = profileDropdown.classList.contains('dropdown-hidden');
+                    closeAllDropdowns(profileDropdown);
+                    if (willOpen) {
+                        openDropdown(profileDropdown, profileDropdownBtn);
+                    } else {
+                        closeDropdown(profileDropdown, profileDropdownBtn);
                     }
                 });
             }
 
-            if (profileDropdownBtn) {
-                profileDropdownBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    closeAllDropdowns(profileDropdown);
-                    toggleDropdown(profileDropdown);
-                    profileDropdownBtn.setAttribute('aria-expanded', !profileDropdown.classList.contains('dropdown-hidden'));
-                });
-            }
-
-            if (notificationBtn) {
+            if (notificationBtn && notificationDropdown) {
                 notificationBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    const willOpen = notificationDropdown.classList.contains('dropdown-hidden');
                     closeAllDropdowns(notificationDropdown);
-                    toggleDropdown(notificationDropdown);
-                    notificationBtn.setAttribute('aria-expanded', !notificationDropdown.classList.contains('dropdown-hidden'));
+                    if (willOpen) {
+                        openDropdown(notificationDropdown, notificationBtn);
+                    } else {
+                        closeDropdown(notificationDropdown, notificationBtn);
+                    }
                 });
             }
 

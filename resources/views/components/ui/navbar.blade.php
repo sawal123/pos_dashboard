@@ -1,7 +1,31 @@
 @props([
     'title' => null,
     'breadcrumbItems' => [],
+    'cloudStatus' => 'unknown', // 'online', 'offline', 'unknown'
 ])
+
+@php
+    $cloudConfig = match($cloudStatus) {
+        'online' => [
+            'pill' => 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/70 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400',
+            'dot' => 'bg-emerald-500 animate-pulse',
+            'label' => 'Online',
+            'tooltip' => 'Koneksi Cloud: Terhubung',
+        ],
+        'offline' => [
+            'pill' => 'bg-amber-50 dark:bg-amber-950/50 border-amber-200/70 dark:border-amber-800/50 text-amber-700 dark:text-amber-400',
+            'dot' => 'bg-amber-500',
+            'label' => 'Offline',
+            'tooltip' => 'Koneksi Cloud: Terputus',
+        ],
+        default => [ // 'unknown'
+            'pill' => 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400',
+            'dot' => 'bg-slate-400 dark:bg-slate-500',
+            'label' => 'Status Cloud',
+            'tooltip' => 'Status koneksi cloud akan tersedia setelah integrasi data',
+        ],
+    };
+@endphp
 
 {{-- ==================== NAVBAR / TOPBAR ==================== --}}
 <header id="navbar" class="sticky top-0 z-30 h-16 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 transition-colors duration-200">
@@ -13,6 +37,7 @@
             id="hamburgerBtn"
             class="md:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             aria-label="Buka navigasi sidebar"
+            aria-expanded="false"
         >
             <i data-lucide="menu" class="w-5 h-5"></i>
         </button>
@@ -23,6 +48,7 @@
             class="hidden md:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             aria-label="Ciutkan atau bentangkan sidebar"
             data-tooltip="Ciutkan Sidebar"
+            aria-expanded="true"
         >
             <i data-lucide="panel-left" class="w-5 h-5"></i>
         </button>
@@ -54,9 +80,13 @@
     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
 
         {{-- Cloud Connection Status Pill --}}
-        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/70 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
-            <span class="hidden sm:inline">Online</span>
+        <span
+            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs font-semibold {{ $cloudConfig['pill'] }}"
+            data-tooltip="{{ $cloudConfig['tooltip'] }}"
+            aria-label="{{ $cloudConfig['tooltip'] }}"
+        >
+            <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $cloudConfig['dot'] }}"></span>
+            <span class="hidden sm:inline">{{ $cloudConfig['label'] }}</span>
         </span>
 
         {{-- Notification Dropdown --}}
@@ -71,7 +101,6 @@
                 data-tooltip="Notifikasi"
             >
                 <i data-lucide="bell" class="w-4 h-4 sm:w-5 sm:h-5"></i>
-                <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900"></span>
             </button>
 
             {{-- Notifications Panel --}}
@@ -85,46 +114,30 @@
                     <h3 class="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">Notifikasi</h3>
                     <button
                         type="button"
-                        onclick="showToast('info', 'Semua notifikasi ditandai dibaca.')"
-                        class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                        disabled
+                        class="text-[11px] text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed"
+                        title="Belum ada notifikasi yang dapat ditandai"
                     >
                         Tandai dibaca
                     </button>
                 </div>
 
-                <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700/60 text-xs">
-                    <div class="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                        <div class="flex items-start gap-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
-                                <i data-lucide="cloud-check" class="w-4 h-4"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-slate-800 dark:text-slate-200">Sinkronisasi Cloud Berjalan</p>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Semua data register lokal terdata aman.</p>
-                                <span class="text-[10px] text-slate-400 mt-1 block">5 menit lalu</span>
-                            </div>
-                        </div>
+                {{-- Neutral Empty State --}}
+                <div class="py-8 px-4 text-center">
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/70 text-slate-400 dark:text-slate-500 flex items-center justify-center mx-auto mb-2.5">
+                        <i data-lucide="bell-off" class="w-5 h-5"></i>
                     </div>
-
-                    <div class="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
-                        <div class="flex items-start gap-2.5">
-                            <div class="w-7 h-7 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                                <i data-lucide="boxes" class="w-4 h-4"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-slate-800 dark:text-slate-200">Stok Bahan Menipis</p>
-                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Biji Kopi Arabika tersisa 3 pack di bawah minimum.</p>
-                                <span class="text-[10px] text-slate-400 mt-1 block">20 menit lalu</span>
-                            </div>
-                        </div>
-                    </div>
+                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">Belum Ada Notifikasi</p>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1 max-w-[230px] mx-auto leading-normal">
+                        Notifikasi operasional akan muncul secara otomatis setelah integrasi data aktif.
+                    </p>
                 </div>
 
                 <div class="p-2.5 border-t border-slate-100 dark:border-slate-700/80 text-center bg-slate-50/50 dark:bg-slate-800/50">
                     <button
                         type="button"
-                        onclick="showToast('info', 'Pusat notifikasi lengkap akan segera tersedia.')"
-                        class="text-xs text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                        onclick="showToast('info', 'Pusat notifikasi akan tersedia setelah integrasi data.')"
+                        class="text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-semibold transition-colors"
                     >
                         Lihat Semua Notifikasi
                     </button>

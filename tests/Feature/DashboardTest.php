@@ -29,6 +29,10 @@ class DashboardTest extends TestCase
         $response->assertSee('Operasional');
         $response->assertSee('Produk &amp; Layanan', false);
         $response->assertSee('Paket Cloud');
+        $response->assertSee('Status Cloud');
+        $response->assertSee('Belum Ada Notifikasi');
+        $response->assertDontSee('Subscriber Aktif');
+        $response->assertDontSee('Pesanan Laundry');
         $response->assertDontSee('sidebar-item-label truncate flex-1 tracking-tight">Categories', false);
     }
 
