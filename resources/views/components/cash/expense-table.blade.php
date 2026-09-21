@@ -24,18 +24,15 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 @foreach($expenses as $expense)
                     @php
-                        $statusLabel = match($expense['status']) {
-                            'recorded' => 'Tercatat',
-                            default => ucfirst($expense['status'] ?? '-'),
-                        };
+                        $statusRaw = $expense['status_raw'] ?? $expense['status'] ?? 'recorded';
+                        $statusLabel = $expense['status'] ?? ($statusRaw === 'recorded' ? 'Tercatat' : ucwords(str_replace('_', ' ', $statusRaw)));
                     @endphp
                     <tr
                         class="expense-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                         data-id="{{ $expense['id'] }}"
-                        data-category="{{ $expense['category'] ?? '' }}"
+                        data-category="{{ $expense['category_raw'] ?? $expense['category'] ?? '' }}"
                         data-outlet="{{ $expense['outlet_name'] }}"
                         data-date-raw="{{ $expense['occurred_at_raw'] }}"
-                        data-search="{{ strtolower($expense['description'] . ' ' . ($expense['category'] ?? '') . ' ' . ($expense['notes'] ?? '') . ' ' . $expense['outlet_name']) }}"
                         data-raw="{{ json_encode($expense) }}"
                     >
                         {{-- 1. Tanggal & Waktu --}}
@@ -63,7 +60,7 @@
                         {{-- 3. Kategori --}}
                         <td class="py-3 px-4">
                             <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                                {{ $expense['category'] ?? 'Tanpa Kategori' }}
+                                {{ $expense['category'] }}
                             </span>
                         </td>
 
@@ -77,7 +74,7 @@
                         {{-- 5. Shift --}}
                         <td class="py-3 px-4">
                             <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-                                {{ $expense['shift_number'] ?? '-' }}
+                                {{ $expense['shift_number'] ?? 'Tanpa Shift' }}
                             </span>
                         </td>
 
@@ -98,9 +95,9 @@
                         <td class="py-3 px-4 text-right">
                             <button
                                 type="button"
-                                class="view-expense-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                class="view-cash-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
-                                Lihat Detail
+                                Detail
                             </button>
                         </td>
                     </tr>

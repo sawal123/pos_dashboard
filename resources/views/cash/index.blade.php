@@ -1,9 +1,3 @@
-@php
-    $loadFixtures = require resource_path('views/cash/fixtures.php');
-    $fixtureData = $loadFixtures();
-    $hasData = !empty($fixtureData['ledgers']) || !empty($fixtureData['expenses']);
-@endphp
-
 <x-layouts::app :title="'Kas & Pengeluaran'">
     <main id="mainContent" data-cash-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
@@ -46,7 +40,7 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-cash.summary-cards :summary="$fixtureData['summary']" />
+        <x-cash.summary-cards :summary="$summary" />
 
         {{-- ==================== 2. TABS & FILTER BAR ==================== --}}
         <div class="space-y-4">
@@ -57,116 +51,96 @@
                     role="tablist"
                     aria-label="Kategori Tab Kas dan Pengeluaran"
                 >
-                    <button
-                        type="button"
+                    <a
+                        href="{{ route('cash.index', array_filter(array_merge($currentFilters, ['tab' => 'ledgers', 'page' => 1]))) }}"
                         id="tabLedgers"
                         role="tab"
-                        aria-selected="true"
+                        aria-selected="{{ $activeTab === 'ledgers' ? 'true' : 'false' }}"
                         aria-controls="panelLedgers"
-                        tabindex="0"
-                        class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap border-indigo-600 text-indigo-600 dark:text-indigo-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
+                        tabindex="{{ $activeTab === 'ledgers' ? '0' : '-1' }}"
+                        class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap {{ $activeTab === 'ledgers' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
                     >
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
                         <span>Pergerakan Kas</span>
-                        <span id="badgeCountLedgers" class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                            {{ count($fixtureData['ledgers']) }}
+                        <span id="badgeCountLedgers" class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $activeTab === 'ledgers' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                            {{ number_format($tabCounts['ledgers'] ?? 0, 0, ',', '.') }}
                         </span>
-                    </button>
+                    </a>
 
-                    <button
-                        type="button"
+                    <a
+                        href="{{ route('cash.index', array_filter(array_merge($currentFilters, ['tab' => 'expenses', 'page' => 1]))) }}"
                         id="tabExpenses"
                         role="tab"
-                        aria-selected="false"
+                        aria-selected="{{ $activeTab === 'expenses' ? 'true' : 'false' }}"
                         aria-controls="panelExpenses"
-                        tabindex="-1"
-                        class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
+                        tabindex="{{ $activeTab === 'expenses' ? '0' : '-1' }}"
+                        class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap {{ $activeTab === 'expenses' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
                     >
                         <i data-lucide="receipt" class="w-4 h-4"></i>
                         <span>Pengeluaran</span>
-                        <span id="badgeCountExpenses" class="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                            {{ count($fixtureData['expenses']) }}
+                        <span id="badgeCountExpenses" class="ml-1 px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $activeTab === 'expenses' ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }}">
+                            {{ number_format($tabCounts['expenses'] ?? 0, 0, ',', '.') }}
                         </span>
-                    </button>
+                    </a>
                 </div>
             </div>
 
             {{-- Filter Bar --}}
             <x-cash.filter-bar
-                :categories="$fixtureData['categories']"
-                :outlets="$fixtureData['outlets']"
+                :activeTab="$activeTab"
+                :categories="$filterOptions['categories'] ?? []"
+                :outlets="$filterOptions['outlets'] ?? []"
+                :currentFilters="$currentFilters"
             />
         </div>
 
-        {{-- ==================== 3. DATA PANELS / EMPTY STATE ==================== --}}
-        {{-- Panel 1: Pergerakan Kas --}}
-        <div id="panelLedgers" role="tabpanel" aria-labelledby="tabLedgers" class="space-y-4">
-            @if(!empty($fixtureData['ledgers']))
-                {{-- Desktop Table View --}}
-                <x-cash.ledger-table :ledgers="$fixtureData['ledgers']" />
+        {{-- ==================== 3. DATA TABLES & CARDS ==================== --}}
+        @if($activeTab === 'ledgers')
+            <div id="panelLedgers" role="tabpanel" aria-labelledby="tabLedgers" class="space-y-4">
+                @if(!$hasAnyLedgers)
+                    <x-cash.empty-state mode="no-data-cash" />
+                @elseif($ledgers->isEmpty())
+                    <x-cash.empty-state mode="no-results-cash" />
+                @else
+                    <x-cash.ledger-table :ledgers="$ledgers" />
+                    <x-cash.mobile-cards :activeTab="'ledgers'" :ledgers="$ledgers" />
 
-                {{-- Mobile Cards View --}}
-                <x-cash.mobile-cards :ledgers="$fixtureData['ledgers']" :expenses="[]" />
+                    @if($ledgers->hasPages())
+                        <div class="pt-2">
+                            {{ $ledgers->links() }}
+                        </div>
+                    @endif
+                @endif
+            </div>
+        @else
+            <div id="panelExpenses" role="tabpanel" aria-labelledby="tabExpenses" class="space-y-4">
+                @if(!$hasAnyExpenses)
+                    <x-cash.empty-state mode="no-data-expense" />
+                @elseif($expenses->isEmpty())
+                    <x-cash.empty-state mode="no-results-expense" />
+                @else
+                    <x-cash.expense-table :expenses="$expenses" />
+                    <x-cash.mobile-cards :activeTab="'expenses'" :expenses="$expenses" />
 
-                {{-- Filter Empty State --}}
-                <x-cash.empty-state mode="no-results-cash" />
-            @else
-                {{-- Production / Non-Local Empty State for Cash Ledgers --}}
-                <x-cash.empty-state mode="no-data-cash" />
-            @endif
-        </div>
-
-        {{-- Panel 2: Pengeluaran --}}
-        <div id="panelExpenses" role="tabpanel" aria-labelledby="tabExpenses" class="space-y-4 hidden">
-            @if(!empty($fixtureData['expenses']))
-                {{-- Desktop Table View --}}
-                <x-cash.expense-table :expenses="$fixtureData['expenses']" />
-
-                {{-- Mobile Cards View --}}
-                <x-cash.mobile-cards :ledgers="[]" :expenses="$fixtureData['expenses']" />
-
-                {{-- Filter Empty State --}}
-                <x-cash.empty-state mode="no-results-expense" />
-            @else
-                {{-- Production / Non-Local Empty State for Expenses --}}
-                <x-cash.empty-state mode="no-data-expense" />
-            @endif
-        </div>
-
-        {{-- ==================== 4. PAGINATION ==================== --}}
-        @if($hasData)
-            <div id="cashPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
-                <div class="text-slate-500 dark:text-slate-400 font-medium">
-                    Menampilkan <span id="cashVisibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['ledgers']) }}</span> data
-                </div>
-                <nav class="flex items-center gap-1" aria-label="Navigasi Halaman Kas">
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        type="button"
-                        class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-current="page"
-                    >
-                        1
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Berikutnya
-                    </button>
-                </nav>
+                    @if($expenses->hasPages())
+                        <div class="pt-2">
+                            {{ $expenses->links() }}
+                        </div>
+                    @endif
+                @endif
             </div>
         @endif
 
-        {{-- ==================== 5. DETAIL DRAWER ==================== --}}
+        {{-- ==================== 4. DETAIL DRAWER ==================== --}}
         <x-cash.detail-drawer />
+
+        {{-- Toast container for placeholder messages --}}
+        <div id="cashActionToast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl text-xs font-semibold">
+                <i data-lucide="info" class="w-4 h-4 text-indigo-400 dark:text-indigo-600"></i>
+                <span id="cashActionToastText">Aksi belum tersedia</span>
+            </div>
+        </div>
 
     </main>
 
@@ -179,454 +153,171 @@
             }
             root.dataset.cashInitialized = 'true';
 
-            let currentTab = 'ledgers'; // 'ledgers' or 'expenses'
-
-            // Tab Elements
-            const tabLedgers = document.getElementById('tabLedgers');
-            const tabExpenses = document.getElementById('tabExpenses');
-            const panelLedgers = document.getElementById('panelLedgers');
-            const panelExpenses = document.getElementById('panelExpenses');
-            const tabs = [tabLedgers, tabExpenses].filter(Boolean);
-
-            // Filter Elements
-            const searchInput = document.getElementById('searchCashInput');
-            const filterDate = document.getElementById('filterCashDate');
-            const filterOutlet = document.getElementById('filterCashOutlet');
-            const filterCashType = document.getElementById('filterCashType');
-            const filterExpenseCategory = document.getElementById('filterExpenseCategory');
-            const wrapperFilterCashType = document.getElementById('wrapperFilterCashType');
-            const wrapperFilterExpenseCategory = document.getElementById('wrapperFilterExpenseCategory');
-            const resetFilterBtn = document.getElementById('resetCashFilterBtn');
-
+            // Controls
+            const dateSelect = document.getElementById('filterCashDate');
             const customDateContainer = document.getElementById('cashCustomDateContainer');
-            const startDateInput = document.getElementById('cashStartDate');
-            const endDateInput = document.getElementById('cashEndDate');
-
-            // Pagination & Count
-            const visibleCountEl = document.getElementById('cashVisibleCount');
-            const paginationEl = document.getElementById('cashPagination');
-
-            // Action Buttons
             const recordCashBtn = document.getElementById('recordCashBtn');
             const addExpenseBtn = document.getElementById('addExpenseBtn');
+            const toastEl = document.getElementById('cashActionToast');
+            const toastTextEl = document.getElementById('cashActionToastText');
+            let toastTimer = null;
 
-            // Drawer Elements
+            function showToast(message) {
+                if (!toastEl || !toastTextEl) return;
+                toastTextEl.textContent = message;
+                toastEl.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+                toastEl.classList.add('translate-y-0', 'opacity-100');
+                if (toastTimer) clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => {
+                    toastEl.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+                    toastEl.classList.remove('translate-y-0', 'opacity-100');
+                }, 3000);
+            }
+
+            if (recordCashBtn) {
+                recordCashBtn.addEventListener('click', () => {
+                    showToast('Catat kas dari dashboard belum tersedia.');
+                });
+            }
+
+            if (addExpenseBtn) {
+                addExpenseBtn.addEventListener('click', () => {
+                    showToast('Tambah pengeluaran dari dashboard belum tersedia.');
+                });
+            }
+
+            if (dateSelect && customDateContainer) {
+                dateSelect.addEventListener('change', () => {
+                    if (dateSelect.value === 'custom') {
+                        customDateContainer.classList.remove('hidden');
+                    } else {
+                        customDateContainer.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Drawer elements
             const drawerWrapper = document.getElementById('cashDrawerWrapper');
             const drawerBackdrop = document.getElementById('cashDrawerBackdrop');
             const drawerPanel = document.getElementById('cashDrawerPanel');
             const closeDrawerBtn = document.getElementById('closeCashDrawerBtn');
             const closeDrawerFooterBtn = document.getElementById('closeCashDrawerFooterBtn');
 
+            const drawerTitle = document.getElementById('cashDrawerTitle');
+            const drawerSubtitle = document.getElementById('cashDrawerSubtitle');
+            const drawerAmount = document.getElementById('cashDrawerAmount');
+            const drawerBadgeContainer = document.getElementById('cashDrawerBadgeContainer');
+            const drawerOccurredAt = document.getElementById('cashDrawerOccurredAt');
+            const drawerOutlet = document.getElementById('cashDrawerOutlet');
+            const drawerShift = document.getElementById('cashDrawerShift');
+            const drawerCategory = document.getElementById('cashDrawerCategory');
+            const drawerRef = document.getElementById('cashDrawerRef');
+            const drawerStatusRow = document.getElementById('drawerRowStatus');
+            const drawerStatus = document.getElementById('cashDrawerStatus');
+            const drawerNotesContainer = document.getElementById('drawerNotesContainer');
+            const drawerNotes = document.getElementById('cashDrawerNotes');
+
             let lastTriggerElement = null;
 
-            // Currency Formatter Helper
             function formatRupiah(val) {
-                const n = Number(val || 0);
-                return 'Rp ' + n.toLocaleString('id-ID');
+                const num = Number(val || 0);
+                return 'Rp ' + num.toLocaleString('id-ID');
             }
 
-            // Tab Switcher
-            function setTab(tabName, focusTab = false) {
-                currentTab = tabName;
-
-                if (tabName === 'ledgers') {
-                    tabLedgers?.setAttribute('aria-selected', 'true');
-                    tabLedgers?.setAttribute('tabindex', '0');
-                    tabLedgers?.classList.add('border-indigo-600', 'text-indigo-600', 'dark:text-indigo-400');
-                    tabLedgers?.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-800');
-
-                    tabExpenses?.setAttribute('aria-selected', 'false');
-                    tabExpenses?.setAttribute('tabindex', '-1');
-                    tabExpenses?.classList.remove('border-indigo-600', 'text-indigo-600', 'dark:text-indigo-400');
-                    tabExpenses?.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-800');
-
-                    panelLedgers?.classList.remove('hidden');
-                    panelExpenses?.classList.add('hidden');
-
-                    if (wrapperFilterCashType) wrapperFilterCashType.classList.remove('hidden');
-                    if (wrapperFilterExpenseCategory) wrapperFilterExpenseCategory.classList.add('hidden');
-
-                    if (searchInput) searchInput.placeholder = 'Cari referensi, kategori, atau catatan...';
-
-                    if (focusTab) tabLedgers?.focus();
-                } else {
-                    tabExpenses?.setAttribute('aria-selected', 'true');
-                    tabExpenses?.setAttribute('tabindex', '0');
-                    tabExpenses?.classList.add('border-indigo-600', 'text-indigo-600', 'dark:text-indigo-400');
-                    tabExpenses?.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-800');
-
-                    tabLedgers?.setAttribute('aria-selected', 'false');
-                    tabLedgers?.setAttribute('tabindex', '-1');
-                    tabLedgers?.classList.remove('border-indigo-600', 'text-indigo-600', 'dark:text-indigo-400');
-                    tabLedgers?.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-800');
-
-                    panelExpenses?.classList.remove('hidden');
-                    panelLedgers?.classList.add('hidden');
-
-                    if (wrapperFilterCashType) wrapperFilterCashType.classList.add('hidden');
-                    if (wrapperFilterExpenseCategory) wrapperFilterExpenseCategory.classList.remove('hidden');
-
-                    if (searchInput) searchInput.placeholder = 'Cari pengeluaran, kategori, atau catatan...';
-
-                    if (focusTab) tabExpenses?.focus();
+            function handleDrawerTrap(e) {
+                if (e.key === 'Escape') {
+                    closeDrawer();
+                    return;
                 }
-
-                applyFilters();
-            }
-
-            tabLedgers?.addEventListener('click', () => setTab('ledgers'));
-            tabExpenses?.addEventListener('click', () => setTab('expenses'));
-
-            // Accessible Tab Keyboard Navigation
-            tabs.forEach((tab, index) => {
-                tab.addEventListener('keydown', (e) => {
-                    let targetIndex = null;
-                    if (e.key === 'ArrowRight') {
+                if (e.key === 'Tab' && drawerPanel) {
+                    const focusables = drawerPanel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+                    if (focusables.length === 0) return;
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    if (e.shiftKey && document.activeElement === first) {
                         e.preventDefault();
-                        targetIndex = (index + 1) % tabs.length;
-                    } else if (e.key === 'ArrowLeft') {
+                        last.focus();
+                    } else if (!e.shiftKey && document.activeElement === last) {
                         e.preventDefault();
-                        targetIndex = (index - 1 + tabs.length) % tabs.length;
-                    } else if (e.key === 'Home') {
-                        e.preventDefault();
-                        targetIndex = 0;
-                    } else if (e.key === 'End') {
-                        e.preventDefault();
-                        targetIndex = tabs.length - 1;
-                    }
-
-                    if (targetIndex !== null) {
-                        const targetTab = tabs[targetIndex];
-                        const newTabName = targetTab.id === 'tabLedgers' ? 'ledgers' : 'expenses';
-                        setTab(newTabName, true);
-                    }
-                });
-            });
-
-            // Helper for local calendar date formatting YYYY-MM-DD
-            function getLocalDateString(d) {
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            }
-
-            // Date Range Comparison Logic using occurred_at_raw and browser local calendar
-            function isDateMatch(rawDateStr, dateFilter) {
-                if (!rawDateStr || dateFilter === 'all') return true;
-
-                const itemDateOnly = rawDateStr.split(' ')[0];
-                if (!itemDateOnly) return true;
-
-                const now = new Date();
-                const todayStr = getLocalDateString(now);
-
-                if (dateFilter === 'today') {
-                    return itemDateOnly === todayStr;
-                }
-                if (dateFilter === '7d') {
-                    const d7 = new Date(now);
-                    d7.setDate(d7.getDate() - 6);
-                    const d7Str = getLocalDateString(d7);
-                    return itemDateOnly >= d7Str && itemDateOnly <= todayStr;
-                }
-                if (dateFilter === '30d') {
-                    const d30 = new Date(now);
-                    d30.setDate(d30.getDate() - 29);
-                    const d30Str = getLocalDateString(d30);
-                    return itemDateOnly >= d30Str && itemDateOnly <= todayStr;
-                }
-                if (dateFilter === 'custom') {
-                    let sVal = startDateInput?.value;
-                    let eVal = endDateInput?.value;
-                    if (!sVal && !eVal) return true;
-
-                    if (sVal && eVal && sVal > eVal) {
-                        const tmp = sVal;
-                        sVal = eVal;
-                        eVal = tmp;
-                    }
-
-                    if (sVal && itemDateOnly < sVal) return false;
-                    if (eVal && itemDateOnly > eVal) return false;
-                    return true;
-                }
-                return true;
-            }
-
-            // Client-side Filtering
-            function applyFilters() {
-                const search = (searchInput?.value || '').trim().toLowerCase();
-                const dateFilter = filterDate?.value || 'all';
-                const outletFilter = filterOutlet?.value || 'all';
-                const typeFilter = filterCashType?.value || 'all';
-                const categoryFilter = filterExpenseCategory?.value || 'all';
-
-                if (currentTab === 'ledgers') {
-                    const rows = document.querySelectorAll('.cash-ledger-row');
-                    const cards = document.querySelectorAll('.cash-ledger-card');
-                    const tableContainer = document.getElementById('desktopCashLedgerTable')?.closest('.rounded-2xl');
-                    const mobileContainer = document.getElementById('mobileCashLedgerCards');
-                    const emptyState = document.getElementById('cashLedgerFilterEmptyState');
-
-                    let matchedCount = 0;
-
-                    const matchItem = (el) => {
-                        const sText = el.getAttribute('data-search') || '';
-                        const dRaw = el.getAttribute('data-date-raw') || '';
-                        const elOutlet = el.getAttribute('data-outlet');
-                        const elType = el.getAttribute('data-type');
-
-                        const matchSearch = !search || sText.includes(search);
-                        const matchDate = isDateMatch(dRaw, dateFilter);
-                        const matchOutlet = outletFilter === 'all' || elOutlet === outletFilter;
-                        const matchType = typeFilter === 'all' || elType === typeFilter;
-
-                        return matchSearch && matchDate && matchOutlet && matchType;
-                    };
-
-                    rows.forEach(r => {
-                        const m = matchItem(r);
-                        r.style.display = m ? '' : 'none';
-                        if (m) matchedCount++;
-                    });
-
-                    cards.forEach(c => {
-                        c.style.display = matchItem(c) ? '' : 'none';
-                    });
-
-                    if (visibleCountEl) visibleCountEl.textContent = matchedCount;
-
-                    if (matchedCount === 0) {
-                        if (emptyState) emptyState.classList.remove('hidden');
-                        if (tableContainer) tableContainer.classList.add('hidden');
-                        if (mobileContainer) mobileContainer.classList.add('hidden');
-                        if (paginationEl) paginationEl.classList.add('hidden');
-                    } else {
-                        if (emptyState) emptyState.classList.add('hidden');
-                        if (tableContainer) tableContainer.classList.remove('hidden');
-                        if (mobileContainer) mobileContainer.classList.remove('hidden');
-                        if (paginationEl) paginationEl.classList.remove('hidden');
-                    }
-                } else {
-                    const rows = document.querySelectorAll('.expense-row');
-                    const cards = document.querySelectorAll('.expense-card');
-                    const tableContainer = document.getElementById('desktopExpenseTable')?.closest('.rounded-2xl');
-                    const mobileContainer = document.getElementById('mobileExpenseCards');
-                    const emptyState = document.getElementById('expenseFilterEmptyState');
-
-                    let matchedCount = 0;
-
-                    const matchExpense = (el) => {
-                        const sText = el.getAttribute('data-search') || '';
-                        const dRaw = el.getAttribute('data-date-raw') || '';
-                        const elOutlet = el.getAttribute('data-outlet');
-                        const elCat = el.getAttribute('data-category');
-
-                        const matchSearch = !search || sText.includes(search);
-                        const matchDate = isDateMatch(dRaw, dateFilter);
-                        const matchOutlet = outletFilter === 'all' || elOutlet === outletFilter;
-                        const matchCat = categoryFilter === 'all' || elCat === categoryFilter;
-
-                        return matchSearch && matchDate && matchOutlet && matchCat;
-                    };
-
-                    rows.forEach(r => {
-                        const m = matchExpense(r);
-                        r.style.display = m ? '' : 'none';
-                        if (m) matchedCount++;
-                    });
-
-                    cards.forEach(c => {
-                        c.style.display = matchExpense(c) ? '' : 'none';
-                    });
-
-                    if (visibleCountEl) visibleCountEl.textContent = matchedCount;
-
-                    if (matchedCount === 0) {
-                        if (emptyState) emptyState.classList.remove('hidden');
-                        if (tableContainer) tableContainer.classList.add('hidden');
-                        if (mobileContainer) mobileContainer.classList.add('hidden');
-                        if (paginationEl) paginationEl.classList.add('hidden');
-                    } else {
-                        if (emptyState) emptyState.classList.add('hidden');
-                        if (tableContainer) tableContainer.classList.remove('hidden');
-                        if (mobileContainer) mobileContainer.classList.remove('hidden');
-                        if (paginationEl) paginationEl.classList.remove('hidden');
+                        first.focus();
                     }
                 }
             }
 
-            if (searchInput) searchInput.addEventListener('input', applyFilters);
-
-            if (filterDate) {
-                filterDate.addEventListener('change', () => {
-                    if (filterDate.value === 'custom') {
-                        customDateContainer?.classList.remove('hidden');
-                    } else {
-                        customDateContainer?.classList.add('hidden');
-                    }
-                    applyFilters();
-                });
-            }
-
-            if (startDateInput) startDateInput.addEventListener('change', applyFilters);
-            if (endDateInput) endDateInput.addEventListener('change', applyFilters);
-            if (filterOutlet) filterOutlet.addEventListener('change', applyFilters);
-            if (filterCashType) filterCashType.addEventListener('change', applyFilters);
-            if (filterExpenseCategory) filterExpenseCategory.addEventListener('change', applyFilters);
-
-            if (resetFilterBtn) {
-                resetFilterBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterDate) filterDate.value = 'all';
-                    if (filterOutlet) filterOutlet.value = 'all';
-                    if (filterCashType) filterCashType.value = 'all';
-                    if (filterExpenseCategory) filterExpenseCategory.value = 'all';
-                    if (startDateInput) startDateInput.value = '';
-                    if (endDateInput) endDateInput.value = '';
-                    if (customDateContainer) customDateContainer.classList.add('hidden');
-                    applyFilters();
-                });
-            }
-
-            // Action Button Placeholders with Neutral Message
-            const handleRecordCash = () => {
-                alert('Fitur pencatatan kas akan tersedia setelah integrasi data.');
-            };
-            const handleAddExpense = () => {
-                alert('Fitur pengeluaran akan tersedia setelah integrasi data.');
-            };
-
-            if (recordCashBtn) recordCashBtn.onclick = handleRecordCash;
-            if (addExpenseBtn) addExpenseBtn.onclick = handleAddExpense;
-
-            // Detail Drawer Logic (Safe DOM methods)
-            function openDrawer(itemData, isExpense = false) {
+            function openDrawer(itemData) {
                 if (!drawerWrapper || !itemData) return;
 
-                const drawerTitle = document.getElementById('cashDrawerTitle');
-                const drawerSubtitle = document.getElementById('cashDrawerSubtitle');
-                const amountEl = document.getElementById('cashDrawerAmount');
-                const badgeContainer = document.getElementById('cashDrawerBadgeContainer');
-
-                const rowOccurredAt = document.getElementById('drawerRowOccurredAt');
-                const rowOutlet = document.getElementById('drawerRowOutlet');
-                const rowShift = document.getElementById('drawerRowShift');
-                const rowCategory = document.getElementById('drawerRowCategory');
-                const rowRef = document.getElementById('drawerRowRef');
-                const rowSaleSync = document.getElementById('drawerRowSaleSync');
-                const rowStatus = document.getElementById('drawerRowStatus');
-                const notesContainer = document.getElementById('drawerNotesContainer');
-
-                badgeContainer.textContent = '';
+                const isExpense = 'description' in itemData;
 
                 if (isExpense) {
                     drawerSubtitle.textContent = 'Detail Pengeluaran';
-                    drawerTitle.textContent = itemData.description || '-';
-                    amountEl.textContent = formatRupiah(itemData.amount);
-                    amountEl.className = 'font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tabular-nums';
+                    drawerTitle.textContent = itemData.description || 'Pengeluaran';
+                    drawerAmount.textContent = formatRupiah(itemData.amount);
+                    drawerAmount.className = 'font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tabular-nums';
 
+                    drawerBadgeContainer.textContent = '';
                     const badge = document.createElement('span');
-                    badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
+                    badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     const dot = document.createElement('span');
                     dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
-                    const label = document.createElement('span');
-                    label.textContent = itemData.status === 'recorded' ? 'Tercatat' : (itemData.status || '-');
                     badge.appendChild(dot);
+                    const label = document.createElement('span');
+                    label.textContent = itemData.status || 'Tercatat';
                     badge.appendChild(label);
-                    badgeContainer.appendChild(badge);
+                    drawerBadgeContainer.appendChild(badge);
 
-                    document.getElementById('cashDrawerOccurredAt').textContent = itemData.occurred_at || '-';
-                    document.getElementById('cashDrawerOutlet').textContent = itemData.outlet_name || '-';
-
-                    if (itemData.shift_number) {
-                        rowShift.classList.remove('hidden');
-                        document.getElementById('cashDrawerShift').textContent = itemData.shift_number;
+                    if (drawerStatusRow) drawerStatusRow.classList.remove('hidden');
+                    if (drawerStatus) drawerStatus.textContent = itemData.status || 'Tercatat';
+                    if (drawerRef) drawerRef.textContent = '-';
+                    const noteText = itemData.notes || '';
+                    if (noteText.trim()) {
+                        if (drawerNotesContainer) drawerNotesContainer.classList.remove('hidden');
+                        if (drawerNotes) drawerNotes.textContent = noteText;
                     } else {
-                        rowShift.classList.add('hidden');
-                    }
-
-                    if (itemData.category) {
-                        rowCategory.classList.remove('hidden');
-                        document.getElementById('cashDrawerCategory').textContent = itemData.category;
-                    } else {
-                        rowCategory.classList.add('hidden');
-                    }
-
-                    rowRef.classList.add('hidden');
-                    rowSaleSync.classList.add('hidden');
-
-                    rowStatus.classList.remove('hidden');
-                    document.getElementById('cashDrawerStatus').textContent = itemData.status === 'recorded' ? 'Tercatat' : (itemData.status || '-');
-
-                    if (itemData.notes) {
-                        notesContainer.classList.remove('hidden');
-                        document.getElementById('cashDrawerNotes').textContent = itemData.notes;
-                    } else {
-                        notesContainer.classList.add('hidden');
+                        if (drawerNotesContainer) drawerNotesContainer.classList.add('hidden');
                     }
                 } else {
-                    const isIn = itemData.type === 'in';
                     drawerSubtitle.textContent = 'Detail Pergerakan Kas';
-                    drawerTitle.textContent = itemData.category_label || (isIn ? 'Kas Masuk' : 'Kas Keluar');
+                    drawerTitle.textContent = itemData.reference_id ? itemData.reference_id : 'Pergerakan Kas';
 
-                    const sign = isIn ? '+' : '-';
-                    amountEl.textContent = `${sign} ${formatRupiah(itemData.amount)}`;
-                    amountEl.className = `font-extrabold text-xl sm:text-2xl tabular-nums ${isIn ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
+                    const isIn = itemData.type_raw === 'in';
+                    const isOut = itemData.type_raw === 'out';
+                    const sign = isIn ? '+ ' : (isOut ? '- ' : '');
+                    drawerAmount.textContent = sign + formatRupiah(itemData.amount);
+                    drawerAmount.className = 'font-extrabold text-xl sm:text-2xl tabular-nums ' +
+                        (isIn ? 'text-emerald-600 dark:text-emerald-400' : (isOut ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'));
 
+                    drawerBadgeContainer.textContent = '';
                     const badge = document.createElement('span');
-                    badge.className = `inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold ${isIn ? 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400' : 'bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400'}`;
+                    badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold ' +
+                        (isIn ? 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400' :
+                        (isOut ? 'bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400' :
+                        'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'));
                     const dot = document.createElement('span');
-                    dot.className = `w-1.5 h-1.5 rounded-full ${isIn ? 'bg-emerald-500' : 'bg-rose-500'}`;
-                    const label = document.createElement('span');
-                    label.textContent = isIn ? 'Kas Masuk' : 'Kas Keluar';
+                    dot.className = 'w-1.5 h-1.5 rounded-full ' + (isIn ? 'bg-emerald-500' : (isOut ? 'bg-rose-500' : 'bg-slate-400'));
                     badge.appendChild(dot);
+                    const label = document.createElement('span');
+                    label.textContent = itemData.type || (isIn ? 'Kas Masuk' : (isOut ? 'Kas Keluar' : itemData.type_raw));
                     badge.appendChild(label);
-                    badgeContainer.appendChild(badge);
+                    drawerBadgeContainer.appendChild(badge);
 
-                    document.getElementById('cashDrawerOccurredAt').textContent = itemData.occurred_at || '-';
-                    document.getElementById('cashDrawerOutlet').textContent = itemData.outlet_name || '-';
-
-                    if (itemData.shift_number) {
-                        rowShift.classList.remove('hidden');
-                        document.getElementById('cashDrawerShift').textContent = itemData.shift_number;
+                    if (drawerStatusRow) drawerStatusRow.classList.add('hidden');
+                    if (drawerRef) drawerRef.textContent = itemData.reference_id || '-';
+                    const noteText = itemData.note || '';
+                    if (noteText.trim()) {
+                        if (drawerNotesContainer) drawerNotesContainer.classList.remove('hidden');
+                        if (drawerNotes) drawerNotes.textContent = noteText;
                     } else {
-                        rowShift.classList.add('hidden');
-                    }
-
-                    if (itemData.category || itemData.category_label) {
-                        rowCategory.classList.remove('hidden');
-                        document.getElementById('cashDrawerCategory').textContent = itemData.category_label || itemData.category;
-                    } else {
-                        rowCategory.classList.add('hidden');
-                    }
-
-                    if (itemData.reference_id) {
-                        rowRef.classList.remove('hidden');
-                        document.getElementById('cashDrawerRef').textContent = itemData.reference_id;
-                    } else {
-                        rowRef.classList.add('hidden');
-                    }
-
-                    if (itemData.sale_sync_id) {
-                        rowSaleSync.classList.remove('hidden');
-                        document.getElementById('cashDrawerSaleSync').textContent = itemData.sale_sync_id;
-                    } else {
-                        rowSaleSync.classList.add('hidden');
-                    }
-
-                    rowStatus.classList.add('hidden');
-
-                    if (itemData.note) {
-                        notesContainer.classList.remove('hidden');
-                        document.getElementById('cashDrawerNotes').textContent = itemData.note;
-                    } else {
-                        notesContainer.classList.add('hidden');
+                        if (drawerNotesContainer) drawerNotesContainer.classList.add('hidden');
                     }
                 }
 
-                // Show Drawer
+                drawerOccurredAt.textContent = itemData.occurred_at || '-';
+                drawerOutlet.textContent = itemData.outlet_name || '-';
+                drawerShift.textContent = itemData.shift_number || 'Tanpa Shift';
+                drawerCategory.textContent = itemData.category || 'Tanpa Kategori';
+
+                // Display
                 drawerWrapper.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
                 requestAnimationFrame(() => {
@@ -634,18 +325,18 @@
                     drawerBackdrop.classList.add('opacity-100');
                     drawerPanel.classList.remove('translate-x-full');
                     drawerPanel.classList.add('translate-x-0');
-                    closeDrawerBtn?.focus();
                 });
 
-                document.addEventListener('keydown', handleCashDrawerTrap);
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                document.addEventListener('keydown', handleDrawerTrap);
+                setTimeout(() => {
+                    closeDrawerBtn?.focus();
+                }, 100);
             }
 
             function closeDrawer() {
                 if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
 
-                document.removeEventListener('keydown', handleCashDrawerTrap);
-
+                document.removeEventListener('keydown', handleDrawerTrap);
                 drawerBackdrop.classList.remove('opacity-100');
                 drawerBackdrop.classList.add('opacity-0');
                 drawerPanel.classList.remove('translate-x-0');
@@ -654,94 +345,49 @@
                 setTimeout(() => {
                     drawerWrapper.classList.add('hidden');
                     document.body.style.overflow = '';
-                    if (lastTriggerElement && typeof lastTriggerElement.focus === 'function') {
+                    if (lastTriggerElement) {
                         lastTriggerElement.focus();
+                        lastTriggerElement = null;
                     }
                 }, 300);
             }
 
-            function handleCashDrawerTrap(e) {
-                if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
+            if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
+            if (closeDrawerFooterBtn) closeDrawerFooterBtn.addEventListener('click', closeDrawer);
+            if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
 
-                if (e.key === 'Escape') {
-                    e.preventDefault();
-                    closeDrawer();
-                    return;
-                }
-
-                if (e.key === 'Tab') {
-                    const focusables = drawerPanel.querySelectorAll(
-                        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-                    );
-                    if (focusables.length === 0) return;
-
-                    const firstEl = focusables[0];
-                    const lastEl = focusables[focusables.length - 1];
-
-                    if (e.shiftKey) {
-                        if (document.activeElement === firstEl || !drawerPanel.contains(document.activeElement)) {
-                            e.preventDefault();
-                            lastEl.focus();
-                        }
-                    } else {
-                        if (document.activeElement === lastEl || !drawerPanel.contains(document.activeElement)) {
-                            e.preventDefault();
-                            firstEl.focus();
+            // Delegate detail button clicks
+            root.addEventListener('click', (e) => {
+                const btn = e.target.closest('.view-cash-detail-btn');
+                if (btn) {
+                    lastTriggerElement = btn;
+                    const rowOrCard = btn.closest('.cash-ledger-row, .cash-ledger-card, .expense-row, .expense-card');
+                    if (rowOrCard) {
+                        const raw = rowOrCard.getAttribute('data-raw');
+                        if (raw) {
+                            try {
+                                const data = JSON.parse(raw);
+                                openDrawer(data);
+                            } catch (err) {
+                                console.error('Failed to parse cash/expense data', err);
+                            }
                         }
                     }
                 }
+            });
+
+            if (window.lucide) {
+                window.lucide.createIcons();
             }
-
-            // Click listener for Cash Ledger Details
-            document.querySelectorAll('.view-cash-detail-btn').forEach(btn => {
-                btn.onclick = () => {
-                    lastTriggerElement = btn;
-                    const rowOrCard = btn.closest('.cash-ledger-row, .cash-ledger-card');
-                    if (rowOrCard) {
-                        const raw = rowOrCard.getAttribute('data-raw');
-                        if (raw) {
-                            try {
-                                openDrawer(JSON.parse(raw), false);
-                            } catch (e) {
-                                console.error('Failed to parse cash data', e);
-                            }
-                        }
-                    }
-                };
-            });
-
-            // Click listener for Expense Details
-            document.querySelectorAll('.view-expense-detail-btn').forEach(btn => {
-                btn.onclick = () => {
-                    lastTriggerElement = btn;
-                    const rowOrCard = btn.closest('.expense-row, .expense-card');
-                    if (rowOrCard) {
-                        const raw = rowOrCard.getAttribute('data-raw');
-                        if (raw) {
-                            try {
-                                openDrawer(JSON.parse(raw), true);
-                            } catch (e) {
-                                console.error('Failed to parse expense data', e);
-                            }
-                        }
-                    }
-                };
-            });
-
-            if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
-            if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
-            if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
-
-            // Initial Filter Run
-            setTab('ledgers');
         }
 
-        initCashPage();
-
-        if (!window.__cashListenersBound) {
-            window.__cashListenersBound = true;
-            document.addEventListener('DOMContentLoaded', initCashPage);
-            document.addEventListener('livewire:navigated', initCashPage);
-        }
+        document.addEventListener('DOMContentLoaded', initCashPage);
+        document.addEventListener('livewire:navigated', () => {
+            const root = document.querySelector('main[data-cash-page="true"]');
+            if (root) {
+                root.dataset.cashInitialized = 'false';
+                initCashPage();
+            }
+        });
     </script>
 </x-layouts::app>

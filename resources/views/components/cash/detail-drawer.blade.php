@@ -78,10 +78,6 @@
                         <span class="text-slate-500 dark:text-slate-400">ID Referensi</span>
                         <span id="cashDrawerRef" class="font-mono text-slate-800 dark:text-slate-200">-</span>
                     </div>
-                    <div id="drawerRowSaleSync" class="flex items-center justify-between p-3 bg-white dark:bg-slate-900">
-                        <span class="text-slate-500 dark:text-slate-400">ID Sinkronisasi Penjualan</span>
-                        <span id="cashDrawerSaleSync" class="font-mono text-[11px] text-slate-600 dark:text-slate-400">-</span>
-                    </div>
                     <div id="drawerRowStatus" class="flex items-center justify-between p-3 bg-white dark:bg-slate-900">
                         <span class="text-slate-500 dark:text-slate-400">Status</span>
                         <span id="cashDrawerStatus" class="font-medium text-slate-800 dark:text-slate-200">-</span>
