@@ -506,7 +506,11 @@
         }
 
         initTransactionsPage();
-        document.addEventListener('DOMContentLoaded', initTransactionsPage);
-        document.addEventListener('livewire:navigated', initTransactionsPage);
+
+        if (!window.__transactionsListenersBound) {
+            window.__transactionsListenersBound = true;
+            document.addEventListener('DOMContentLoaded', initTransactionsPage);
+            document.addEventListener('livewire:navigated', initTransactionsPage);
+        }
     </script>
 </x-layouts::app>
