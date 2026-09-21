@@ -92,7 +92,7 @@
             </div>
         @else
             {{-- Empty State --}}
-            <x-transactions.empty-state mode="no-data" />
+            <x-transactions.empty-state :mode="($hasAnyTransactions ?? false) ? 'no-results' : 'no-data'" />
         @endif
 
         {{-- ==================== 5. DETAIL DRAWER ==================== --}}
@@ -136,9 +136,15 @@
 
             let lastTriggerElement = null;
 
-            // Format Currency Helper
+            // Format Currency Helper (Intl.NumberFormat with max 2 decimals, min 2 only if non-zero fraction)
             function formatRupiah(num) {
-                return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+                const val = Number(num || 0);
+                const hasFraction = Math.abs(val % 1) > 0.0001;
+                const formatted = new Intl.NumberFormat('id-ID', {
+                    minimumFractionDigits: hasFraction ? 2 : 0,
+                    maximumFractionDigits: 2,
+                }).format(val);
+                return 'Rp ' + formatted;
             }
 
             // Basic Focus Trap for Drawer
@@ -190,14 +196,20 @@
                 payBadge.textContent = '';
                 const payDot = document.createElement('span');
                 const payText = document.createElement('span');
-                if (data.payment_status === 'Lunas') {
+                const rawPayStatus = (data.payment_status_raw || '').toLowerCase();
+                if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
                     payText.textContent = 'Lunas';
-                } else {
+                } else if (rawPayStatus === 'unpaid' || data.payment_status === 'Belum Lunas') {
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
-                    payText.textContent = data.payment_status || 'Belum Lunas';
+                    payText.textContent = 'Belum Lunas';
+                } else {
+                    // Unknown / other status: human-readable label with neutral/slate badge
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+                    payText.textContent = data.payment_status || '-';
                 }
                 payBadge.appendChild(payDot);
                 payBadge.appendChild(payText);

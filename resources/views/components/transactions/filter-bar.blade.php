@@ -103,8 +103,18 @@
                 >
                     <option value="all">Semua Metode</option>
                     @foreach($paymentMethods as $method)
-                        <option value="{{ $method }}" @selected(($cf['payment_method'] ?? '') === $method)>
-                            {{ $method }}
+                        @php
+                            $val = is_array($method) ? $method['value'] : $method;
+                            $lbl = is_array($method) ? $method['label'] : match(strtolower((string) $method)) {
+                                'cash', 'tunai' => 'Tunai',
+                                'qris' => 'QRIS',
+                                'transfer' => 'Transfer',
+                                'card', 'kartu' => 'Kartu',
+                                default => ucwords(str_replace('_', ' ', (string) $method)),
+                            };
+                        @endphp
+                        <option value="{{ $val }}" @selected(($cf['payment_method'] ?? '') === $val)>
+                            {{ $lbl }}
                         </option>
                     @endforeach
                 </select>

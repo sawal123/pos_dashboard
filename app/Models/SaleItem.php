@@ -3,9 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasSyncMetadata;
-use Database\Factories\SaleItemFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -36,8 +34,7 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'sale_id', 'product_id', 'product_name', 'product_sku', 'unit_price', 'quantity', 'line_total', 'cost_snapshot', 'unit', 'kind', 'pricing_unit', 'line_cost'])]
 class SaleItem extends Model
 {
-    /** @use HasFactory<SaleItemFactory> */
-    use HasFactory, HasSyncMetadata;
+    use HasSyncMetadata;
 
     /**
      * Get the attributes that should be cast.

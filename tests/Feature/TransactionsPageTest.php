@@ -8,14 +8,33 @@ use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Shift;
 use App\Models\Subscription;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class TransactionsPageTest extends TestCase
 {
     use RefreshDatabase;
+
+    // ============================================================
+    // Scope Integrity (No HasFactory on Sales/Shift models)
+    // ============================================================
+
+    public function test_sale_models_do_not_rely_on_has_factory(): void
+    {
+        $traits = class_uses_recursive(Sale::class);
+        $this->assertNotContains(HasFactory::class, $traits);
+
+        $itemTraits = class_uses_recursive(SaleItem::class);
+        $this->assertNotContains(HasFactory::class, $itemTraits);
+
+        $shiftTraits = class_uses_recursive(Shift::class);
+        $this->assertNotContains(HasFactory::class, $shiftTraits);
+    }
 
     // ============================================================
     // Auth & Access
@@ -113,6 +132,7 @@ class TransactionsPageTest extends TestCase
         $response = $this->get(route('transactions.index'));
         $response->assertOk();
         $response->assertSee('0'); // total_transactions metric
+        $response->assertSee('Belum Ada Transaksi');
     }
 
     public function test_only_transactions_of_the_current_business_are_shown(): void
@@ -123,13 +143,13 @@ class TransactionsPageTest extends TestCase
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
         $otherOutlet = Outlet::factory()->create(['business_id' => $otherBusiness->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'OWN-TRX-001',
         ]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $otherBusiness->id,
             'outlet_id' => $otherOutlet->id,
             'transaction_number' => 'OTHER-TRX-001',
@@ -148,7 +168,7 @@ class TransactionsPageTest extends TestCase
         $otherBusiness = Business::factory()->create();
         $otherOutlet = Outlet::factory()->create(['business_id' => $otherBusiness->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $otherBusiness->id,
             'outlet_id' => $otherOutlet->id,
             'transaction_number' => 'LEAKED-TRX',
@@ -160,6 +180,90 @@ class TransactionsPageTest extends TestCase
         $response->assertDontSee('LEAKED-TRX');
     }
 
+    public function test_search_tenant_a_does_not_find_sale_of_tenant_b(): void
+    {
+        [$userA, $businessA] = $this->makeUserWithBusiness();
+        $businessB = Business::factory()->create();
+        $outletA = Outlet::factory()->create(['business_id' => $businessA->id]);
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+
+        $this->createSale([
+            'business_id' => $businessA->id,
+            'outlet_id' => $outletA->id,
+            'transaction_number' => 'TRX-TARGET-AAA',
+        ]);
+        $this->createSale([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'transaction_number' => 'TRX-TARGET-BBB',
+        ]);
+
+        $this->actingAs($userA);
+        $response = $this->get(route('transactions.index', ['q' => 'TARGET']));
+        $response->assertOk();
+        $response->assertSee('TRX-TARGET-AAA');
+        $response->assertDontSee('TRX-TARGET-BBB');
+    }
+
+    public function test_filtering_by_outlet_id_of_tenant_b_does_not_leak_sales(): void
+    {
+        [$userA, $businessA] = $this->makeUserWithBusiness();
+        $businessB = Business::factory()->create();
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+
+        $this->createSale([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'transaction_number' => 'TRX-SECRET-B',
+        ]);
+
+        $this->actingAs($userA);
+        $response = $this->get(route('transactions.index', ['outlet_id' => $outletB->id]));
+        $response->assertOk();
+        $response->assertDontSee('TRX-SECRET-B');
+    }
+
+    public function test_switching_current_business_changes_dataset(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $businessA = Business::factory()->create();
+        $businessB = Business::factory()->create();
+        Subscription::factory()->create(['business_id' => $businessA->id]);
+        Subscription::factory()->create(['business_id' => $businessB->id]);
+        $user->businesses()->attach($businessA->id, ['role' => 'owner']);
+        $user->businesses()->attach($businessB->id, ['role' => 'owner']);
+
+        $outletA = Outlet::factory()->create(['business_id' => $businessA->id]);
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+
+        $this->createSale([
+            'business_id' => $businessA->id,
+            'outlet_id' => $outletA->id,
+            'transaction_number' => 'TRX-BUSINESS-A',
+        ]);
+        $this->createSale([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'transaction_number' => 'TRX-BUSINESS-B',
+        ]);
+
+        $this->actingAs($user);
+
+        // View Business A
+        $this->withSession(['dashboard.current_business_id' => $businessA->id]);
+        $responseA = $this->get(route('transactions.index'));
+        $responseA->assertOk();
+        $responseA->assertSee('TRX-BUSINESS-A');
+        $responseA->assertDontSee('TRX-BUSINESS-B');
+
+        // Switch to Business B
+        $this->withSession(['dashboard.current_business_id' => $businessB->id]);
+        $responseB = $this->get(route('transactions.index'));
+        $responseB->assertOk();
+        $responseB->assertSee('TRX-BUSINESS-B');
+        $responseB->assertDontSee('TRX-BUSINESS-A');
+    }
+
     // ============================================================
     // Real Data Rendering
     // ============================================================
@@ -169,7 +273,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-REAL-001',
@@ -187,7 +291,7 @@ class TransactionsPageTest extends TestCase
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
         $customer = Customer::factory()->create(['business_id' => $business->id, 'name' => 'Nama Relation']);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'customer_id' => $customer->id,
@@ -206,7 +310,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'customer_id' => null,
@@ -228,7 +332,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'status' => 'completed',
@@ -246,7 +350,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'status' => 'cancelled',
@@ -264,7 +368,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'payment_status' => 'paid',
@@ -281,7 +385,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'payment_status' => 'unpaid',
@@ -293,12 +397,32 @@ class TransactionsPageTest extends TestCase
         $response->assertSee('Belum Lunas');
     }
 
+    public function test_unknown_payment_status_is_rendered_neutral_not_belum_lunas(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-UNKNOWN-PAY',
+            'payment_status' => 'pending_review',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('Pending Review');
+        $response->assertSee('<span>Pending Review</span>', false);
+        $response->assertDontSee('<span>Belum Lunas</span>', false);
+    }
+
     public function test_payment_method_cash_is_presented_as_tunai(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'payment_method' => 'cash',
@@ -315,7 +439,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'payment_method' => null,
@@ -328,8 +452,30 @@ class TransactionsPageTest extends TestCase
         $response->assertSee('TRX-NULL-PM');
     }
 
+    public function test_payment_method_filter_uses_raw_value_and_presentation_label(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'payment_method' => 'cash',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('value="cash"', false);
+        $response->assertSee('Tunai');
+
+        // Filtering by raw cash works
+        $filterResponse = $this->get(route('transactions.index', ['payment_method' => 'cash']));
+        $filterResponse->assertOk();
+    }
+
     // ============================================================
-    // Decimal Quantity & Pricing Unit
+    // Decimal Quantity, Pricing Unit & Gross Profit
     // ============================================================
 
     public function test_sale_item_decimal_quantity_is_preserved_in_data_raw(): void
@@ -341,13 +487,13 @@ class TransactionsPageTest extends TestCase
             'business_id' => $business->id,
         ]);
 
-        $sale = Sale::factory()->create([
+        $sale = $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-DEC-001',
         ]);
 
-        SaleItem::factory()->create([
+        $this->createSaleItem([
             'business_id' => $business->id,
             'sale_id' => $sale->id,
             'product_id' => $product->id,
@@ -372,12 +518,12 @@ class TransactionsPageTest extends TestCase
             'business_id' => $business->id,
         ]);
 
-        $sale = Sale::factory()->create([
+        $sale = $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
         ]);
 
-        SaleItem::factory()->create([
+        $this->createSaleItem([
             'business_id' => $business->id,
             'sale_id' => $sale->id,
             'product_id' => $product->id,
@@ -391,6 +537,24 @@ class TransactionsPageTest extends TestCase
         $response->assertDontSee('"pricing_unit":"per_kg"', false);
     }
 
+    public function test_gross_profit_maintains_fractional_value_in_data(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-FRACTION',
+            'gross_profit' => 123456.50,
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('123456.5');
+    }
+
     // ============================================================
     // Metrics
     // ============================================================
@@ -400,10 +564,12 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->count(3)->create([
-            'business_id' => $business->id,
-            'outlet_id' => $outlet->id,
-        ]);
+        for ($i = 0; $i < 3; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+            ]);
+        }
 
         $this->actingAs($user);
         $response = $this->get(route('transactions.index'));
@@ -420,14 +586,14 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-EARLIER',
             'sold_at' => now()->subDays(2),
         ]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-LATEST',
@@ -455,10 +621,12 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->count(5)->create([
-            'business_id' => $business->id,
-            'outlet_id' => $outlet->id,
-        ]);
+        for ($i = 0; $i < 5; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+            ]);
+        }
 
         $this->actingAs($user);
         $response = $this->get(route('transactions.index'));
@@ -472,10 +640,12 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->count(3)->create([
-            'business_id' => $business->id,
-            'outlet_id' => $outlet->id,
-        ]);
+        for ($i = 0; $i < 3; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+            ]);
+        }
 
         $this->actingAs($user);
         $response = $this->get(route('transactions.index'));
@@ -491,11 +661,13 @@ class TransactionsPageTest extends TestCase
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
         // Create 26 sales so second page appears
-        Sale::factory()->count(26)->create([
-            'business_id' => $business->id,
-            'outlet_id' => $outlet->id,
-            'status' => 'completed',
-        ]);
+        for ($i = 0; $i < 26; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+                'status' => 'completed',
+            ]);
+        }
 
         $this->actingAs($user);
         // Filter by status=completed — all 26 records match, triggering pagination
@@ -506,7 +678,7 @@ class TransactionsPageTest extends TestCase
     }
 
     // ============================================================
-    // Filter Persistence
+    // Filter Persistence & Safe Validation
     // ============================================================
 
     public function test_filter_selected_outlet_is_preserved_in_form(): void
@@ -530,11 +702,24 @@ class TransactionsPageTest extends TestCase
         $response->assertSee('action="'.route('transactions.index').'"', false);
     }
 
+    public function test_invalid_custom_date_does_not_cause_500(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index', [
+            'date' => 'custom',
+            'start_date' => 'not-a-date',
+            'end_date' => 'invalid-end-date',
+        ]));
+        $response->assertOk();
+    }
+
     // ============================================================
-    // Empty State
+    // Empty State (Truly empty vs Filtered zero results)
     // ============================================================
 
-    public function test_empty_state_renders_when_no_transactions(): void
+    public function test_truly_empty_business_renders_belum_ada_transaksi(): void
     {
         [$user] = $this->makeUserWithBusiness();
         $this->actingAs($user);
@@ -542,6 +727,45 @@ class TransactionsPageTest extends TestCase
         $response = $this->get(route('transactions.index'));
         $response->assertOk();
         $response->assertSee('Belum Ada Transaksi');
+        $response->assertSee('Transaksi yang telah tersinkron ke Cloud akan muncul di sini.');
+        $response->assertDontSee('Transaksi Tidak Ditemukan');
+    }
+
+    public function test_filtered_zero_result_renders_transaksi_tidak_ditemukan(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-EXISTS',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index', ['q' => 'NON_EXISTENT_SEARCH_STRING']));
+        $response->assertOk();
+        $response->assertSee('Transaksi Tidak Ditemukan');
+        $response->assertSee('Coba ubah pencarian atau filter yang digunakan.');
+        $response->assertDontSee('Belum Ada Transaksi');
+    }
+
+    public function test_reset_filtered_empty_state_links_to_transactions_index(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-EXISTS',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index', ['q' => 'NON_EXISTENT_SEARCH_STRING']));
+        $response->assertOk();
+        $response->assertSee(route('transactions.index'));
+        $response->assertSee('Reset Filter');
     }
 
     public function test_no_fixture_data_rendered_for_business_with_no_sales(): void
@@ -565,7 +789,7 @@ class TransactionsPageTest extends TestCase
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
 
-        Sale::factory()->create([
+        $this->createSale([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'transaction_number' => 'TRX-RAW-TEST',
@@ -607,5 +831,107 @@ class TransactionsPageTest extends TestCase
         $this->withSession(['dashboard.current_business_id' => $business->id]);
 
         return [$user, $business];
+    }
+
+    /**
+     * Local test helper to create a Sale without model factory.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createSale(array $attributes = []): Sale
+    {
+        $businessId = $attributes['business_id'] ?? Business::factory()->create()->id;
+        $outletId = $attributes['outlet_id'] ?? Outlet::factory()->create(['business_id' => $businessId])->id;
+
+        $subtotal = $attributes['subtotal'] ?? 100000;
+        $discount = $attributes['discount_amount'] ?? 0;
+        $tax = $attributes['tax_amount'] ?? 0;
+        $total = $attributes['total_amount'] ?? ($subtotal - $discount + $tax);
+
+        return Sale::create(array_merge([
+            'business_id' => $businessId,
+            'outlet_id' => $outletId,
+            'customer_id' => null,
+            'shift_id' => null,
+            'transaction_number' => 'TRX-'.strtoupper(uniqid()),
+            'status' => 'completed',
+            'subtotal' => $subtotal,
+            'discount_amount' => $discount,
+            'tax_amount' => $tax,
+            'total_amount' => $total,
+            'gross_profit' => 40000.00,
+            'payment_method' => 'cash',
+            'payment_status' => 'paid',
+            'paid_at' => now(),
+            'cash_received' => null,
+            'change_amount' => null,
+            'order_status' => null,
+            'estimated_completed_at' => null,
+            'note' => null,
+            'customer_snapshot' => null,
+            'business_snapshot' => null,
+            'sold_at' => now(),
+            'sync_id' => (string) Str::uuid(),
+            'sync_version' => 1,
+            'sync_sequence' => 0,
+        ], $attributes));
+    }
+
+    /**
+     * Local test helper to create a SaleItem without model factory.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createSaleItem(array $attributes = []): SaleItem
+    {
+        $businessId = $attributes['business_id'] ?? Business::factory()->create()->id;
+        $saleId = $attributes['sale_id'] ?? $this->createSale(['business_id' => $businessId])->id;
+        $unitPrice = $attributes['unit_price'] ?? 25000;
+        $quantity = $attributes['quantity'] ?? 1;
+
+        return SaleItem::create(array_merge([
+            'business_id' => $businessId,
+            'sale_id' => $saleId,
+            'product_id' => null,
+            'product_name' => 'Item Sample',
+            'product_sku' => 'SKU-SAMPLE',
+            'unit_price' => $unitPrice,
+            'quantity' => $quantity,
+            'line_total' => $attributes['line_total'] ?? (int) ($unitPrice * $quantity),
+            'cost_snapshot' => $attributes['cost_snapshot'] ?? 15000,
+            'unit' => 'pcs',
+            'kind' => 'product',
+            'pricing_unit' => null,
+            'line_cost' => 0,
+            'sync_id' => (string) Str::uuid(),
+            'sync_version' => 1,
+            'sync_sequence' => 0,
+        ], $attributes));
+    }
+
+    /**
+     * Local test helper to create a Shift without model factory.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createShift(array $attributes = []): Shift
+    {
+        $businessId = $attributes['business_id'] ?? Business::factory()->create()->id;
+        $outletId = $attributes['outlet_id'] ?? Outlet::factory()->create(['business_id' => $businessId])->id;
+
+        return Shift::create(array_merge([
+            'business_id' => $businessId,
+            'outlet_id' => $outletId,
+            'shift_number' => 'SHIFT-'.uniqid(),
+            'status' => 'open',
+            'opening_cash' => 100000,
+            'closing_cash' => null,
+            'opened_at' => now(),
+            'closed_at' => null,
+            'notes' => null,
+            'sync_id' => (string) Str::uuid(),
+            'sync_version' => 1,
+            'sync_sequence' => 0,
+        ], $attributes));
     }
 }

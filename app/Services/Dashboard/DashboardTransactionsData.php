@@ -24,6 +24,8 @@ class DashboardTransactionsData
             return $this->emptyResult($filters);
         }
 
+        $hasAnyTransactions = Sale::query()->where('business_id', $business->id)->exists();
+
         $baseQuery = Sale::query()->where('business_id', $business->id);
 
         $filteredQuery = $this->applyFilters(clone $baseQuery, $filters);
@@ -46,6 +48,7 @@ class DashboardTransactionsData
             'metrics' => $metrics,
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters),
+            'hasAnyTransactions' => $hasAnyTransactions,
         ];
     }
 
@@ -153,8 +156,23 @@ class DashboardTransactionsData
             return;
         }
 
-        $startDate = $startRaw !== '' ? Carbon::createFromFormat('Y-m-d', $startRaw, $tz)?->startOfDay() : null;
-        $endDate = $endRaw !== '' ? Carbon::createFromFormat('Y-m-d', $endRaw, $tz)?->endOfDay() : null;
+        $startDate = null;
+        if ($startRaw !== '') {
+            try {
+                $startDate = Carbon::createFromFormat('Y-m-d', $startRaw, $tz)?->startOfDay();
+            } catch (\Throwable) {
+                $startDate = null;
+            }
+        }
+
+        $endDate = null;
+        if ($endRaw !== '') {
+            try {
+                $endDate = Carbon::createFromFormat('Y-m-d', $endRaw, $tz)?->endOfDay();
+            } catch (\Throwable) {
+                $endDate = null;
+            }
+        }
 
         if ($startDate === null && $endDate === null) {
             return;
@@ -223,13 +241,18 @@ class DashboardTransactionsData
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        // Distinct payment methods from actual data
-        $paymentMethods = Sale::query()
+        // Distinct payment methods from actual data with presentation labels
+        $rawPaymentMethods = Sale::query()
             ->where('business_id', $business->id)
             ->whereNotNull('payment_method')
             ->distinct()
             ->orderBy('payment_method')
             ->pluck('payment_method');
+
+        $paymentMethods = $rawPaymentMethods->map(fn (string $pm) => [
+            'value' => $pm,
+            'label' => $this->presentPaymentMethod($pm),
+        ])->values()->toArray();
 
         // Distinct transaction statuses from actual data
         $statuses = Sale::query()
@@ -241,7 +264,7 @@ class DashboardTransactionsData
 
         return [
             'outlets' => $outlets->map(fn (Outlet $o) => ['id' => $o->id, 'name' => $o->name])->values()->toArray(),
-            'payment_methods' => $paymentMethods->toArray(),
+            'payment_methods' => $paymentMethods,
             'statuses' => $statuses->toArray(),
             'payment_statuses' => [
                 ['value' => 'paid', 'label' => 'Lunas'],
@@ -421,8 +444,19 @@ class DashboardTransactionsData
      */
     private function emptyResult(array $filters): array
     {
-        // Empty paginator using a dummy query that returns nothing
-        $empty = Sale::query()->whereRaw('1 = 0')->paginate(self::PER_PAGE)->withQueryString();
+        // Empty in-memory paginator without database queries
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        /** @var LengthAwarePaginator<int, array<string, mixed>> $empty */
+        $empty = new LengthAwarePaginator(
+            items: [],
+            total: 0,
+            perPage: self::PER_PAGE,
+            currentPage: $page,
+            options: [
+                'path' => LengthAwarePaginator::resolveCurrentPath(),
+                'query' => request()->query(),
+            ]
+        );
 
         return [
             'transactions' => $empty,
@@ -443,6 +477,7 @@ class DashboardTransactionsData
                 ],
             ],
             'currentFilters' => $this->sanitizeFilters($filters),
+            'hasAnyTransactions' => false,
         ];
     }
 
