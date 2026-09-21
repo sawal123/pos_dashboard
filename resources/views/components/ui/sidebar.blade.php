@@ -139,6 +139,7 @@
             <x-ui.sidebar-item
                 icon="monitor-smartphone"
                 label="Perangkat"
+                route="devices.index"
             />
         </x-ui.sidebar-section>
 
@@ -147,6 +148,7 @@
             <x-ui.sidebar-item
                 icon="refresh-cw"
                 label="Sinkronisasi"
+                route="sync.index"
             />
             <x-ui.sidebar-item
                 icon="credit-card"
