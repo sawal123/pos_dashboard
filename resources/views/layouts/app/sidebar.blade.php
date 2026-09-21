@@ -9,7 +9,7 @@
         <x-ui.page-loader />
 
         {{-- ==================== SIDEBAR ==================== --}}
-        <x-ui.sidebar />
+        <x-ui.sidebar :subscription="$dashboardSubscriptionState ?? 'unknown'" />
 
         {{-- ==================== MOBILE BACKDROP ==================== --}}
         <div id="mobileBackdrop" class="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm hidden md:hidden"></div>

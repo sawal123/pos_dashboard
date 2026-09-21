@@ -67,6 +67,9 @@
         </button>
     </div>
 
+    {{-- Active Business Switcher / Context --}}
+    <x-dashboard.business-switcher />
+
     {{-- Navigation Menu Container --}}
     <nav class="flex-1 overflow-y-auto py-3 px-3 space-y-4" aria-label="Menu Utama">
 
