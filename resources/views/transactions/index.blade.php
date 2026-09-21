@@ -90,7 +90,7 @@
 
     {{-- ==================== CLIENT-SIDE SCRIPTS ==================== --}}
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        function initTransactionsPage() {
             // Elements
             const searchInput = document.getElementById('searchTransactionsInput');
             const filterOutlet = document.getElementById('filterOutlet');
@@ -337,9 +337,9 @@
                 }, 300);
             }
 
-            // Event Listeners for Opening Drawer
+            // Event Delegation for Opening Drawer (works reliably across wire:navigate)
             document.querySelectorAll('.view-detail-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.onclick = () => {
                     const rowOrCard = btn.closest('.transaction-row, .transaction-card');
                     if (rowOrCard) {
                         const raw = rowOrCard.getAttribute('data-raw');
@@ -352,13 +352,13 @@
                             }
                         }
                     }
-                });
+                };
             });
 
             // Close Drawer Handlers
-            if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
-            if (drawerCloseFooterBtn) drawerCloseFooterBtn.addEventListener('click', closeDrawer);
-            if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+            if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
+            if (drawerCloseFooterBtn) drawerCloseFooterBtn.onclick = closeDrawer;
+            if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
 
             // Escape Key listener for Detail Drawer
             document.addEventListener('keydown', (e) => {
@@ -366,6 +366,10 @@
                     closeDrawer();
                 }
             });
-        });
+        }
+
+        initTransactionsPage();
+        document.addEventListener('DOMContentLoaded', initTransactionsPage);
+        document.addEventListener('livewire:navigated', initTransactionsPage);
     </script>
 </x-layouts::app>
