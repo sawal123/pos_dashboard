@@ -80,7 +80,7 @@
                 });
             }
 
-            // ========== SIDEBAR MANAGEMENT ==========
+            // ========== SIDEBAR MANAGEMENT & PERSISTENCE ==========
             const sidebar = document.getElementById('sidebar');
             const mobileBackdrop = document.getElementById('mobileBackdrop');
             const hamburgerBtn = document.getElementById('hamburgerBtn');
@@ -88,34 +88,67 @@
             const desktopCollapseBtn = document.getElementById('desktopCollapseBtn');
             const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
             const collapseIcon = document.getElementById('collapseIcon');
+            const collapseLabel = document.getElementById('collapseLabel');
             const mainWrapper = document.getElementById('mainWrapper');
+
+            function getStoredSidebarCollapse() {
+                return localStorage.getItem('nexa-sidebar-collapsed') === 'true';
+            }
+
+            function setSidebarCollapsed(collapsed) {
+                if (!sidebar || !mainWrapper) return;
+                if (collapsed) {
+                    sidebar.classList.add('sidebar-collapsed', 'w-20');
+                    sidebar.classList.remove('w-72');
+                    mainWrapper.classList.add('md:ml-20');
+                    mainWrapper.classList.remove('md:ml-72');
+                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-right');
+                    if (collapseLabel) collapseLabel.textContent = 'Bentangkan';
+                    if (collapseSidebarBtn) {
+                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Bentangkan Sidebar');
+                        collapseSidebarBtn.setAttribute('aria-expanded', 'false');
+                    }
+                    if (desktopCollapseBtn) {
+                        desktopCollapseBtn.setAttribute('data-tooltip', 'Bentangkan Sidebar');
+                        desktopCollapseBtn.setAttribute('aria-expanded', 'false');
+                    }
+                } else {
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-72');
+                    mainWrapper.classList.remove('md:ml-20');
+                    mainWrapper.classList.add('md:ml-72');
+                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-left');
+                    if (collapseLabel) collapseLabel.textContent = 'Ciutkan';
+                    if (collapseSidebarBtn) {
+                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Ciutkan Sidebar');
+                        collapseSidebarBtn.setAttribute('aria-expanded', 'true');
+                    }
+                    if (desktopCollapseBtn) {
+                        desktopCollapseBtn.setAttribute('data-tooltip', 'Ciutkan Sidebar');
+                        desktopCollapseBtn.setAttribute('aria-expanded', 'true');
+                    }
+                }
+                localStorage.setItem('nexa-sidebar-collapsed', collapsed ? 'true' : 'false');
+                initIcons();
+            }
+
+            function toggleDesktopCollapse() {
+                const isCurrentlyCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                setSidebarCollapsed(!isCurrentlyCollapsed);
+            }
 
             function openMobileSidebar() {
                 sidebar.classList.remove('-translate-x-full');
                 mobileBackdrop.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
+                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'true');
             }
 
             function closeMobileSidebar() {
                 sidebar.classList.add('-translate-x-full');
                 mobileBackdrop.classList.add('hidden');
                 document.body.style.overflow = '';
-            }
-
-            function toggleDesktopCollapse() {
-                sidebar.classList.toggle('sidebar-collapsed');
-                sidebar.classList.toggle('w-72');
-                sidebar.classList.toggle('w-20');
-                mainWrapper.classList.toggle('md:ml-72');
-                mainWrapper.classList.toggle('md:ml-20');
-                if (collapseIcon) {
-                    if (sidebar.classList.contains('sidebar-collapsed')) {
-                        collapseIcon.setAttribute('data-lucide', 'chevrons-right');
-                    } else {
-                        collapseIcon.setAttribute('data-lucide', 'chevrons-left');
-                    }
-                    initIcons();
-                }
+                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'false');
             }
 
             if (hamburgerBtn) hamburgerBtn.addEventListener('click', openMobileSidebar);
@@ -124,9 +157,71 @@
             if (desktopCollapseBtn) desktopCollapseBtn.addEventListener('click', toggleDesktopCollapse);
             if (collapseSidebarBtn) collapseSidebarBtn.addEventListener('click', toggleDesktopCollapse);
 
+            // Apply stored collapse preference on desktop initialization
+            if (window.innerWidth >= 768 && getStoredSidebarCollapse()) {
+                setSidebarCollapsed(true);
+            }
+
+            // Window resize adjustment
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 768) {
+                    if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                        closeMobileSidebar();
+                    }
+                    if (getStoredSidebarCollapse()) {
+                        setSidebarCollapsed(true);
+                    }
+                }
+            });
+
+            // ========== FLOATING TOOLTIP FOR COLLAPSED SIDEBAR ==========
+            let floatingTooltip = document.getElementById('sidebarFloatingTooltip');
+            if (!floatingTooltip) {
+                floatingTooltip = document.createElement('div');
+                floatingTooltip.id = 'sidebarFloatingTooltip';
+                floatingTooltip.className = 'fixed z-[100] pointer-events-none px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-900 dark:bg-slate-800 border border-slate-700/80 shadow-xl opacity-0 transition-opacity duration-150 whitespace-nowrap';
+                document.body.appendChild(floatingTooltip);
+            }
+
+            function showFloatingTooltip(el, text) {
+                if (!sidebar.classList.contains('sidebar-collapsed') || window.innerWidth < 768) return;
+                const rect = el.getBoundingClientRect();
+                floatingTooltip.textContent = text;
+                floatingTooltip.style.left = `${rect.right + 12}px`;
+                floatingTooltip.style.top = `${rect.top + rect.height / 2}px`;
+                floatingTooltip.style.transform = 'translateY(-50%)';
+                floatingTooltip.classList.remove('opacity-0');
+                floatingTooltip.classList.add('opacity-100');
+            }
+
+            function hideFloatingTooltip() {
+                if (floatingTooltip) {
+                    floatingTooltip.classList.remove('opacity-100');
+                    floatingTooltip.classList.add('opacity-0');
+                }
+            }
+
+            document.querySelectorAll('#sidebar [data-tooltip-right]').forEach(el => {
+                const text = el.getAttribute('data-tooltip-right');
+                el.addEventListener('mouseenter', () => showFloatingTooltip(el, text));
+                el.addEventListener('mouseleave', hideFloatingTooltip);
+                el.addEventListener('focus', () => showFloatingTooltip(el, text));
+                el.addEventListener('blur', hideFloatingTooltip);
+            });
+
+            // ========== SIDEBAR ROADMAP ITEM PLACEHOLDER ==========
             document.querySelectorAll('.sidebar-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    if (window.innerWidth < 768) closeMobileSidebar();
+                const hasRoute = item.getAttribute('data-has-route') === 'true';
+                const label = item.getAttribute('data-nav-label') || 'Modul';
+
+                item.addEventListener('click', (e) => {
+                    if (window.innerWidth < 768) {
+                        closeMobileSidebar();
+                    }
+                    if (!hasRoute) {
+                        e.preventDefault();
+                        showToast('info', `Modul ${label} akan tersedia pada pembaruan berikutnya.`);
+                    }
                 });
             });
 
@@ -243,6 +338,10 @@
 
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
+                    if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                        closeMobileSidebar();
+                    }
+                    hideFloatingTooltip();
                     const addProductModal = document.getElementById('addProductModal');
                     const deleteModal = document.getElementById('deleteModal');
                     if (addProductModal && !addProductModal.classList.contains('hidden')) closeModal(addProductModal);
@@ -322,9 +421,14 @@
             });
 
             // ========== MANAGE PLAN BUTTON ==========
+            const managePlanHandler = () => showToast('info', 'Halaman kelola paket langganan akan segera tersedia.');
             const managePlanBtn = document.getElementById('managePlanBtn');
+            const managePlanMiniBtn = document.getElementById('managePlanMiniBtn');
             if (managePlanBtn) {
-                managePlanBtn.addEventListener('click', () => showToast('info', 'Subscription plan management is not available yet.'));
+                managePlanBtn.addEventListener('click', managePlanHandler);
+            }
+            if (managePlanMiniBtn) {
+                managePlanMiniBtn.addEventListener('click', managePlanHandler);
             }
 
             // ========== ACTION DROPDOWNS ==========

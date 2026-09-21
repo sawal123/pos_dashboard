@@ -25,6 +25,11 @@ class DashboardTest extends TestCase
 
         $response = $this->get(route('dashboard'));
         $response->assertOk();
+        $response->assertSee('Ringkasan');
+        $response->assertSee('Operasional');
+        $response->assertSee('Produk &amp; Layanan', false);
+        $response->assertSee('Paket Cloud');
+        $response->assertDontSee('sidebar-item-label truncate flex-1 tracking-tight">Categories', false);
     }
 
     public function test_unverified_users_cannot_visit_the_dashboard(): void
