@@ -105,6 +105,7 @@
             <x-ui.sidebar-item
                 icon="wallet-cards"
                 label="Kas & Pengeluaran"
+                route="cash.index"
             />
             <x-ui.sidebar-item
                 icon="clock"
@@ -121,6 +122,7 @@
             <x-ui.sidebar-item
                 icon="chart-column"
                 label="Laporan"
+                route="reports.index"
             />
         </x-ui.sidebar-section>
 
