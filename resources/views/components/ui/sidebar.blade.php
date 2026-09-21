@@ -95,10 +95,12 @@
             <x-ui.sidebar-item
                 icon="package"
                 label="Produk & Layanan"
+                route="products.index"
             />
             <x-ui.sidebar-item
                 icon="boxes"
                 label="Stok"
+                route="stock.index"
             />
             <x-ui.sidebar-item
                 icon="wallet-cards"
