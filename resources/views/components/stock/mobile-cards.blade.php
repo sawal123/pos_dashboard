@@ -32,19 +32,9 @@
 <div id="mobileStockCards" class="md:hidden space-y-3">
     @foreach($items as $item)
         @php
-            $st = (float) $item['current_stock'];
-            $mst = (float) $item['min_stock'];
-            if ($st < 0) {
-                $stockStatus = 'negative';
-            } elseif ($st == 0.0) {
-                $stockStatus = 'empty';
-            } elseif ($st <= $mst) {
-                $stockStatus = 'low';
-            } else {
-                $stockStatus = 'safe';
-            }
+            $stockStatus = $item['stock_status'] ?? 'safe';
             $badge = $getStockMobileBadge($stockStatus);
-            $isNegative = $st < 0;
+            $isNegative = $stockStatus === 'negative';
         @endphp
         <div
             class="stock-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3"
@@ -53,7 +43,7 @@
             data-sku="{{ $item['sku'] }}"
             data-category="{{ $item['category_name'] }}"
             data-stock-status="{{ $stockStatus }}"
-            data-raw="{{ json_encode(array_merge($item, ['stock_status' => $stockStatus])) }}"
+            data-raw="{{ json_encode($item) }}"
         >
             <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">

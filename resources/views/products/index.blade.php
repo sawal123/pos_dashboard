@@ -1,9 +1,3 @@
-@php
-    $loadFixtures = require resource_path('views/products/fixtures.php');
-    $fixtureData = $loadFixtures();
-    $hasData = !empty($fixtureData['products']) || !empty($fixtureData['services']);
-@endphp
-
 <x-layouts::app :title="'Produk & Layanan'">
     <main id="mainContent" data-products-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
@@ -26,118 +20,150 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-products.summary-cards :summary="$fixtureData['summary']" />
+        <x-products.summary-cards :summary="$summary" />
 
         {{-- ==================== 2. TABS NAVIGATOR ==================== --}}
         <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800" role="tablist" aria-label="Navigasi Katalog">
-            <button
-                type="button"
+            <a
+                href="{{ route('products.index', ['tab' => 'products']) }}"
+                wire:navigate
                 id="tabProducts"
                 role="tab"
-                aria-selected="true"
+                aria-selected="{{ $activeTab === 'products' ? 'true' : 'false' }}"
                 aria-controls="panelProducts"
-                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition-colors focus:outline-none"
+                tabindex="{{ $activeTab === 'products' ? '0' : '-1' }}"
+                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 {{ $activeTab === 'products' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
             >
                 <i data-lucide="package" class="w-4 h-4"></i>
                 <span>Produk</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 tabular-nums">
-                    {{ count($fixtureData['products']) }}
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'products' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                    {{ $tabCounts['products'] ?? 0 }}
                 </span>
-            </button>
-            <button
-                type="button"
+            </a>
+            <a
+                href="{{ route('products.index', ['tab' => 'services']) }}"
+                wire:navigate
                 id="tabServices"
                 role="tab"
-                aria-selected="false"
+                aria-selected="{{ $activeTab === 'services' ? 'true' : 'false' }}"
                 aria-controls="panelServices"
-                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                tabindex="{{ $activeTab === 'services' ? '0' : '-1' }}"
+                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 {{ $activeTab === 'services' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
             >
                 <i data-lucide="sparkles" class="w-4 h-4"></i>
                 <span>Layanan</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 tabular-nums">
-                    {{ count($fixtureData['services']) }}
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'services' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                    {{ $tabCounts['services'] ?? 0 }}
                 </span>
-            </button>
-            <button
-                type="button"
+            </a>
+            <a
+                href="{{ route('products.index', ['tab' => 'categories']) }}"
+                wire:navigate
                 id="tabCategories"
                 role="tab"
-                aria-selected="false"
+                aria-selected="{{ $activeTab === 'categories' ? 'true' : 'false' }}"
                 aria-controls="panelCategories"
-                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none"
+                tabindex="{{ $activeTab === 'categories' ? '0' : '-1' }}"
+                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 {{ $activeTab === 'categories' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
             >
                 <i data-lucide="tags" class="w-4 h-4"></i>
                 <span>Kategori</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 tabular-nums">
-                    {{ count($fixtureData['categories']) }}
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'categories' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                    {{ $tabCounts['categories'] ?? 0 }}
                 </span>
-            </button>
+            </a>
         </div>
 
         {{-- ==================== 3. FILTER BAR ==================== --}}
-        <x-products.filter-bar :categories="$fixtureData['categories']" />
+        <x-products.filter-bar
+            :categories="$categories"
+            :statuses="$statuses"
+            :active-tab="$activeTab"
+            :filters="$filters"
+        />
 
-        {{-- ==================== 4. TAB PANELS / DATA LIST ==================== --}}
-        @if($hasData)
-            {{-- Tab 1: Produk Panel --}}
-            <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
-                <x-products.product-table :products="$fixtureData['products']" />
-            </div>
-
-            {{-- Tab 2: Layanan Panel --}}
-            <div id="panelServices" role="tabpanel" aria-labelledby="tabServices" class="catalog-panel space-y-4 hidden">
-                <x-products.service-table :services="$fixtureData['services']" />
-            </div>
-
-            {{-- Tab 3: Kategori Panel --}}
-            <div id="panelCategories" role="tabpanel" aria-labelledby="tabCategories" class="catalog-panel space-y-4 hidden">
-                <x-products.category-table :categories="$fixtureData['categories']" />
-            </div>
+        {{-- ==================== 4. DATA LIST / EMPTY STATE ==================== --}}
+        @if($items->total() > 0)
+            @if($activeTab === 'products')
+                <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
+                    <x-products.product-table :products="$items" />
+                </div>
+            @elseif($activeTab === 'services')
+                <div id="panelServices" role="tabpanel" aria-labelledby="tabServices" class="catalog-panel space-y-4">
+                    <x-products.service-table :services="$items" />
+                </div>
+            @elseif($activeTab === 'categories')
+                <div id="panelCategories" role="tabpanel" aria-labelledby="tabCategories" class="catalog-panel space-y-4">
+                    <x-products.category-table :categories="$items" />
+                </div>
+            @endif
 
             {{-- Mobile Cards (Unified Container) --}}
             <div id="mobileCardsWrapper">
                 <x-products.mobile-cards
-                    :products="$fixtureData['products']"
-                    :services="$fixtureData['services']"
-                    :categories="$fixtureData['categories']"
+                    :items="$items"
+                    :active-tab="$activeTab"
                 />
             </div>
-
-            {{-- Filter Zero Match Empty State --}}
-            <x-products.empty-state mode="no-results" />
 
             {{-- ==================== 5. PAGINATION ==================== --}}
             <div id="catalogPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
                 <div class="text-slate-500 dark:text-slate-400 font-medium">
-                    Menampilkan <span id="catalogVisibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['products']) }}</span> item
+                    Menampilkan
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->firstItem() ?? 0 }}</span>
+                    –
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->lastItem() ?? 0 }}</span>
+                    dari
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $items->total() }}</span>
+                    item
                 </div>
                 <nav class="flex items-center gap-1" aria-label="Navigasi Halaman Katalog">
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        type="button"
-                        class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-current="page"
-                    >
-                        1
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Berikutnya
-                    </button>
+                    {{-- Previous --}}
+                    @if($items->onFirstPage())
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Sebelumnya
+                        </span>
+                    @else
+                        <a href="{{ $items->previousPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Sebelumnya
+                        </a>
+                    @endif
+
+                    {{-- Page numbers (up to 7 windows) --}}
+                    @foreach($items->getUrlRange(max(1, $items->currentPage() - 3), min($items->lastPage(), $items->currentPage() + 3)) as $page => $url)
+                        @if($page === $items->currentPage())
+                            <span
+                                class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center"
+                                aria-current="page"
+                            >{{ $page }}</span>
+                        @else
+                            <a href="{{ $url }}"
+                               class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endforeach
+
+                    {{-- Next --}}
+                    @if($items->hasMorePages())
+                        <a href="{{ $items->nextPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Berikutnya
+                        </a>
+                    @else
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Berikutnya
+                        </span>
+                    @endif
                 </nav>
             </div>
         @else
-            {{-- Initial Empty State (Non-local / Production before data integration) --}}
-            <x-products.empty-state mode="no-data" />
+            {{-- Empty State (Filtered or Truly Empty) --}}
+            <x-products.empty-state
+                :mode="($hasAnyData ?? false) ? 'no-results' : 'no-data'"
+                :active-tab="$activeTab"
+            />
         @endif
 
         {{-- ==================== 6. DETAIL DRAWER ==================== --}}
@@ -154,261 +180,25 @@
             }
             root.dataset.productsInitialized = 'true';
 
-            // Active Tab State: 'products' | 'services' | 'categories'
-            let activeTab = 'products';
-
-            // Tab Buttons & Panels
-            const tabProducts = document.getElementById('tabProducts');
-            const tabServices = document.getElementById('tabServices');
-            const tabCategories = document.getElementById('tabCategories');
-            const tabButtons = [tabProducts, tabServices, tabCategories].filter(Boolean);
-
-            const panelProducts = document.getElementById('panelProducts');
-            const panelServices = document.getElementById('panelServices');
-            const panelCategories = document.getElementById('panelCategories');
-
-            const mobileProductCards = document.getElementById('mobileProductCards');
-            const mobileServiceCards = document.getElementById('mobileServiceCards');
-            const mobileCategoryCards = document.getElementById('mobileCategoryCards');
-
-            // Filter Elements
-            const searchInput = document.getElementById('searchCatalogInput');
-            const filterCategory = document.getElementById('filterCategory');
-            const filterStatus = document.getElementById('filterStatus');
-            const filterStockStatus = document.getElementById('filterStockStatus');
-            const stockStatusFilterWrapper = document.getElementById('stockStatusFilterWrapper');
-            const resetFilterBtn = document.getElementById('resetFilterBtn');
-            const addCatalogBtnText = document.getElementById('addCatalogBtnText');
-
-            const filterEmptyState = document.getElementById('productFilterEmptyState');
-            const filterEmptyTitle = document.getElementById('productFilterEmptyTitle');
-            const paginationEl = document.getElementById('catalogPagination');
-            const visibleCountEl = document.getElementById('catalogVisibleCount');
-
             // Drawer Elements
             const drawerWrapper = document.getElementById('productDrawerWrapper');
             const drawerBackdrop = document.getElementById('productDrawerBackdrop');
             const drawerPanel = document.getElementById('productDrawerPanel');
             const closeDrawerBtn = document.getElementById('closeProductDrawerBtn');
             const closeDrawerFooterBtn = document.getElementById('closeProductDrawerFooterBtn');
+            const drawerEditCatalogBtn = document.getElementById('drawerEditCatalogBtn');
 
             let lastTriggerElement = null;
+            let currentItemData = null;
 
             function formatRupiah(num) {
-                return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
-            }
-
-            // Tab Switching Logic with ARIA & Keyboard Focus
-            function setTab(tabName, shouldFocus = false) {
-                activeTab = tabName;
-
-                const tabs = [
-                    { name: 'products', btn: tabProducts, panel: panelProducts, mobile: mobileProductCards, label: 'Tambah Produk', placeholder: 'Cari produk, SKU, atau barcode...' },
-                    { name: 'services', btn: tabServices, panel: panelServices, mobile: mobileServiceCards, label: 'Tambah Layanan', placeholder: 'Cari layanan atau SKU...' },
-                    { name: 'categories', btn: tabCategories, panel: panelCategories, mobile: mobileCategoryCards, label: 'Tambah Kategori', placeholder: 'Cari kategori...' },
-                ];
-
-                tabs.forEach(t => {
-                    const isActive = t.name === tabName;
-                    if (t.btn) {
-                        t.btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                        t.btn.setAttribute('tabindex', isActive ? '0' : '-1');
-                        if (isActive) {
-                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg';
-                            if (shouldFocus) {
-                                t.btn.focus();
-                            }
-                        } else {
-                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg';
-                        }
-                    }
-
-                    if (t.panel) {
-                        t.panel.classList.toggle('hidden', !isActive);
-                    }
-                    if (t.mobile) {
-                        t.mobile.classList.toggle('hidden', !isActive);
-                    }
-
-                    if (isActive) {
-                        if (addCatalogBtnText) addCatalogBtnText.textContent = t.label;
-                        if (searchInput) searchInput.placeholder = t.placeholder;
-                    }
-                });
-
-                // Toggle stock status filter visibility (only relevant on products)
-                if (stockStatusFilterWrapper) {
-                    stockStatusFilterWrapper.style.display = tabName === 'products' ? '' : 'none';
-                }
-
-                // Filter category is hidden on category tab itself
-                if (filterCategory) {
-                    filterCategory.parentElement.style.display = tabName === 'categories' ? 'none' : '';
-                }
-
-                applyFilters();
-            }
-
-            if (tabProducts) tabProducts.addEventListener('click', () => setTab('products'));
-            if (tabServices) tabServices.addEventListener('click', () => setTab('services'));
-            if (tabCategories) tabCategories.addEventListener('click', () => setTab('categories'));
-
-            // Keyboard navigation for Tabs (ArrowLeft, ArrowRight, Home, End)
-            const tabListEl = document.querySelector('[role="tablist"]');
-            if (tabListEl) {
-                tabListEl.addEventListener('keydown', (e) => {
-                    const currentIndex = tabButtons.indexOf(document.activeElement);
-                    if (currentIndex === -1) return;
-
-                    let newIndex = currentIndex;
-                    if (e.key === 'ArrowRight') {
-                        e.preventDefault();
-                        newIndex = (currentIndex + 1) % tabButtons.length;
-                    } else if (e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        newIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
-                    } else if (e.key === 'Home') {
-                        e.preventDefault();
-                        newIndex = 0;
-                    } else if (e.key === 'End') {
-                        e.preventDefault();
-                        newIndex = tabButtons.length - 1;
-                    } else {
-                        return;
-                    }
-
-                    const targetBtn = tabButtons[newIndex];
-                    if (targetBtn === tabProducts) setTab('products', true);
-                    else if (targetBtn === tabServices) setTab('services', true);
-                    else if (targetBtn === tabCategories) setTab('categories', true);
-                });
-            }
-
-            // Client-side Filtering
-            function applyFilters() {
-                const search = (searchInput?.value || '').trim().toLowerCase();
-                const category = filterCategory?.value || 'all';
-                const status = filterStatus?.value || 'all';
-                const stockStatus = filterStockStatus?.value || 'all';
-
-                let matchedCount = 0;
-
-                if (activeTab === 'products') {
-                    const rows = document.querySelectorAll('.product-row');
-                    const cards = document.querySelectorAll('.product-card');
-
-                    const checkMatch = (el) => {
-                        const name = (el.getAttribute('data-name') || '').toLowerCase();
-                        const sku = (el.getAttribute('data-sku') || '').toLowerCase();
-                        const barcode = (el.getAttribute('data-barcode') || '').toLowerCase();
-                        const elCategory = el.getAttribute('data-category');
-                        const elStatus = el.getAttribute('data-status');
-                        const elStockStatus = el.getAttribute('data-stock-status');
-
-                        const matchSearch = !search || name.includes(search) || sku.includes(search) || barcode.includes(search);
-                        const matchCategory = category === 'all' || elCategory === category;
-                        const matchStatus = status === 'all' || elStatus === status;
-                        const matchStockStatus = stockStatus === 'all' || elStockStatus === stockStatus;
-
-                        return matchSearch && matchCategory && matchStatus && matchStockStatus;
-                    };
-
-                    rows.forEach(r => {
-                        const m = checkMatch(r);
-                        r.style.display = m ? '' : 'none';
-                        if (m) matchedCount++;
-                    });
-                    cards.forEach(c => {
-                        c.style.display = checkMatch(c) ? '' : 'none';
-                    });
-
-                    if (filterEmptyTitle) filterEmptyTitle.textContent = 'Produk Tidak Ditemukan';
-
-                } else if (activeTab === 'services') {
-                    const rows = document.querySelectorAll('.service-row');
-                    const cards = document.querySelectorAll('.service-card');
-
-                    const checkMatch = (el) => {
-                        const name = (el.getAttribute('data-name') || '').toLowerCase();
-                        const sku = (el.getAttribute('data-sku') || '').toLowerCase();
-                        const elCategory = el.getAttribute('data-category');
-                        const elStatus = el.getAttribute('data-status');
-
-                        const matchSearch = !search || name.includes(search) || sku.includes(search);
-                        const matchCategory = category === 'all' || elCategory === category;
-                        const matchStatus = status === 'all' || elStatus === status;
-
-                        return matchSearch && matchCategory && matchStatus;
-                    };
-
-                    rows.forEach(r => {
-                        const m = checkMatch(r);
-                        r.style.display = m ? '' : 'none';
-                        if (m) matchedCount++;
-                    });
-                    cards.forEach(c => {
-                        c.style.display = checkMatch(c) ? '' : 'none';
-                    });
-
-                    if (filterEmptyTitle) filterEmptyTitle.textContent = 'Layanan Tidak Ditemukan';
-
-                } else if (activeTab === 'categories') {
-                    const rows = document.querySelectorAll('.category-row');
-                    const cards = document.querySelectorAll('.category-card');
-
-                    const checkMatch = (el) => {
-                        const name = (el.getAttribute('data-name') || '').toLowerCase();
-                        const elStatus = el.getAttribute('data-status');
-
-                        const matchSearch = !search || name.includes(search);
-                        const matchStatus = status === 'all' || elStatus === status;
-
-                        return matchSearch && matchStatus;
-                    };
-
-                    rows.forEach(r => {
-                        const m = checkMatch(r);
-                        r.style.display = m ? '' : 'none';
-                        if (m) matchedCount++;
-                    });
-                    cards.forEach(c => {
-                        c.style.display = checkMatch(c) ? '' : 'none';
-                    });
-
-                    if (filterEmptyTitle) filterEmptyTitle.textContent = 'Kategori Tidak Ditemukan';
-                }
-
-                if (visibleCountEl) visibleCountEl.textContent = matchedCount;
-
-                const activePanel = activeTab === 'products' ? panelProducts : (activeTab === 'services' ? panelServices : panelCategories);
-                const activeMobile = activeTab === 'products' ? mobileProductCards : (activeTab === 'services' ? mobileServiceCards : mobileCategoryCards);
-
-                if (matchedCount === 0) {
-                    if (filterEmptyState) filterEmptyState.classList.remove('hidden');
-                    if (activePanel) activePanel.classList.add('hidden');
-                    if (activeMobile) activeMobile.classList.add('hidden');
-                    if (paginationEl) paginationEl.classList.add('hidden');
-                } else {
-                    if (filterEmptyState) filterEmptyState.classList.add('hidden');
-                    if (activePanel) activePanel.classList.remove('hidden');
-                    if (activeMobile) activeMobile.classList.remove('hidden');
-                    if (paginationEl) paginationEl.classList.remove('hidden');
-                }
-            }
-
-            if (searchInput) searchInput.addEventListener('input', applyFilters);
-            if (filterCategory) filterCategory.addEventListener('change', applyFilters);
-            if (filterStatus) filterStatus.addEventListener('change', applyFilters);
-            if (filterStockStatus) filterStockStatus.addEventListener('change', applyFilters);
-
-            if (resetFilterBtn) {
-                resetFilterBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterCategory) filterCategory.value = 'all';
-                    if (filterStatus) filterStatus.value = 'all';
-                    if (filterStockStatus) filterStockStatus.value = 'all';
-                    applyFilters();
-                });
+                const val = Number(num || 0);
+                const hasFraction = Math.abs(val % 1) > 0.0001;
+                const formatted = new Intl.NumberFormat('id-ID', {
+                    minimumFractionDigits: hasFraction ? 2 : 0,
+                    maximumFractionDigits: 2,
+                }).format(val);
+                return 'Rp ' + formatted;
             }
 
             // Basic Focus Trap for Detail Drawer
@@ -447,6 +237,7 @@
             // Safe DOM Rendering for Drawer
             function openDrawer(itemData) {
                 if (!drawerWrapper || !itemData) return;
+                currentItemData = itemData;
 
                 const isService = itemData.kind === 'service';
 
@@ -455,20 +246,25 @@
                 document.getElementById('productDrawerTitle').textContent = itemData.name || '-';
                 document.getElementById('detailItemKind').textContent = isService ? 'Layanan' : 'Produk';
 
-                // Status Badge (DOM Safe)
+                // Status Badge (DOM Safe, non-deleted items)
                 const statusBadge = document.getElementById('detailItemStatusBadge');
                 statusBadge.textContent = '';
                 const statusDot = document.createElement('span');
                 const statusText = document.createElement('span');
 
-                if (itemData.status === 'active') {
+                const rawStatus = itemData.status_raw || itemData.status;
+                if (rawStatus === 'active') {
                     statusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     statusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
                     statusText.textContent = 'Aktif';
-                } else {
+                } else if (rawStatus === 'inactive') {
                     statusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                     statusDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
                     statusText.textContent = 'Nonaktif';
+                } else {
+                    statusBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                    statusDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+                    statusText.textContent = itemData.status || rawStatus || '-';
                 }
                 statusBadge.appendChild(statusDot);
                 statusBadge.appendChild(statusText);
@@ -501,6 +297,7 @@
 
                     productInventorySec.classList.add('hidden');
                     serviceOperationalSec.classList.remove('hidden');
+
                     let minQtyText = '-';
                     if (itemData.min_quantity !== null && itemData.min_quantity !== undefined && itemData.min_quantity !== '') {
                         const unitPart = itemData.unit ? ` ${itemData.unit}` : '';
@@ -527,13 +324,15 @@
                     // Deterministic stock status badge
                     const stockBadge = document.getElementById('detailStockBadge');
                     stockBadge.textContent = '';
-                    if (stockNum < 0) {
+                    const stockStatus = itemData.stock_status || (stockNum < 0 ? 'negative' : (stockNum === 0 ? 'empty' : (stockNum <= minStockNum ? 'low' : 'safe')));
+
+                    if (stockStatus === 'negative') {
                         stockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300';
                         stockBadge.textContent = 'Minus';
-                    } else if (stockNum === 0) {
+                    } else if (stockStatus === 'empty') {
                         stockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/70 dark:border-rose-800/60 text-rose-700 dark:text-rose-400';
                         stockBadge.textContent = 'Habis';
-                    } else if (stockNum <= minStockNum) {
+                    } else if (stockStatus === 'low') {
                         stockBadge.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/70 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
                         stockBadge.textContent = 'Menipis';
                     } else {
@@ -596,12 +395,19 @@
                 };
             });
 
+            if (drawerEditCatalogBtn) {
+                drawerEditCatalogBtn.onclick = () => {
+                    const isService = currentItemData && currentItemData.kind === 'service';
+                    const msg = isService
+                        ? 'Pengelolaan layanan dari dashboard belum tersedia.'
+                        : 'Pengelolaan produk dari dashboard belum tersedia.';
+                    showToast('info', msg);
+                };
+            }
+
             if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
             if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
-
-            // Ensure initial state is consistently set to Products
-            setTab('products');
         }
 
         initProductsPage();

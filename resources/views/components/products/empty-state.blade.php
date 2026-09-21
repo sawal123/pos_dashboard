@@ -1,39 +1,67 @@
 @props([
     'mode' => 'no-data', // 'no-data' | 'no-results'
-    'itemType' => 'Produk',
+    'activeTab' => 'products',
+    'itemType' => null,
 ])
 
+@php
+    $tabLabels = [
+        'products' => [
+            'type' => 'Produk',
+            'no_data_title' => 'Belum Ada Produk',
+            'no_data_desc' => 'Produk yang telah tersinkron ke Cloud akan muncul di sini.',
+            'no_results_title' => 'Produk Tidak Ditemukan',
+            'icon' => 'package-search',
+        ],
+        'services' => [
+            'type' => 'Layanan',
+            'no_data_title' => 'Belum Ada Layanan',
+            'no_data_desc' => 'Layanan yang telah tersinkron ke Cloud akan muncul di sini.',
+            'no_results_title' => 'Layanan Tidak Ditemukan',
+            'icon' => 'sparkles',
+        ],
+        'categories' => [
+            'type' => 'Kategori',
+            'no_data_title' => 'Belum Ada Kategori',
+            'no_data_desc' => 'Kategori yang telah tersinkron ke Cloud akan muncul di sini.',
+            'no_results_title' => 'Kategori Tidak Ditemukan',
+            'icon' => 'tags',
+        ],
+    ];
+
+    $tabInfo = $tabLabels[$activeTab] ?? $tabLabels['products'];
+@endphp
+
 @if($mode === 'no-data')
-    {{-- Initial Empty State (Non-local / Production before data integration) --}}
+    {{-- Truly Empty State for Active Tab --}}
     <div class="py-16 px-6 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center">
         <div class="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-4 shadow-xs">
-            <i data-lucide="package-search" class="w-7 h-7"></i>
+            <i data-lucide="{{ $tabInfo['icon'] }}" class="w-7 h-7"></i>
         </div>
         <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
-            Belum Ada Produk
+            {{ $tabInfo['no_data_title'] }}
         </h2>
         <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto leading-relaxed">
-            Produk yang telah tersinkron ke Cloud akan muncul di sini.
+            {{ $tabInfo['no_data_desc'] }}
         </p>
     </div>
 @else
-    {{-- Filter Zero-results Empty State (Dynamic client-side) --}}
-    <div id="productFilterEmptyState" class="hidden py-12 px-6 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center">
+    {{-- Filter Zero-results Empty State --}}
+    <div id="productFilterEmptyState" class="py-12 px-6 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex flex-col items-center justify-center">
         <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 mb-3">
             <i data-lucide="filter-x" class="w-6 h-6"></i>
         </div>
         <h3 id="productFilterEmptyTitle" class="text-sm font-bold text-slate-800 dark:text-slate-200">
-            {{ $itemType }} Tidak Ditemukan
+            {{ $tabInfo['no_results_title'] }}
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
-            Tidak ada item yang cocok dengan kombinasi pencarian dan filter saat ini.
+            Coba ubah pencarian atau filter yang digunakan.
         </p>
-        <button
-            type="button"
-            onclick="document.getElementById('resetFilterBtn')?.click()"
-            class="mt-4 px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+        <a
+            href="{{ route('products.index', ['tab' => $activeTab]) }}"
+            class="mt-4 inline-flex items-center px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
         >
             Reset Filter
-        </button>
+        </a>
     </div>
 @endif
