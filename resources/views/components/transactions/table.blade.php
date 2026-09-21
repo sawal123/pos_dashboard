@@ -1,6 +1,7 @@
 @props([
     'transactions' => [],
 ])
+{{-- $transactions: LengthAwarePaginator with ->through() mapped arrays --}}
 
 <div class="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
     <div class="overflow-x-auto">
@@ -20,8 +21,8 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200" id="desktopTransactionsBody">
                 @foreach($transactions as $trx)
                     @php
-                        $isPaid = $trx['payment_status'] === 'Lunas';
-                        $isCancelled = $trx['status'] === 'Dibatalkan';
+                        $payRaw = $trx['payment_status_raw'] ?? $trx['payment_status'];
+                        $isCancelled = in_array($trx['status_raw'] ?? $trx['status'], ['cancelled', 'canceled']);
                         $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
                     @endphp
                     <tr
@@ -86,15 +87,20 @@
 
                         {{-- Status Pembayaran --}}
                         <td class="py-3.5 px-4 whitespace-nowrap">
-                            @if($isPaid)
+                            @if($payRaw === 'paid')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     <span>Lunas</span>
                                 </span>
-                            @else
+                            @elseif($payRaw === 'unpaid')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                     <span>Belum Lunas</span>
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                    <span>{{ $trx['payment_status'] }}</span>
                                 </span>
                             @endif
                         </td>

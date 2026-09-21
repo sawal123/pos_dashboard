@@ -1,9 +1,3 @@
-@php
-    $loadFixtures = require resource_path('views/transactions/fixtures.php');
-    $fixtureData = $loadFixtures();
-    $hasData = !empty($fixtureData['transactions']);
-@endphp
-
 <x-layouts::app :title="'Transaksi'">
     <main id="mainContent" data-transactions-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
@@ -26,54 +20,79 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-transactions.summary-cards :metrics="$fixtureData['metrics']" />
+        <x-transactions.summary-cards :metrics="$metrics" />
 
         {{-- ==================== 2. FILTER BAR ==================== --}}
-        <x-transactions.filter-bar :outlets="$fixtureData['outlets']" />
+        <x-transactions.filter-bar
+            :outlets="$filterOptions['outlets']"
+            :paymentMethods="$filterOptions['payment_methods']"
+            :statuses="$filterOptions['statuses']"
+            :currentFilters="$currentFilters"
+        />
 
         {{-- ==================== 3. TRANSACTIONS LIST / EMPTY STATE ==================== --}}
-        @if($hasData)
+        @if($transactions->isNotEmpty())
             {{-- Desktop Table View (>= md) --}}
-            <x-transactions.table :transactions="$fixtureData['transactions']" />
+            <x-transactions.table :transactions="$transactions" />
 
             {{-- Mobile Cards View (< md) --}}
-            <x-transactions.mobile-cards :transactions="$fixtureData['transactions']" />
-
-            {{-- Filter Empty State (Shown when search/filter has no match) --}}
-            <x-transactions.empty-state mode="no-results" />
+            <x-transactions.mobile-cards :transactions="$transactions" />
 
             {{-- ==================== 4. PAGINATION ==================== --}}
             <div id="transactionsPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
                 <div class="text-slate-500 dark:text-slate-400 font-medium">
-                    Menampilkan <span id="visibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['transactions']) }}</span> dari <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['transactions']) }}</span> transaksi
+                    Menampilkan
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $transactions->firstItem() ?? 0 }}</span>
+                    –
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $transactions->lastItem() ?? 0 }}</span>
+                    dari
+                    <span class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ $transactions->total() }}</span>
+                    transaksi
                 </div>
                 <nav class="flex items-center gap-1" aria-label="Navigasi Halaman Transaksi">
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        type="button"
-                        class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-current="page"
-                    >
-                        1
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Berikutnya
-                    </button>
+                    {{-- Previous --}}
+                    @if($transactions->onFirstPage())
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Sebelumnya
+                        </span>
+                    @else
+                        <a href="{{ $transactions->previousPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Sebelumnya
+                        </a>
+                    @endif
+
+                    {{-- Page numbers (up to 7 windows) --}}
+                    @foreach($transactions->getUrlRange(max(1, $transactions->currentPage() - 3), min($transactions->lastPage(), $transactions->currentPage() + 3)) as $page => $url)
+                        @if($page === $transactions->currentPage())
+                            <span
+                                class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center"
+                                aria-current="page"
+                            >{{ $page }}</span>
+                        @else
+                            <a href="{{ $url }}"
+                               class="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endforeach
+
+                    {{-- Next --}}
+                    @if($transactions->hasMorePages())
+                        <a href="{{ $transactions->nextPageUrl() }}"
+                           class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-xs hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                            Berikutnya
+                        </a>
+                    @else
+                        <span class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs">
+                            Berikutnya
+                        </span>
+                    @endif
                 </nav>
             </div>
         @else
-            {{-- Initial Empty State (Non-local / Production before data integration) --}}
-            <x-transactions.empty-state mode="no-data" />
+            {{-- Empty State --}}
+            <x-transactions.empty-state :mode="($hasAnyTransactions ?? false) ? 'no-results' : 'no-data'" />
         @endif
 
         {{-- ==================== 5. DETAIL DRAWER ==================== --}}
@@ -90,25 +109,23 @@
             }
             root.dataset.transactionsInitialized = 'true';
 
-            // Elements
-            const searchInput = document.getElementById('searchTransactionsInput');
+            // Custom date range toggle (local UI only — server-side filtering on submit)
             const filterDate = document.getElementById('filterDate');
             const customDateRangeContainer = document.getElementById('customDateRangeContainer');
-            const filterStartDate = document.getElementById('filterStartDate');
-            const filterEndDate = document.getElementById('filterEndDate');
-            const filterOutlet = document.getElementById('filterOutlet');
-            const filterPaymentMethod = document.getElementById('filterPaymentMethod');
-            const filterPaymentStatus = document.getElementById('filterPaymentStatus');
-            const filterTransactionStatus = document.getElementById('filterTransactionStatus');
-            const resetFilterBtn = document.getElementById('resetFilterBtn');
 
-            const rows = document.querySelectorAll('.transaction-row');
-            const cards = document.querySelectorAll('.transaction-card');
-            const filterEmptyState = document.getElementById('filterEmptyState');
-            const desktopTable = document.getElementById('desktopTransactionsTable')?.closest('.rounded-2xl');
-            const mobileContainer = document.getElementById('mobileTransactionsContainer');
-            const paginationEl = document.getElementById('transactionsPagination');
-            const visibleCountEl = document.getElementById('visibleCount');
+            function syncCustomDateVisibility() {
+                if (!customDateRangeContainer || !filterDate) return;
+                if (filterDate.value === 'custom') {
+                    customDateRangeContainer.classList.remove('hidden');
+                } else {
+                    customDateRangeContainer.classList.add('hidden');
+                }
+            }
+
+            if (filterDate) {
+                filterDate.addEventListener('change', syncCustomDateVisibility);
+                syncCustomDateVisibility();
+            }
 
             // Detail Drawer Elements
             const drawerWrapper = document.getElementById('transactionDrawerWrapper');
@@ -119,145 +136,15 @@
 
             let lastTriggerElement = null;
 
-            // Format Currency Helper
+            // Format Currency Helper (Intl.NumberFormat with max 2 decimals, min 2 only if non-zero fraction)
             function formatRupiah(num) {
-                return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
-            }
-
-            // Client-side Filter Logic
-            function applyFilters() {
-                const search = (searchInput?.value || '').trim().toLowerCase();
-                const dateMode = filterDate?.value || 'all';
-                const startDate = filterStartDate?.value || '';
-                const endDate = filterEndDate?.value || '';
-                const outlet = filterOutlet?.value || 'all';
-                const payment = filterPaymentMethod?.value || 'all';
-                const paymentStatus = filterPaymentStatus?.value || 'all';
-                const txStatus = filterTransactionStatus?.value || 'all';
-
-                // Toggle custom date range input visibility
-                if (customDateRangeContainer) {
-                    if (dateMode === 'custom') {
-                        customDateRangeContainer.classList.remove('hidden');
-                    } else {
-                        customDateRangeContainer.classList.add('hidden');
-                    }
-                }
-
-                const now = new Date();
-                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-                const checkDateMatch = (soldAtRaw) => {
-                    if (dateMode === 'all') return true;
-                    if (!soldAtRaw) return false;
-
-                    const trxDateStr = soldAtRaw.slice(0, 10);
-                    const trxTime = new Date(trxDateStr + 'T00:00:00').getTime();
-                    const todayTime = new Date(todayStr + 'T00:00:00').getTime();
-                    const diffDays = Math.round((todayTime - trxTime) / (1000 * 60 * 60 * 24));
-
-                    if (dateMode === 'today') {
-                        return diffDays === 0;
-                    }
-
-                    if (dateMode === '7days') {
-                        return diffDays >= 0 && diffDays < 7;
-                    }
-
-                    if (dateMode === '30days') {
-                        return diffDays >= 0 && diffDays < 30;
-                    }
-
-                    if (dateMode === 'custom') {
-                        // Empty custom period does not hide all data without explanation
-                        if (!startDate && !endDate) return true;
-
-                        let minDate = startDate;
-                        let maxDate = endDate;
-                        if (minDate && maxDate && minDate > maxDate) {
-                            [minDate, maxDate] = [maxDate, minDate];
-                        }
-
-                        if (minDate && trxDateStr < minDate) return false;
-                        if (maxDate && trxDateStr > maxDate) return false;
-                        return true;
-                    }
-
-                    return true;
-                };
-
-                let matchedCount = 0;
-
-                // Filter rows (desktop) & cards (mobile)
-                const checkMatch = (el) => {
-                    const trxNum = (el.getAttribute('data-trx') || '').toLowerCase();
-                    const customer = (el.getAttribute('data-customer') || '').toLowerCase();
-                    const elOutlet = el.getAttribute('data-outlet');
-                    const elPayment = el.getAttribute('data-payment');
-                    const elPayStatus = el.getAttribute('data-payment-status');
-                    const elTxStatus = el.getAttribute('data-status');
-                    const elSoldAt = el.getAttribute('data-sold-at') || '';
-
-                    const matchSearch = !search || trxNum.includes(search) || customer.includes(search);
-                    const matchDate = checkDateMatch(elSoldAt);
-                    const matchOutlet = outlet === 'all' || elOutlet === outlet;
-                    const matchPayment = payment === 'all' || elPayment === payment;
-                    const matchPayStatus = paymentStatus === 'all' || elPayStatus === paymentStatus;
-                    const matchTxStatus = txStatus === 'all' || elTxStatus === txStatus;
-
-                    return matchSearch && matchDate && matchOutlet && matchPayment && matchPayStatus && matchTxStatus;
-                };
-
-                rows.forEach(row => {
-                    const match = checkMatch(row);
-                    row.style.display = match ? '' : 'none';
-                    if (match) matchedCount++;
-                });
-
-                cards.forEach(card => {
-                    const match = checkMatch(card);
-                    card.style.display = match ? '' : 'none';
-                });
-
-                if (visibleCountEl) {
-                    visibleCountEl.textContent = matchedCount;
-                }
-
-                if (matchedCount === 0) {
-                    if (filterEmptyState) filterEmptyState.classList.remove('hidden');
-                    if (desktopTable) desktopTable.classList.add('hidden');
-                    if (mobileContainer) mobileContainer.classList.add('hidden');
-                    if (paginationEl) paginationEl.classList.add('hidden');
-                } else {
-                    if (filterEmptyState) filterEmptyState.classList.add('hidden');
-                    if (desktopTable) desktopTable.classList.remove('hidden');
-                    if (mobileContainer) mobileContainer.classList.remove('hidden');
-                    if (paginationEl) paginationEl.classList.remove('hidden');
-                }
-            }
-
-            if (searchInput) searchInput.addEventListener('input', applyFilters);
-            if (filterDate) filterDate.addEventListener('change', applyFilters);
-            if (filterStartDate) filterStartDate.addEventListener('input', applyFilters);
-            if (filterEndDate) filterEndDate.addEventListener('input', applyFilters);
-            if (filterOutlet) filterOutlet.addEventListener('change', applyFilters);
-            if (filterPaymentMethod) filterPaymentMethod.addEventListener('change', applyFilters);
-            if (filterPaymentStatus) filterPaymentStatus.addEventListener('change', applyFilters);
-            if (filterTransactionStatus) filterTransactionStatus.addEventListener('change', applyFilters);
-
-            if (resetFilterBtn) {
-                resetFilterBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterDate) filterDate.value = 'all';
-                    if (filterStartDate) filterStartDate.value = '';
-                    if (filterEndDate) filterEndDate.value = '';
-                    if (customDateRangeContainer) customDateRangeContainer.classList.add('hidden');
-                    if (filterOutlet) filterOutlet.value = 'all';
-                    if (filterPaymentMethod) filterPaymentMethod.value = 'all';
-                    if (filterPaymentStatus) filterPaymentStatus.value = 'all';
-                    if (filterTransactionStatus) filterTransactionStatus.value = 'all';
-                    applyFilters();
-                });
+                const val = Number(num || 0);
+                const hasFraction = Math.abs(val % 1) > 0.0001;
+                const formatted = new Intl.NumberFormat('id-ID', {
+                    minimumFractionDigits: hasFraction ? 2 : 0,
+                    maximumFractionDigits: 2,
+                }).format(val);
+                return 'Rp ' + formatted;
             }
 
             // Basic Focus Trap for Drawer
@@ -309,14 +196,20 @@
                 payBadge.textContent = '';
                 const payDot = document.createElement('span');
                 const payText = document.createElement('span');
-                if (data.payment_status === 'Lunas') {
+                const rawPayStatus = (data.payment_status_raw || '').toLowerCase();
+                if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
                     payText.textContent = 'Lunas';
-                } else {
+                } else if (rawPayStatus === 'unpaid' || data.payment_status === 'Belum Lunas') {
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
                     payText.textContent = 'Belum Lunas';
+                } else {
+                    // Unknown / other status: human-readable label with neutral/slate badge
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+                    payText.textContent = data.payment_status || '-';
                 }
                 payBadge.appendChild(payDot);
                 payBadge.appendChild(payText);
@@ -327,23 +220,28 @@
                 if (data.status === 'Selesai') {
                     txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
                     txText.textContent = 'Selesai';
-                } else {
+                } else if (data.status === 'Dibatalkan') {
                     txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400';
                     txText.textContent = 'Dibatalkan';
+                } else {
+                    // Neutral — do not default to Dibatalkan for unknown statuses
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                    txText.textContent = data.status || '-';
                 }
                 txBadge.appendChild(txText);
 
-                // Laundry Readiness Section
-                const laundrySection = document.getElementById('detailLaundrySection');
+                // Order Status Section (Conditional)
+                const orderSection = document.getElementById('detailLaundrySection');
                 if (data.order_status || data.estimated_completed_at) {
-                    laundrySection.classList.remove('hidden');
+                    orderSection.classList.remove('hidden');
                     document.getElementById('detailOrderStatus').textContent = data.order_status || '-';
                     document.getElementById('detailEstimatedCompletedAt').textContent = data.estimated_completed_at || '-';
                 } else {
-                    laundrySection.classList.add('hidden');
+                    orderSection.classList.add('hidden');
                 }
 
-                // Populate Items List (Supporting decimal quantities up to 3 decimals e.g. 4.250 kg safely without innerHTML)
+                // Populate Items List
+                // Supports decimal quantities (e.g. 4.250) and generic pricing_unit (kg, pcs, cup, paket)
                 const itemsContainer = document.getElementById('detailItemsContainer');
                 itemsContainer.textContent = '';
                 if (data.items && data.items.length > 0) {
@@ -367,11 +265,14 @@
 
                         const qtySpan = document.createElement('span');
                         qtySpan.className = 'font-semibold text-slate-700 dark:text-slate-300';
-                        const qtyStr = String(item.quantity);
+                        const qtyStr = String(item.quantity ?? '');
                         const unitLabel = item.unit ? ` ${item.unit}` : '';
                         qtySpan.textContent = `${qtyStr}${unitLabel}`;
 
-                        const priceRate = item.pricing_unit === 'per_kg' ? `/${item.unit}` : '';
+                        // pricing_unit: generic string from contract (kg, pcs, cup, paket, etc.)
+                        // Show as /unit suffix when present, otherwise no suffix
+                        const pricingUnit = item.pricing_unit ? String(item.pricing_unit) : '';
+                        const priceRate = pricingUnit !== '' ? `/${pricingUnit}` : '';
                         const metaText = document.createTextNode(` × ${formatRupiah(item.unit_price)}${priceRate}`);
 
                         metaP.appendChild(qtySpan);
@@ -480,7 +381,7 @@
                 }, 300);
             }
 
-            // Event Delegation for Opening Drawer (stores trigger button for return focus)
+            // Event Delegation for Opening Drawer
             document.querySelectorAll('.view-detail-btn').forEach(btn => {
                 btn.onclick = () => {
                     lastTriggerElement = btn;
