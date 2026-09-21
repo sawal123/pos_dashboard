@@ -8,6 +8,16 @@
     'status' => 'Open',
 ])
 
+@php
+    $normalizedStatus = strtolower($status);
+    $isOpen = in_array($normalizedStatus, ['open', 'terbuka', 'aktif', 'active']);
+    $badgeClass = $isOpen
+        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400'
+        : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
+    $dotClass = $isOpen ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400';
+    $statusLabel = $isOpen ? 'Shift Terbuka' : 'Shift Ditutup';
+@endphp
+
 <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div class="flex items-center gap-2.5">
@@ -21,9 +31,9 @@
         </div>
 
         <div class="flex items-center gap-2">
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Shift Terbuka
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold {{ $badgeClass }}">
+                <span class="w-1.5 h-1.5 rounded-full {{ $dotClass }}"></span>
+                {{ $statusLabel }}
             </span>
         </div>
     </div>
@@ -85,7 +95,7 @@
                 <i data-lucide="minus-circle" class="w-3.5 h-3.5 text-rose-500"></i>
                 Catat Pengeluaran
             </button>
-            <button type="button" id="closeShiftBtn" class="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-medium transition-colors flex items-center gap-1.5">
+            <button type="button" id="closeShiftBtn" @disabled(!$isOpen) class="px-3 py-1.5 rounded-xl {{ $isOpen ? 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed' }} font-medium transition-colors flex items-center gap-1.5">
                 <i data-lucide="lock" class="w-3.5 h-3.5"></i>
                 Tutup Shift
             </button>

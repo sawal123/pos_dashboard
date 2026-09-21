@@ -5,7 +5,17 @@
     'lastSyncTime' => '1 menit yang lalu',
     'deviceName' => 'POS-TERMINAL-01',
     'deviceType' => 'Android Tablet (Kasir 1)',
+    'syncStatus' => 'Siap Sinkron',
+    'conflictCount' => 0,
 ])
+
+@php
+    $badgeClass = $isOnline
+        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200/80 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400'
+        : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
+    $dotClass = $isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400';
+    $statusText = $isOnline ? 'Online' : 'Offline';
+@endphp
 
 <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between">
     <div>
@@ -21,9 +31,9 @@
                 </div>
             </div>
 
-            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/80 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400 text-xs font-semibold">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 {{ $isOnline ? 'animate-pulse' : '' }}"></span>
-                {{ $isOnline ? 'Online' : 'Offline' }}
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold {{ $badgeClass }}">
+                <span class="w-1.5 h-1.5 rounded-full {{ $dotClass }}"></span>
+                {{ $statusText }}
             </span>
         </div>
 
@@ -58,20 +68,26 @@
             </div>
         </div>
 
-        {{-- Sync Progress / Status info --}}
-        <div class="space-y-1.5 mb-4">
-            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                <span>Integritas Database</span>
-                <span class="font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 98% Sehat
+        {{-- Operational / Sync Status info (replaces dummy 98% integrity) --}}
+        <div class="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-2 mb-4">
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500 dark:text-slate-400">Status Sinkronisasi</span>
+                <span class="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+                    <i data-lucide="refresh-cw" class="w-3 h-3 text-indigo-500"></i>
+                    <span>{{ $syncStatus }}</span>
                 </span>
             </div>
-            <div class="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style="width: 98%;"></div>
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-500 dark:text-slate-400">Status Konflik</span>
+                <span class="font-semibold {{ $conflictCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400' }} flex items-center gap-1">
+                    <i data-lucide="{{ $conflictCount > 0 ? 'alert-circle' : 'check-circle-2' }}" class="w-3 h-3"></i>
+                    <span>{{ $conflictCount > 0 ? $conflictCount . ' konflik' : 'Tidak ada konflik' }}</span>
+                </span>
             </div>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500 text-right">
-                Sinkron terakhir: <span id="lastSyncLabel" class="font-medium text-slate-600 dark:text-slate-300">{{ $lastSyncTime }}</span>
-            </p>
+            <div class="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-slate-400 dark:text-slate-500">
+                <span>Sinkron Terakhir</span>
+                <span id="lastSyncLabel" class="font-medium text-slate-600 dark:text-slate-300">{{ $lastSyncTime }}</span>
+            </div>
         </div>
     </div>
 

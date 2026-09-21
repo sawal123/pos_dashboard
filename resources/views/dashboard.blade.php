@@ -7,7 +7,7 @@
                 <div class="flex items-center gap-2 mb-1 flex-wrap">
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
                         <i data-lucide="store" class="w-3.5 h-3.5"></i>
-                        <span id="businessNameLabel">Kopi & Resto Nusantara</span>
+                        <span id="businessNameLabel">Kopi Nusantara Cafe</span>
                     </span>
                     <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
                         <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
@@ -78,14 +78,14 @@
                 accent="emerald"
             />
 
-            {{-- KPI 4: Status Stok / Pesanan Aktif --}}
+            {{-- KPI 4: Status Stok --}}
             <x-dashboard.kpi-card
-                title="Peringatan Operasional"
-                value="3 Stok Menipis"
+                title="Peringatan Stok"
+                value="3 Item Menipis"
                 icon="alert-triangle"
-                trend="5 Siap Ambil"
+                trend="Perlu Restock"
                 :trendUp="false"
-                subtitle="3 SKU perlu restock · 5 laundry siap"
+                subtitle="3 SKU bahan baku di bawah batas minimum"
                 accent="amber"
             />
         </div>
@@ -156,6 +156,8 @@
                 lastSyncTime="1 menit yang lalu"
                 deviceName="POS-TERMINAL-01"
                 deviceType="Android POS Tablet (Kasir 1)"
+                syncStatus="Siap Sinkron"
+                :conflictCount="0"
             />
         </div>
 
@@ -169,10 +171,11 @@
                 currentBalance="Rp 5.000.000"
                 cashierName="{{ auth()->check() ? auth()->user()->name : 'Alex Lee' }}"
                 shiftName="Shift Pagi (08:00 - 16:00)"
+                status="Open"
             />
 
-            {{-- Operational & Stock Insight --}}
-            <x-dashboard.stock-alert />
+            {{-- Operational & Stock Insight (Single Business Context: Cafe) --}}
+            <x-dashboard.stock-alert mode="cafe" />
         </div>
 
         {{-- ==================== 4. RECENT TRANSACTIONS SECTION ==================== --}}
@@ -301,79 +304,6 @@
             </div>
         </div>
 
-        {{-- ==================== 5. UI FOUNDATION SHOWCASE (ACCORDION) ==================== --}}
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs">
-            <button type="button" id="toggleShowcaseBtn" class="w-full flex items-center justify-between text-left group">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 flex items-center justify-center">
-                        <i data-lucide="layers" class="w-4 h-4"></i>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold text-slate-900 dark:text-white text-sm md:text-base">Katalog Komponen UI Foundation</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Verifikasi visual token desain, varian badge, skeleton, dan interaksi form</p>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400 group-hover:underline">Buka Showcase</span>
-                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform duration-200" id="showcaseChevron"></i>
-                </div>
-            </button>
-
-            <div id="showcasePanel" class="hidden mt-5 pt-5 border-t border-slate-200/80 dark:border-slate-800 space-y-6">
-                {{-- Tab navigation --}}
-                <div class="flex flex-wrap gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
-                    <button type="button" class="component-tab active px-3.5 py-1.5 rounded-xl text-xs font-medium bg-indigo-600 text-white transition-colors" data-tab="badges">Badges & Status</button>
-                    <button type="button" class="component-tab px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" data-tab="buttons">Tombol & Aksi</button>
-                    <button type="button" class="component-tab px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" data-tab="skeletons">Skeleton & Loader</button>
-                    <button type="button" class="component-tab px-3.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" data-tab="feedback">Toast & Feedback</button>
-                </div>
-
-                {{-- Tab 1: Badges --}}
-                <div id="tab-badges" class="component-tab-content space-y-3">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Status sinkronisasi & status order yang digunakan pada seluruh modul:</p>
-                    <div class="flex flex-wrap gap-2.5">
-                        <x-dashboard.status-badge status="synced" label="Synced" />
-                        <x-dashboard.status-badge status="pending" label="Pending Sync" />
-                        <x-dashboard.status-badge status="failed" label="Sync Failed" />
-                        <x-dashboard.status-badge status="offline" label="Offline Register" />
-                        <x-dashboard.status-badge status="paid" label="Lunas (Paid)" />
-                        <x-dashboard.status-badge status="active" label="Aktif (Active)" />
-                    </div>
-                </div>
-
-                {{-- Tab 2: Buttons --}}
-                <div id="tab-buttons" class="component-tab-content hidden space-y-3">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Hierarki tombol untuk alur POS yang konsisten:</p>
-                    <div class="flex flex-wrap gap-2.5 items-center">
-                        <button type="button" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium shadow-xs">Primary Indigo</button>
-                        <button type="button" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-xs">Success Emerald</button>
-                        <button type="button" class="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-medium shadow-xs">Destructive Rose</button>
-                        <button type="button" class="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800">Secondary Outlined</button>
-                        <button type="button" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-700">Subtle / Ghost</button>
-                    </div>
-                </div>
-
-                {{-- Tab 3: Skeletons --}}
-                <div id="tab-skeletons" class="component-tab-content hidden space-y-4">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Placeholder skeleton untuk perenderan data asinkron:</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <x-dashboard.skeleton type="kpi" :count="2" />
-                    </div>
-                </div>
-
-                {{-- Tab 4: Feedback & Toast Trigger --}}
-                <div id="tab-feedback" class="component-tab-content hidden space-y-3">
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Uji coba notifikasi toast feedback:</p>
-                    <div class="flex flex-wrap gap-2">
-                        <button type="button" onclick="showToast('success', 'Data transaksi berhasil disimpan.')" class="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200 text-xs font-medium">Test Success Toast</button>
-                        <button type="button" onclick="showToast('warning', 'Perhatian: Ada 12 data tertunda di antrean sync.')" class="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 text-xs font-medium">Test Warning Toast</button>
-                        <button type="button" onclick="showToast('error', 'Koneksi lokal terputus, beralih ke mode offline.')" class="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200 text-xs font-medium">Test Error Toast</button>
-                        <button type="button" onclick="showToast('info', 'Shift kasir aktif dimulai pukul 08:00 WIB.')" class="px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200 text-xs font-medium">Test Info Toast</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </main>
 
     {{-- ==================== DASHBOARD JAVASCRIPT LOGIC ==================== --}}
@@ -389,10 +319,10 @@
             { invoice: 'INV-2026-001', customer: 'Budi Santoso', cashier: 'Alex Lee', payment: 'Tunai', total: 'Rp 125.000', sync: 'Synced', time: '14:45 WIB', items: '3 item (Kopi Susu x2, Croissant)' },
             { invoice: 'INV-2026-002', customer: 'Siti Rahma', cashier: 'Alex Lee', payment: 'QRIS', total: 'Rp 245.000', sync: 'Synced', time: '14:32 WIB', items: '4 item (Cold Brew, Toast)' },
             { invoice: 'INV-2026-003', customer: 'Pelanggan Umum', cashier: 'Alex Lee', payment: 'Kartu', total: 'Rp 89.000', sync: 'Pending', time: '14:15 WIB', items: '1 item (Espresso Single)' },
-            { invoice: 'INV-2026-004', customer: 'Ibu Citra (Laundry)', cashier: 'Maria', payment: 'Tunai', total: 'Rp 310.000', sync: 'Synced', time: '13:50 WIB', items: '5.4 kg Cuci Komplit' },
+            { invoice: 'INV-2026-004', customer: 'Citra Dewi', cashier: 'Maria', payment: 'Tunai', total: 'Rp 135.000', sync: 'Synced', time: '13:50 WIB', items: '3 item (Caramel Macchiato, Waffle)' },
             { invoice: 'INV-2026-005', customer: 'Rudi Hartono', cashier: 'Alex Lee', payment: 'QRIS', total: 'Rp 178.500', sync: 'Synced', time: '13:20 WIB', items: '2 item (Matcha Latte x2)' },
             { invoice: 'INV-2026-006', customer: 'Ayu Lestari', cashier: 'Maria', payment: 'Tunai', total: 'Rp 54.000', sync: 'Failed', time: '12:45 WIB', items: '1 item (Americano Ice)' },
-            { invoice: 'INV-2026-007', customer: 'Pak Danu (Laundry)', cashier: 'Maria', payment: 'Kartu', total: 'Rp 432.000', sync: 'Synced', time: '11:30 WIB', items: 'Bed Cover King + Setrika' },
+            { invoice: 'INV-2026-007', customer: 'Danu Pratama', cashier: 'Maria', payment: 'Kartu', total: 'Rp 210.000', sync: 'Synced', time: '11:30 WIB', items: '4 item (V60 Manual Brew x2, Cheesecake)' },
             { invoice: 'INV-2026-008', customer: 'Nia Paramita', cashier: 'Alex Lee', payment: 'QRIS', total: 'Rp 156.000', sync: 'Pending', time: '10:15 WIB', items: '3 item (Cappuccino, Bagel)' },
         ];
 
@@ -468,13 +398,13 @@
                             </button>
                         </div>
                         <div class="action-dropdown dropdown-panel dropdown-hidden absolute right-4 mt-1 w-36 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg overflow-hidden z-40 text-left" data-row-dropdown="${idx}">
-                            <button type="button" onclick="showToast('info', 'Membuka rincian ${row.invoice}')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
+                            <button type="button" onclick="showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
                                 <i data-lucide="eye" class="w-3.5 h-3.5 text-slate-400"></i> Lihat Detail
                             </button>
-                            <button type="button" onclick="showToast('success', 'Struk ${row.invoice} dikirim ke printer thermal')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
+                            <button type="button" onclick="showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">
                                 <i data-lucide="printer" class="w-3.5 h-3.5 text-slate-400"></i> Cetak Struk
                             </button>
-                            <button type="button" onclick="showToast('warning', 'Void invoice memerlukan otorisasi Supervisor')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
+                            <button type="button" onclick="showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.')" class="w-full flex items-center gap-2 px-3.5 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
                                 <i data-lucide="slash" class="w-3.5 h-3.5"></i> Batalkan / Void
                             </button>
                         </div>
@@ -505,7 +435,7 @@
                             ${paymentBadgeHtml[row.payment] || `<span class="text-xs">${row.payment}</span>`}
                             ${syncBadgeHtml[row.sync] || row.sync}
                         </div>
-                        <button type="button" onclick="showToast('success', 'Mencetak struk ${row.invoice}')" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1">
+                        <button type="button" onclick="showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.')" class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1">
                             <i data-lucide="printer" class="w-3 h-3"></i> Cetak
                         </button>
                     </div>
@@ -531,8 +461,7 @@
             document.querySelectorAll('.row-print-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    const invoice = btn.getAttribute('data-invoice');
-                    showToast('success', `Struk ${invoice} berhasil dikirim ke printer.`);
+                    showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
                 });
             });
 
@@ -704,40 +633,15 @@
             }
         }
 
-        // ==================== 5. SYNC NOW ACTION SIMULATION ====================
+        // ==================== 5. SYNC NOW ACTION ====================
         const syncNowBtn = document.getElementById('syncNowBtn');
-        const syncBtnText = document.getElementById('syncBtnText');
-        const syncIcon = document.getElementById('syncIcon');
-        const pendingSyncCount = document.getElementById('pendingSyncCount');
-        const lastSyncLabel = document.getElementById('lastSyncLabel');
-
         if (syncNowBtn) {
             syncNowBtn.addEventListener('click', () => {
-                if (syncNowBtn.disabled) return;
-                syncNowBtn.disabled = true;
-                syncBtnText.textContent = 'Sinkronisasi Outbox...';
-                syncIcon.classList.add('animate-spin');
-
-                setTimeout(() => {
-                    syncNowBtn.disabled = false;
-                    syncBtnText.textContent = 'Sinkronkan Sekarang';
-                    syncIcon.classList.remove('animate-spin');
-
-                    if (pendingSyncCount) pendingSyncCount.textContent = '0';
-                    if (lastSyncLabel) lastSyncLabel.textContent = 'Baru saja';
-
-                    // Update all pending transactions to Synced
-                    transactionDataset.forEach(row => {
-                        if (row.sync === 'Pending') row.sync = 'Synced';
-                    });
-                    renderTableRows(transactionDataset);
-
-                    showToast('success', '12 data outbox berhasil disinkronkan ke Cloud.');
-                }, 1600);
+                showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
             });
         }
 
-        // ==================== 6. OPERATIONAL TABS (STOCK VS LAUNDRY) ====================
+        // ==================== 6. OPERATIONAL TABS & TRIGGERS ====================
         const tabStockAlertBtn = document.getElementById('tabStockAlertBtn');
         const tabLaundryAlertBtn = document.getElementById('tabLaundryAlertBtn');
         const panelStockAlert = document.getElementById('panelStockAlert');
@@ -751,9 +655,9 @@
                 tabLaundryAlertBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-xs', 'font-semibold');
                 tabLaundryAlertBtn.classList.add('text-slate-500', 'dark:text-slate-400');
 
-                panelStockAlert.classList.remove('hidden');
-                panelLaundryAlert.classList.add('hidden');
-                if (insightFooterLabel) insightFooterLabel.textContent = '3 SKU butuh pengadaan ulang';
+                if (panelStockAlert) panelStockAlert.classList.remove('hidden');
+                if (panelLaundryAlert) panelLaundryAlert.classList.add('hidden');
+                if (insightFooterLabel) insightFooterLabel.textContent = '3 SKU bahan baku butuh pengadaan ulang';
             });
 
             tabLaundryAlertBtn.addEventListener('click', () => {
@@ -762,79 +666,46 @@
                 tabStockAlertBtn.classList.remove('bg-white', 'dark:bg-slate-700', 'text-slate-900', 'dark:text-white', 'shadow-xs', 'font-semibold');
                 tabStockAlertBtn.classList.add('text-slate-500', 'dark:text-slate-400');
 
-                panelLaundryAlert.classList.remove('hidden');
-                panelStockAlert.classList.add('hidden');
+                if (panelLaundryAlert) panelLaundryAlert.classList.remove('hidden');
+                if (panelStockAlert) panelStockAlert.classList.add('hidden');
                 if (insightFooterLabel) insightFooterLabel.textContent = '5 pesanan laundry siap diambil pelanggan';
             });
         }
 
         // Quick restock / pickup trigger bindings
         document.querySelectorAll('.restock-trigger-btn').forEach(btn => {
-            btn.addEventListener('click', () => showToast('info', 'Permintaan purchase order dibuat untuk item ini.'));
+            btn.addEventListener('click', () => {
+                showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
+            });
         });
         document.querySelectorAll('.pickup-trigger-btn').forEach(btn => {
-            btn.addEventListener('click', () => showToast('success', 'Status laundry diubah: Selesai diambil pelanggan.'));
+            btn.addEventListener('click', () => {
+                showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
+            });
         });
 
         // ==================== 7. BUTTON ACTIONS & MODALS ====================
-        const addProductModal = document.getElementById('addProductModal');
         document.getElementById('newTransactionBtn')?.addEventListener('click', () => {
-            if (typeof openModal === 'function' && addProductModal) {
-                openModal(addProductModal);
-            } else {
-                showToast('info', 'Membuka antarmuka kasir / register POS...');
-            }
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
-
         document.getElementById('exportReportBtn')?.addEventListener('click', () => {
-            showToast('success', 'Laporan ringkasan penjualan diekspor ke format Excel/PDF.');
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
         document.getElementById('tableExportBtn')?.addEventListener('click', () => {
-            showToast('success', 'Data tabel diekspor ke file CSV.');
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
         document.getElementById('headerNewExpenseBtn')?.addEventListener('click', () => {
-            showToast('info', 'Form pencatatan kas keluar / pengeluaran operasional dibuka.');
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
         document.getElementById('recordExpenseBtn')?.addEventListener('click', () => {
-            showToast('info', 'Form pencatatan kas keluar / pengeluaran operasional dibuka.');
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
         document.getElementById('closeShiftBtn')?.addEventListener('click', () => {
-            showToast('warning', 'Modal Rekonsiliasi Kas & Tutup Shift ditampilkan.');
+            showToast('info', 'Fitur belum terhubung ke backend / akan tersedia setelah integrasi data.');
         });
         document.getElementById('refreshTableBtn')?.addEventListener('click', () => {
             renderTableRows(transactionDataset);
-            showToast('success', 'Daftar transaksi diperbarui.');
-        });
-
-        // ==================== 8. SHOWCASE ACCORDION & TABS ====================
-        const toggleShowcaseBtn = document.getElementById('toggleShowcaseBtn');
-        const showcasePanel = document.getElementById('showcasePanel');
-        const showcaseChevron = document.getElementById('showcaseChevron');
-
-        if (toggleShowcaseBtn && showcasePanel) {
-            toggleShowcaseBtn.addEventListener('click', () => {
-                const isHidden = showcasePanel.classList.contains('hidden');
-                showcasePanel.classList.toggle('hidden');
-                if (showcaseChevron) {
-                    showcaseChevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-                }
-            });
-        }
-
-        const componentTabs = document.querySelectorAll('.component-tab');
-        const tabContents = document.querySelectorAll('.component-tab-content');
-        componentTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const tabName = tab.getAttribute('data-tab');
-                componentTabs.forEach(t => {
-                    t.classList.remove('active', 'bg-indigo-600', 'text-white');
-                    t.classList.add('text-slate-600', 'dark:text-slate-300');
-                });
-                tab.classList.add('active', 'bg-indigo-600', 'text-white');
-                tab.classList.remove('text-slate-600', 'dark:text-slate-300');
-                tabContents.forEach(c => c.classList.add('hidden'));
-                document.getElementById(`tab-${tabName}`)?.classList.remove('hidden');
-            });
+            showToast('info', 'Tampilan data dimuat ulang.');
         });
 
         // ==================== 9. INITIAL LOAD ====================

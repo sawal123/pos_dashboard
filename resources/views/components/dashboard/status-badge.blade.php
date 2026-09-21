@@ -46,9 +46,17 @@
     ];
 
     $displayText = $label ?? $cfg['label'];
+
+    $sizeClasses = [
+        'xs' => 'px-2 py-0.5 text-[10px]',
+        'sm' => 'px-2.5 py-1 text-xs',
+        'md' => 'px-3 py-1.5 text-xs',
+        'lg' => 'px-3.5 py-2 text-sm',
+    ];
+    $sizeClass = $sizeClasses[$size] ?? $sizeClasses['sm'];
 @endphp
 
-<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold {{ $cfg['badge'] }}">
+<span class="inline-flex items-center gap-1.5 rounded-full border font-semibold {{ $sizeClass }} {{ $cfg['badge'] }}">
     <span class="w-1.5 h-1.5 rounded-full shrink-0 {{ $cfg['dot'] }}"></span>
     <span>{{ $displayText }}</span>
 </span>
