@@ -30,8 +30,10 @@ class DashboardTransactionsData
 
         $filteredQuery = $this->applyFilters(clone $baseQuery, $filters);
 
+        $metrics = $this->buildMetrics(clone $filteredQuery);
+
         /** @var LengthAwarePaginator<int, Sale> $transactions */
-        $transactions = $filteredQuery
+        $transactions = (clone $filteredQuery)
             ->with(['outlet', 'customer', 'shift', 'items'])
             ->orderByDesc('sold_at')
             ->orderByDesc('id')
@@ -40,7 +42,6 @@ class DashboardTransactionsData
 
         $mappedTransactions = $transactions->through(fn (Sale $sale) => $this->presentSale($sale));
 
-        $metrics = $this->buildMetrics($filteredQuery);
         $filterOptions = $this->buildFilterOptions($business);
 
         return [

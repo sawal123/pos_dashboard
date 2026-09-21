@@ -677,6 +677,90 @@ class TransactionsPageTest extends TestCase
         $response->assertSee('status=completed', false);
     }
 
+    public function test_page_two_summary_metrics_represent_entire_dataset_not_active_page(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        // Create 26 transactions: 20 cash, 6 qris. Each total_amount = 100,000.
+        // Total = 26 * 100,000 = 2,600,000. Average = 100,000. Top payment = Tunai.
+        for ($i = 0; $i < 26; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+                'total_amount' => 100000,
+                'subtotal' => 100000,
+                'payment_method' => $i < 20 ? 'cash' : 'qris',
+                'sold_at' => now()->subMinutes(26 - $i),
+                'transaction_number' => sprintf('TRX-PAGE-%03d', $i + 1),
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        // Page 1
+        $responsePage1 = $this->get(route('transactions.index', ['page' => 1]));
+        $responsePage1->assertOk();
+
+        // Page 2
+        $responsePage2 = $this->get(route('transactions.index', ['page' => 2]));
+        $responsePage2->assertOk();
+
+        // Page 2 has only 1 item (the 1st created record, oldest by sold_at DESC)
+        $responsePage2->assertSee('TRX-PAGE-001');
+        $responsePage2->assertDontSee('TRX-PAGE-026'); // on page 1
+
+        // Summary metrics on page 2 must match page 1 and reflect all 26 records
+        $responsePage2->assertSee('26'); // total transactions
+        $responsePage2->assertSee('Rp 2.600.000'); // total sales
+        $responsePage2->assertSee('Rp 100.000'); // average sales
+        $responsePage2->assertSee('Tunai'); // top payment method across all 26
+    }
+
+    public function test_filtered_page_two_metrics_represent_entire_filtered_dataset(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        // Create 30 completed transactions with total_amount = 50,000
+        // Total filtered = 30 * 50,000 = 1,500,000. Average = 50,000.
+        // And create 5 cancelled transactions with total_amount = 999,000
+        for ($i = 0; $i < 30; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+                'status' => 'completed',
+                'total_amount' => 50000,
+                'subtotal' => 50000,
+                'payment_method' => 'transfer',
+                'sold_at' => now()->subMinutes(30 - $i),
+            ]);
+        }
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->createSale([
+                'business_id' => $business->id,
+                'outlet_id' => $outlet->id,
+                'status' => 'cancelled',
+                'total_amount' => 999000,
+                'subtotal' => 999000,
+            ]);
+        }
+
+        $this->actingAs($user);
+
+        // Filter status=completed on page 2 (contains 5 records: 30 - 25 = 5)
+        $response = $this->get(route('transactions.index', ['status' => 'completed', 'page' => 2]));
+        $response->assertOk();
+
+        // Summary metrics must reflect ALL 30 completed records (not just the 5 on page 2, and excluding cancelled)
+        $response->assertSee('30'); // total transactions
+        $response->assertSee('Rp 1.500.000'); // total sales (30 * 50,000)
+        $response->assertSee('Rp 50.000'); // average transaction
+        $response->assertSee('Transfer'); // top payment method
+        $response->assertDontSee('Rp 999.000'); // cancelled transaction amount excluded
+    }
+
     // ============================================================
     // Filter Persistence & Safe Validation
     // ============================================================
