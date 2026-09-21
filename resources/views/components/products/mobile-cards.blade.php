@@ -121,7 +121,8 @@
         @foreach($services as $service)
             @php
                 $formattedPrice = 'Rp ' . number_format($service['price'], 0, ',', '.');
-                $priceSuffix = $service['pricing_unit'] === 'per_kg' ? '/' . $service['unit'] : '';
+                $unitStr = !empty($service['pricing_unit']) ? $service['pricing_unit'] : (!empty($service['unit']) ? $service['unit'] : '');
+                $priceSuffix = $unitStr !== '' ? '/' . $unitStr : '';
             @endphp
             <div
                 class="service-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3"

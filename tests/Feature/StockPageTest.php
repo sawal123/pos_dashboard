@@ -106,6 +106,21 @@ class StockPageTest extends TestCase
         $response->assertDontSee('RAW-001');
     }
 
+    public function test_deterministic_stock_status_attributes_rendered_in_table_and_cards(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('stock.index'));
+        $response->assertOk();
+        // Check data-stock-status attribute presence
+        $response->assertSee('data-stock-status="negative"', false);
+        $response->assertSee('data-stock-status="low"', false);
+        $response->assertSee('data-stock-status="safe"', false);
+    }
+
     public function test_empty_state_structure_is_rendered_in_production(): void
     {
         $user = User::factory()->create([

@@ -108,6 +108,40 @@ class ProductsPageTest extends TestCase
         $response->assertSee('Produk yang telah tersinkron ke Cloud akan muncul di sini.');
     }
 
+    public function test_default_fixtures_do_not_contain_laundry_data(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('products.index'));
+        $response->assertOk();
+        // Ensure no laundry fixtures in default state
+        $response->assertDontSee('Laundry Kiloan');
+        $response->assertDontSee('Cuci Bedcover');
+        $response->assertDontSee('Jasa Antar Jemput');
+        $response->assertDontSee('Layanan Laundry');
+
+        // Ensure cafe / event services are present
+        $response->assertSee('Paket Coffee Break');
+        $response->assertSee('Layanan Event');
+    }
+
+    public function test_tabs_accessibility_attributes(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('products.index'));
+        $response->assertOk();
+        // Active tab has tabindex 0, inactive has -1
+        $response->assertSee('tabindex="0"', false);
+        $response->assertSee('tabindex="-1"', false);
+    }
+
     public function test_local_fixtures_support_decimal_quantity_and_pricing_unit(): void
     {
         $user = User::factory()->create([
@@ -121,7 +155,8 @@ class ProductsPageTest extends TestCase
         $response->assertSee('4.250 kg');
         // Negative stock on product
         $response->assertSee('-2.000 pcs');
-        // Service pricing unit
-        $response->assertSee('Per Kilogram');
+        // Generic service pricing unit
+        $response->assertSee('Per paket');
+        $response->assertSee('Per kg');
     }
 }

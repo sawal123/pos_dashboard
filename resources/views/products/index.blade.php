@@ -161,6 +161,7 @@
             const tabProducts = document.getElementById('tabProducts');
             const tabServices = document.getElementById('tabServices');
             const tabCategories = document.getElementById('tabCategories');
+            const tabButtons = [tabProducts, tabServices, tabCategories].filter(Boolean);
 
             const panelProducts = document.getElementById('panelProducts');
             const panelServices = document.getElementById('panelServices');
@@ -197,11 +198,10 @@
                 return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
             }
 
-            // Tab Switching Logic
-            function setTab(tabName) {
+            // Tab Switching Logic with ARIA & Keyboard Focus
+            function setTab(tabName, shouldFocus = false) {
                 activeTab = tabName;
 
-                // Update Tab Styles & ARIA
                 const tabs = [
                     { name: 'products', btn: tabProducts, panel: panelProducts, mobile: mobileProductCards, label: 'Tambah Produk', placeholder: 'Cari produk, SKU, atau barcode...' },
                     { name: 'services', btn: tabServices, panel: panelServices, mobile: mobileServiceCards, label: 'Tambah Layanan', placeholder: 'Cari layanan atau SKU...' },
@@ -212,10 +212,14 @@
                     const isActive = t.name === tabName;
                     if (t.btn) {
                         t.btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                        t.btn.setAttribute('tabindex', isActive ? '0' : '-1');
                         if (isActive) {
-                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition-colors focus:outline-none';
+                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 dark:text-indigo-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg';
+                            if (shouldFocus) {
+                                t.btn.focus();
+                            }
                         } else {
-                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none';
+                            t.btn.className = 'catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg';
                         }
                     }
 
@@ -248,6 +252,37 @@
             if (tabProducts) tabProducts.addEventListener('click', () => setTab('products'));
             if (tabServices) tabServices.addEventListener('click', () => setTab('services'));
             if (tabCategories) tabCategories.addEventListener('click', () => setTab('categories'));
+
+            // Keyboard navigation for Tabs (ArrowLeft, ArrowRight, Home, End)
+            const tabListEl = document.querySelector('[role="tablist"]');
+            if (tabListEl) {
+                tabListEl.addEventListener('keydown', (e) => {
+                    const currentIndex = tabButtons.indexOf(document.activeElement);
+                    if (currentIndex === -1) return;
+
+                    let newIndex = currentIndex;
+                    if (e.key === 'ArrowRight') {
+                        e.preventDefault();
+                        newIndex = (currentIndex + 1) % tabButtons.length;
+                    } else if (e.key === 'ArrowLeft') {
+                        e.preventDefault();
+                        newIndex = (currentIndex - 1 + tabButtons.length) % tabButtons.length;
+                    } else if (e.key === 'Home') {
+                        e.preventDefault();
+                        newIndex = 0;
+                    } else if (e.key === 'End') {
+                        e.preventDefault();
+                        newIndex = tabButtons.length - 1;
+                    } else {
+                        return;
+                    }
+
+                    const targetBtn = tabButtons[newIndex];
+                    if (targetBtn === tabProducts) setTab('products', true);
+                    else if (targetBtn === tabServices) setTab('services', true);
+                    else if (targetBtn === tabCategories) setTab('categories', true);
+                });
+            }
 
             // Client-side Filtering
             function applyFilters() {
@@ -461,7 +496,8 @@
                 if (isService) {
                     costRow.classList.add('hidden');
                     pricingUnitRow.classList.remove('hidden');
-                    document.getElementById('detailPricingUnit').textContent = itemData.pricing_unit === 'per_kg' ? 'Per Kilogram' : 'Per Satuan';
+                    const unitStr = itemData.pricing_unit || itemData.unit || '';
+                    document.getElementById('detailPricingUnit').textContent = unitStr ? `Per ${unitStr}` : '-';
 
                     productInventorySec.classList.add('hidden');
                     serviceOperationalSec.classList.remove('hidden');
@@ -559,6 +595,9 @@
             if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
             if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
+
+            // Ensure initial state is consistently set to Products
+            setTab('products');
         }
 
         initProductsPage();

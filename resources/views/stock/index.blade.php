@@ -124,7 +124,7 @@
                     const name = (el.getAttribute('data-name') || '').toLowerCase();
                     const sku = (el.getAttribute('data-sku') || '').toLowerCase();
                     const elCategory = el.getAttribute('data-category');
-                    const elStatus = el.getAttribute('data-status');
+                    const elStatus = el.getAttribute('data-stock-status');
 
                     const matchSearch = !search || name.includes(search) || sku.includes(search);
                     const matchCategory = category === 'all' || elCategory === category;
@@ -213,21 +213,36 @@
                 document.getElementById('stockDetailCurrent').textContent = `${itemData.current_stock} ${itemData.unit}`;
                 document.getElementById('stockDetailMin').textContent = `${itemData.min_stock} ${itemData.unit}`;
 
-                // Status Badge (DOM Safe)
+                // Deterministic Status Badge (DOM Safe)
                 const badgeEl = document.getElementById('stockDetailBadge');
                 badgeEl.textContent = '';
                 const dot = document.createElement('span');
                 const label = document.createElement('span');
 
-                if (itemData.status === 'negative') {
+                const curStock = parseFloat(itemData.current_stock);
+                const minStock = parseFloat(itemData.min_stock);
+                let derivedStatus = itemData.stock_status;
+                if (!derivedStatus) {
+                    if (curStock < 0) {
+                        derivedStatus = 'negative';
+                    } else if (curStock === 0) {
+                        derivedStatus = 'empty';
+                    } else if (curStock <= minStock) {
+                        derivedStatus = 'low';
+                    } else {
+                        derivedStatus = 'safe';
+                    }
+                }
+
+                if (derivedStatus === 'negative') {
                     badgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-100 dark:bg-rose-950/80 border border-rose-300 dark:border-rose-800 text-rose-800 dark:text-rose-300';
                     dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-600';
                     label.textContent = 'Minus';
-                } else if (itemData.status === 'empty') {
+                } else if (derivedStatus === 'empty') {
                     badgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/70 dark:border-rose-800/60 text-rose-700 dark:text-rose-400';
                     dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
                     label.textContent = 'Habis';
-                } else if (itemData.status === 'low') {
+                } else if (derivedStatus === 'low') {
                     badgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/70 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
                     dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
                     label.textContent = 'Menipis';
@@ -278,6 +293,28 @@
 
                         card.appendChild(headerRow);
                         card.appendChild(balanceRow);
+
+                        // Reference & Category info (if available)
+                        if (m.reference_id || m.category) {
+                            const metaRow = document.createElement('div');
+                            metaRow.className = 'flex items-center gap-2 pt-1 text-[11px] text-slate-500 dark:text-slate-400 flex-wrap';
+
+                            if (m.category) {
+                                const catBadge = document.createElement('span');
+                                catBadge.className = 'inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-medium uppercase tracking-wider';
+                                catBadge.textContent = m.category;
+                                metaRow.appendChild(catBadge);
+                            }
+
+                            if (m.reference_id) {
+                                const refSpan = document.createElement('span');
+                                refSpan.className = 'font-mono text-[10px] text-slate-500 dark:text-slate-400';
+                                refSpan.textContent = `Ref: ${m.reference_id}`;
+                                metaRow.appendChild(refSpan);
+                            }
+
+                            card.appendChild(metaRow);
+                        }
 
                         if (m.note) {
                             const noteP = document.createElement('p');

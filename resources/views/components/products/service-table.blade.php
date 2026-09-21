@@ -22,7 +22,9 @@
                 @foreach($services as $service)
                     @php
                         $formattedPrice = 'Rp ' . number_format($service['price'], 0, ',', '.');
-                        $pricingRateLabel = $service['pricing_unit'] === 'per_kg' ? 'Per Kilogram' : 'Per Satuan';
+                        $unitStr = !empty($service['pricing_unit']) ? $service['pricing_unit'] : (!empty($service['unit']) ? $service['unit'] : '');
+                        $pricingRateLabel = $unitStr !== '' ? 'Per ' . $unitStr : '-';
+                        $priceDisplay = $unitStr !== '' ? $formattedPrice . '/' . $unitStr : $formattedPrice;
                     @endphp
                     <tr
                         class="service-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
