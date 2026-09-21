@@ -463,6 +463,25 @@ class StockPageTest extends TestCase
         $this->assertStringNotContainsString('fixtures.php', $content);
     }
 
+    public function test_stock_row_and_button_carry_correct_movements_route(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $product = Product::factory()->create(['business_id' => $business->id, 'kind' => 'product']);
+
+        $response = $this->actingAs($user)->get(route('stock.index'));
+        $response->assertOk();
+
+        $expectedUrl = route('stock.movements', ['productId' => $product->id]);
+        $response->assertSee('data-movements-url="'.$expectedUrl.'"', false);
+    }
+
+    public function test_stock_index_view_does_not_contain_hardcoded_movements_url(): void
+    {
+        $content = file_get_contents(resource_path('views/stock/index.blade.php'));
+        $this->assertStringNotContainsString('/stock/${itemData.id}/movements', $content);
+        $this->assertStringNotContainsString('`/stock/${', $content);
+    }
+
     // ============================================================
     // 30-44. Stock Movements Endpoint Tests
     // ============================================================

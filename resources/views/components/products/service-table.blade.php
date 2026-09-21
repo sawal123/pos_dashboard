@@ -74,7 +74,7 @@
 
                         {{-- 6. Minimum Quantity --}}
                         <td class="py-3 px-4 text-center tabular-nums text-slate-700 dark:text-slate-300">
-                            {{ $service['min_quantity'] }} {{ $service['unit'] }}
+                            {{ $service['min_quantity'] }}{{ !empty($service['unit']) ? ' ' . $service['unit'] : '' }}
                         </td>
 
                         {{-- 7. Estimasi Durasi --}}

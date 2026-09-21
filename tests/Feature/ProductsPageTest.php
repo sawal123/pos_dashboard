@@ -623,6 +623,38 @@ class ProductsPageTest extends TestCase
         $response->assertSee('Per paket');
     }
 
+    public function test_service_pricing_unit_does_not_default_to_paket_when_empty(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Konsultasi Bebas',
+            'kind' => 'service',
+            'pricing_unit' => '',
+            'unit' => '',
+            'min_quantity' => 0.000,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('products.index', ['tab' => 'services']));
+        $response->assertOk();
+        $response->assertDontSee('Per paket');
+        $response->assertViewHas('items', function ($items) {
+            $item = $items->first();
+
+            return $item['pricing_unit'] === '' && $item['unit'] === '';
+        });
+    }
+
+    public function test_products_summary_does_not_hardcode_laundry_kiloan(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $response = $this->actingAs($user)->get(route('products.index'));
+        $response->assertOk();
+        $response->assertDontSee('laundry kiloan', false);
+        $response->assertSee('Item layanan');
+    }
+
     // ============================================================
     // 35-38. Server-side Pagination
     // ============================================================

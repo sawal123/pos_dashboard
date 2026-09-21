@@ -158,7 +158,7 @@
                     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                         <div>
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Minimum Order</span>
-                            <span class="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{{ $service['min_quantity'] }} {{ $service['unit'] }}</span>
+                            <span class="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{{ $service['min_quantity'] }}{{ !empty($service['unit']) ? ' ' . $service['unit'] : '' }}</span>
                         </div>
                         <div class="text-right">
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Estimasi Durasi</span>

@@ -327,9 +327,9 @@ class DashboardProductsData
 
             'price' => (int) $service->price,
 
-            'pricing_unit' => $service->pricing_unit ?: 'paket',
+            'pricing_unit' => $service->pricing_unit,
             'min_quantity' => (string) $service->min_quantity,
-            'unit' => $service->unit ?: '',
+            'unit' => $service->unit,
             'estimated_duration' => $service->estimated_duration,
 
             'status_raw' => $service->status,

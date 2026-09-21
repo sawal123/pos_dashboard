@@ -148,8 +148,8 @@
             }
 
             // Safe DOM Rendering for Stock Detail Drawer
-            function openDrawer(itemData) {
-                if (!drawerWrapper || !itemData) return;
+            function openDrawer(itemData, movementsUrl) {
+                if (!drawerWrapper || !itemData || !movementsUrl) return;
 
                 // Set product summary headers
                 document.getElementById('stockDrawerTitle').textContent = itemData.name || '-';
@@ -229,7 +229,6 @@
                 }
                 currentAbortController = new AbortController();
 
-                const movementsUrl = `/stock/${itemData.id}/movements`;
                 fetch(movementsUrl, {
                     headers: {
                         'Accept': 'application/json',
@@ -386,11 +385,12 @@
                     lastTriggerElement = btn;
                     const rowOrCard = btn.closest('.stock-row, .stock-card');
                     if (rowOrCard) {
+                        const movementsUrl = btn.dataset.movementsUrl || rowOrCard.dataset.movementsUrl;
                         const raw = rowOrCard.getAttribute('data-raw');
-                        if (raw) {
+                        if (raw && movementsUrl) {
                             try {
                                 const data = JSON.parse(raw);
-                                openDrawer(data);
+                                openDrawer(data, movementsUrl);
                             } catch (e) {
                                 console.error('Failed to parse stock data', e);
                             }

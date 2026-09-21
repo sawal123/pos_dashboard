@@ -58,6 +58,7 @@
                         data-sku="{{ $item['sku'] }}"
                         data-category="{{ $item['category_name'] }}"
                         data-stock-status="{{ $stockStatus }}"
+                        data-movements-url="{{ route('stock.movements', ['productId' => $item['id']]) }}"
                         data-raw="{{ json_encode($item) }}"
                     >
                         {{-- 1. Produk --}}
@@ -114,6 +115,7 @@
                         <td class="py-3 px-4 text-right">
                             <button
                                 type="button"
+                                data-movements-url="{{ route('stock.movements', ['productId' => $item['id']]) }}"
                                 class="view-movement-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                             >
                                 Lihat Riwayat
