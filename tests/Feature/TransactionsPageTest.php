@@ -106,4 +106,51 @@ class TransactionsPageTest extends TestCase
         $response->assertSee('Belum Ada Transaksi');
         $response->assertSee('Transaksi yang telah tersinkron ke Cloud akan muncul di sini.');
     }
+
+    public function test_filter_bar_renders_date_filter_and_custom_range_inputs(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('id="filterDate"', false);
+        $response->assertSee('value="all"', false);
+        $response->assertSee('value="today"', false);
+        $response->assertSee('value="7days"', false);
+        $response->assertSee('value="30days"', false);
+        $response->assertSee('value="custom"', false);
+        $response->assertSee('id="customDateRangeContainer"', false);
+        $response->assertSee('id="filterStartDate"', false);
+        $response->assertSee('id="filterEndDate"', false);
+    }
+
+    public function test_pagination_renders_only_active_first_page_without_fake_pages(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('id="transactionsPagination"', false);
+        $response->assertSee('aria-current="page"', false);
+        // Pastikan tidak ada tombol page 2 palsu di navigasi
+        $response->assertDontSee('>2</button>', false);
+    }
+
+    public function test_transaction_items_render_sold_at_metadata(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('data-sold-at="2026-09-21 09:42"', false);
+    }
 }

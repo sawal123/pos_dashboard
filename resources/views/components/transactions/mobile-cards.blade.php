@@ -14,6 +14,7 @@
             data-id="{{ $trx['id'] }}"
             data-trx="{{ $trx['transaction_number'] }}"
             data-customer="{{ strtolower($customer) }}"
+            data-sold-at="{{ $trx['sold_at_raw'] }}"
             data-outlet="{{ $trx['outlet_name'] }}"
             data-payment="{{ $trx['payment_method'] }}"
             data-payment-status="{{ $trx['payment_status'] }}"

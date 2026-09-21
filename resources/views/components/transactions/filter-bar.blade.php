@@ -51,8 +51,8 @@
                 id="filterDate"
                 class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
             >
-                <option value="all">Semua Tanggal</option>
-                <option value="today" selected>Hari Ini</option>
+                <option value="all" selected>Semua Tanggal</option>
+                <option value="today">Hari Ini</option>
                 <option value="7days">7 Hari</option>
                 <option value="30days">30 Hari</option>
                 <option value="custom">Periode Kustom</option>
@@ -125,6 +125,30 @@
                 <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400"></i>
                 <span>Reset Filter</span>
             </button>
+        </div>
+    </div>
+
+    {{-- Custom Date Range Inputs (Only shown when "Periode Kustom" is selected) --}}
+    <div id="customDateRangeContainer" class="hidden pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-3">
+        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
+            <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-500"></i>
+            <span>Rentang Tanggal:</span>
+        </span>
+        <div class="flex items-center gap-2">
+            <label for="filterStartDate" class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Mulai</label>
+            <input
+                type="date"
+                id="filterStartDate"
+                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+        </div>
+        <div class="flex items-center gap-2">
+            <label for="filterEndDate" class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Selesai</label>
+            <input
+                type="date"
+                id="filterEndDate"
+                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
         </div>
     </div>
 </div>
