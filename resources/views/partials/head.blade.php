@@ -80,11 +80,13 @@
     .sidebar-collapsed .sidebar-label,
     .sidebar-collapsed .sidebar-section-label,
     .sidebar-collapsed .sidebar-cloud-card,
+    .sidebar-collapsed .sidebar-business-card,
     .sidebar-collapsed .sidebar-logo-text,
     .sidebar-collapsed .sidebar-item-label,
     .sidebar-collapsed .sidebar-item-badge,
     .sidebar-collapsed .sidebar-active-indicator { display: none !important; }
-    .sidebar-collapsed .sidebar-cloud-mini { display: flex !important; }
+    .sidebar-collapsed .sidebar-cloud-mini,
+    .sidebar-collapsed .sidebar-business-mini { display: flex !important; }
     .sidebar-collapsed .sidebar-item { justify-content: center; padding: 0.625rem; width: 2.75rem; height: 2.75rem; margin-left: auto; margin-right: auto; }
 
     .table-row:hover { background: #f8fafc; }
