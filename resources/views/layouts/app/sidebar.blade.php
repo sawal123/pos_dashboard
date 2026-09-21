@@ -42,6 +42,28 @@
             }
             initIcons();
             document.addEventListener('DOMContentLoaded', initIcons);
+            document.addEventListener('livewire:navigated', () => {
+                initIcons();
+                if (typeof applySidebarStateForViewport === 'function') {
+                    applySidebarStateForViewport();
+                }
+            });
+            document.addEventListener('livewire:init', () => {
+                if (typeof Livewire !== 'undefined') {
+                    Livewire.hook('morph.updated', () => initIcons());
+                    Livewire.hook('commit', () => initIcons());
+                }
+            });
+
+            // MutationObserver to automatically render icons when Livewire injects/swaps DOM
+            if (typeof MutationObserver !== 'undefined') {
+                const iconObserver = new MutationObserver(() => {
+                    if (document.querySelector('i[data-lucide]')) {
+                        initIcons();
+                    }
+                });
+                iconObserver.observe(document.documentElement, { childList: true, subtree: true });
+            }
 
             // ========== THEME MANAGEMENT ==========
             const htmlEl = document.documentElement;

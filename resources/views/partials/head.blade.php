@@ -36,6 +36,13 @@
 
 {{-- Lucide Icons --}}
 <script src="https://unpkg.com/lucide@latest"></script>
+<script>
+    document.addEventListener('livewire:navigated', () => {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    });
+</script>
 
 {{-- Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
