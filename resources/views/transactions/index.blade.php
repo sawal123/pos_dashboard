@@ -5,7 +5,7 @@
 @endphp
 
 <x-layouts::app :title="'Transaksi'">
-    <main id="mainContent" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <main id="mainContent" data-transactions-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
         {{-- ==================== TRANSACTIONS HEADER ==================== --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -84,6 +84,12 @@
     {{-- ==================== CLIENT-SIDE SCRIPTS ==================== --}}
     <script>
         function initTransactionsPage() {
+            const root = document.querySelector('main[data-transactions-page="true"]');
+            if (!root || root.dataset.transactionsInitialized === 'true') {
+                return;
+            }
+            root.dataset.transactionsInitialized = 'true';
+
             // Elements
             const searchInput = document.getElementById('searchTransactionsInput');
             const filterDate = document.getElementById('filterDate');
@@ -146,17 +152,20 @@
                     if (!soldAtRaw) return false;
 
                     const trxDateStr = soldAtRaw.slice(0, 10);
+                    const trxTime = new Date(trxDateStr + 'T00:00:00').getTime();
+                    const todayTime = new Date(todayStr + 'T00:00:00').getTime();
+                    const diffDays = Math.round((todayTime - trxTime) / (1000 * 60 * 60 * 24));
 
                     if (dateMode === 'today') {
-                        return trxDateStr === todayStr;
+                        return diffDays === 0;
                     }
 
-                    if (dateMode === '7days' || dateMode === '30days') {
-                        const trxTime = new Date(trxDateStr + 'T00:00:00').getTime();
-                        const todayTime = new Date(todayStr + 'T00:00:00').getTime();
-                        const diffDays = Math.round((todayTime - trxTime) / (1000 * 60 * 60 * 24));
-                        const maxDays = dateMode === '7days' ? 7 : 30;
-                        return diffDays >= 0 && diffDays <= maxDays;
+                    if (dateMode === '7days') {
+                        return diffDays >= 0 && diffDays < 7;
+                    }
+
+                    if (dateMode === '30days') {
+                        return diffDays >= 0 && diffDays < 30;
                     }
 
                     if (dateMode === 'custom') {

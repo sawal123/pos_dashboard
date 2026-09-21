@@ -152,5 +152,6 @@ class TransactionsPageTest extends TestCase
         $response = $this->get(route('transactions.index'));
         $response->assertOk();
         $response->assertSee('data-sold-at="2026-09-21 09:42"', false);
+        $response->assertSee('data-transactions-page="true"', false);
     }
 }
