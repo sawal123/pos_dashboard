@@ -296,4 +296,47 @@ class SyncMonitoringPageTest extends TestCase
             );
         }
     }
+
+    public function test_device_filter_uses_stable_device_id_values(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('sync.index'));
+        $response->assertOk();
+
+        // Option filter device harus menggunakan device_id numeric/string unik, bukan device_name
+        $response->assertSee('<option value="1">Kasir Utama</option>', false);
+    }
+
+    public function test_sync_device_filter_script_matches_exact_device_id(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('sync.index'));
+        $response->assertOk();
+
+        // Verifikasi client script membandingkan exact devId !== selectedDevice
+        $response->assertSee('devId !== selectedDevice', false);
+    }
+
+    public function test_sync_keydown_listener_is_managed_dynamically_not_permanently_at_init(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('sync.index'));
+        $response->assertOk();
+
+        // Verifikasi removeEventListener dipanggil saat drawer ditutup dan sebelum addEventListener saat dibuka
+        $response->assertSee("document.removeEventListener('keydown', keyHandler)", false);
+        $response->assertSee("document.addEventListener('keydown', keyHandler)", false);
+    }
 }

@@ -206,4 +206,45 @@ class DevicesPageTest extends TestCase
         $response->assertDontSee('>Online<', false);
         $response->assertDontSee('>Offline<', false);
     }
+
+    public function test_unknown_device_status_does_not_mislabeled_as_nonaktif(): void
+    {
+        $customDevice = [
+            'id' => 99,
+            'business_id' => 1,
+            'outlet_id' => 1,
+            'name' => 'POS Audit Terminal',
+            'identifier' => 'device-audit-999',
+            'platform' => 'Android',
+            'status' => 'pending_review',
+            'registered_at_raw' => '2026-09-21 00:00:00',
+            'registered_at' => '21 Sep 2026 · 00:00',
+            'last_seen_at_raw' => null,
+            'last_seen_at' => null,
+            'notes' => null,
+            'outlet_name' => 'Outlet Utama',
+        ];
+
+        $view = $this->blade('<x-devices.table :devices="[$device]" />', ['device' => $customDevice]);
+        $view->assertSee('Pending Review');
+        $view->assertDontSee('Nonaktif');
+
+        $mobileView = $this->blade('<x-devices.mobile-cards :devices="[$device]" />', ['device' => $customDevice]);
+        $mobileView->assertSee('Pending Review');
+        $mobileView->assertDontSee('Nonaktif');
+    }
+
+    public function test_filter_nonaktif_matches_status_not_equal_to_active(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('devices.index'));
+        $response->assertOk();
+
+        // Verifikasi client script menyelaraskan filter nonaktif dengan status !== 'active'
+        $response->assertSee("elStatus !== 'active'", false);
+    }
 }

@@ -25,11 +25,7 @@
             >
                 <option value="">Semua Perangkat</option>
                 @foreach($devices as $device)
-                    @php
-                        $devVal = is_array($device) ? ($device['name'] ?? $device['id']) : $device;
-                        $devText = is_array($device) ? ($device['name'] ?? '') : $device;
-                    @endphp
-                    <option value="{{ $devVal }}">{{ $devText }}</option>
+                    <option value="{{ $device['id'] }}">{{ $device['name'] }}</option>
                 @endforeach
             </select>
         </div>

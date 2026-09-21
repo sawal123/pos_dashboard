@@ -88,7 +88,7 @@ return function (): array {
     $maxProcessedRaw = null;
     $maxProcessedDisplay = 'Belum Ada';
     $outlets = [];
-    $devices = [];
+    $devicesMap = [];
 
     foreach ($requests as $r) {
         $deviceIds[$r['device_id']] = true;
@@ -102,10 +102,15 @@ return function (): array {
             $outlets[] = $r['outlet_name'];
         }
 
-        if (! in_array($r['device_name'], $devices, true)) {
-            $devices[] = $r['device_name'];
+        if (! isset($devicesMap[$r['device_id']])) {
+            $devicesMap[$r['device_id']] = [
+                'id' => $r['device_id'],
+                'name' => $r['device_name'],
+            ];
         }
     }
+
+    $devices = array_values($devicesMap);
 
     return [
         'sync_counter' => $counter,

@@ -167,7 +167,7 @@
                         }
 
                         // Device filter
-                        if (selectedDevice && devId !== selectedDevice && !devName.includes(selectedDevice)) {
+                        if (selectedDevice && devId !== selectedDevice) {
                             return false;
                         }
 
@@ -238,6 +238,33 @@
                 resetBtn?.addEventListener('click', resetFilters);
                 resetEmptyBtn?.addEventListener('click', resetFilters);
 
+                // Keyboard handler (ESC and Tab Trap)
+                const keyHandler = (e) => {
+                    if (!drawer || drawer.classList.contains('hidden')) return;
+
+                    if (e.key === 'Escape') {
+                        e.preventDefault();
+                        closeDrawer();
+                    } else if (e.key === 'Tab') {
+                        const focusableElements = drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+                        if (focusableElements.length === 0) return;
+                        const firstElement = focusableElements[0];
+                        const lastElement = focusableElements[focusableElements.length - 1];
+
+                        if (e.shiftKey) {
+                            if (document.activeElement === firstElement || !drawer.contains(document.activeElement)) {
+                                lastElement?.focus();
+                                e.preventDefault();
+                            }
+                        } else {
+                            if (document.activeElement === lastElement) {
+                                firstElement?.focus();
+                                e.preventDefault();
+                            }
+                        }
+                    }
+                };
+
                 // Drawer Controls
                 function openDrawer(data, triggerEl) {
                     if (!drawer) return;
@@ -253,6 +280,9 @@
                     drawer.classList.remove('hidden');
                     document.body.classList.add('overflow-hidden');
 
+                    document.removeEventListener('keydown', keyHandler);
+                    document.addEventListener('keydown', keyHandler);
+
                     requestAnimationFrame(() => {
                         drawerBackdrop?.classList.remove('opacity-0');
                         drawerPanel?.classList.remove('translate-x-full');
@@ -262,6 +292,7 @@
 
                 function closeDrawer() {
                     if (!drawer) return;
+                    document.removeEventListener('keydown', keyHandler);
                     drawerBackdrop?.classList.add('opacity-0');
                     drawerPanel?.classList.add('translate-x-full');
 
@@ -296,33 +327,6 @@
                 drawerCloseBtn?.addEventListener('click', closeDrawer);
                 drawerFooterClose?.addEventListener('click', closeDrawer);
                 drawerBackdrop?.addEventListener('click', closeDrawer);
-
-                // Keyboard handler (ESC and Tab Trap)
-                const keyHandler = (e) => {
-                    if (drawer && !drawer.classList.contains('hidden')) {
-                        if (e.key === 'Escape') {
-                            e.preventDefault();
-                            closeDrawer();
-                        } else if (e.key === 'Tab') {
-                            const focusableElements = drawer.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
-                            const firstElement = focusableElements[0];
-                            const lastElement = focusableElements[focusableElements.length - 1];
-
-                            if (e.shiftKey) {
-                                if (document.activeElement === firstElement) {
-                                    lastElement?.focus();
-                                    e.preventDefault();
-                                }
-                            } else {
-                                if (document.activeElement === lastElement) {
-                                    firstElement?.focus();
-                                    e.preventDefault();
-                                }
-                            }
-                        }
-                    }
-                };
-                document.addEventListener('keydown', keyHandler);
             }
 
             // Global lifecycle guard for wire:navigate
