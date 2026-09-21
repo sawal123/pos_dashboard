@@ -167,4 +167,16 @@ class ReportsPageTest extends TestCase
         $response->assertDontSee('Pertumbuhan Penjualan');
         $response->assertDontSee('Revenue Growth');
     }
+
+    public function test_reports_filter_does_not_contain_hardcoded_reference_date(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('reports.index'));
+        $response->assertOk();
+        $response->assertDontSee('2026/09/21', false);
+    }
 }

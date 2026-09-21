@@ -111,26 +111,38 @@
                 return 'Rp ' .concat(num.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
             }
 
-            // Date match evaluator
+            // Helper for local calendar date formatting YYYY-MM-DD
+            function getLocalDateString(d) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            // Date match evaluator using browser local calendar
             function isDateMatch(rawDateStr, dateFilter) {
                 if (!rawDateStr || dateFilter === 'all') return true;
 
-                const itemDate = new Date(rawDateStr.replace(/-/g, '/'));
-                if (isNaN(itemDate.getTime())) return true;
+                const itemDateOnly = rawDateStr.split(' ')[0];
+                if (!itemDateOnly) return true;
 
-                // Reference date from fixture context (2026-09-21)
-                const refDate = new Date('2026/09/21 23:59:59');
-                const diffMs = refDate.getTime() - itemDate.getTime();
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const now = new Date();
+                const todayStr = getLocalDateString(now);
 
                 if (dateFilter === 'today') {
-                    return diffDays === 0;
+                    return itemDateOnly === todayStr;
                 }
                 if (dateFilter === '7d') {
-                    return diffDays >= 0 && diffDays < 7;
+                    const d7 = new Date(now);
+                    d7.setDate(d7.getDate() - 6);
+                    const d7Str = getLocalDateString(d7);
+                    return itemDateOnly >= d7Str && itemDateOnly <= todayStr;
                 }
                 if (dateFilter === '30d') {
-                    return diffDays >= 0 && diffDays < 30;
+                    const d30 = new Date(now);
+                    d30.setDate(d30.getDate() - 29);
+                    const d30Str = getLocalDateString(d30);
+                    return itemDateOnly >= d30Str && itemDateOnly <= todayStr;
                 }
                 if (dateFilter === 'custom') {
                     let sVal = startDateInput?.value;
@@ -143,7 +155,6 @@
                         eVal = tmp;
                     }
 
-                    const itemDateOnly = rawDateStr.split(' ')[0];
                     if (sVal && itemDateOnly < sVal) return false;
                     if (eVal && itemDateOnly > eVal) return false;
                     return true;

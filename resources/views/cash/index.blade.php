@@ -99,9 +99,9 @@
         </div>
 
         {{-- ==================== 3. DATA PANELS / EMPTY STATE ==================== --}}
-        @if($hasData)
-            {{-- Panel 1: Pergerakan Kas --}}
-            <div id="panelLedgers" role="tabpanel" aria-labelledby="tabLedgers" class="space-y-4">
+        {{-- Panel 1: Pergerakan Kas --}}
+        <div id="panelLedgers" role="tabpanel" aria-labelledby="tabLedgers" class="space-y-4">
+            @if(!empty($fixtureData['ledgers']))
                 {{-- Desktop Table View --}}
                 <x-cash.ledger-table :ledgers="$fixtureData['ledgers']" />
 
@@ -110,10 +110,15 @@
 
                 {{-- Filter Empty State --}}
                 <x-cash.empty-state mode="no-results-cash" />
-            </div>
+            @else
+                {{-- Production / Non-Local Empty State for Cash Ledgers --}}
+                <x-cash.empty-state mode="no-data-cash" />
+            @endif
+        </div>
 
-            {{-- Panel 2: Pengeluaran --}}
-            <div id="panelExpenses" role="tabpanel" aria-labelledby="tabExpenses" class="space-y-4 hidden">
+        {{-- Panel 2: Pengeluaran --}}
+        <div id="panelExpenses" role="tabpanel" aria-labelledby="tabExpenses" class="space-y-4 hidden">
+            @if(!empty($fixtureData['expenses']))
                 {{-- Desktop Table View --}}
                 <x-cash.expense-table :expenses="$fixtureData['expenses']" />
 
@@ -122,9 +127,14 @@
 
                 {{-- Filter Empty State --}}
                 <x-cash.empty-state mode="no-results-expense" />
-            </div>
+            @else
+                {{-- Production / Non-Local Empty State for Expenses --}}
+                <x-cash.empty-state mode="no-data-expense" />
+            @endif
+        </div>
 
-            {{-- ==================== 4. PAGINATION ==================== --}}
+        {{-- ==================== 4. PAGINATION ==================== --}}
+        @if($hasData)
             <div id="cashPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
                 <div class="text-slate-500 dark:text-slate-400 font-medium">
                     Menampilkan <span id="cashVisibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['ledgers']) }}</span> data
@@ -153,9 +163,6 @@
                     </button>
                 </nav>
             </div>
-        @else
-            {{-- Production / Non-Local Initial Empty State --}}
-            <x-cash.empty-state mode="no-data" />
         @endif
 
         {{-- ==================== 5. DETAIL DRAWER ==================== --}}
@@ -296,26 +303,38 @@
                 });
             });
 
-            // Date Range Comparison Logic using occurred_at_raw
+            // Helper for local calendar date formatting YYYY-MM-DD
+            function getLocalDateString(d) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+
+            // Date Range Comparison Logic using occurred_at_raw and browser local calendar
             function isDateMatch(rawDateStr, dateFilter) {
                 if (!rawDateStr || dateFilter === 'all') return true;
 
-                const itemDate = new Date(rawDateStr.replace(/-/g, '/'));
-                if (isNaN(itemDate.getTime())) return true;
+                const itemDateOnly = rawDateStr.split(' ')[0];
+                if (!itemDateOnly) return true;
 
-                // Reference date from fixture context (2026-09-21)
-                const refDate = new Date('2026/09/21 23:59:59');
-                const diffMs = refDate.getTime() - itemDate.getTime();
-                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                const now = new Date();
+                const todayStr = getLocalDateString(now);
 
                 if (dateFilter === 'today') {
-                    return diffDays === 0;
+                    return itemDateOnly === todayStr;
                 }
                 if (dateFilter === '7d') {
-                    return diffDays >= 0 && diffDays < 7;
+                    const d7 = new Date(now);
+                    d7.setDate(d7.getDate() - 6);
+                    const d7Str = getLocalDateString(d7);
+                    return itemDateOnly >= d7Str && itemDateOnly <= todayStr;
                 }
                 if (dateFilter === '30d') {
-                    return diffDays >= 0 && diffDays < 30;
+                    const d30 = new Date(now);
+                    d30.setDate(d30.getDate() - 29);
+                    const d30Str = getLocalDateString(d30);
+                    return itemDateOnly >= d30Str && itemDateOnly <= todayStr;
                 }
                 if (dateFilter === 'custom') {
                     let sVal = startDateInput?.value;
@@ -328,7 +347,6 @@
                         eVal = tmp;
                     }
 
-                    const itemDateOnly = rawDateStr.split(' ')[0];
                     if (sVal && itemDateOnly < sVal) return false;
                     if (eVal && itemDateOnly > eVal) return false;
                     return true;
