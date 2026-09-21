@@ -271,9 +271,23 @@
                         typeSpan.textContent = m.movement_type_label || m.movement_type;
 
                         const qtySpan = document.createElement('span');
-                        const isPositive = String(m.quantity_change).startsWith('+');
-                        qtySpan.className = `font-extrabold tabular-nums ${isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`;
-                        qtySpan.textContent = `${m.quantity_change} ${itemData.unit}`;
+                        const qtyNum = Number(m.quantity_change);
+                        let qtyDisplay = String(m.quantity_change ?? '');
+                        let qtyClass = 'text-slate-600 dark:text-slate-400';
+
+                        if (qtyNum > 0) {
+                            qtyClass = 'text-emerald-600 dark:text-emerald-400';
+                            if (!qtyDisplay.startsWith('+')) {
+                                qtyDisplay = `+${qtyDisplay}`;
+                            }
+                        } else if (qtyNum < 0) {
+                            qtyClass = 'text-rose-600 dark:text-rose-400';
+                        } else {
+                            qtyClass = 'text-slate-600 dark:text-slate-400';
+                        }
+
+                        qtySpan.className = `font-extrabold tabular-nums ${qtyClass}`;
+                        qtySpan.textContent = itemData.unit ? `${qtyDisplay} ${itemData.unit}` : qtyDisplay;
 
                         headerRow.appendChild(typeSpan);
                         headerRow.appendChild(qtySpan);

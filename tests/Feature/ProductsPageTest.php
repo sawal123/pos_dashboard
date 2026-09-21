@@ -159,4 +159,18 @@ class ProductsPageTest extends TestCase
         $response->assertSee('Per paket');
         $response->assertSee('Per kg');
     }
+
+    public function test_service_min_quantity_uses_nullish_check_without_default_kg(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('products.index'));
+        $response->assertOk();
+        // Ensure no hard-coded fallback || 1 or || 'kg' in presentation script
+        $response->assertDontSee('itemData.min_quantity || 1', false);
+        $response->assertDontSee("itemData.unit || 'kg'", false);
+    }
 }

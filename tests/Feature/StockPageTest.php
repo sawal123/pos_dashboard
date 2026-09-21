@@ -121,6 +121,20 @@ class StockPageTest extends TestCase
         $response->assertSee('data-stock-status="safe"', false);
     }
 
+    public function test_stock_movement_drawer_uses_numeric_sign_rendering(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+        $this->actingAs($user);
+
+        $response = $this->get(route('stock.index'));
+        $response->assertOk();
+        // Ensure numeric check is used rather than startsWith('+')
+        $response->assertDontSee("String(m.quantity_change).startsWith('+')", false);
+        $response->assertSee('Number(m.quantity_change)', false);
+    }
+
     public function test_empty_state_structure_is_rendered_in_production(): void
     {
         $user = User::factory()->create([

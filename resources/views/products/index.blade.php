@@ -501,8 +501,12 @@
 
                     productInventorySec.classList.add('hidden');
                     serviceOperationalSec.classList.remove('hidden');
-
-                    document.getElementById('detailServiceMinQty').textContent = `${itemData.min_quantity || 1} ${itemData.unit || 'kg'}`;
+                    let minQtyText = '-';
+                    if (itemData.min_quantity !== null && itemData.min_quantity !== undefined && itemData.min_quantity !== '') {
+                        const unitPart = itemData.unit ? ` ${itemData.unit}` : '';
+                        minQtyText = `${itemData.min_quantity}${unitPart}`;
+                    }
+                    document.getElementById('detailServiceMinQty').textContent = minQtyText;
                     document.getElementById('detailServiceDuration').textContent = itemData.estimated_duration || '-';
                 } else {
                     costRow.classList.remove('hidden');
