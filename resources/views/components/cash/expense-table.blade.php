@@ -24,8 +24,15 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 @foreach($expenses as $expense)
                     @php
-                        $statusRaw = $expense['status_raw'] ?? $expense['status'] ?? 'recorded';
-                        $statusLabel = $expense['status'] ?? ($statusRaw === 'recorded' ? 'Tercatat' : ucwords(str_replace('_', ' ', $statusRaw)));
+                        $statusRaw = (string) ($expense['status_raw'] ?? '');
+                        $isRecorded = $statusRaw === 'recorded';
+                        $statusLabel = $isRecorded
+                            ? 'Tercatat'
+                            : ($expense['status'] ?? ($statusRaw !== '' ? ucwords(str_replace(['_', '-'], ' ', $statusRaw)) : 'Tanpa Status'));
+                        $badgeClass = $isRecorded
+                            ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400'
+                            : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                        $dotClass = $isRecorded ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-500';
                     @endphp
                     <tr
                         class="expense-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -85,8 +92,8 @@
 
                         {{-- 7. Status --}}
                         <td class="py-3 px-4 text-center">
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border {{ $badgeClass }}">
+                                <span class="w-1.5 h-1.5 rounded-full {{ $dotClass }}"></span>
                                 <span>{{ $statusLabel }}</span>
                             </span>
                         </td>

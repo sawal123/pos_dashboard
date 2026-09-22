@@ -49,6 +49,7 @@ class DashboardReportsData
                 'currentFilters' => $currentFilters,
                 'periodLabel' => $periodLabel,
                 'hasAnyReportData' => false,
+                'hasFilteredReportData' => false,
             ];
         }
 
@@ -174,6 +175,8 @@ class DashboardReportsData
             ];
         }
 
+        $hasFilteredReportData = $totalTransactions > 0 || ! empty($expenseBreakdown);
+
         return [
             'summary' => $summary,
             'salesTrend' => $salesTrend,
@@ -185,6 +188,7 @@ class DashboardReportsData
             'currentFilters' => $currentFilters,
             'periodLabel' => $periodLabel,
             'hasAnyReportData' => $hasAnyReportData,
+            'hasFilteredReportData' => $hasFilteredReportData,
         ];
     }
 

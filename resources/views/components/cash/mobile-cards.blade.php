@@ -89,8 +89,15 @@
     <div id="mobileExpenseCards" class="md:hidden space-y-3">
         @foreach($expenses as $expense)
             @php
-                $statusRaw = $expense['status_raw'] ?? $expense['status'] ?? 'recorded';
-                $statusLabel = $expense['status'] ?? ($statusRaw === 'recorded' ? 'Tercatat' : ucwords(str_replace('_', ' ', $statusRaw)));
+                $statusRaw = (string) ($expense['status_raw'] ?? '');
+                $isRecorded = $statusRaw === 'recorded';
+                $statusLabel = $isRecorded
+                    ? 'Tercatat'
+                    : ($expense['status'] ?? ($statusRaw !== '' ? ucwords(str_replace(['_', '-'], ' ', $statusRaw)) : 'Tanpa Status'));
+                $badgeClass = $isRecorded
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400'
+                    : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                $dotClass = $isRecorded ? 'bg-emerald-500' : 'bg-slate-400 dark:bg-slate-500';
             @endphp
             <div
                 class="expense-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3"
@@ -102,8 +109,8 @@
             >
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold border {{ $badgeClass }}">
+                            <span class="w-1.5 h-1.5 rounded-full {{ $dotClass }}"></span>
                             <span>{{ $statusLabel }}</span>
                         </span>
                         <p class="font-bold text-slate-900 dark:text-white text-xs mt-1 truncate">

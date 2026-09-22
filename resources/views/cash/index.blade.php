@@ -57,7 +57,7 @@
                         role="tab"
                         aria-selected="{{ $activeTab === 'ledgers' ? 'true' : 'false' }}"
                         aria-controls="panelLedgers"
-                        tabindex="{{ $activeTab === 'ledgers' ? '0' : '-1' }}"
+                        tabindex="0"
                         class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap {{ $activeTab === 'ledgers' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
                     >
                         <i data-lucide="arrow-left-right" class="w-4 h-4"></i>
@@ -73,7 +73,7 @@
                         role="tab"
                         aria-selected="{{ $activeTab === 'expenses' ? 'true' : 'false' }}"
                         aria-controls="panelExpenses"
-                        tabindex="{{ $activeTab === 'expenses' ? '0' : '-1' }}"
+                        tabindex="0"
                         class="cash-tab-btn flex items-center gap-2 py-3 px-4 border-b-2 font-bold text-xs sm:text-sm transition-colors whitespace-nowrap {{ $activeTab === 'expenses' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }} focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
                     >
                         <i data-lucide="receipt" class="w-4 h-4"></i>
@@ -153,6 +153,13 @@
             }
             root.dataset.cashInitialized = 'true';
 
+            // Ensure any stale drawer state or overflow lock is cleaned up
+            if (typeof window.__cashDrawerCleanup === 'function') {
+                window.__cashDrawerCleanup();
+                window.__cashDrawerCleanup = null;
+            }
+            document.body.style.overflow = '';
+
             // Controls
             const dateSelect = document.getElementById('filterCashDate');
             const customDateContainer = document.getElementById('cashCustomDateContainer');
@@ -175,25 +182,25 @@
             }
 
             if (recordCashBtn) {
-                recordCashBtn.addEventListener('click', () => {
+                recordCashBtn.onclick = () => {
                     showToast('Catat kas dari dashboard belum tersedia.');
-                });
+                };
             }
 
             if (addExpenseBtn) {
-                addExpenseBtn.addEventListener('click', () => {
+                addExpenseBtn.onclick = () => {
                     showToast('Tambah pengeluaran dari dashboard belum tersedia.');
-                });
+                };
             }
 
             if (dateSelect && customDateContainer) {
-                dateSelect.addEventListener('change', () => {
+                dateSelect.onchange = () => {
                     if (dateSelect.value === 'custom') {
                         customDateContainer.classList.remove('hidden');
                     } else {
                         customDateContainer.classList.add('hidden');
                     }
-                });
+                };
             }
 
             // Drawer elements
@@ -244,6 +251,22 @@
                 }
             }
 
+            function cleanupDrawer() {
+                document.removeEventListener('keydown', handleDrawerTrap);
+                document.body.style.overflow = '';
+                if (drawerWrapper) {
+                    drawerWrapper.classList.add('hidden');
+                }
+                if (drawerBackdrop) {
+                    drawerBackdrop.classList.remove('opacity-100');
+                    drawerBackdrop.classList.add('opacity-0');
+                }
+                if (drawerPanel) {
+                    drawerPanel.classList.remove('translate-x-0');
+                    drawerPanel.classList.add('translate-x-full');
+                }
+            }
+
             function openDrawer(itemData) {
                 if (!drawerWrapper || !itemData) return;
 
@@ -255,19 +278,32 @@
                     drawerAmount.textContent = formatRupiah(itemData.amount);
                     drawerAmount.className = 'font-extrabold text-xl sm:text-2xl text-slate-900 dark:text-white tabular-nums';
 
+                    const statusRaw = String(itemData.status_raw || '');
+                    const isRecorded = statusRaw === 'recorded';
+                    const statusLabel = isRecorded
+                        ? 'Tercatat'
+                        : (itemData.status || (statusRaw ? statusRaw.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Tanpa Status'));
+
                     drawerBadgeContainer.textContent = '';
                     const badge = document.createElement('span');
-                    badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     const dot = document.createElement('span');
-                    dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+
+                    if (isRecorded) {
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
+                        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+                    } else {
+                        badge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                        dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 dark:bg-slate-500';
+                    }
+
                     badge.appendChild(dot);
                     const label = document.createElement('span');
-                    label.textContent = itemData.status || 'Tercatat';
+                    label.textContent = statusLabel;
                     badge.appendChild(label);
                     drawerBadgeContainer.appendChild(badge);
 
                     if (drawerStatusRow) drawerStatusRow.classList.remove('hidden');
-                    if (drawerStatus) drawerStatus.textContent = itemData.status || 'Tercatat';
+                    if (drawerStatus) drawerStatus.textContent = statusLabel;
                     if (drawerRef) drawerRef.textContent = '-';
                     const noteText = itemData.notes || '';
                     if (noteText.trim()) {
@@ -328,6 +364,7 @@
                 });
 
                 document.addEventListener('keydown', handleDrawerTrap);
+                window.__cashDrawerCleanup = cleanupDrawer;
                 setTimeout(() => {
                     closeDrawerBtn?.focus();
                 }, 100);
@@ -337,6 +374,9 @@
                 if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
 
                 document.removeEventListener('keydown', handleDrawerTrap);
+                window.__cashDrawerCleanup = null;
+                document.body.style.overflow = '';
+
                 drawerBackdrop.classList.remove('opacity-100');
                 drawerBackdrop.classList.add('opacity-0');
                 drawerPanel.classList.remove('translate-x-0');
@@ -344,7 +384,6 @@
 
                 setTimeout(() => {
                     drawerWrapper.classList.add('hidden');
-                    document.body.style.overflow = '';
                     if (lastTriggerElement) {
                         lastTriggerElement.focus();
                         lastTriggerElement = null;
@@ -352,9 +391,9 @@
                 }, 300);
             }
 
-            if (closeDrawerBtn) closeDrawerBtn.addEventListener('click', closeDrawer);
-            if (closeDrawerFooterBtn) closeDrawerFooterBtn.addEventListener('click', closeDrawer);
-            if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawer);
+            if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
+            if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
+            if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
 
             // Delegate detail button clicks
             root.addEventListener('click', (e) => {
@@ -381,13 +420,19 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initCashPage);
-        document.addEventListener('livewire:navigated', () => {
-            const root = document.querySelector('main[data-cash-page="true"]');
-            if (root) {
-                root.dataset.cashInitialized = 'false';
-                initCashPage();
-            }
-        });
+        initCashPage();
+
+        if (!window.__cashListenersBound) {
+            window.__cashListenersBound = true;
+            document.addEventListener('DOMContentLoaded', initCashPage);
+            document.addEventListener('livewire:navigated', initCashPage);
+            document.addEventListener('livewire:navigating', () => {
+                if (typeof window.__cashDrawerCleanup === 'function') {
+                    window.__cashDrawerCleanup();
+                    window.__cashDrawerCleanup = null;
+                }
+                document.body.style.overflow = '';
+            });
+        }
     </script>
 </x-layouts::app>

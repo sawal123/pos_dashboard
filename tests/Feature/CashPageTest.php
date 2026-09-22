@@ -280,7 +280,7 @@ class CashPageTest extends TestCase
     public function test_17_expense_unknown_non_void_status_is_neutral(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
-        $this->createExpense([
+        $expense = $this->createExpense([
             'business_id' => $business->id,
             'status' => 'pending_review',
         ]);
@@ -293,6 +293,12 @@ class CashPageTest extends TestCase
             return $first['status'] === 'Pending Review' && $first['status'] !== 'Tercatat';
         });
         $response->assertSee('Pending Review');
+        $content = $response->getContent();
+        preg_match('/<tr[^>]*data-id="'.$expense->id.'".*?<\/tr>/s', $content, $matches);
+        $this->assertNotEmpty($matches);
+        $rowHtml = $matches[0];
+        $this->assertStringContainsString('bg-slate-100', $rowHtml);
+        $this->assertStringNotContainsString('bg-emerald-50', $rowHtml);
     }
 
     public function test_18_expense_void_is_excluded_from_expenses_tab(): void
@@ -730,6 +736,40 @@ class CashPageTest extends TestCase
         $response->assertOk();
         $response->assertSee('Tambah Pengeluaran');
         $response->assertSee('Tambah pengeluaran dari dashboard belum tersedia.');
+    }
+
+    public function test_51_cash_tabs_are_keyboard_focusable_links(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        // 1. When tab is ledgers (default)
+        $response = $this->actingAs($user)->get(route('cash.index'));
+        $response->assertOk();
+        $content = $response->getContent();
+
+        $this->assertStringContainsString('id="tabLedgers"', $content);
+        $this->assertStringContainsString('id="tabExpenses"', $content);
+        $this->assertStringContainsString('role="tab"', $content);
+
+        // Check aria-selected
+        $this->assertMatchesRegularExpression('/id="tabLedgers"[^>]*aria-selected="true"/', $content);
+        $this->assertMatchesRegularExpression('/id="tabExpenses"[^>]*aria-selected="false"/', $content);
+
+        // Check tabindex is 0 for both (keyboard focusable, no tabindex="-1" on tab links)
+        $this->assertMatchesRegularExpression('/id="tabLedgers"[^>]*tabindex="0"/', $content);
+        $this->assertMatchesRegularExpression('/id="tabExpenses"[^>]*tabindex="0"/', $content);
+        $this->assertDoesNotMatchRegularExpression('/id="tab(Ledgers|Expenses)"[^>]*tabindex="-1"/', $content);
+
+        // 2. When tab is expenses
+        $responseExp = $this->actingAs($user)->get(route('cash.index', ['tab' => 'expenses']));
+        $responseExp->assertOk();
+        $contentExp = $responseExp->getContent();
+
+        $this->assertMatchesRegularExpression('/id="tabLedgers"[^>]*aria-selected="false"/', $contentExp);
+        $this->assertMatchesRegularExpression('/id="tabExpenses"[^>]*aria-selected="true"/', $contentExp);
+        $this->assertMatchesRegularExpression('/id="tabLedgers"[^>]*tabindex="0"/', $contentExp);
+        $this->assertMatchesRegularExpression('/id="tabExpenses"[^>]*tabindex="0"/', $contentExp);
+        $this->assertDoesNotMatchRegularExpression('/id="tab(Ledgers|Expenses)"[^>]*tabindex="-1"/', $contentExp);
     }
 
     // ============================================================

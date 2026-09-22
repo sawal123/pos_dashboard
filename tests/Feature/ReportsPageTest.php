@@ -766,6 +766,62 @@ class ReportsPageTest extends TestCase
         }
     }
 
+    public function test_53_expense_recorded_with_amount_zero_is_still_considered_data(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $this->createExpense([
+            'business_id' => $business->id,
+            'category' => 'Operasional',
+            'amount' => 0,
+            'status' => 'recorded',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('reports.index'));
+        $response->assertOk();
+
+        // 1. hasFilteredReportData is true
+        $this->assertTrue($response->viewData('hasFilteredReportData'));
+
+        // 2. Summary total_expenses remains Rp0
+        $response->assertViewHas('summary', function ($summary) {
+            return $summary['total_expenses'] === 0;
+        });
+        $response->assertSee('Rp 0');
+
+        // 3. Expense breakdown still displays that record
+        $breakdown = $response->viewData('expenseBreakdown');
+        $this->assertNotEmpty($breakdown);
+        $op = collect($breakdown)->firstWhere('category', 'Operasional');
+        $this->assertNotNull($op);
+        $this->assertEquals(1, $op['expense_count']);
+        $this->assertEquals(0, $op['total_amount']);
+
+        // 4. Does not show empty state
+        $response->assertDontSee('Data Laporan Tidak Ditemukan');
+    }
+
+    public function test_54_filter_with_truly_no_records_displays_data_laporan_tidak_ditemukan(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $this->createExpense([
+            'business_id' => $business->id,
+            'category' => 'Operasional',
+            'amount' => 0,
+            'status' => 'recorded',
+            'occurred_at' => '2026-06-01 10:00:00',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('reports.index', [
+            'date' => 'custom',
+            'start_date' => '2026-01-01',
+            'end_date' => '2026-01-31',
+        ]));
+        $response->assertOk();
+
+        $this->assertFalse($response->viewData('hasFilteredReportData'));
+        $response->assertSee('Data Laporan Tidak Ditemukan');
+    }
+
     // ============================================================
     // Helpers
     // ============================================================

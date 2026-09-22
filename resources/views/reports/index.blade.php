@@ -33,15 +33,9 @@
         <x-reports.filter-bar :outlets="$filterOptions['outlets'] ?? []" :currentFilters="$currentFilters" />
 
         {{-- ==================== 3. REPORT CONTENT / EMPTY STATE ==================== --}}
-        @php
-            $isFilterEmpty = ($summary['total_sales'] ?? 0) === 0
-                && ($summary['total_transactions'] ?? 0) === 0
-                && ($summary['total_expenses'] ?? 0) === 0;
-        @endphp
-
         @if(!$hasAnyReportData)
             <x-reports.empty-state mode="no-data" />
-        @elseif($isFilterEmpty)
+        @elseif(!($hasFilteredReportData ?? false))
             <x-reports.empty-state mode="no-results" />
         @else
             <div id="reportContentArea" class="space-y-6">
@@ -78,6 +72,13 @@
             }
             root.dataset.reportsInitialized = 'true';
 
+            // Clean up any stale cash drawer state or overflow if navigated here
+            if (typeof window.__cashDrawerCleanup === 'function') {
+                window.__cashDrawerCleanup();
+                window.__cashDrawerCleanup = null;
+            }
+            document.body.style.overflow = '';
+
             // Date select toggle
             const dateSelect = document.getElementById('filterReportDate');
             const customDateContainer = document.getElementById('reportCustomDateContainer');
@@ -99,19 +100,19 @@
             }
 
             if (exportBtn) {
-                exportBtn.addEventListener('click', () => {
+                exportBtn.onclick = () => {
                     showToast('Ekspor laporan dari dashboard belum tersedia.');
-                });
+                };
             }
 
             if (dateSelect && customDateContainer) {
-                dateSelect.addEventListener('change', () => {
+                dateSelect.onchange = () => {
                     if (dateSelect.value === 'custom') {
                         customDateContainer.classList.remove('hidden');
                     } else {
                         customDateContainer.classList.add('hidden');
                     }
-                });
+                };
             }
 
             if (window.lucide) {
@@ -119,13 +120,12 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', initReportsPage);
-        document.addEventListener('livewire:navigated', () => {
-            const root = document.querySelector('main[data-reports-page="true"]');
-            if (root) {
-                root.dataset.reportsInitialized = 'false';
-                initReportsPage();
-            }
-        });
+        initReportsPage();
+
+        if (!window.__reportsListenersBound) {
+            window.__reportsListenersBound = true;
+            document.addEventListener('DOMContentLoaded', initReportsPage);
+            document.addEventListener('livewire:navigated', initReportsPage);
+        }
     </script>
 </x-layouts::app>
