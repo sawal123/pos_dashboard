@@ -1,9 +1,3 @@
-@php
-    $loadFixtures = require resource_path('views/devices/fixtures.php');
-    $fixtureData = $loadFixtures();
-    $hasData = !empty($fixtureData['devices']);
-@endphp
-
 <x-layouts::app :title="'Perangkat'">
     <main id="mainContent" data-devices-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
@@ -38,59 +32,35 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-devices.summary-cards :summary="$fixtureData['summary']" />
+        <x-devices.summary-cards :summary="$summary" />
 
         {{-- ==================== 2. FILTER BAR ==================== --}}
         <x-devices.filter-bar
-            :outlets="$fixtureData['outlets']"
-            :platforms="$fixtureData['platforms']"
+            :outlets="$outlets"
+            :platforms="$platforms"
+            :currentFilters="$currentFilters"
         />
 
         {{-- ==================== 3. DATA LIST / EMPTY STATES ==================== --}}
-        @if($hasData)
+        @if(!$hasAnyDevices)
+            <x-devices.empty-state mode="no-data" />
+        @elseif($devices->isEmpty())
+            <x-devices.empty-state mode="no-results" />
+        @else
             <div id="deviceDataContainer" class="space-y-4">
                 {{-- Desktop Table View --}}
-                <x-devices.table :devices="$fixtureData['devices']" />
+                <x-devices.table :devices="$devices" />
 
                 {{-- Mobile Cards View --}}
-                <x-devices.mobile-cards :devices="$fixtureData['devices']" />
-
-                {{-- Filter Empty State --}}
-                <x-devices.empty-state mode="no-results" />
+                <x-devices.mobile-cards :devices="$devices" />
             </div>
 
             {{-- Pagination --}}
-            <div id="devicePagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
-                <div class="text-slate-500 dark:text-slate-400 font-medium">
-                    Menampilkan <span id="deviceVisibleCount" class="font-bold text-slate-800 dark:text-slate-200 tabular-nums">{{ count($fixtureData['devices']) }}</span> perangkat
+            @if($devices->hasPages())
+                <div class="pt-2">
+                    {{ $devices->links() }}
                 </div>
-                <nav class="flex items-center gap-1" aria-label="Navigasi Halaman Perangkat">
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Sebelumnya
-                    </button>
-                    <button
-                        type="button"
-                        class="w-8 h-8 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                        aria-current="page"
-                    >
-                        1
-                    </button>
-                    <button
-                        type="button"
-                        disabled
-                        class="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 font-medium cursor-not-allowed text-xs transition-colors"
-                    >
-                        Berikutnya
-                    </button>
-                </nav>
-            </div>
-        @else
-            {{-- Production / Non-Local Initial Empty State --}}
-            <x-devices.empty-state mode="no-data" />
+            @endif
         @endif
 
         {{-- ==================== 4. DETAIL DRAWER ==================== --}}
@@ -107,20 +77,7 @@
             }
             root.dataset.devicesInitialized = 'true';
 
-            const searchInput = document.getElementById('searchDeviceInput');
-            const filterOutlet = document.getElementById('filterDeviceOutlet');
-            const filterStatus = document.getElementById('filterDeviceStatus');
-            const filterPlatform = document.getElementById('filterDevicePlatform');
-            const resetBtn = document.getElementById('resetDeviceFilterBtn');
             const registerBtn = document.getElementById('registerDeviceBtn');
-
-            const rows = document.querySelectorAll('.device-row');
-            const cards = document.querySelectorAll('.device-card');
-            const tableContainer = document.getElementById('desktopDeviceTable')?.closest('.rounded-2xl');
-            const mobileContainer = document.getElementById('mobileDeviceCards');
-            const emptyState = document.getElementById('deviceFilterEmptyState');
-            const paginationEl = document.getElementById('devicePagination');
-            const visibleCountEl = document.getElementById('deviceVisibleCount');
 
             // Drawer Elements
             const drawerWrapper = document.getElementById('deviceDrawerWrapper');
@@ -131,89 +88,10 @@
 
             let lastTriggerElement = null;
 
-            // Client-side Filtering
-            function applyFilters() {
-                const search = (searchInput?.value || '').trim().toLowerCase();
-                const outlet = filterOutlet?.value || 'all';
-                const status = filterStatus?.value || 'all';
-                const platform = filterPlatform?.value || 'all';
-
-                let matchedCount = 0;
-
-                const checkMatch = (el) => {
-                    const name = el.getAttribute('data-name') || '';
-                    const iden = el.getAttribute('data-identifier') || '';
-                    const elOutlet = el.getAttribute('data-outlet');
-                    const elStatus = el.getAttribute('data-status');
-                    const elPlatform = el.getAttribute('data-platform');
-
-                    const matchSearch = !search || name.includes(search) || iden.includes(search);
-                    const matchOutlet = outlet === 'all' || elOutlet === outlet;
-                    let matchStatus = true;
-                    if (status === 'active') {
-                        matchStatus = elStatus === 'active';
-                    } else if (status === 'inactive') {
-                        matchStatus = elStatus !== 'active';
-                    }
-                    const matchPlatform = platform === 'all' || elPlatform === platform;
-
-                    return matchSearch && matchOutlet && matchStatus && matchPlatform;
-                };
-
-                rows.forEach(r => {
-                    const m = checkMatch(r);
-                    r.style.display = m ? '' : 'none';
-                    if (m) matchedCount++;
-                });
-
-                cards.forEach(c => {
-                    c.style.display = checkMatch(c) ? '' : 'none';
-                });
-
-                if (visibleCountEl) visibleCountEl.textContent = matchedCount;
-
-                if (matchedCount === 0) {
-                    if (emptyState) emptyState.classList.remove('hidden');
-                    if (tableContainer) tableContainer.classList.add('hidden');
-                    if (mobileContainer) mobileContainer.classList.add('hidden');
-                    if (paginationEl) paginationEl.classList.add('hidden');
-                } else {
-                    if (emptyState) emptyState.classList.add('hidden');
-                    if (tableContainer) tableContainer.classList.remove('hidden');
-                    if (mobileContainer) mobileContainer.classList.remove('hidden');
-                    if (paginationEl) paginationEl.classList.remove('hidden');
-                }
-            }
-
-            if (searchInput) searchInput.addEventListener('input', applyFilters);
-            if (filterOutlet) filterOutlet.addEventListener('change', applyFilters);
-            if (filterStatus) filterStatus.addEventListener('change', applyFilters);
-            if (filterPlatform) filterPlatform.addEventListener('change', applyFilters);
-
-            if (resetBtn) {
-                resetBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterOutlet) filterOutlet.value = 'all';
-                    if (filterStatus) filterStatus.value = 'all';
-                    if (filterPlatform) filterPlatform.value = 'all';
-                    applyFilters();
-                });
-            }
-
-            if (resetEmptyBtn) {
-                resetEmptyBtn.addEventListener('click', () => {
-                    if (searchInput) searchInput.value = '';
-                    if (filterOutlet) filterOutlet.value = 'all';
-                    if (filterStatus) filterStatus.value = 'all';
-                    if (filterPlatform) filterPlatform.value = 'all';
-                    applyFilters();
-                });
-            }
-
             // Register Action Placeholder
             if (registerBtn) {
                 registerBtn.onclick = () => {
-                    alert('Registrasi perangkat dari dashboard akan tersedia setelah integrasi data.');
+                    alert('Registrasi perangkat dari dashboard belum tersedia.');
                 };
             }
 
@@ -236,7 +114,7 @@
                 const dot = document.createElement('span');
                 const label = document.createElement('span');
 
-                const rawStatus = (itemData.status || '').toLowerCase();
+                const rawStatus = (itemData.status_raw || itemData.status || '').toLowerCase();
                 let statusLabel = '';
                 let isEmerald = false;
 
@@ -276,14 +154,22 @@
                 drawerWrapper.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
                 requestAnimationFrame(() => {
-                    drawerBackdrop.classList.remove('opacity-0');
-                    drawerBackdrop.classList.add('opacity-100');
-                    drawerPanel.classList.remove('translate-x-full');
-                    drawerPanel.classList.add('translate-x-0');
+                    drawerBackdrop?.classList.remove('opacity-0');
+                    drawerBackdrop?.classList.add('opacity-100');
+                    drawerPanel?.classList.remove('translate-x-full');
+                    drawerPanel?.classList.add('translate-x-0');
                     closeDrawerBtn?.focus();
                 });
 
+                document.removeEventListener('keydown', handleDeviceDrawerTrap);
                 document.addEventListener('keydown', handleDeviceDrawerTrap);
+
+                window.__devicesDrawerCleanup = () => {
+                    document.removeEventListener('keydown', handleDeviceDrawerTrap);
+                    if (drawerWrapper) drawerWrapper.classList.add('hidden');
+                    document.body.style.overflow = '';
+                };
+
                 if (typeof lucide !== 'undefined') lucide.createIcons();
             }
 
@@ -291,17 +177,19 @@
                 if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
 
                 document.removeEventListener('keydown', handleDeviceDrawerTrap);
+                window.__devicesDrawerCleanup = null;
 
-                drawerBackdrop.classList.remove('opacity-100');
-                drawerBackdrop.classList.add('opacity-0');
-                drawerPanel.classList.remove('translate-x-0');
-                drawerPanel.classList.add('translate-x-full');
+                drawerBackdrop?.classList.remove('opacity-100');
+                drawerBackdrop?.classList.add('opacity-0');
+                drawerPanel?.classList.remove('translate-x-0');
+                drawerPanel?.classList.add('translate-x-full');
 
                 setTimeout(() => {
                     drawerWrapper.classList.add('hidden');
                     document.body.style.overflow = '';
                     if (lastTriggerElement && typeof lastTriggerElement.focus === 'function') {
                         lastTriggerElement.focus();
+                        lastTriggerElement = null;
                     }
                 }, 300);
             }
@@ -338,8 +226,10 @@
                 }
             }
 
-            document.querySelectorAll('.view-device-detail-btn').forEach(btn => {
-                btn.onclick = () => {
+            // Delegated click handler for view detail buttons
+            root.addEventListener('click', (e) => {
+                const btn = e.target.closest('.view-device-detail-btn');
+                if (btn) {
                     lastTriggerElement = btn;
                     const rowOrCard = btn.closest('.device-row, .device-card');
                     if (rowOrCard) {
@@ -347,17 +237,21 @@
                         if (raw) {
                             try {
                                 openDrawer(JSON.parse(raw));
-                            } catch (e) {
-                                console.error('Failed to parse device data', e);
+                            } catch (err) {
+                                console.error('Failed to parse device data', err);
                             }
                         }
                     }
-                };
+                }
             });
 
             if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
             if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
+
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
         }
 
         initDevicesPage();
@@ -366,6 +260,13 @@
             window.__devicesListenersBound = true;
             document.addEventListener('DOMContentLoaded', initDevicesPage);
             document.addEventListener('livewire:navigated', initDevicesPage);
+            document.addEventListener('livewire:navigating', () => {
+                if (typeof window.__devicesDrawerCleanup === 'function') {
+                    window.__devicesDrawerCleanup();
+                    window.__devicesDrawerCleanup = null;
+                }
+                document.body.style.overflow = '';
+            });
         }
     </script>
 </x-layouts::app>

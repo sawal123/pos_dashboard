@@ -44,7 +44,7 @@
             {{-- Status Hero Card --}}
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-3">
                 <div>
-                    <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Status Operasional</span>
+                    <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Status Registrasi</span>
                     <h3 id="deviceDrawerNameHeading" class="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">-</h3>
                 </div>
                 <div id="deviceDrawerStatusBadge">

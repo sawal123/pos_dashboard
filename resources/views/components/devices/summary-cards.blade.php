@@ -29,7 +29,7 @@
             <h3 id="deviceSummaryActive" class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
                 {{ number_format($summary['active_devices'] ?? 0, 0, ',', '.') }}
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Status operasional aktif</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">Registrasi perangkat aktif</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-800/60 shadow-xs">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i>
@@ -43,7 +43,7 @@
             <h3 id="deviceSummaryInactive" class="text-xl sm:text-2xl font-extrabold text-slate-600 dark:text-slate-300 tracking-tight tabular-nums">
                 {{ number_format($summary['inactive_devices'] ?? 0, 0, ',', '.') }}
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Dinonaktifkan dari sistem</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">Registrasi perangkat nonaktif</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
             <i data-lucide="shield-alert" class="w-5 h-5"></i>

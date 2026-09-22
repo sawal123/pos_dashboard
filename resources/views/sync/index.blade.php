@@ -1,32 +1,17 @@
-@php
-    $loadFixtures = require resource_path('views/sync/fixtures.php');
-    $syncData = $loadFixtures();
-    $syncCounter = $syncData['sync_counter'] ?? ['business_id' => 1, 'current_sequence' => 0];
-    $requests = $syncData['requests'] ?? [];
-    $devices = $syncData['devices'] ?? [];
-    $outlets = $syncData['outlets'] ?? [];
-    $summary = $syncData['summary'] ?? [
-        'server_sequence' => 0,
-        'total_requests' => 0,
-        'devices_with_push' => 0,
-        'last_processed' => 'Belum Ada',
-    ];
-@endphp
-
 <x-layouts::app :title="'Sinkronisasi'">
-    <main data-sync-page="true" class="space-y-6 pb-12">
+    <main data-sync-page="true" class="space-y-6 pb-12 max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {{-- Header & Breadcrumb --}}
         <div class="space-y-1">
-            <nav class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <a href="{{ route('dashboard') }}" class="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Dashboard</a>
-                <span>&gt;</span>
-                <span class="text-slate-700 dark:text-slate-200 font-medium">Sinkronisasi</span>
+            <nav class="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-1" aria-label="Breadcrumb">
+                <a href="{{ route('dashboard') }}" class="hover:text-slate-700 dark:hover:text-slate-300 transition-colors">Dashboard</a>
+                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                <span class="text-slate-700 dark:text-slate-300 font-semibold" aria-current="page">Sinkronisasi</span>
             </nav>
             <div class="pt-1">
-                <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                     Sinkronisasi
                 </h1>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
                     Pantau sequence server dan push request yang telah diproses.
                 </p>
             </div>
@@ -38,309 +23,196 @@
         {{-- Summary Cards --}}
         <x-sync.summary-cards :summary="$summary" />
 
-        @if(empty($requests))
-            {{-- Non-local / Production Empty State --}}
+        {{-- Filter Bar & Data List / Empty States --}}
+        @if(!$hasAnyRequests)
+            {{-- Initial Empty State (no requests in database for this business) --}}
             <x-sync.empty-state type="no-data" />
         @else
             {{-- Filter Bar --}}
-            <x-sync.filter-bar :devices="$devices" :outlets="$outlets" />
+            <x-sync.filter-bar :devices="$devices" :outlets="$outlets" :currentFilters="$currentFilters" />
 
-            {{-- Filter Zero Results --}}
-            <x-sync.empty-state type="no-results" />
+            @if($requests->isEmpty())
+                {{-- Filter Zero Results --}}
+                <x-sync.empty-state type="no-results" />
+            @else
+                <div id="syncDataContainer" class="space-y-4">
+                    {{-- Table (Desktop) --}}
+                    <x-sync.request-table :requests="$requests" />
 
-            {{-- Table (Desktop) --}}
-            <x-sync.request-table :requests="$requests" />
+                    {{-- Cards (Mobile) --}}
+                    <x-sync.mobile-cards :requests="$requests" />
+                </div>
 
-            {{-- Cards (Mobile) --}}
-            <x-sync.mobile-cards :requests="$requests" />
-
-            {{-- Detail Drawer --}}
-            <x-sync.detail-drawer />
+                {{-- Pagination --}}
+                @if($requests->hasPages())
+                    <div class="pt-2">
+                        {{ $requests->links() }}
+                    </div>
+                @endif
+            @endif
         @endif
+
+        {{-- Detail Drawer --}}
+        <x-sync.detail-drawer />
     </main>
 
-    @push('scripts')
     <script>
-        (function() {
-            function initSyncPage() {
-                const root = document.querySelector('main[data-sync-page="true"]');
-                if (!root || root.dataset.syncInitialized === 'true') {
-                    return;
-                }
-                root.dataset.syncInitialized = 'true';
+        function initSyncPage() {
+            const root = document.querySelector('main[data-sync-page="true"]');
+            if (!root || root.dataset.syncInitialized === 'true') {
+                return;
+            }
+            root.dataset.syncInitialized = 'true';
 
-                // DOM Elements
-                const searchInput = document.getElementById('sync-search');
-                const deviceFilter = document.getElementById('sync-device-filter');
-                const outletFilter = document.getElementById('sync-outlet-filter');
-                const dateFilter = document.getElementById('sync-date-filter');
-                const customDateContainer = document.getElementById('sync-custom-date-container');
-                const startDateInput = document.getElementById('sync-start-date');
-                const endDateInput = document.getElementById('sync-end-date');
-                const resetBtn = document.getElementById('sync-reset-filter');
-                const resetEmptyBtn = document.getElementById('sync-reset-empty');
+            // Filter date preset toggle for custom date fields
+            const dateFilter = document.getElementById('sync-date-filter');
+            const customDateContainer = document.getElementById('sync-custom-date-container');
 
-                const tableBody = document.getElementById('sync-table-body');
-                const tableWrapper = tableBody ? tableBody.closest('.overflow-x-auto')?.parentElement : null;
-                const mobileContainer = document.getElementById('sync-mobile-container');
-                const noResults = document.getElementById('sync-no-results');
-
-                const rows = document.querySelectorAll('.sync-row');
-                const cards = document.querySelectorAll('.sync-card');
-
-                // Drawer Elements
-                const drawer = document.getElementById('sync-detail-drawer');
-                const drawerBackdrop = document.getElementById('sync-drawer-backdrop');
-                const drawerPanel = document.getElementById('sync-drawer-panel');
-                const drawerCloseBtn = document.getElementById('sync-drawer-close');
-                const drawerFooterClose = document.getElementById('sync-drawer-footer-close');
-
-                const drawerRequestId = document.getElementById('drawer-sync-request-id');
-                const drawerProcessedAt = document.getElementById('drawer-sync-processed-at');
-                const drawerOutlet = document.getElementById('drawer-sync-outlet');
-                const drawerDeviceName = document.getElementById('drawer-sync-device-name');
-                const drawerDeviceIdentifier = document.getElementById('drawer-sync-device-identifier');
-
-                let lastFocusedTrigger = null;
-
-                // Helper: Local Calendar YYYY-MM-DD
-                function formatLocalYMD(date) {
-                    const y = date.getFullYear();
-                    const m = String(date.getMonth() + 1).padStart(2, '0');
-                    const d = String(date.getDate()).padStart(2, '0');
-                    return `${y}-${m}-${d}`;
-                }
-
-                function filterData() {
-                    const query = (searchInput?.value || '').toLowerCase().trim();
-                    const selectedDevice = (deviceFilter?.value || '').trim();
-                    const selectedOutlet = (outletFilter?.value || '').trim();
-                    const dateVal = dateFilter?.value || '';
-
-                    const today = new Date();
-                    const todayStr = formatLocalYMD(today);
-
-                    let minDateStr = null;
-                    let maxDateStr = null;
-
-                    if (dateVal === 'today') {
-                        minDateStr = todayStr;
-                        maxDateStr = todayStr;
-                    } else if (dateVal === '7days') {
-                        const past = new Date(today);
-                        past.setDate(past.getDate() - 6);
-                        minDateStr = formatLocalYMD(past);
-                        maxDateStr = todayStr;
-                    } else if (dateVal === '30days') {
-                        const past = new Date(today);
-                        past.setDate(past.getDate() - 29);
-                        minDateStr = formatLocalYMD(past);
-                        maxDateStr = todayStr;
-                    } else if (dateVal === 'custom') {
-                        let start = startDateInput?.value || '';
-                        let end = endDateInput?.value || '';
-                        if (start && end && start > end) {
-                            const tmp = start;
-                            start = end;
-                            end = tmp;
-                            if (startDateInput) startDateInput.value = start;
-                            if (endDateInput) endDateInput.value = end;
-                        }
-                        minDateStr = start || null;
-                        maxDateStr = end || null;
-                    }
-
-                    let visibleCount = 0;
-
-                    const matchItem = (el) => {
-                        const reqId = (el.dataset.requestId || '').toLowerCase();
-                        const devName = (el.dataset.deviceName || '').toLowerCase();
-                        const devIdent = (el.dataset.deviceIdentifier || '').toLowerCase();
-                        const devId = (el.dataset.deviceId || '').trim();
-                        const outlet = (el.dataset.outletName || '').trim();
-                        const processedRaw = (el.dataset.processedAtRaw || '').trim(); // e.g. "2026-09-21 10:42:00"
-                        const itemDateStr = processedRaw.split(' ')[0] || '';
-
-                        // Search check
-                        if (query && !reqId.includes(query) && !devName.includes(query) && !devIdent.includes(query)) {
-                            return false;
-                        }
-
-                        // Device filter
-                        if (selectedDevice && devId !== selectedDevice) {
-                            return false;
-                        }
-
-                        // Outlet filter
-                        if (selectedOutlet && outlet !== selectedOutlet) {
-                            return false;
-                        }
-
-                        // Date filter
-                        if (minDateStr && itemDateStr < minDateStr) {
-                            return false;
-                        }
-                        if (maxDateStr && itemDateStr > maxDateStr) {
-                            return false;
-                        }
-
-                        return true;
-                    };
-
-                    rows.forEach(row => {
-                        const isMatch = matchItem(row);
-                        row.classList.toggle('hidden', !isMatch);
-                        if (isMatch) visibleCount++;
-                    });
-
-                    cards.forEach(card => {
-                        const isMatch = matchItem(card);
-                        card.classList.toggle('hidden', !isMatch);
-                    });
-
-                    // Zero results toggle
-                    if (visibleCount === 0) {
-                        if (noResults) noResults.classList.remove('hidden');
-                        if (tableWrapper) tableWrapper.classList.add('hidden');
-                        if (mobileContainer) mobileContainer.classList.add('hidden');
-                    } else {
-                        if (noResults) noResults.classList.add('hidden');
-                        if (tableWrapper) tableWrapper.classList.remove('hidden');
-                        if (mobileContainer) mobileContainer.classList.remove('hidden');
-                    }
-                }
-
-                function resetFilters() {
-                    if (searchInput) searchInput.value = '';
-                    if (deviceFilter) deviceFilter.value = '';
-                    if (outletFilter) outletFilter.value = '';
-                    if (dateFilter) dateFilter.value = '';
-                    if (startDateInput) startDateInput.value = '';
-                    if (endDateInput) endDateInput.value = '';
-                    if (customDateContainer) customDateContainer.classList.add('hidden');
-                    filterData();
-                }
-
-                // Event Listeners for Filters
-                searchInput?.addEventListener('input', filterData);
-                deviceFilter?.addEventListener('change', filterData);
-                outletFilter?.addEventListener('change', filterData);
-                dateFilter?.addEventListener('change', function() {
+            if (dateFilter && customDateContainer) {
+                dateFilter.addEventListener('change', function() {
                     if (this.value === 'custom') {
-                        customDateContainer?.classList.remove('hidden');
+                        customDateContainer.classList.remove('hidden');
                     } else {
-                        customDateContainer?.classList.add('hidden');
+                        customDateContainer.classList.add('hidden');
                     }
-                    filterData();
                 });
-                startDateInput?.addEventListener('change', filterData);
-                endDateInput?.addEventListener('change', filterData);
-                resetBtn?.addEventListener('click', resetFilters);
-                resetEmptyBtn?.addEventListener('click', resetFilters);
+            }
 
-                // Keyboard handler (ESC and Tab Trap)
-                const keyHandler = (e) => {
-                    if (!drawer || drawer.classList.contains('hidden')) return;
+            // Drawer Elements
+            const drawer = document.getElementById('sync-detail-drawer');
+            const drawerBackdrop = document.getElementById('sync-drawer-backdrop');
+            const drawerPanel = document.getElementById('sync-drawer-panel');
+            const drawerCloseBtn = document.getElementById('sync-drawer-close');
+            const drawerFooterClose = document.getElementById('sync-drawer-footer-close');
 
-                    if (e.key === 'Escape') {
-                        e.preventDefault();
-                        closeDrawer();
-                    } else if (e.key === 'Tab') {
-                        const focusableElements = drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
-                        if (focusableElements.length === 0) return;
-                        const firstElement = focusableElements[0];
-                        const lastElement = focusableElements[focusableElements.length - 1];
+            const drawerRequestId = document.getElementById('drawer-sync-request-id');
+            const drawerProcessedAt = document.getElementById('drawer-sync-processed-at');
+            const drawerOutlet = document.getElementById('drawer-sync-outlet');
+            const drawerDeviceName = document.getElementById('drawer-sync-device-name');
+            const drawerDeviceIdentifier = document.getElementById('drawer-sync-device-identifier');
 
-                        if (e.shiftKey) {
-                            if (document.activeElement === firstElement || !drawer.contains(document.activeElement)) {
-                                lastElement?.focus();
-                                e.preventDefault();
-                            }
-                        } else {
-                            if (document.activeElement === lastElement) {
-                                firstElement?.focus();
-                                e.preventDefault();
-                            }
+            let lastFocusedTrigger = null;
+
+            // Keyboard handler (ESC and Tab Trap)
+            const keyHandler = (e) => {
+                if (!drawer || drawer.classList.contains('hidden')) return;
+
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    closeDrawer();
+                } else if (e.key === 'Tab') {
+                    const focusableElements = drawer.querySelectorAll('button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+                    if (focusableElements.length === 0) return;
+                    const firstElement = focusableElements[0];
+                    const lastElement = focusableElements[focusableElements.length - 1];
+
+                    if (e.shiftKey) {
+                        if (document.activeElement === firstElement || !drawer.contains(document.activeElement)) {
+                            lastElement?.focus();
+                            e.preventDefault();
+                        }
+                    } else {
+                        if (document.activeElement === lastElement || !drawer.contains(document.activeElement)) {
+                            firstElement?.focus();
+                            e.preventDefault();
                         }
                     }
+                }
+            };
+
+            // Drawer Controls
+            function openDrawer(data, triggerEl) {
+                if (!drawer) return;
+                lastFocusedTrigger = triggerEl;
+
+                // DOM-safe insertion using textContent
+                if (drawerRequestId) drawerRequestId.textContent = data.requestId || '-';
+                if (drawerProcessedAt) drawerProcessedAt.textContent = data.processedAt || '-';
+                if (drawerOutlet) drawerOutlet.textContent = data.outletName || '-';
+                if (drawerDeviceName) drawerDeviceName.textContent = data.deviceName || '-';
+                if (drawerDeviceIdentifier) drawerDeviceIdentifier.textContent = data.deviceIdentifier || '-';
+
+                drawer.classList.remove('hidden');
+                document.body.classList.add('overflow-hidden');
+                document.body.style.overflow = 'hidden';
+
+                document.removeEventListener('keydown', keyHandler);
+                document.addEventListener('keydown', keyHandler);
+
+                window.__syncDrawerCleanup = () => {
+                    document.removeEventListener('keydown', keyHandler);
+                    if (drawer) drawer.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                    document.body.style.overflow = '';
                 };
 
-                // Drawer Controls
-                function openDrawer(data, triggerEl) {
-                    if (!drawer) return;
-                    lastFocusedTrigger = triggerEl;
+                requestAnimationFrame(() => {
+                    drawerBackdrop?.classList.remove('opacity-0');
+                    drawerPanel?.classList.remove('translate-x-full');
+                    drawerCloseBtn?.focus();
+                });
+            }
 
-                    // DOM-safe insertion using textContent
-                    if (drawerRequestId) drawerRequestId.textContent = data.requestId || '-';
-                    if (drawerProcessedAt) drawerProcessedAt.textContent = data.processedAt || '-';
-                    if (drawerOutlet) drawerOutlet.textContent = data.outletName || '-';
-                    if (drawerDeviceName) drawerDeviceName.textContent = data.deviceName || '-';
-                    if (drawerDeviceIdentifier) drawerDeviceIdentifier.textContent = data.deviceIdentifier || '-';
+            function closeDrawer() {
+                if (!drawer) return;
+                document.removeEventListener('keydown', keyHandler);
+                window.__syncDrawerCleanup = null;
 
-                    drawer.classList.remove('hidden');
-                    document.body.classList.add('overflow-hidden');
+                drawerBackdrop?.classList.add('opacity-0');
+                drawerPanel?.classList.add('translate-x-full');
 
-                    document.removeEventListener('keydown', keyHandler);
-                    document.addEventListener('keydown', keyHandler);
+                setTimeout(() => {
+                    drawer.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                    document.body.style.overflow = '';
+                    if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === 'function') {
+                        lastFocusedTrigger.focus();
+                        lastFocusedTrigger = null;
+                    }
+                }, 300);
+            }
 
-                    requestAnimationFrame(() => {
-                        drawerBackdrop?.classList.remove('opacity-0');
-                        drawerPanel?.classList.remove('translate-x-full');
-                        drawerCloseBtn?.focus();
-                    });
-                }
-
-                function closeDrawer() {
-                    if (!drawer) return;
-                    document.removeEventListener('keydown', keyHandler);
-                    drawerBackdrop?.classList.add('opacity-0');
-                    drawerPanel?.classList.add('translate-x-full');
-
-                    setTimeout(() => {
-                        drawer.classList.add('hidden');
-                        document.body.classList.remove('overflow-hidden');
-                        if (lastFocusedTrigger) {
-                            lastFocusedTrigger.focus();
-                            lastFocusedTrigger = null;
-                        }
-                    }, 300);
-                }
-
-                // Detail Button Click Handlers
-                document.querySelectorAll('.btn-sync-detail').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const parent = this.closest('.sync-row') || this.closest('.sync-card');
-                        if (!parent) return;
-
+            // Delegated click handler for detail buttons
+            root.addEventListener('click', (e) => {
+                const btn = e.target.closest('.btn-sync-detail');
+                if (btn) {
+                    const parent = btn.closest('.sync-row, .sync-card');
+                    if (parent) {
                         const data = {
                             requestId: parent.dataset.requestId,
                             processedAt: parent.dataset.processedAt,
                             outletName: parent.dataset.outletName,
                             deviceName: parent.dataset.deviceName,
-                            deviceIdentifier: parent.dataset.deviceIdentifier
+                            deviceIdentifier: parent.dataset.deviceIdentifier,
                         };
+                        openDrawer(data, btn);
+                    }
+                }
+            });
 
-                        openDrawer(data, this);
-                    });
-                });
+            drawerCloseBtn?.addEventListener('click', closeDrawer);
+            drawerFooterClose?.addEventListener('click', closeDrawer);
+            drawerBackdrop?.addEventListener('click', closeDrawer);
 
-                drawerCloseBtn?.addEventListener('click', closeDrawer);
-                drawerFooterClose?.addEventListener('click', closeDrawer);
-                drawerBackdrop?.addEventListener('click', closeDrawer);
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
             }
+        }
 
-            // Global lifecycle guard for wire:navigate
-            if (!window.__syncPageScriptInitialized) {
-                window.__syncPageScriptInitialized = true;
-                document.addEventListener('livewire:navigated', initSyncPage);
-            }
+        initSyncPage();
 
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', initSyncPage);
-            } else {
-                initSyncPage();
-            }
-        })();
+        if (!window.__syncListenersBound) {
+            window.__syncListenersBound = true;
+            document.addEventListener('DOMContentLoaded', initSyncPage);
+            document.addEventListener('livewire:navigated', initSyncPage);
+            document.addEventListener('livewire:navigating', () => {
+                if (typeof window.__syncDrawerCleanup === 'function') {
+                    window.__syncDrawerCleanup();
+                    window.__syncDrawerCleanup = null;
+                }
+                document.body.classList.remove('overflow-hidden');
+                document.body.style.overflow = '';
+            });
+        }
     </script>
-    @endpush
 </x-layouts::app>

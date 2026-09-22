@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\CashController;
+use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\StockController;
+use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use Illuminate\Support\Facades\Route;
@@ -21,8 +23,8 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->name('stock.movements');
     Route::get('cash', [CashController::class, 'index'])->name('cash.index');
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
-    Route::view('devices', 'devices.index')->name('devices.index');
-    Route::view('sync', 'sync.index')->name('sync.index');
+    Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
+    Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

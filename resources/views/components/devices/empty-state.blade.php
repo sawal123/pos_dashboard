@@ -17,7 +17,7 @@
         </div>
     </div>
 @elseif($mode === 'no-results')
-    <div id="deviceFilterEmptyState" class="hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs p-8 text-center space-y-3">
+    <div id="deviceFilterEmptyState" class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs p-8 text-center space-y-3">
         <div class="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 mx-auto flex items-center justify-center">
             <i data-lucide="search-x" class="w-6 h-6"></i>
         </div>
@@ -28,6 +28,16 @@
             <p class="text-xs text-slate-400 dark:text-slate-500">
                 Coba ubah kata pencarian atau filter yang digunakan.
             </p>
+        </div>
+        <div class="pt-2">
+            <a
+                href="{{ route('devices.index') }}"
+                id="resetDeviceEmptyBtn"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                <span>Reset Filter</span>
+            </a>
         </div>
     </div>
 @endif
