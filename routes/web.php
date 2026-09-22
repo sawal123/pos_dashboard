@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Dashboard\BusinessContextController;
+use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\ProductsController;
+use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
@@ -17,8 +19,8 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('stock/{productId}/movements', [StockController::class, 'movements'])
         ->whereNumber('productId')
         ->name('stock.movements');
-    Route::view('cash', 'cash.index')->name('cash.index');
-    Route::view('reports', 'reports.index')->name('reports.index');
+    Route::get('cash', [CashController::class, 'index'])->name('cash.index');
+    Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::view('devices', 'devices.index')->name('devices.index');
     Route::view('sync', 'sync.index')->name('sync.index');
 
