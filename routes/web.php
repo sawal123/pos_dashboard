@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\CashController;
+use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
-    Route::view('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('transactions', [TransactionsController::class, 'index'])->name('transactions.index');
     Route::get('products', [ProductsController::class, 'index'])->name('products.index');
     Route::get('stock', [StockController::class, 'index'])->name('stock.index');
