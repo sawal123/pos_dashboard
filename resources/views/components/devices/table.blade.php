@@ -20,17 +20,17 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 @foreach($devices as $device)
                     @php
-                        $status = $device['status'] ?? '';
-                        if ($status === 'active') {
+                        $statusRaw = $device['status_raw'] ?? $device['status'] ?? '';
+                        if ($statusRaw === 'active') {
                             $statusLabel = 'Aktif';
                             $statusBadgeClass = 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                             $statusDotClass = 'bg-emerald-500';
-                        } elseif ($status === 'inactive') {
+                        } elseif ($statusRaw === 'inactive') {
                             $statusLabel = 'Nonaktif';
                             $statusBadgeClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                             $statusDotClass = 'bg-slate-400';
                         } else {
-                            $statusLabel = ucwords(str_replace(['_', '-'], ' ', (string) $status));
+                            $statusLabel = $device['status'] ?? ucwords(str_replace(['_', '-'], ' ', (string) $statusRaw));
                             $statusBadgeClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                             $statusDotClass = 'bg-slate-400';
                         }
