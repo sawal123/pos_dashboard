@@ -261,8 +261,12 @@
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
                                                 {{ $tx['payment_status'] }}
                                             </span>
-                                        @else
+                                        @elseif($tx['payment_status_raw'] === 'unpaid')
                                             <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60">
+                                                {{ $tx['payment_status'] }}
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                                                 {{ $tx['payment_status'] }}
                                             </span>
                                         @endif
@@ -308,9 +312,19 @@
                             <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-xs">
                                 <span class="text-slate-500">{{ $tx['payment_method'] }}</span>
                                 <div class="flex items-center gap-1.5">
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $tx['payment_status_raw'] === 'paid' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400' }}">
-                                        {{ $tx['payment_status'] }}
-                                    </span>
+                                    @if($tx['payment_status_raw'] === 'paid')
+                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
+                                            {{ $tx['payment_status'] }}
+                                        </span>
+                                    @elseif($tx['payment_status_raw'] === 'unpaid')
+                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60">
+                                            {{ $tx['payment_status'] }}
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                            {{ $tx['payment_status'] }}
+                                        </span>
+                                    @endif
                                     <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $tx['status_raw'] === 'completed' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : (in_array($tx['status_raw'], ['cancelled', 'canceled'], true) ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300') }}">
                                         {{ $tx['status'] }}
                                     </span>

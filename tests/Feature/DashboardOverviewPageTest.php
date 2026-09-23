@@ -384,6 +384,18 @@ class DashboardOverviewPageTest extends TestCase
         $this->assertCount(7, $chart['intervals']);
     }
 
+    public function test_array_period_query_falls_back_to_7d_without_error(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $response = $this->actingAs($user)->get(route('dashboard').'?period[]=7d');
+        $response->assertOk();
+
+        $chart = $response->viewData('overview')['sales_chart'];
+        $this->assertEquals('7d', $chart['period']);
+        $this->assertCount(7, $chart['intervals']);
+    }
+
     public function test_chart_insight_empty_state_when_no_sales(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
@@ -674,6 +686,8 @@ class DashboardOverviewPageTest extends TestCase
         $response->assertDontSee('0 konflik');
         $response->assertDontSee('Semua data tersinkron');
         $response->assertSee('Lihat Riwayat Sinkronisasi');
+        $response->assertSee('Perangkat Pernah Push');
+        $response->assertDontSee('Perangkat Aktif Push');
     }
 
     // ============================================================
@@ -722,6 +736,26 @@ class DashboardOverviewPageTest extends TestCase
 
         $response->assertSee('Pelanggan VIP Snapshot');
         $response->assertSee('Outlet Gatot Subroto');
+    }
+
+    public function test_recent_transactions_renders_unknown_payment_status_as_neutral_badge(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'payment_status' => 'pending_review',
+            'transaction_number' => 'TRX-UNKNOWN-PAY',
+            'sold_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('dashboard'));
+        $response->assertOk();
+
+        // Should see human-readable "Pending Review"
+        $response->assertSee('Pending Review');
+        // Should have neutral slate class for unknown payment status, not amber
+        $response->assertSee('bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300');
     }
 
     // ============================================================

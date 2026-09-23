@@ -20,9 +20,10 @@ class DashboardController extends Controller
         $currentBusiness = $request->attributes->get('dashboard_business');
         $hasCloudAccess = (bool) $request->attributes->get('dashboard_cloud_access', false);
 
-        $period = (string) $request->query('period', '7d');
-        if (! in_array($period, ['7d', '30d', '3m', '12m'], true)) {
-            $period = '7d';
+        $rawPeriod = $request->query('period');
+        $period = '7d';
+        if (is_string($rawPeriod) && in_array($rawPeriod, ['7d', '30d', '3m', '12m'], true)) {
+            $period = $rawPeriod;
         }
 
         $overview = $this->overviewData->get($currentBusiness, $period, $hasCloudAccess);

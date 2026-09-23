@@ -62,7 +62,7 @@
             </div>
 
             <div class="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
-                <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">Perangkat Aktif Push</span>
+                <span class="text-xs text-slate-500 dark:text-slate-400 block mb-1">Perangkat Pernah Push</span>
                 <div class="flex items-baseline gap-1.5">
                     <span class="text-xl font-bold text-slate-900 dark:text-white tabular-nums">{{ number_format($devicesWithPush, 0, ',', '.') }}</span>
                     <span class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Device</span>
