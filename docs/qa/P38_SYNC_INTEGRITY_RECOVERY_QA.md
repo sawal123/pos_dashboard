@@ -35,6 +35,11 @@ never 6).
 
 ## 2. Stock reconciliation policy
 
+> **Superseded by P3-A** (`docs/qa/QA01_P3A_NEGATIVE_STOCK_SYNC.md`): negative
+> resulting stock is now a valid offline outcome and is persisted instead of
+> raising `STOCK_RECONCILIATION_REQUIRED`. The rest of this section is kept as
+> the historical P38 record.
+
 `app/Services/Sync/SyncStateRequiredException.php`
 
 If a concurrent delta would drive the locked server stock below zero, the
@@ -102,7 +107,7 @@ all entities plus the tombstone path (already-tombstoned rows auto-resolve).
 | Same `sync_id`, new `request_id` | idempotent, delta applied once |
 | Stale `base_sync_version` | `409 SYNC_CONFLICT` with `server_sync_version` |
 | Equivalent replay with stale version | `200`, no conflict, no write |
-| Negative concurrent delta | `409 STOCK_RECONCILIATION_REQUIRED` |
+| Negative concurrent delta | `200`; negative stock persisted (P3-A, supersedes `409 STOCK_RECONCILIATION_REQUIRED`) |
 | Deadlock / lock-wait / record-changed | `409 SYNC_RETRYABLE_CONFLICT` |
 | Cross-business / cross-outlet push | existing P37 guards (403 / 409) |
 
