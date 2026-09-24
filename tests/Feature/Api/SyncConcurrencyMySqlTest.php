@@ -190,6 +190,31 @@ class SyncConcurrencyMySqlTest extends TestCase
         $this->assertSame(2, StockMovement::where('business_id', $this->fixture['businessId'])->count());
     }
 
+    public function test_concurrent_oversell_serializes_on_real_row_locks(): void
+    {
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($prodSyncId, 'SKU-CONC-3', 2);
+
+        $fixture = $this->fixture;
+        $changeA = ['stock_movements' => [self::movement((string) Str::uuid(), $prodSyncId, -5, 2, -3, 'over-a')]];
+        $changeB = ['stock_movements' => [self::movement((string) Str::uuid(), $prodSyncId, -5, 2, -3, 'over-b')]];
+
+        [$resultA, $resultB] = Concurrency::run([
+            fn () => self::concurrentPush($fixture, $changeA, (string) Str::uuid()),
+            fn () => self::concurrentPush($fixture, $changeB, (string) Str::uuid()),
+        ]);
+
+        $this->assertIsArray($resultA, 'process A failed: '.(is_string($resultA) ? $resultA : ''));
+        $this->assertIsArray($resultB, 'process B failed: '.(is_string($resultB) ? $resultB : ''));
+        $this->assertSame(200, $resultA['status'], json_encode($resultA['body']));
+        $this->assertSame(200, $resultB['status'], json_encode($resultB['body']));
+
+        // 2 - 5 - 5 = -8: both offline oversells applied exactly once, no lost
+        // update, and the negative server stock is accepted (no rejection).
+        $this->assertSame(-8.0, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(2, StockMovement::where('business_id', $this->fixture['businessId'])->count());
+    }
+
     public function test_concurrent_master_edit_produces_exactly_one_winner(): void
     {
         $prodSyncId = (string) Str::uuid();

@@ -892,24 +892,11 @@ class SyncPushService
             // Server delta authority: the accepted mutation is quantity_change,
             // and the authoritative current stock is the locked server stock
             // plus that delta. The device stock_before/stock_after values are
-            // kept as historical evidence only.
+            // kept as historical evidence only. A negative resulting stock is a
+            // valid offline outcome (an oversold item) and is persisted as-is.
             $delta = (float) $attributes['quantity_change'];
             $serverStockBefore = (float) $lockedProduct->stock;
             $serverStockAfter = $serverStockBefore + $delta;
-
-            if ($serverStockAfter < 0) {
-                // Explicit recoverable state: never a silent server-wins,
-                // client-wins, or fabricated stock_after.
-                throw new SyncStateRequiredException('STOCK_RECONCILIATION_REQUIRED', 'stock_movements', $syncId, [
-                    'product_sync_id' => (string) $item['product_sync_id'],
-                    'quantity_change' => $delta,
-                    'server_stock_before' => $serverStockBefore,
-                    'server_stock_after' => $serverStockAfter,
-                    'device_stock_before' => (float) ($item['stock_before'] ?? 0),
-                    'device_stock_after' => (float) ($item['stock_after'] ?? 0),
-                    'reason' => 'NEGATIVE_STOCK_NOT_ALLOWED',
-                ]);
-            }
 
             $movement = new StockMovement($attributes);
             $movement->business_id = $business->id;

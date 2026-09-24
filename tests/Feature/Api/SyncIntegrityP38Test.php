@@ -214,25 +214,253 @@ class SyncIntegrityP38Test extends TestCase
         $this->assertEquals(10, (float) $product->stock);
     }
 
-    public function test_negative_stock_delta_returns_explicit_reconciliation_state(): void
+    public function test_oversold_stock_delta_persists_negative_server_stock(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 2);
+
+        $moveSyncId = (string) Str::uuid();
+
+        // Stock 2, an offline sale of 5: the accepted delta is -5 and the
+        // authoritative server stock becomes -3.
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement($moveSyncId, $prodSyncId, -5, 2, -3, 'sale-over')],
+        ])->assertStatus(200);
+
+        $this->assertEquals(-3, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $env['business']->id)->count());
+
+        // Historical evidence is stored exactly as the device reported it.
+        $movement = StockMovement::where('sync_id', $moveSyncId)->first();
+        $this->assertEquals(2, (float) $movement->stock_before);
+        $this->assertEquals(-3, (float) $movement->stock_after);
+        $this->assertEquals(-5, (float) $movement->quantity_change);
+    }
+
+    public function test_negative_stock_product_snapshot_is_accepted_on_create(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+
+        $this->pushAs($env, 'POS-01', [
+            'products' => [[
+                'sync_id' => $prodSyncId,
+                'base_sync_version' => null,
+                'name' => 'Produk Minus',
+                'sku' => 'SKU-MINUS-01',
+                'price' => 10000,
+                'stock' => -4,
+                'status' => 'active',
+            ]],
+        ])->assertStatus(200);
+
+        $this->assertEquals(-4, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+    }
+
+    public function test_stock_adjustment_from_negative_recovers_to_positive(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, -3);
+
+        // A stock adjustment of +6 on a -3 server stock recovers to +3.
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, 6, -3, 3, 'adjust-recover')],
+        ])->assertStatus(200);
+
+        $this->assertEquals(3, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+    }
+
+    public function test_two_offline_devices_oversell_with_stale_snapshots_without_lost_update(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $this->secondDevice($env);
+
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 5);
+
+        // Both devices pulled stock 5 before going offline, so each client
+        // snapshot still claims 5 as its own baseline and fabricates its own
+        // stock_after. The server must apply both deltas against the locked
+        // server stock, never against the stale device snapshots.
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, -3, 5, 2, 'sale-device-a')],
+        ])->assertStatus(200);
+
+        $this->pushAs($env, 'POS-02', [
+            'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, -4, 5, 1, 'sale-device-b')],
+        ])->assertStatus(200);
+
+        // 5 - 3 - 4 = -2: no lost update, both offline sales applied exactly once.
+        $this->assertEquals(-2, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(2, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_negative_stock_is_returned_by_pull_with_movement_history(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 2);
+
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, -5, 2, -3, 'sale-pull')],
+        ])->assertStatus(200);
+
+        $pull = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->getJson('/api/sync/pull?business_id='.$env['business']->id.'&device_identifier=POS-01&after=0&limit=200');
+
+        $pull->assertStatus(200);
+        $records = $pull->json('data.records');
+
+        $product = collect($records)->firstWhere('entity', 'products');
+        $this->assertNotNull($product);
+        $this->assertEquals(-3, $product['data']['stock']);
+
+        $movement = collect($records)->firstWhere('entity', 'stock_movements');
+        $this->assertNotNull($movement);
+        $this->assertEquals(-5, $movement['data']['quantity_change']);
+        $this->assertEquals(2, $movement['data']['stock_before']);
+        $this->assertEquals(-3, $movement['data']['stock_after']);
+    }
+
+    public function test_non_numeric_stock_payload_is_rejected(): void
     {
         $env = $this->setupSyncEnvironment();
         $prodSyncId = (string) Str::uuid();
         $this->makeProduct($env, $prodSyncId, 5);
 
-        $response = $this->pushAs($env, 'POS-01', [
-            'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, -6, 5, 0, 'sale-over')],
-        ]);
+        // products.stock must stay numeric.
+        $this->pushAs($env, 'POS-01', [
+            'products' => [[
+                'sync_id' => $prodSyncId,
+                'base_sync_version' => 1,
+                'name' => 'Produk',
+                'sku' => 'SKU-'.substr($prodSyncId, 0, 8),
+                'price' => 10000,
+                'stock' => 'not-a-number',
+            ]],
+        ])->assertStatus(422)->assertJsonValidationErrors(['changes.products.0.stock']);
 
-        $response->assertStatus(409);
-        $response->assertJson([
-            'code' => 'STOCK_RECONCILIATION_REQUIRED',
-            'state' => 'STOCK_RECONCILIATION_REQUIRED',
-        ]);
+        // stock_movements stock_before / stock_after must stay numeric.
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [[
+                'sync_id' => (string) Str::uuid(),
+                'product_sync_id' => $prodSyncId,
+                'movement_type' => 'sale',
+                'quantity_change' => -1,
+                'stock_before' => 'x',
+                'stock_after' => -3,
+                'occurred_at' => '2026-09-17 10:00:00',
+            ]],
+        ])->assertStatus(422)->assertJsonValidationErrors(['changes.stock_movements.0.stock_before']);
 
-        // Nothing is deleted and nothing is silently resolved.
+        // quantity_change must stay numeric.
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [[
+                'sync_id' => (string) Str::uuid(),
+                'product_sync_id' => $prodSyncId,
+                'movement_type' => 'sale',
+                'quantity_change' => 'x',
+                'occurred_at' => '2026-09-17 10:00:00',
+            ]],
+        ])->assertStatus(422)->assertJsonValidationErrors(['changes.stock_movements.0.quantity_change']);
+
+        // Nothing was applied by any rejected payload.
         $this->assertEquals(5, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
         $this->assertSame(0, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_negative_stock_retry_with_same_sync_id_and_request_id_is_exactly_once(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 2);
+
+        $moveSyncId = (string) Str::uuid();
+        $requestId = (string) Str::uuid();
+
+        $changes = [
+            'stock_movements' => [$this->movement($moveSyncId, $prodSyncId, -5, 2, -3, 'sale-once')],
+        ];
+
+        $first = $this->pushAs($env, 'POS-01', $changes, $requestId);
+        $first->assertStatus(200);
+        $first->assertJson(['data' => ['duplicate' => false]]);
+
+        // Same request_id: request-level dedupe.
+        $this->pushAs($env, 'POS-01', $changes, $requestId)
+            ->assertStatus(200)
+            ->assertJson(['data' => ['duplicate' => true]]);
+
+        // New request_id, same movement sync_id: mutation-level dedupe.
+        $this->pushAs($env, 'POS-01', $changes)->assertStatus(200);
+
+        $this->assertEquals(-3, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_cross_business_stock_movement_is_denied(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $userB = User::factory()->create();
+        $businessB = Business::factory()->create();
+        $userB->businesses()->attach($businessB, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $businessB->id]);
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+        Device::create([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'name' => 'POS B',
+            'identifier' => 'POS-B',
+            'status' => 'active',
+            'registered_at' => now(),
+        ]);
+        $tokenB = $userB->createToken('mobile-api', ['mobile'])->plainTextToken;
+
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 2);
+
+        $this->withHeader('Authorization', 'Bearer '.$tokenB)
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-B',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'stock_movements' => [$this->movement((string) Str::uuid(), $prodSyncId, 10, 2, 12, 'cross-business')],
+                ],
+            ])->assertStatus(403)
+            ->assertJson(['code' => 'BUSINESS_ACCESS_DENIED']);
+
+        $this->assertEquals(2, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(0, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_stock_movement_version_conflict_still_rejected(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($env, $prodSyncId, 5);
+
+        $moveSyncId = (string) Str::uuid();
+
+        $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement($moveSyncId, $prodSyncId, -1, 5, 4, 'sale-v1')],
+        ])->assertStatus(200);
+
+        // Replay the same movement sync_id with a stale base version and a
+        // different delta: not an equivalent mutation, so it stays a conflict.
+        $conflict = $this->pushAs($env, 'POS-01', [
+            'stock_movements' => [$this->movement($moveSyncId, $prodSyncId, -2, 5, 3, 'sale-v1')],
+        ]);
+
+        $conflict->assertStatus(409);
+        $conflict->assertJson(['code' => 'SYNC_CONFLICT']);
+
+        // The first committed delta survives untouched.
+        $this->assertEquals(4, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $env['business']->id)->count());
     }
 
     public function test_concurrent_cash_settlement_for_one_sale_is_exactly_once(): void
