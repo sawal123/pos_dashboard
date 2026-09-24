@@ -6,6 +6,7 @@ use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
+use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
@@ -23,6 +24,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('productId')
         ->name('stock.movements');
     Route::get('cash', [CashController::class, 'index'])->name('cash.index');
+    Route::get('shifts', [ShiftsController::class, 'index'])->name('shifts.index');
+    Route::get('shifts/{shiftId}/detail', [ShiftsController::class, 'detail'])
+        ->whereNumber('shiftId')
+        ->name('shifts.detail');
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
     Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');
