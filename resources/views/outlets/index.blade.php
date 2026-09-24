@@ -59,6 +59,16 @@
                 const contentEl = document.getElementById('outletDrawerContent');
                 const errorEl = document.getElementById('outletDrawerError');
 
+                const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+                // Drawer lifecycle state kept per initialization so wire:navigate
+                // starts from a clean slate and never reuses stale closures.
+                let isOpen = false;
+                let closeTimer = null;
+                let activeController = null;
+                let requestToken = 0;
+                let lastTriggerButton = null;
+
                 const formatRupiah = (value) => {
                     const amount = Number(value || 0);
                     return new Intl.NumberFormat('id-ID', {
@@ -85,27 +95,88 @@
                     return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
                 };
 
-                const openDrawer = () => {
+                // Abort the in-flight request and invalidate its response token so
+                // a slower response can never paint over a newer selection.
+                const abortActiveRequest = () => {
+                    requestToken += 1;
+                    if (activeController !== null) {
+                        activeController.abort();
+                        activeController = null;
+                    }
+                };
+
+                const focusDrawer = () => {
+                    if (!drawerPanel) {
+                        return;
+                    }
+                    const focusables = Array.from(drawerPanel.querySelectorAll(focusableSelector));
+                    if (focusables.length > 0) {
+                        focusables[0].focus({ preventScroll: true });
+                    } else {
+                        drawerPanel.focus({ preventScroll: true });
+                    }
+                };
+
+                const restoreTriggerFocus = () => {
+                    const target = lastTriggerButton;
+                    lastTriggerButton = null;
+                    if (target && typeof target.focus === 'function' && document.contains(target)) {
+                        target.focus({ preventScroll: true });
+                    }
+                };
+
+                const openDrawer = (triggerButton) => {
                     if (!drawerWrapper || !drawerBackdrop || !drawerPanel) {
                         return;
                     }
+
+                    // Cancel a pending close so a quick reopen cannot be undone by
+                    // the previous close animation timer.
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                        closeTimer = null;
+                    }
+
+                    isOpen = true;
+                    if (triggerButton) {
+                        lastTriggerButton = triggerButton;
+                    }
+
                     drawerWrapper.classList.remove('hidden');
+                    document.body.classList.add('overflow-hidden');
+
                     requestAnimationFrame(() => {
                         drawerBackdrop.classList.remove('opacity-0');
                         drawerPanel.classList.remove('translate-x-full');
+                        focusDrawer();
                     });
-                    document.body.classList.add('overflow-hidden');
                 };
 
                 const closeDrawer = () => {
                     if (!drawerWrapper || !drawerBackdrop || !drawerPanel) {
                         return;
                     }
+                    if (!isOpen) {
+                        return;
+                    }
+
+                    isOpen = false;
+
+                    // Closing cancels any pending detail request so its response
+                    // cannot mutate the DOM after the drawer is gone.
+                    abortActiveRequest();
+
                     drawerBackdrop.classList.add('opacity-0');
                     drawerPanel.classList.add('translate-x-full');
                     document.body.classList.remove('overflow-hidden');
-                    window.setTimeout(() => {
+
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                    }
+                    closeTimer = window.setTimeout(() => {
+                        closeTimer = null;
                         drawerWrapper.classList.add('hidden');
+                        restoreTriggerFocus();
                     }, 300);
                 };
 
@@ -153,7 +224,13 @@
                         return;
                     }
 
-                    openDrawer();
+                    abortActiveRequest();
+                    const token = requestToken;
+
+                    const controller = new AbortController();
+                    activeController = controller;
+
+                    openDrawer(button);
                     setLoading();
 
                     try {
@@ -162,30 +239,92 @@
                                 'Accept': 'application/json',
                                 'X-Requested-With': 'XMLHttpRequest',
                             },
+                            signal: controller.signal,
                         });
 
                         if (!response.ok) {
                             throw new Error('Failed to load outlet detail');
                         }
 
-                        renderDetail(await response.json());
+                        const data = await response.json();
+
+                        // Ignore a response that lost the race (superseded or aborted).
+                        if (token !== requestToken || controller.signal.aborted) {
+                            return;
+                        }
+
+                        renderDetail(data);
                     } catch (error) {
+                        if (error && error.name === 'AbortError') {
+                            return;
+                        }
+                        if (token !== requestToken) {
+                            return;
+                        }
                         setError();
+                    } finally {
+                        if (activeController === controller) {
+                            activeController = null;
+                        }
+                    }
+                };
+
+                const onKeydown = (event) => {
+                    if (!isOpen) {
+                        return;
+                    }
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeDrawer();
+                        return;
+                    }
+
+                    if (event.key !== 'Tab' || !drawerPanel) {
+                        return;
+                    }
+
+                    const focusables = Array.from(drawerPanel.querySelectorAll(focusableSelector));
+                    if (focusables.length === 0) {
+                        event.preventDefault();
+                        drawerPanel.focus({ preventScroll: true });
+                        return;
+                    }
+
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    const activeIndex = focusables.indexOf(document.activeElement);
+
+                    if (event.shiftKey) {
+                        if (activeIndex <= 0) {
+                            event.preventDefault();
+                            last.focus({ preventScroll: true });
+                        }
+                        return;
+                    }
+
+                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
+                        event.preventDefault();
+                        first.focus({ preventScroll: true });
                     }
                 };
 
                 detailButtons.forEach((button) => button.addEventListener('click', onDetailClick));
                 closeButtons.forEach((button) => button.addEventListener('click', closeDrawer));
                 drawerBackdrop?.addEventListener('click', closeDrawer);
-
-                const onKeydown = (event) => {
-                    if (event.key === 'Escape' && drawerWrapper && !drawerWrapper.classList.contains('hidden')) {
-                        closeDrawer();
-                    }
-                };
                 document.addEventListener('keydown', onKeydown);
 
                 window.__outletsDrawerCleanup = () => {
+                    abortActiveRequest();
+
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                        closeTimer = null;
+                    }
+
+                    isOpen = false;
+                    lastTriggerButton = null;
+
                     detailButtons.forEach((button) => button.removeEventListener('click', onDetailClick));
                     closeButtons.forEach((button) => button.removeEventListener('click', closeDrawer));
                     drawerBackdrop?.removeEventListener('click', closeDrawer);
