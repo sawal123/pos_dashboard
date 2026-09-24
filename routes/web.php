@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\CashController;
+use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\ProductsController;
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('shifts/{shiftId}/detail', [ShiftsController::class, 'detail'])
         ->whereNumber('shiftId')
         ->name('shifts.detail');
+    Route::get('customers', [CustomersController::class, 'index'])->name('customers.index');
+    Route::get('customers/{customerId}/detail', [CustomersController::class, 'detail'])
+        ->whereNumber('customerId')
+        ->name('customers.detail');
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
     Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');

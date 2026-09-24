@@ -118,6 +118,7 @@
             <x-ui.sidebar-item
                 icon="users"
                 label="Pelanggan"
+                route="customers.index"
             />
         </x-ui.sidebar-section>
 
