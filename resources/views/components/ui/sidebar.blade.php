@@ -135,6 +135,7 @@
             <x-ui.sidebar-item
                 icon="store"
                 label="Outlet"
+                route="outlets.index"
             />
             <x-ui.sidebar-item
                 icon="user-cog"
