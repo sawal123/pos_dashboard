@@ -113,6 +113,7 @@
             <x-ui.sidebar-item
                 icon="clock"
                 label="Shift"
+                route="shifts.index"
             />
             <x-ui.sidebar-item
                 icon="users"
