@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\StartSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -13,7 +14,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Keep the one-time invitation token out of the session store
+        // (`_previous.url` / `url.intended` would otherwise persist it).
+        $middleware->web(replace: [
+            Illuminate\Session\Middleware\StartSession::class => StartSession::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

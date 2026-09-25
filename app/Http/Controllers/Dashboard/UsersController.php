@@ -42,6 +42,8 @@ class UsersController extends Controller
         }
 
         $data = $this->usersData->get($currentBusiness, $filters);
+        $data['invitations'] = $this->usersData->invitations($currentBusiness);
+        $data['invitationSummary'] = $this->usersData->invitationSummary($currentBusiness);
 
         return view('users.index', $data);
     }

@@ -43,6 +43,19 @@
                 <i data-lucide="panel-right-open" class="w-4 h-4"></i>
                 Lihat Detail
             </button>
+
+            @if(($user['role_raw'] ?? '') === 'member')
+                <button
+                    type="button"
+                    data-remove-member
+                    data-remove-url="{{ route('users.members.destroy', $user['id']) }}"
+                    data-member-name="{{ $user['name'] }}"
+                    class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                >
+                    <i data-lucide="user-minus" class="w-4 h-4"></i>
+                    Hapus Anggota
+                </button>
+            @endif
         </article>
     @endforeach
 </div>
