@@ -12,6 +12,7 @@ use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
+use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use Illuminate\Support\Facades\Route;
 
@@ -38,6 +39,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('outlets/{outletId}/detail', [OutletsController::class, 'detail'])
         ->whereNumber('outletId')
         ->name('outlets.detail');
+    Route::get('users', [UsersController::class, 'index'])->name('users.index');
+    Route::get('users/{userId}/detail', [UsersController::class, 'detail'])
+        ->whereNumber('userId')
+        ->name('users.detail');
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
     Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');
