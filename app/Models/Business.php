@@ -34,10 +34,17 @@ use Illuminate\Support\Carbon;
  * @property-read SyncCounter|null $syncCounter
  * @property-read Collection<int, SyncRequest> $syncRequests
  * @property-read Subscription|null $subscription
+ * @property-read Collection<int, BusinessInvitation> $invitations
+ * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
 #[Fillable(['name', 'slug', 'status'])]
 class Business extends Model
 {
+    /** Membership role values that have a defined authorization contract. */
+    public const ROLE_OWNER = 'owner';
+
+    public const ROLE_MEMBER = 'member';
+
     /** @use HasFactory<BusinessFactory> */
     use HasFactory;
 
@@ -228,6 +235,26 @@ class Business extends Model
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class);
+    }
+
+    /**
+     * The invitations issued for this business.
+     *
+     * @return HasMany<BusinessInvitation, $this>
+     */
+    public function invitations(): HasMany
+    {
+        return $this->hasMany(BusinessInvitation::class);
+    }
+
+    /**
+     * The append-only membership audit log entries for this business.
+     *
+     * @return HasMany<MembershipAuditLog, $this>
+     */
+    public function membershipAuditLogs(): HasMany
+    {
+        return $this->hasMany(MembershipAuditLog::class);
     }
 
     /**
