@@ -69,14 +69,18 @@ a plaintext token, password or any other secret can never reach the log.
    invitation for an existing member email or for an email that already has a
    pending invite is rejected.
 2. **Email** — `BusinessInvitationMail` carries the one-time link
-   `/invitations/{token}`. It is sent **after the database transaction commits**;
-   the plaintext token is only ever handed to the mailer (never persisted, never
-   queued into a payload).
+   `/invitations/{token}`. It is **queued after the database transaction
+   commits** and implements `ShouldQueue` + `ShouldBeEncrypted`: the encrypted
+   payload never exposes the plaintext token in the `jobs`/`failed_jobs` tables,
+   and a transient delivery failure is retried (3 attempts, `[10, 60, 300]`
+   backoff) instead of surfacing as a 500. The plaintext token is never
+   persisted in the database, session, queue payload or logs.
 3. **Open** — `GET /invitations/{token}` (`invitations.show`) is public so a
-   brand-new user can be routed into Fortify registration. The token is
-   remembered in the session. Authenticated users see the accept button;
-   unverified users are redirected to the verification notice; a mismatched
-   email receives `403`.
+   brand-new user can be routed into Fortify registration. The token is **not**
+   stored in the session (see security table); a new user reopens the emailed
+   link after registering and verifying. Authenticated users see the accept
+   button; unverified users are redirected to the verification notice; a
+   mismatched email receives `403`.
 4. **Accept** — `POST /invitations/{token}/accept` (`invitations.accept`),
    requiring `auth` + `verified`. Validates token, email match, status and
    expiry, then, inside a transaction with a row lock, attaches the `member`
@@ -116,11 +120,13 @@ accounts** (register via Fortify, verify the email, then accept).
 | Authorization | `BusinessPolicy::manageInvitations` / `manageMembers`, enforced via Form Request `authorize()` and re-checked in controllers. |
 | Tenant scoping | The business always comes from the active-business context (`dashboard_business` attribute / session), never from a request parameter. Cross-tenant invitation actions return `404`. |
 | Token secrecy | Random 64-char token, stored as SHA-256 only; single-use; TTL 7 days; revocable; never written to logs or the audit trail. |
+| Session | The token-bearing URL is never persisted: invitation routes skip `_previous.url` / `url.intended` bookkeeping, so the database session store holds no plaintext token. |
+| Create race | The unique `active_key` constraint is kept; a duplicate is translated into an `email` validation error instead of a 500. |
 | Replay | Acceptance runs in a transaction with `lockForUpdate` on the invitation row; a second attempt fails and no duplicate membership is created. |
 | Email ownership | Acceptance requires an authenticated user whose **verified** email matches the invitation exactly. |
 | Least privilege | Acceptance only ever grants `member`; it cannot change credentials or other memberships and cannot make the user an owner. |
 | Throttling | Named rate limiters (10/min, keyed per actor/IP) on create, resend, revoke, remove and accept. |
-| Mail | Dispatched after commit; the plaintext token never reaches the database, queue payloads or logs. |
+| Mail | Queued after commit, encrypted at rest (`ShouldBeEncrypted`) and retried on failure; the plaintext token never reaches the database, session, queue payloads or logs. |
 
 ---
 
@@ -143,11 +149,13 @@ dark mode, pagination and detail drawer:
 ## 6. Regression tests
 
 * `tests/Feature/BusinessInvitationTest.php` — creation authorization, hashed
-  single-use token, token-never-persisted, duplicate/existing-member/role
-  validation, resend, revoke, cross-tenant `404`, unknown token, guest/login/
-  verification gates, email mismatch, existing-user and new-user (Fortify)
-  acceptance, replay protection, expiry, revocation, credential/other-business
-  safety, and creation throttling.
+  single-use token, token-never-persisted, encrypted queue payload + retry
+  configuration, delivery failure + resend, duplicate/existing-member/role
+  validation, `active_key` concurrency (validation error, not 500), resend,
+  revoke, cross-tenant `404`, unknown token, token-never-in-session (array and
+  database drivers), guest/login/verification gates, email mismatch,
+  existing-user and new-user (Fortify) acceptance, replay protection, expiry,
+  revocation, credential/other-business safety, and creation throttling.
 * `tests/Feature/BusinessMembershipManagementTest.php` — removal authorization,
   owner protection + last-owner invariant, cross-business/non-member `404`,
   other-business membership integrity, dashboard switch denial, and sync denial

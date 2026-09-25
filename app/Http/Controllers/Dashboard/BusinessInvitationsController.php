@@ -34,7 +34,7 @@ class BusinessInvitationsController extends Controller
 
         return redirect()
             ->route('users.index')
-            ->with('status', 'Undangan berhasil dikirim ke '.$email.'.');
+            ->with('status', 'Undangan untuk '.$email.' dijadwalkan dan akan dikirim melalui email.');
     }
 
     public function resend(
@@ -52,7 +52,7 @@ class BusinessInvitationsController extends Controller
 
         return redirect()
             ->route('users.index')
-            ->with('status', 'Undangan dikirim ulang ke '.$invitation->email.'.');
+            ->with('status', 'Undangan untuk '.$invitation->email.' dijadwalkan ulang dan akan dikirim melalui email.');
     }
 
     public function revoke(

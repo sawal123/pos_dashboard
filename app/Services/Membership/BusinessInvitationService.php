@@ -7,6 +7,7 @@ use App\Models\Business;
 use App\Models\BusinessInvitation;
 use App\Models\MembershipAuditLog;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -19,8 +20,11 @@ use Illuminate\Validation\ValidationException;
  *  - Only the `member` role may be invited.
  *  - A token is random, stored hashed (sha256), single-use, time-limited and
  *    revocable; the plaintext value is only ever handed to the mailer.
- *  - At most one pending invitation per business + email (database-backed).
- *  - Email is dispatched only after the database transaction has committed.
+ *  - At most one pending invitation per business + email, guaranteed by the
+ *    database unique `active_key` constraint and surfaced as a validation
+ *    error (never a 500) when concurrent requests race.
+ *  - Email is queued only after the database transaction has committed, and
+ *    the queued payload is encrypted by {@see BusinessInvitationMail}.
  */
 class BusinessInvitationService
 {
@@ -50,52 +54,57 @@ class BusinessInvitationService
             ]);
         }
 
-        /** @var array{0: BusinessInvitation, 1: string} $result */
-        $result = DB::transaction(function () use ($actor, $business, $email, $role): array {
-            $this->expireStaleInvitations($business, $email);
+        try {
+            /** @var array{0: BusinessInvitation, 1: string} $result */
+            $result = DB::transaction(function () use ($actor, $business, $email, $role): array {
+                $this->expireStaleInvitations($business, $email);
 
-            $existing = BusinessInvitation::query()
-                ->forBusiness((int) $business->id)
-                ->where('email', $email)
-                ->where('status', BusinessInvitation::STATUS_PENDING)
-                ->lockForUpdate()
-                ->first();
+                $existing = BusinessInvitation::query()
+                    ->forBusiness((int) $business->id)
+                    ->where('email', $email)
+                    ->where('status', BusinessInvitation::STATUS_PENDING)
+                    ->lockForUpdate()
+                    ->first();
 
-            if ($existing !== null) {
-                throw ValidationException::withMessages([
-                    'email' => 'Sudah ada undangan yang menunggu untuk email ini. Kirim ulang atau batalkan dulu.',
+                if ($existing !== null) {
+                    throw ValidationException::withMessages([
+                        'email' => 'Sudah ada undangan yang menunggu untuk email ini. Kirim ulang atau batalkan dulu.',
+                    ]);
+                }
+
+                $token = BusinessInvitation::generateToken();
+
+                $invitation = BusinessInvitation::create([
+                    'business_id' => $business->id,
+                    'invited_by' => $actor->id,
+                    'email' => $email,
+                    'role' => $role,
+                    'token_hash' => BusinessInvitation::hashToken($token),
+                    'status' => BusinessInvitation::STATUS_PENDING,
+                    'active_key' => BusinessInvitation::activeKeyFor((int) $business->id, $email),
+                    'expires_at' => now()->addDays(BusinessInvitation::TTL_DAYS),
                 ]);
-            }
 
-            $token = BusinessInvitation::generateToken();
+                $this->audit->record(
+                    $business,
+                    $actor,
+                    MembershipAuditLog::ACTION_INVITATION_CREATED,
+                    null,
+                    $email,
+                    ['role' => $role, 'invitation_id' => $invitation->id],
+                );
 
-            $invitation = BusinessInvitation::create([
-                'business_id' => $business->id,
-                'invited_by' => $actor->id,
-                'email' => $email,
-                'role' => $role,
-                'token_hash' => BusinessInvitation::hashToken($token),
-                'status' => BusinessInvitation::STATUS_PENDING,
-                'active_key' => BusinessInvitation::activeKeyFor((int) $business->id, $email),
-                'expires_at' => now()->addDays(BusinessInvitation::TTL_DAYS),
-            ]);
-
-            $this->audit->record(
-                $business,
-                $actor,
-                MembershipAuditLog::ACTION_INVITATION_CREATED,
-                null,
-                $email,
-                ['role' => $role, 'invitation_id' => $invitation->id],
-            );
-
-            return [$invitation, $token];
-        });
+                return [$invitation, $token];
+            });
+        } catch (UniqueConstraintViolationException $exception) {
+            $this->failOnDuplicateActiveInvitation($exception);
+        }
 
         [$invitation, $token] = $result;
 
-        // Sent after commit; the plaintext token never touches the database.
-        Mail::to($invitation->email)->send(new BusinessInvitationMail($invitation, $token));
+        // Queued after commit; the payload is encrypted and the plaintext
+        // token never touches the database, session, queue payload or logs.
+        $this->queueInvitationMail($invitation, $token);
 
         return ['invitation' => $invitation, 'token' => $token];
     }
@@ -151,7 +160,7 @@ class BusinessInvitationService
 
         [$invitation, $token] = $result;
 
-        Mail::to($invitation->email)->send(new BusinessInvitationMail($invitation, $token));
+        $this->queueInvitationMail($invitation, $token);
 
         return ['invitation' => $invitation, 'token' => $token];
     }
@@ -260,6 +269,34 @@ class BusinessInvitationService
         });
 
         return $business;
+    }
+
+    /**
+     * Queue the invitation email. It is encrypted at rest (see
+     * {@see BusinessInvitationMail}) and is only queued after the surrounding
+     * transaction has committed.
+     */
+    private function queueInvitationMail(BusinessInvitation $invitation, string $token): void
+    {
+        Mail::to($invitation->email)->queue(new BusinessInvitationMail($invitation, $token));
+    }
+
+    /**
+     * Convert a duplicate `active_key` violation (two concurrent requests for
+     * the same business + email) into a validation error. Any other unique
+     * violation — e.g. the random token hash — is still a genuine failure.
+     *
+     * @throws ValidationException
+     */
+    private function failOnDuplicateActiveInvitation(UniqueConstraintViolationException $exception): never
+    {
+        if (! str_contains($exception->getMessage(), 'active_key')) {
+            throw $exception;
+        }
+
+        throw ValidationException::withMessages([
+            'email' => 'Sudah ada undangan yang menunggu untuk email ini. Kirim ulang atau batalkan dulu.',
+        ]);
     }
 
     /**

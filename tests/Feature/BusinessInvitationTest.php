@@ -2,16 +2,26 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Mail\BusinessInvitationMail;
 use App\Models\Business;
 use App\Models\BusinessInvitation;
 use App\Models\User;
 use App\Services\Dashboard\DashboardBusinessContext;
+use App\Services\Membership\BusinessInvitationService;
 use Carbon\CarbonInterface;
+use DateTimeInterface;
+use Illuminate\Contracts\Mail\Factory as MailFactory;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\SendQueuedMailable;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Session;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class BusinessInvitationTest extends TestCase
@@ -66,7 +76,7 @@ class BusinessInvitationTest extends TestCase
     // Secure token
     // ============================================================
 
-    public function test_owner_creates_invitation_with_hashed_single_use_token_and_mail_after_commit(): void
+    public function test_owner_creates_invitation_with_hashed_single_use_token_and_queues_mail(): void
     {
         Mail::fake();
         [$owner, $business] = $this->makeOwnerWithBusiness();
@@ -99,11 +109,33 @@ class BusinessInvitationTest extends TestCase
             'action' => 'invitation_created',
         ]);
 
-        Mail::assertSent(BusinessInvitationMail::class, function (BusinessInvitationMail $mail) use ($invitation): bool {
+        Mail::assertQueued(BusinessInvitationMail::class, function (BusinessInvitationMail $mail) use ($invitation): bool {
             $this->assertSame(BusinessInvitation::hashToken($mail->plainToken), $invitation->token_hash);
             $this->assertNotSame($mail->plainToken, $invitation->token_hash);
 
             return $mail->hasTo($invitation->email);
+        });
+    }
+
+    public function test_invitation_mail_is_queued_with_retry_and_encrypted_payload(): void
+    {
+        Mail::fake();
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('users.invitations.store'), ['email' => 'retry@example.com', 'role' => 'member']);
+
+        Mail::assertQueued(BusinessInvitationMail::class, function (BusinessInvitationMail $mail): bool {
+            // Queued so a transient delivery failure is retried, never a 500.
+            $this->assertInstanceOf(ShouldQueue::class, $mail);
+            // Encrypted at rest so the plaintext token never sits in `jobs`.
+            $this->assertInstanceOf(ShouldBeEncrypted::class, $mail);
+            $this->assertSame(3, $mail->tries);
+            $this->assertSame([10, 60, 300], $mail->backoff());
+            $this->assertInstanceOf(DateTimeInterface::class, $mail->retryUntil());
+
+            return true;
         });
     }
 
@@ -117,7 +149,7 @@ class BusinessInvitationTest extends TestCase
             ->post(route('users.invitations.store'), ['email' => 'secret@example.com', 'role' => 'member']);
 
         $plainToken = null;
-        Mail::assertSent(BusinessInvitationMail::class, function (BusinessInvitationMail $mail) use (&$plainToken): bool {
+        Mail::assertQueued(BusinessInvitationMail::class, function (BusinessInvitationMail $mail) use (&$plainToken): bool {
             $plainToken = $mail->plainToken;
 
             return true;
@@ -137,6 +169,36 @@ class BusinessInvitationTest extends TestCase
 
         $this->assertStringNotContainsString($plainToken, $auditRows);
         $this->assertSame(BusinessInvitation::hashToken($plainToken), $invitationRow['token_hash']);
+    }
+
+    public function test_queued_payload_encrypts_the_plaintext_token_at_rest(): void
+    {
+        // Use the real database queue (no Mail::fake) so the persisted payload
+        // can be inspected exactly as a worker would receive it.
+        config(['queue.default' => 'database']);
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+
+        $result = app(BusinessInvitationService::class)
+            ->invite($owner, $business, 'queued-secret@example.com');
+
+        $plainToken = $result['token'];
+
+        $payload = DB::table('jobs')->value('payload');
+        $this->assertIsString($payload);
+
+        // The raw, at-rest payload must never expose the plaintext token.
+        $this->assertStringNotContainsString($plainToken, $payload);
+
+        /** @var array{data: array{command: string}} $decoded */
+        $decoded = json_decode($payload, true);
+        $command = $decoded['data']['command'];
+
+        $this->assertStringNotContainsString($plainToken, $command);
+        $this->assertStringNotContainsString(BusinessInvitationMail::class, $command);
+
+        // It is genuinely encrypted: decryptable only with the application key.
+        $decrypted = Crypt::decryptString($command);
+        $this->assertStringContainsString(BusinessInvitationMail::class, $decrypted);
     }
 
     // ============================================================
@@ -212,7 +274,7 @@ class BusinessInvitationTest extends TestCase
             'business_id' => $business->id,
             'action' => 'invitation_resent',
         ]);
-        Mail::assertSent(BusinessInvitationMail::class);
+        Mail::assertQueued(BusinessInvitationMail::class);
     }
 
     public function test_owner_can_revoke_pending_invitation(): void
@@ -284,7 +346,7 @@ class BusinessInvitationTest extends TestCase
         $this->get(route('invitations.show', ['token' => 'doesnotexist']))->assertNotFound();
     }
 
-    public function test_guest_invitation_page_prompts_login_and_remembers_token(): void
+    public function test_guest_invitation_page_prompts_login_without_persisting_the_token(): void
     {
         [$owner, $business] = $this->makeOwnerWithBusiness();
         [, $token] = $this->makePendingInvitation($business, $owner, 'guest@example.com');
@@ -294,7 +356,34 @@ class BusinessInvitationTest extends TestCase
         $response->assertOk();
         $response->assertSee($business->name);
         $response->assertSee('Masuk');
-        $response->assertSessionHas(InvitationAcceptanceController::SESSION_KEY, $token);
+
+        // The plaintext token is read from the URL only, never the session.
+        $this->assertStringNotContainsString($token, json_encode(session()->all()));
+    }
+
+    public function test_invitation_token_is_never_stored_in_the_database_session(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $business->users()->attach($owner->id, ['role' => 'owner']);
+        [, $token] = $this->makePendingInvitation($business, $owner, 'db-session@example.com');
+
+        // Production uses the database session driver; exercise that exact path.
+        config(['session.driver' => 'database']);
+        Session::forgetDrivers();
+
+        $this->get(route('invitations.show', ['token' => $token]))->assertOk();
+
+        $payloads = DB::table('sessions')->pluck('payload');
+        $this->assertNotEmpty($payloads, 'Expected a persisted database session row.');
+
+        // The database session payload is base64(serialize($data)), so decode it
+        // rather than searching the encoded string.
+        foreach ($payloads as $payload) {
+            $decoded = base64_decode((string) $payload, true);
+            $this->assertIsString($decoded);
+            $this->assertStringNotContainsString($token, $decoded);
+        }
     }
 
     public function test_acceptance_requires_login(): void
@@ -304,6 +393,9 @@ class BusinessInvitationTest extends TestCase
 
         $this->post(route('invitations.accept', ['token' => $token]))
             ->assertRedirect(route('login'));
+
+        // The token-bearing accept URL must not be remembered as `url.intended`.
+        $this->assertStringNotContainsString($token, json_encode(session()->all()));
     }
 
     public function test_acceptance_requires_verified_email(): void
@@ -503,6 +595,122 @@ class BusinessInvitationTest extends TestCase
             ->assertStatus(429);
 
         $this->assertSame(10, BusinessInvitation::count());
+    }
+
+    // ============================================================
+    // Delivery reliability
+    // ============================================================
+
+    public function test_failed_delivery_surfaces_for_retry_and_keeps_the_invitation_resendable(): void
+    {
+        Mail::fake();
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+
+        $result = app(BusinessInvitationService::class)
+            ->invite($owner, $business, 'delivery@example.com');
+        $invitation = $result['invitation'];
+
+        $job = new SendQueuedMailable(new BusinessInvitationMail($invitation, $result['token']));
+
+        // The queue will retry rather than lose the invitation.
+        $this->assertSame(3, $job->tries);
+        $this->assertSame([10, 60, 300], $job->backoff());
+
+        // Simulate the transport failing while the worker sends the message.
+        $factory = Mockery::mock(MailFactory::class);
+        $factory->shouldReceive('mailer')->once()->andThrow(new RuntimeException('smtp unavailable'));
+
+        $thrown = null;
+        try {
+            $job->handle($factory);
+        } catch (RuntimeException $exception) {
+            $thrown = $exception;
+        }
+
+        $this->assertNotNull($thrown, 'A delivery failure must propagate so the queue retries the job.');
+
+        // The invitation is untouched and can be resent safely.
+        $this->assertSame('pending', $invitation->fresh()->status);
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('users.invitations.resend', $invitation->id))
+            ->assertRedirect(route('users.index'));
+
+        Mail::assertQueued(BusinessInvitationMail::class, 2);
+        $this->assertNotSame(
+            BusinessInvitation::hashToken($result['token']),
+            BusinessInvitation::findOrFail($invitation->id)->token_hash,
+        );
+    }
+
+    // ============================================================
+    // Concurrent invitations
+    // ============================================================
+
+    public function test_database_enforces_one_active_invitation_per_business_and_email(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $email = 'constraint@example.com';
+        $this->makePendingInvitation($business, $owner, $email);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        BusinessInvitation::create([
+            'business_id' => $business->id,
+            'invited_by' => $owner->id,
+            'email' => $email,
+            'role' => BusinessInvitation::ROLE_MEMBER,
+            'token_hash' => BusinessInvitation::hashToken(BusinessInvitation::generateToken()),
+            'status' => BusinessInvitation::STATUS_PENDING,
+            'active_key' => BusinessInvitation::activeKeyFor((int) $business->id, $email),
+            'expires_at' => now()->addDay(),
+        ]);
+    }
+
+    public function test_concurrent_duplicate_invitation_returns_a_validation_error_not_a_500(): void
+    {
+        Mail::fake();
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $email = 'race@example.com';
+
+        // Simulate a competing request committing its row in the window between
+        // our existence check and our insert. The pre-check cannot see it, but
+        // the row still holds the same unique active_key.
+        $injected = false;
+        BusinessInvitation::creating(function (BusinessInvitation $model) use (&$injected, $owner, $business, $email): void {
+            if ($injected || $model->email !== $email) {
+                return;
+            }
+
+            $injected = true;
+
+            DB::table('business_invitations')->insert([
+                'business_id' => $business->id,
+                'invited_by' => $owner->id,
+                'email' => $email,
+                'role' => BusinessInvitation::ROLE_MEMBER,
+                'token_hash' => BusinessInvitation::hashToken(BusinessInvitation::generateToken()),
+                'status' => BusinessInvitation::STATUS_PENDING,
+                'active_key' => BusinessInvitation::activeKeyFor((int) $business->id, $email),
+                'expires_at' => now()->addDay(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        try {
+            $response = $this->actingAs($owner)
+                ->withSession(['dashboard.current_business_id' => $business->id])
+                ->post(route('users.invitations.store'), ['email' => $email, 'role' => 'member']);
+        } finally {
+            BusinessInvitation::flushEventListeners();
+        }
+
+        $response->assertStatus(302);
+        $response->assertSessionHasErrors('email');
+        $this->assertTrue($injected, 'The race window was not exercised.');
+        Mail::assertNothingQueued();
     }
 
     // ============================================================

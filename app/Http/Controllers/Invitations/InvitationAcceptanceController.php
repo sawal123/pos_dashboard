@@ -19,12 +19,13 @@ use Illuminate\View\View;
  *
  * Acceptance always requires an authenticated user whose email has been
  * verified and matches the invitation exactly.
+ *
+ * The plaintext token is read from the URL only and is never written to the
+ * session (or any other store). A brand-new user simply reopens the same
+ * emailed link after registering and verifying their email.
  */
 class InvitationAcceptanceController extends Controller
 {
-    /** Session key used to resume the invitation after login/registration. */
-    public const SESSION_KEY = 'invitations.pending_token';
-
     public function show(Request $request, string $token): View|RedirectResponse|Response
     {
         $invitation = BusinessInvitation::findByToken($token);
@@ -32,9 +33,6 @@ class InvitationAcceptanceController extends Controller
         if ($invitation === null) {
             abort(404);
         }
-
-        // Remember the token so a new user can register, verify and come back.
-        $request->session()->put(self::SESSION_KEY, $token);
 
         $user = $request->user();
 
@@ -89,7 +87,6 @@ class InvitationAcceptanceController extends Controller
 
         $business = $invitations->accept($user, $invitation);
 
-        $request->session()->forget(self::SESSION_KEY);
         // Make the newly joined business the active dashboard context.
         $request->session()->put(DashboardBusinessContext::SESSION_KEY, $business->id);
 
