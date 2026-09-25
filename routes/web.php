@@ -13,6 +13,7 @@ use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
+use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
@@ -69,6 +70,7 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
     Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
     Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');
+    Route::get('subscription', [SubscriptionsController::class, 'index'])->name('subscriptions.index');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');
