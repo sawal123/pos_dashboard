@@ -12,6 +12,10 @@ module, or POS Mobile.
 > have proven behaviour, and only `owner` has an enforced dashboard authorization
 > contract. Do not treat any "Kasir" label as a working access level until the
 > DASH-10B items below are delivered.
+>
+> **Update (DASH-10B1 / DASH-10B2):** invitations (`docs/dashboard/DASH10B1_MEMBER_INVITATIONS.md`)
+> and the cashier role + RBAC matrix (`docs/dashboard/DASH10B2_CASHIER_RBAC.md`)
+> are now delivered. This document is retained as the historical DASH-10A record.
 
 ---
 

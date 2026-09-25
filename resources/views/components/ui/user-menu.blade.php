@@ -2,7 +2,11 @@
     $user = auth()->user();
     $userName = $user ? $user->name : 'Alex Lee';
     $userEmail = $user ? $user->email : 'alex@nexapos.id';
-    $userRole = 'Pemilik Bisnis';
+    // DASH-10B2 — show the caller's real role in the active business.
+    $activeRole = $dashboardBusinessRole ?? null;
+    $userRole = is_string($activeRole) && $activeRole !== ''
+        ? \App\Models\Business::roleLabel($activeRole)
+        : 'Tanpa Bisnis Aktif';
     $initials = ($user && method_exists($user, 'initials')) ? $user->initials() : 'AL';
 @endphp
 

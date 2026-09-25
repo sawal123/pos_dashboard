@@ -157,12 +157,12 @@ class UsersPageTest extends TestCase
         $this->assertSame('other', $rowB['role_category']);
     }
 
-    public function test_summary_counts_owner_member_and_other_roles_separately(): void
+    public function test_summary_counts_owner_member_cashier_and_other_roles_separately(): void
     {
         [$owner, $business] = $this->makeOwnerWithBusiness();
         $this->attachMember($business, 'member');
         $this->attachMember($business, 'supervisor', ['email' => 'supervisor@example.com']);
-        $this->attachMember($business, 'cashier', ['email' => 'kasir-belum-terdefinisi@example.com']);
+        $this->attachMember($business, 'cashier', ['email' => 'kasir@example.com']);
 
         $foreign = Business::factory()->create();
         $this->attachMember($foreign, 'member');
@@ -174,12 +174,16 @@ class UsersPageTest extends TestCase
             return $summary['total_members'] === 4
                 && $summary['owner_count'] === 1
                 && $summary['member_count'] === 1
-                && $summary['other_role_count'] === 2;
+                && $summary['cashier_count'] === 1
+                && $summary['other_role_count'] === 1;
         });
 
-        // An unmapped role must never be counted as a member.
+        // DASH-10B2: `cashier` is now a first-class role with its own bucket, and
+        // an unknown role (`supervisor`) is still never folded into a known bucket.
         $summary = $response->viewData('summary');
         $this->assertSame(1, $summary['member_count']);
+        $this->assertSame(1, $summary['cashier_count']);
+        $this->assertSame(1, $summary['other_role_count']);
     }
 
     public function test_summary_counts_email_verification_state(): void

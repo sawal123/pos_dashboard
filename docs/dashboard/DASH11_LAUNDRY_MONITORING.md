@@ -192,4 +192,6 @@ All suites run under the QA-ENV-01 guard (`TestDatabaseGuard` → SQLite `:memor
 2. **Laundry lifecycle audit table** to show real status history.
 3. **Outlet/user assignment for laundry** if per-staff monitoring is needed.
 4. **Notification/reminder** on overdue orders (outside read-only monitoring).
-5. **Role-aware access** for laundry operations once RBAC (DASH-10B2) exists.
+5. ~~**Role-aware access** for laundry operations once RBAC (DASH-10B2) exists.~~
+   Delivered by DASH-10B2: the page is guarded by the `laundry.view` permission
+   (`docs/dashboard/DASH10B2_CASHIER_RBAC.md`).

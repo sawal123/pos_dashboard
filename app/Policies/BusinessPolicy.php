@@ -4,11 +4,25 @@ namespace App\Policies;
 
 use App\Models\Business;
 use App\Models\User;
+use App\Services\Authorization\BusinessAuthorizer;
+use App\Services\Authorization\BusinessPermission;
 
+/**
+ * Business policy (DASH-10B2).
+ *
+ * `view` stays membership-based (any role) so an existing `member`/`cashier`
+ * still passes the coarse "can reach this business" check. Every management
+ * capability is delegated to the central {@see BusinessAuthorizer} permission
+ * matrix, which is owner-only today and denies unknown roles by default.
+ */
 class BusinessPolicy
 {
+    public function __construct(
+        private readonly BusinessAuthorizer $authorizer,
+    ) {}
+
     /**
-     * Determine whether the user can view the business.
+     * Determine whether the user can view the business (any membership role).
      */
     public function view(User $user, Business $business): bool
     {
@@ -20,7 +34,7 @@ class BusinessPolicy
      */
     public function viewMembers(User $user, Business $business): bool
     {
-        return $business->isOwnedBy($user);
+        return $this->authorizer->allows($user, $business, BusinessPermission::USERS_VIEW);
     }
 
     /**
@@ -28,7 +42,7 @@ class BusinessPolicy
      */
     public function manageInvitations(User $user, Business $business): bool
     {
-        return $business->isOwnedBy($user);
+        return $this->authorizer->allows($user, $business, BusinessPermission::INVITATIONS_MANAGE);
     }
 
     /**
@@ -36,7 +50,15 @@ class BusinessPolicy
      */
     public function manageMembers(User $user, Business $business): bool
     {
-        return $business->isOwnedBy($user);
+        return $this->authorizer->allows($user, $business, BusinessPermission::MEMBERS_MANAGE);
+    }
+
+    /**
+     * Determine whether the user can change the role of a business member.
+     */
+    public function manageRoles(User $user, Business $business): bool
+    {
+        return $this->authorizer->allows($user, $business, BusinessPermission::ROLES_MANAGE);
     }
 
     /**

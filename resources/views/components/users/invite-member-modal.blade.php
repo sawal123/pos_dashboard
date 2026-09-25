@@ -52,8 +52,8 @@
                 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3">
                     <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                         Undangan dikirim sebagai peran <span class="font-semibold">Anggota</span>.
-                        Peran <span class="font-semibold">Pemilik</span> dan
-                        <span class="font-semibold">Kasir</span> belum tersedia untuk diundang.
+                        Setelah bergabung, pemilik dapat mengubah perannya menjadi
+                        <span class="font-semibold">Kasir</span> melalui aksi “Ubah Peran”.
                     </p>
                 </div>
 

@@ -49,6 +49,7 @@ class AppServiceProvider extends ServiceProvider
             'member-invitation-resend',
             'member-invitation-revoke',
             'member-removal',
+            'member-role-update',
             'member-invitation-accept',
         ] as $limiter) {
             RateLimiter::for(

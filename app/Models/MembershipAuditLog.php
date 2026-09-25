@@ -46,6 +46,8 @@ class MembershipAuditLog extends Model
 
     public const ACTION_MEMBERSHIP_REMOVED = 'membership_removed';
 
+    public const ACTION_ROLE_CHANGED = 'role_changed';
+
     /**
      * Append-only: only created_at is tracked.
      *
@@ -61,6 +63,8 @@ class MembershipAuditLog extends Model
      */
     public const SAFE_METADATA_KEYS = [
         'role',
+        'old_role',
+        'new_role',
         'invitation_id',
         'was_verified',
         'status',

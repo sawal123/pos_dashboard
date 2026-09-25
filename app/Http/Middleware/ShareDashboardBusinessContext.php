@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Dashboard\DashboardBusinessContext;
 use Closure;
 use Illuminate\Database\Eloquent\Relations\Pivot;
@@ -12,7 +13,8 @@ use Symfony\Component\HttpFoundation\Response;
 class ShareDashboardBusinessContext
 {
     public function __construct(
-        protected DashboardBusinessContext $businessContext
+        protected DashboardBusinessContext $businessContext,
+        protected BusinessAuthorizer $authorizer,
     ) {}
 
     /**
@@ -38,12 +40,18 @@ class ShareDashboardBusinessContext
                 }
             }
 
+            // DASH-10B2 — the permissions the caller actually holds in the
+            // active business. The UI mirrors these; route middleware enforces
+            // them server-side so the sidebar is never the only protection.
+            $businessPermissions = $this->authorizer->permissionsFor($user, $currentBusiness);
+
             // Expose to request attributes for downstream controllers
             $request->attributes->set('dashboard_business', $currentBusiness);
             $request->attributes->set('dashboard_businesses', $businesses);
             $request->attributes->set('dashboard_subscription_state', $subscriptionState);
             $request->attributes->set('dashboard_cloud_access', $cloudAccess);
             $request->attributes->set('dashboard_business_role', $businessRole);
+            $request->attributes->set('dashboard_business_permissions', $businessPermissions);
 
             // Expose to views for Blade components
             View::share('dashboardBusinesses', $businesses);
@@ -51,6 +59,7 @@ class ShareDashboardBusinessContext
             View::share('dashboardSubscriptionState', $subscriptionState);
             View::share('dashboardCloudAccess', $cloudAccess);
             View::share('dashboardBusinessRole', $businessRole);
+            View::share('dashboardPermissions', $businessPermissions);
         }
 
         return $next($request);

@@ -45,6 +45,26 @@ class Business extends Model
 
     public const ROLE_MEMBER = 'member';
 
+    public const ROLE_CASHIER = 'cashier';
+
+    /**
+     * Every role with an explicit authorization contract (DASH-10B2). Any role
+     * outside this list is treated as unknown and denied by default.
+     *
+     * @var list<string>
+     */
+    public const ROLES = [self::ROLE_OWNER, self::ROLE_MEMBER, self::ROLE_CASHIER];
+
+    /**
+     * Roles an owner may assign to, or remove from, an existing membership.
+     *
+     * `owner` is deliberately excluded: ownership hand-over is out of scope and
+     * a business must always keep at least one owner.
+     *
+     * @var list<string>
+     */
+    public const MANAGED_ROLES = [self::ROLE_MEMBER, self::ROLE_CASHIER];
+
     /** @use HasFactory<BusinessFactory> */
     use HasFactory;
 
@@ -104,7 +124,7 @@ class Business extends Model
      */
     public function owners(): BelongsToMany
     {
-        return $this->users()->wherePivot('role', 'owner');
+        return $this->users()->wherePivot('role', self::ROLE_OWNER);
     }
 
     /**
@@ -255,6 +275,21 @@ class Business extends Model
     public function membershipAuditLogs(): HasMany
     {
         return $this->hasMany(MembershipAuditLog::class);
+    }
+
+    /**
+     * Human-readable label for a membership role. Unknown roles are surfaced
+     * verbatim (title-cased) and never silently mapped to a known role.
+     */
+    public static function roleLabel(string $role): string
+    {
+        return match ($role) {
+            self::ROLE_OWNER => 'Pemilik',
+            self::ROLE_MEMBER => 'Anggota',
+            self::ROLE_CASHIER => 'Kasir',
+            '' => 'Tanpa Peran',
+            default => ucwords(str_replace(['_', '-'], ' ', $role)),
+        };
     }
 
     /**

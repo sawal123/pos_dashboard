@@ -9,7 +9,7 @@
                     Pengguna &amp; Kasir
                 </h1>
                 <p class="text-sm text-slate-500 dark:text-slate-400 max-w-2xl">
-                    Kelola anggota bisnis aktif: undang anggota baru, pantau status undangan, dan hapus anggota.
+                    Kelola anggota bisnis aktif: undang anggota baru, pantau status undangan, ubah peran, dan hapus anggota.
                     Halaman ini hanya dapat diakses pemilik bisnis.
                 </p>
             </div>
@@ -47,9 +47,11 @@
         <div class="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
             <i data-lucide="info" class="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400"></i>
             <p class="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-                Peran yang ditampilkan berasal langsung dari data keanggotaan. Hanya peran
-                <span class="font-semibold">Pemilik</span> yang memiliki aturan akses khusus yang berlaku saat ini.
-                Peran lain ditampilkan apa adanya dan belum memiliki kontrak otorisasi tersendiri.
+                Peran yang ditampilkan berasal langsung dari data keanggotaan.
+                <span class="font-semibold">Pemilik</span> mengelola akun, peran, undangan, perangkat, dan langganan.
+                <span class="font-semibold">Anggota</span> memiliki akses operasional penuh, termasuk laporan, tanpa hak administrasi.
+                <span class="font-semibold">Kasir</span> hanya memiliki akses operasional terbatas dan tidak dapat mengakses laporan,
+                pengaturan bisnis, perangkat, atau sinkronisasi.
             </p>
         </div>
 
@@ -77,6 +79,7 @@
         @endif
 
         <x-users.invite-member-modal />
+        <x-users.change-role-modal :role-options="$roleOptions" />
         <x-users.remove-member-modal />
         <x-users.detail-drawer />
 
@@ -122,6 +125,9 @@
                 const roleBadgeClasses = (category) => {
                     if (category === 'owner') {
                         return 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+                    }
+                    if (category === 'cashier') {
+                        return 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
                     }
                     if (category === 'member') {
                         return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
@@ -461,6 +467,35 @@
 
                     if (target.closest('[data-close-remove-member-modal]')) {
                         closeModal(document.getElementById('removeMemberModal'));
+                        return;
+                    }
+
+                    if (target.closest('[data-close-change-role-modal]')) {
+                        closeModal(document.getElementById('changeRoleModal'));
+                        return;
+                    }
+
+                    const changeRoleTrigger = target.closest('[data-change-role]');
+                    if (changeRoleTrigger) {
+                        const form = document.getElementById('changeRoleForm');
+                        const nameEl = document.getElementById('changeRoleName');
+                        const url = changeRoleTrigger.getAttribute('data-role-url');
+                        const name = changeRoleTrigger.getAttribute('data-member-name');
+                        const currentRole = changeRoleTrigger.getAttribute('data-current-role');
+
+                        if (form && url) {
+                            form.setAttribute('action', url);
+                        }
+                        if (nameEl) {
+                            nameEl.textContent = name || 'anggota ini';
+                        }
+                        if (form && currentRole) {
+                            form.querySelectorAll('input[name="role"]').forEach((input) => {
+                                input.checked = input.value === currentRole;
+                            });
+                        }
+
+                        openModal(document.getElementById('changeRoleModal'), changeRoleTrigger);
                         return;
                     }
 

@@ -39,9 +39,11 @@ An expiry exactly at `now()` counts as **expired** (`expires_at <= now()`).
 
 * Route: `GET /subscription` → `subscriptions.index` →
   `App\Http\Controllers\Dashboard\SubscriptionsController@index`.
-* Middleware: `auth`, `verified`, `ShareDashboardBusinessContext`.
-* Owner-only: reuses the existing `BusinessPolicy::update` rule via
-  `Gate::authorize('update', $business)` — the policy is **not modified**.
+* Middleware: `auth`, `verified`, `ShareDashboardBusinessContext`, and
+  `business.permission:subscription.manage` (DASH-10B2 RBAC).
+* Owner-only: enforced twice — the route middleware above and the controller,
+  which reuses the existing `BusinessPolicy::update` rule via
+  `Gate::authorize('update', $business)` so the policy is **not modified**.
 * Data service: `App\Services\Dashboard\DashboardSubscriptionData`.
 * The business always comes from the shared dashboard context
   (`dashboard_business`), never a request parameter.

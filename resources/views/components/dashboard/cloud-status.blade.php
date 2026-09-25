@@ -13,6 +13,10 @@
         ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-200/80 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-400'
         : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
     $dotClass = $hasCloudAccess ? 'bg-indigo-500' : 'bg-slate-400';
+    // DASH-10B2 — only show the sync link when the role may actually open it.
+    $syncPermissions = $dashboardPermissions ?? [];
+    $canViewSync = in_array('*', $syncPermissions, true)
+        || in_array(\App\Services\Authorization\BusinessPermission::SYNC_VIEW, $syncPermissions, true);
 @endphp
 
 <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-xs flex flex-col justify-between">
@@ -83,8 +87,10 @@
     </div>
 
     {{-- Action Link --}}
-    <a href="{{ route('sync.index') }}" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-medium transition-all shadow-xs flex items-center justify-center gap-2">
-        <i data-lucide="history" class="w-4 h-4"></i>
-        <span>Lihat Riwayat Sinkronisasi</span>
-    </a>
+    @if($canViewSync)
+        <a href="{{ route('sync.index') }}" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-medium transition-all shadow-xs flex items-center justify-center gap-2">
+            <i data-lucide="history" class="w-4 h-4"></i>
+            <span>Lihat Riwayat Sinkronisasi</span>
+        </a>
+    @endif
 </div>
