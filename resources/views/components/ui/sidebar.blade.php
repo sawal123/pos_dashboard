@@ -88,12 +88,17 @@
 
         {{-- 2. OPERASIONAL --}}
         <x-ui.sidebar-section title="Operasional">
-            @if($businessContext === 'laundry')
-                <x-ui.sidebar-item
-                    icon="washing-machine"
-                    label="Pesanan Laundry"
-                />
-            @endif
+            {{--
+                DASH-11: "Pesanan Laundry" is always reachable. There is no
+                persisted business type (no businesses.business_type column), so
+                the previous `businessContext === 'laundry'` gate was always
+                false and hid the page. See docs/dashboard/DASH11_LAUNDRY_MONITORING.md.
+            --}}
+            <x-ui.sidebar-item
+                icon="washing-machine"
+                label="Pesanan Laundry"
+                route="laundry-orders.index"
+            />
             <x-ui.sidebar-item
                 icon="receipt"
                 label="Transaksi"
