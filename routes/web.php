@@ -10,6 +10,7 @@ use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
 use App\Http\Controllers\Dashboard\ProductsController;
+use App\Http\Controllers\Dashboard\ReportExportController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
@@ -116,6 +117,18 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('reports', [ReportsController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::REPORTS_VIEW)
         ->name('reports.index');
+
+    // DASH-13 — report exports. Same reports.view permission as the page, so a
+    // cashier (which has no reports.view) cannot download reports.
+    Route::get('reports/export/csv', [ReportExportController::class, 'csv'])
+        ->middleware('business.permission:'.BusinessPermission::REPORTS_VIEW)
+        ->name('reports.export.csv');
+    Route::get('reports/export/xlsx', [ReportExportController::class, 'xlsx'])
+        ->middleware('business.permission:'.BusinessPermission::REPORTS_VIEW)
+        ->name('reports.export.xlsx');
+    Route::get('reports/export/pdf', [ReportExportController::class, 'pdf'])
+        ->middleware('business.permission:'.BusinessPermission::REPORTS_VIEW)
+        ->name('reports.export.pdf');
 
     Route::get('devices', [DevicesController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::DEVICES_VIEW)

@@ -3,6 +3,17 @@
     'currentFilters' => [],
 ])
 
+@php
+    // Server-rendered fallback links keep the currently applied filters, and
+    // work even with JavaScript disabled.
+    $exportQuery = array_filter([
+        'date' => $currentFilters['date'] ?? 'all',
+        'start_date' => $currentFilters['start_date'] ?? '',
+        'end_date' => $currentFilters['end_date'] ?? '',
+        'outlet_id' => ($currentFilters['outlet_id'] ?? '') === '' ? null : $currentFilters['outlet_id'],
+    ], static fn ($value): bool => $value !== null && $value !== '');
+@endphp
+
 <form
     method="GET"
     action="{{ route('reports.index') }}"
@@ -62,14 +73,59 @@
                 <span>Reset</span>
             </a>
 
-            <button
-                type="button"
-                id="exportReportBtn"
-                class="py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-                <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400"></i>
-                <span>Ekspor Laporan</span>
-            </button>
+            {{-- DASH-13 — export dropdown (CSV / XLSX / PDF) --}}
+            <div class="relative" id="exportReportWrapper">
+                <button
+                    type="button"
+                    id="exportReportBtn"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    aria-controls="exportReportMenu"
+                    class="py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400"></i>
+                    <span id="exportReportBtnLabel">Ekspor Laporan</span>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                </button>
+
+                <div
+                    id="exportReportMenu"
+                    role="menu"
+                    aria-labelledby="exportReportBtn"
+                    class="hidden absolute right-0 mt-2 w-52 z-30 rounded-2xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/40 dark:shadow-slate-950/60 py-1"
+                >
+                    <a
+                        role="menuitem"
+                        href="{{ route('reports.export.csv', $exportQuery) }}"
+                        data-export-format="csv"
+                        data-export-base="{{ route('reports.export.csv') }}"
+                        class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
+                    >
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
+                        <span>Download CSV</span>
+                    </a>
+                    <a
+                        role="menuitem"
+                        href="{{ route('reports.export.xlsx', $exportQuery) }}"
+                        data-export-format="xlsx"
+                        data-export-base="{{ route('reports.export.xlsx') }}"
+                        class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
+                    >
+                        <i data-lucide="table-2" class="w-4 h-4 text-slate-400"></i>
+                        <span>Download Excel (XLSX)</span>
+                    </a>
+                    <a
+                        role="menuitem"
+                        href="{{ route('reports.export.pdf', $exportQuery) }}"
+                        data-export-format="pdf"
+                        data-export-base="{{ route('reports.export.pdf') }}"
+                        class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
+                    >
+                        <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+                        <span>Download PDF</span>
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
 
