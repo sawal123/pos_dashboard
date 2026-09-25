@@ -9,12 +9,18 @@ use App\Models\Business;
 use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\User;
+use App\Services\Authorization\BusinessAuthorizer;
+use App\Services\Authorization\BusinessPermission;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MobileDeviceController extends Controller
 {
+    public function __construct(
+        private readonly BusinessAuthorizer $authorizer,
+    ) {}
+
     /**
      * Register or resolve a mobile device for a business/outlet.
      *
@@ -56,6 +62,16 @@ class MobileDeviceController extends Controller
             return response()->json([
                 'message' => 'Business access denied.',
                 'code' => 'BUSINESS_ACCESS_DENIED',
+            ], 403);
+        }
+
+        // DASH-10B2 — device registration is part of device management, which a
+        // cashier may not perform. The role is re-read per request, so it also
+        // applies to already-issued tokens.
+        if (! $this->authorizer->allows($user, $business, BusinessPermission::MOBILE_DEVICES_MANAGE)) {
+            return response()->json([
+                'message' => 'This role is not supported by the mobile device API yet.',
+                'code' => 'MOBILE_ROLE_NOT_SUPPORTED',
             ], 403);
         }
 

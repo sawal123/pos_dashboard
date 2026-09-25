@@ -6,7 +6,12 @@
 
 @php
     $activeBusinessRole = $businessRole ?? ($dashboardBusinessRole ?? null);
-    $isBusinessOwner = $activeBusinessRole === 'owner';
+    // DASH-10B2 — mirror the server-enforced permission matrix. Hiding an item
+    // here is never the only protection: every route is guarded server-side.
+    $permissions = $dashboardPermissions ?? [];
+    $can = fn (string $permission): bool => in_array('*', $permissions, true)
+        || in_array($permission, $permissions, true);
+    $P = \App\Services\Authorization\BusinessPermission::class;
 
     $subConfig = match($subscription) {
         'subscriber' => [
@@ -78,100 +83,130 @@
     <nav class="flex-1 overflow-y-auto py-3 px-3 space-y-4" aria-label="Menu Utama">
 
         {{-- 1. RINGKASAN --}}
-        <x-ui.sidebar-section title="Ringkasan">
-            <x-ui.sidebar-item
-                icon="layout-dashboard"
-                label="Dashboard"
-                route="dashboard"
-            />
-        </x-ui.sidebar-section>
+        @if($can($P::DASHBOARD_VIEW))
+            <x-ui.sidebar-section title="Ringkasan">
+                <x-ui.sidebar-item
+                    icon="layout-dashboard"
+                    label="Dashboard"
+                    route="dashboard"
+                />
+            </x-ui.sidebar-section>
+        @endif
 
         {{-- 2. OPERASIONAL --}}
-        <x-ui.sidebar-section title="Operasional">
-            {{--
-                DASH-11: "Pesanan Laundry" is always reachable. There is no
-                persisted business type (no businesses.business_type column), so
-                the previous `businessContext === 'laundry'` gate was always
-                false and hid the page. See docs/dashboard/DASH11_LAUNDRY_MONITORING.md.
-            --}}
-            <x-ui.sidebar-item
-                icon="washing-machine"
-                label="Pesanan Laundry"
-                route="laundry-orders.index"
-            />
-            <x-ui.sidebar-item
-                icon="receipt"
-                label="Transaksi"
-                route="transactions.index"
-            />
-            <x-ui.sidebar-item
-                icon="package"
-                label="Produk & Layanan"
-                route="products.index"
-            />
-            <x-ui.sidebar-item
-                icon="boxes"
-                label="Stok"
-                route="stock.index"
-            />
-            <x-ui.sidebar-item
-                icon="wallet-cards"
-                label="Kas & Pengeluaran"
-                route="cash.index"
-            />
-            <x-ui.sidebar-item
-                icon="clock"
-                label="Shift"
-                route="shifts.index"
-            />
-            <x-ui.sidebar-item
-                icon="users"
-                label="Pelanggan"
-                route="customers.index"
-            />
-        </x-ui.sidebar-section>
+        @if($can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW))
+            <x-ui.sidebar-section title="Operasional">
+                {{--
+                    DASH-11: "Pesanan Laundry" visibility is now permission-based
+                    (DASH-10B2). There is still no persisted business type, so the
+                    old `businessContext === 'laundry'` gate remains removed. See
+                    docs/dashboard/DASH11_LAUNDRY_MONITORING.md.
+                --}}
+                @if($can($P::LAUNDRY_VIEW))
+                    <x-ui.sidebar-item
+                        icon="washing-machine"
+                        label="Pesanan Laundry"
+                        route="laundry-orders.index"
+                    />
+                @endif
+                @if($can($P::TRANSACTIONS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="receipt"
+                        label="Transaksi"
+                        route="transactions.index"
+                    />
+                @endif
+                @if($can($P::PRODUCTS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="package"
+                        label="Produk & Layanan"
+                        route="products.index"
+                    />
+                @endif
+                @if($can($P::STOCK_VIEW))
+                    <x-ui.sidebar-item
+                        icon="boxes"
+                        label="Stok"
+                        route="stock.index"
+                    />
+                @endif
+                @if($can($P::CASH_VIEW))
+                    <x-ui.sidebar-item
+                        icon="wallet-cards"
+                        label="Kas & Pengeluaran"
+                        route="cash.index"
+                    />
+                @endif
+                @if($can($P::SHIFTS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="clock"
+                        label="Shift"
+                        route="shifts.index"
+                    />
+                @endif
+                @if($can($P::CUSTOMERS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="users"
+                        label="Pelanggan"
+                        route="customers.index"
+                    />
+                @endif
+            </x-ui.sidebar-section>
+        @endif
 
         {{-- 3. ANALISIS --}}
-        <x-ui.sidebar-section title="Analisis">
-            <x-ui.sidebar-item
-                icon="chart-column"
-                label="Laporan"
-                route="reports.index"
-            />
-        </x-ui.sidebar-section>
+        @if($can($P::REPORTS_VIEW))
+            <x-ui.sidebar-section title="Analisis">
+                <x-ui.sidebar-item
+                    icon="chart-column"
+                    label="Laporan"
+                    route="reports.index"
+                />
+            </x-ui.sidebar-section>
+        @endif
 
         {{-- 4. BISNIS --}}
-        <x-ui.sidebar-section title="Bisnis">
-            <x-ui.sidebar-item
-                icon="store"
-                label="Outlet"
-                route="outlets.index"
-            />
-            @if($isBusinessOwner)
-                <x-ui.sidebar-item
-                    icon="user-cog"
-                    label="Pengguna / Kasir"
-                    route="users.index"
-                />
-            @endif
-            <x-ui.sidebar-item
-                icon="monitor-smartphone"
-                label="Perangkat"
-                route="devices.index"
-            />
-        </x-ui.sidebar-section>
+        @if($can($P::OUTLETS_VIEW) || $can($P::USERS_VIEW) || $can($P::DEVICES_VIEW))
+            <x-ui.sidebar-section title="Bisnis">
+                @if($can($P::OUTLETS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="store"
+                        label="Outlet"
+                        route="outlets.index"
+                    />
+                @endif
+                @if($can($P::USERS_VIEW))
+                    <x-ui.sidebar-item
+                        icon="user-cog"
+                        label="Pengguna / Kasir"
+                        route="users.index"
+                    />
+                @endif
+                @if($can($P::DEVICES_VIEW))
+                    <x-ui.sidebar-item
+                        icon="monitor-smartphone"
+                        label="Perangkat"
+                        route="devices.index"
+                    />
+                @endif
+            </x-ui.sidebar-section>
+        @endif
 
         {{-- 5. CLOUD & SISTEM --}}
         <x-ui.sidebar-section title="Cloud & Sistem">
-            <x-ui.sidebar-item
-                icon="refresh-cw"
-                label="Sinkronisasi"
-                route="sync.index"
-            />
-            <x-ui.sidebar-item
-                icon="credit-card"
-                label="Langganan"
-            />
+            @if($can($P::SYNC_VIEW))
+                <x-ui.sidebar-item
+                    icon="refresh-cw"
+                    label="Sinkronisasi"
+                    route="sync.index"
+                />
+            @endif
+            @if($can($P::SUBSCRIPTION_MANAGE))
+                <x-ui.sidebar-item
+                    icon="credit-card"
+                    label="Langganan"
+                />
+            @endif
             <x-ui.sidebar-item
                 icon="settings"
                 label="Pengaturan"

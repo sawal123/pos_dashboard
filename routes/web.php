@@ -18,57 +18,111 @@ use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
+use App\Services\Authorization\BusinessPermission;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome')->name('home');
 
 Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
-    Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('transactions', [TransactionsController::class, 'index'])->name('transactions.index');
-    Route::get('products', [ProductsController::class, 'index'])->name('products.index');
-    Route::get('stock', [StockController::class, 'index'])->name('stock.index');
+    // DASH-10B2 — every dashboard route carries an explicit, server-enforced
+    // permission for the *active* business. Hiding a sidebar item is never the
+    // only protection. See docs/dashboard/DASH10B2_CASHIER_RBAC.md.
+    Route::get('dashboard', [DashboardController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::DASHBOARD_VIEW)
+        ->name('dashboard');
+
+    Route::get('transactions', [TransactionsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::TRANSACTIONS_VIEW)
+        ->name('transactions.index');
+
+    Route::get('products', [ProductsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_VIEW)
+        ->name('products.index');
+
+    Route::get('stock', [StockController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::STOCK_VIEW)
+        ->name('stock.index');
     Route::get('stock/{productId}/movements', [StockController::class, 'movements'])
         ->whereNumber('productId')
+        ->middleware('business.permission:'.BusinessPermission::STOCK_VIEW)
         ->name('stock.movements');
-    Route::get('cash', [CashController::class, 'index'])->name('cash.index');
-    Route::get('shifts', [ShiftsController::class, 'index'])->name('shifts.index');
+
+    Route::get('cash', [CashController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::CASH_VIEW)
+        ->name('cash.index');
+
+    Route::get('shifts', [ShiftsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::SHIFTS_VIEW)
+        ->name('shifts.index');
     Route::get('shifts/{shiftId}/detail', [ShiftsController::class, 'detail'])
         ->whereNumber('shiftId')
+        ->middleware('business.permission:'.BusinessPermission::SHIFTS_VIEW)
         ->name('shifts.detail');
-    Route::get('customers', [CustomersController::class, 'index'])->name('customers.index');
+
+    Route::get('customers', [CustomersController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::CUSTOMERS_VIEW)
+        ->name('customers.index');
     Route::get('customers/{customerId}/detail', [CustomersController::class, 'detail'])
         ->whereNumber('customerId')
+        ->middleware('business.permission:'.BusinessPermission::CUSTOMERS_VIEW)
         ->name('customers.detail');
-    Route::get('laundry-orders', [LaundryOrdersController::class, 'index'])->name('laundry-orders.index');
+
+    Route::get('laundry-orders', [LaundryOrdersController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::LAUNDRY_VIEW)
+        ->name('laundry-orders.index');
     Route::get('laundry-orders/{saleId}/detail', [LaundryOrdersController::class, 'detail'])
         ->whereNumber('saleId')
+        ->middleware('business.permission:'.BusinessPermission::LAUNDRY_VIEW)
         ->name('laundry-orders.detail');
-    Route::get('outlets', [OutletsController::class, 'index'])->name('outlets.index');
+
+    Route::get('outlets', [OutletsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::OUTLETS_VIEW)
+        ->name('outlets.index');
     Route::get('outlets/{outletId}/detail', [OutletsController::class, 'detail'])
         ->whereNumber('outletId')
+        ->middleware('business.permission:'.BusinessPermission::OUTLETS_VIEW)
         ->name('outlets.detail');
-    Route::get('users', [UsersController::class, 'index'])->name('users.index');
+
+    // Owner-only member administration.
+    Route::get('users', [UsersController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::USERS_VIEW)
+        ->name('users.index');
     Route::get('users/{userId}/detail', [UsersController::class, 'detail'])
         ->whereNumber('userId')
+        ->middleware('business.permission:'.BusinessPermission::USERS_VIEW)
         ->name('users.detail');
 
-    // DASH-10B1 — owner-only invitation & membership management.
     Route::post('users/invitations', [BusinessInvitationsController::class, 'store'])
-        ->middleware('throttle:member-invitations')
+        ->middleware(['business.permission:'.BusinessPermission::INVITATIONS_MANAGE, 'throttle:member-invitations'])
         ->name('users.invitations.store');
     Route::post('users/invitations/{invitation}/resend', [BusinessInvitationsController::class, 'resend'])
-        ->middleware('throttle:member-invitation-resend')
+        ->middleware(['business.permission:'.BusinessPermission::INVITATIONS_MANAGE, 'throttle:member-invitation-resend'])
         ->name('users.invitations.resend');
     Route::post('users/invitations/{invitation}/revoke', [BusinessInvitationsController::class, 'revoke'])
-        ->middleware('throttle:member-invitation-revoke')
+        ->middleware(['business.permission:'.BusinessPermission::INVITATIONS_MANAGE, 'throttle:member-invitation-revoke'])
         ->name('users.invitations.revoke');
     Route::delete('users/members/{userId}', [BusinessMembersController::class, 'destroy'])
         ->whereNumber('userId')
-        ->middleware('throttle:member-removal')
+        ->middleware(['business.permission:'.BusinessPermission::MEMBERS_MANAGE, 'throttle:member-removal'])
         ->name('users.members.destroy');
-    Route::get('reports', [ReportsController::class, 'index'])->name('reports.index');
-    Route::get('devices', [DevicesController::class, 'index'])->name('devices.index');
-    Route::get('sync', [SyncMonitoringController::class, 'index'])->name('sync.index');
+
+    // DASH-10B2 — owner-only role change (member <-> cashier).
+    Route::patch('users/members/{userId}/role', [BusinessMembersController::class, 'updateRole'])
+        ->whereNumber('userId')
+        ->middleware(['business.permission:'.BusinessPermission::ROLES_MANAGE, 'throttle:member-role-update'])
+        ->name('users.members.role.update');
+
+    Route::get('reports', [ReportsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::REPORTS_VIEW)
+        ->name('reports.index');
+
+    Route::get('devices', [DevicesController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::DEVICES_VIEW)
+        ->name('devices.index');
+
+    Route::get('sync', [SyncMonitoringController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::SYNC_VIEW)
+        ->name('sync.index');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

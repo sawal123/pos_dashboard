@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\SyncPullRequest;
 use App\Http\Requests\Api\SyncPushRequest;
+use App\Services\Authorization\BusinessPermission;
 use App\Services\Sync\SyncContextResolver;
 use App\Services\Sync\SyncPullService;
 use App\Services\Sync\SyncPushService;
@@ -23,7 +24,8 @@ class SyncController extends Controller
         $context = $resolver->resolve(
             $request,
             (int) $request->input('business_id'),
-            (string) $request->input('device_identifier')
+            (string) $request->input('device_identifier'),
+            BusinessPermission::SYNC_PUSH,
         );
 
         return $service->process($context, $request->validated());
@@ -40,7 +42,8 @@ class SyncController extends Controller
         $context = $resolver->resolve(
             $request,
             (int) $request->input('business_id'),
-            (string) $request->input('device_identifier')
+            (string) $request->input('device_identifier'),
+            BusinessPermission::SYNC_PULL,
         );
 
         return $service->pull(

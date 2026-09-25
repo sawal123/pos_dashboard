@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureBusinessPermission;
 use App\Http\Middleware\StartSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // (`_previous.url` / `url.intended` would otherwise persist it).
         $middleware->web(replace: [
             Illuminate\Session\Middleware\StartSession::class => StartSession::class,
+        ]);
+
+        // DASH-10B2 — per-route permission guard against the active business.
+        $middleware->alias([
+            'business.permission' => EnsureBusinessPermission::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

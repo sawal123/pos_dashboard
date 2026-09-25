@@ -91,7 +91,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     {
         return $this->businesses()
             ->where('businesses.id', $business->id)
-            ->wherePivot('role', 'owner')
+            ->wherePivot('role', Business::ROLE_OWNER)
             ->exists();
     }
 }

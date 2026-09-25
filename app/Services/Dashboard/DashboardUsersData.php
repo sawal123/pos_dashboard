@@ -31,6 +31,8 @@ class DashboardUsersData
 
     public const ROLE_MEMBER = 'member';
 
+    public const ROLE_CASHIER = 'cashier';
+
     /**
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
@@ -79,6 +81,7 @@ class DashboardUsersData
             'filterOptions' => [
                 'roles' => $roles,
             ],
+            'roleOptions' => $this->roleOptions(),
             'currentFilters' => $currentFilters,
             'hasAnyMembers' => $summary['total_members'] > 0,
         ];
@@ -171,8 +174,9 @@ class DashboardUsersData
     }
 
     /**
-     * Tenant-scoped membership summary. Owner, member and other-role buckets are
-     * mutually exclusive, so an unknown role is never folded into member.
+     * Tenant-scoped membership summary. Owner, member, cashier and other-role
+     * buckets are mutually exclusive, so an unknown role is never folded into a
+     * known role.
      *
      * @return array<string, int>
      */
@@ -184,7 +188,8 @@ class DashboardUsersData
             ->selectRaw('COUNT(*) as total_members')
             ->selectRaw("COALESCE(SUM(CASE WHEN business_user.role = 'owner' THEN 1 ELSE 0 END), 0) as owner_count")
             ->selectRaw("COALESCE(SUM(CASE WHEN business_user.role = 'member' THEN 1 ELSE 0 END), 0) as member_count")
-            ->selectRaw("COALESCE(SUM(CASE WHEN business_user.role NOT IN ('owner', 'member') THEN 1 ELSE 0 END), 0) as other_role_count")
+            ->selectRaw("COALESCE(SUM(CASE WHEN business_user.role = 'cashier' THEN 1 ELSE 0 END), 0) as cashier_count")
+            ->selectRaw("COALESCE(SUM(CASE WHEN business_user.role NOT IN ('owner', 'member', 'cashier') THEN 1 ELSE 0 END), 0) as other_role_count")
             ->selectRaw('COALESCE(SUM(CASE WHEN users.email_verified_at IS NOT NULL THEN 1 ELSE 0 END), 0) as verified_count')
             ->selectRaw('COALESCE(SUM(CASE WHEN users.email_verified_at IS NULL THEN 1 ELSE 0 END), 0) as unverified_count')
             ->first();
@@ -193,6 +198,7 @@ class DashboardUsersData
             'total_members' => $row !== null ? (int) $row->total_members : 0,
             'owner_count' => $row !== null ? (int) $row->owner_count : 0,
             'member_count' => $row !== null ? (int) $row->member_count : 0,
+            'cashier_count' => $row !== null ? (int) $row->cashier_count : 0,
             'other_role_count' => $row !== null ? (int) $row->other_role_count : 0,
             'verified_count' => $row !== null ? (int) $row->verified_count : 0,
             'unverified_count' => $row !== null ? (int) $row->unverified_count : 0,
@@ -274,30 +280,42 @@ class DashboardUsersData
     }
 
     /**
-     * Present an explicit role. Only `owner` and `member` have a proven
-     * authorization contract; every other value is surfaced as an unmapped role
-     * and never silently treated as a member or a cashier.
+     * Present an explicit role. `owner`, `member` and `cashier` have a defined
+     * authorization contract; every other value is surfaced verbatim and never
+     * silently treated as a known role.
      */
     private function presentRole(string $role): string
     {
-        return match ($role) {
-            self::ROLE_OWNER => 'Pemilik',
-            self::ROLE_MEMBER => 'Anggota',
-            '' => 'Tanpa Peran',
-            default => ucwords(str_replace(['_', '-'], ' ', $role)),
-        };
+        return Business::roleLabel($role);
     }
 
     /**
-     * @return 'owner'|'member'|'other'
+     * @return 'owner'|'member'|'cashier'|'other'
      */
     private function roleCategory(string $role): string
     {
         return match ($role) {
             self::ROLE_OWNER => 'owner',
             self::ROLE_MEMBER => 'member',
+            self::ROLE_CASHIER => 'cashier',
             default => 'other',
         };
+    }
+
+    /**
+     * Roles an owner can assign through the "Ubah Peran" flow, with labels.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function roleOptions(): array
+    {
+        return array_map(
+            fn (string $role): array => [
+                'value' => $role,
+                'label' => Business::roleLabel($role),
+            ],
+            Business::MANAGED_ROLES,
+        );
     }
 
     private function formatDateTime(mixed $value): ?string
@@ -351,6 +369,7 @@ class DashboardUsersData
                 'total_members' => 0,
                 'owner_count' => 0,
                 'member_count' => 0,
+                'cashier_count' => 0,
                 'other_role_count' => 0,
                 'verified_count' => 0,
                 'unverified_count' => 0,
@@ -358,6 +377,7 @@ class DashboardUsersData
             'filterOptions' => [
                 'roles' => [],
             ],
+            'roleOptions' => $this->roleOptions(),
             'currentFilters' => $currentFilters,
             'hasAnyMembers' => false,
         ];
