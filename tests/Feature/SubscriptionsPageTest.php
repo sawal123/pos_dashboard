@@ -363,6 +363,70 @@ class SubscriptionsPageTest extends TestCase
     }
 
     // ============================================================
+    // Sidebar authorization (owner-only, per active business)
+    // ============================================================
+
+    public function test_subscription_sidebar_menu_and_buttons_are_visible_for_owners(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $response = $this->actingAs($owner)->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertSee(route('subscriptions.index'), false);
+        $response->assertSee('Langganan');
+        $response->assertSee('id="managePlanBtn"', false);
+        // Collapsed sidebar variant must be gated identically.
+        $response->assertSee('id="managePlanMiniBtn"', false);
+        $response->assertSee('Kelola Paket');
+    }
+
+    public function test_subscription_sidebar_menu_and_buttons_are_hidden_for_members(): void
+    {
+        [, $business] = $this->makeOwnerWithBusiness();
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+        $member = $this->attachMember($business, 'member');
+
+        $response = $this->actingAs($member)
+            ->withSession([DashboardBusinessContext::SESSION_KEY => $business->id])
+            ->get(route('dashboard'));
+
+        $response->assertOk();
+        $response->assertDontSee(route('subscriptions.index'), false);
+        $response->assertDontSee('Langganan');
+        $response->assertDontSee('id="managePlanBtn"', false);
+        $response->assertDontSee('id="managePlanMiniBtn"', false);
+        $response->assertDontSee('Kelola Paket');
+        $response->assertDontSee('Tingkatkan Paket');
+    }
+
+    public function test_subscription_sidebar_follows_the_active_business_role(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $ownedBusiness = Business::factory()->create();
+        $joinedBusiness = Business::factory()->create();
+        $user->businesses()->attach($ownedBusiness->id, ['role' => 'owner']);
+        $user->businesses()->attach($joinedBusiness->id, ['role' => 'member']);
+        Subscription::factory()->cloud()->create(['business_id' => $ownedBusiness->id]);
+
+        $asOwner = $this->actingAs($user)
+            ->withSession([DashboardBusinessContext::SESSION_KEY => $ownedBusiness->id])
+            ->get(route('dashboard'));
+        $asOwner->assertOk();
+        $asOwner->assertSee(route('subscriptions.index'), false);
+        $asOwner->assertSee('Kelola Paket');
+
+        $asMember = $this->actingAs($user)
+            ->withSession([DashboardBusinessContext::SESSION_KEY => $joinedBusiness->id])
+            ->get(route('dashboard'));
+        $asMember->assertOk();
+        $asMember->assertDontSee(route('subscriptions.index'), false);
+        $asMember->assertDontSee('Kelola Paket');
+        $asMember->assertDontSee('Tingkatkan Paket');
+    }
+
+    // ============================================================
     // Existing API cloud gate must keep working
     // ============================================================
 
