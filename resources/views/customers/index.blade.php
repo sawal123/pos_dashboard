@@ -69,9 +69,15 @@
                 const historyContainer = document.getElementById('customerDrawerHistory');
                 const historyEmpty = document.getElementById('customerDrawerHistoryEmpty');
 
-                let lastTriggerElement = null;
-                let activeRequestId = 0;
+                const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+                // Drawer lifecycle state kept per initialization so wire:navigate
+                // starts from a clean slate and never reuses stale closures.
+                let isOpen = false;
+                let closeTimer = null;
                 let activeController = null;
+                let requestToken = 0;
+                let lastTriggerButton = null;
 
                 const formatRupiah = (value) => {
                     const amount = Number(value || 0);
@@ -166,45 +172,97 @@
                     return row;
                 };
 
-                const openDrawer = () => {
+                // Abort the in-flight request and invalidate its response token so
+                // a slower response can never paint over a newer selection.
+                const abortActiveRequest = () => {
+                    requestToken += 1;
+                    if (activeController !== null) {
+                        activeController.abort();
+                        activeController = null;
+                    }
+                };
+
+                const focusDrawer = () => {
+                    if (!drawerPanel) {
+                        return;
+                    }
+                    const focusables = Array.from(drawerPanel.querySelectorAll(focusableSelector));
+                    if (focusables.length > 0) {
+                        focusables[0].focus({ preventScroll: true });
+                    } else {
+                        drawerPanel.focus({ preventScroll: true });
+                    }
+                };
+
+                const restoreTriggerFocus = () => {
+                    const target = lastTriggerButton;
+                    lastTriggerButton = null;
+                    if (target && typeof target.focus === 'function' && document.contains(target)) {
+                        target.focus({ preventScroll: true });
+                    }
+                };
+
+                const openDrawer = (triggerButton) => {
                     if (!drawerWrapper || !drawerBackdrop || !drawerPanel) {
                         return;
                     }
+
+                    // Cancel a pending close so a quick reopen cannot be undone by
+                    // the previous close animation timer.
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                        closeTimer = null;
+                    }
+
+                    isOpen = true;
+                    if (triggerButton) {
+                        lastTriggerButton = triggerButton;
+                    }
+
                     drawerWrapper.classList.remove('hidden');
-                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('overflow-hidden');
+
                     requestAnimationFrame(() => {
                         drawerBackdrop.classList.remove('opacity-0');
                         drawerBackdrop.classList.add('opacity-100');
                         drawerPanel.classList.remove('translate-x-full');
                         drawerPanel.classList.add('translate-x-0');
-                        const firstClose = drawerPanel.querySelector('[data-close-customer-drawer]');
-                        firstClose?.focus();
+                        focusDrawer();
                     });
-                    document.addEventListener('keydown', handleDrawerTrap);
                 };
 
                 const closeDrawer = () => {
-                    if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) {
+                    if (!drawerWrapper || !drawerBackdrop || !drawerPanel) {
                         return;
                     }
-                    document.removeEventListener('keydown', handleDrawerTrap);
+                    if (!isOpen) {
+                        return;
+                    }
+
+                    isOpen = false;
+
+                    // Closing cancels any pending detail request so its response
+                    // cannot mutate the DOM after the drawer is gone.
+                    abortActiveRequest();
 
                     drawerBackdrop.classList.remove('opacity-100');
                     drawerBackdrop.classList.add('opacity-0');
                     drawerPanel.classList.remove('translate-x-0');
                     drawerPanel.classList.add('translate-x-full');
-                    document.body.style.overflow = '';
+                    document.body.classList.remove('overflow-hidden');
 
-                    window.setTimeout(() => {
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                    }
+                    closeTimer = window.setTimeout(() => {
+                        closeTimer = null;
                         drawerWrapper.classList.add('hidden');
-                        if (lastTriggerElement && typeof lastTriggerElement.focus === 'function') {
-                            lastTriggerElement.focus();
-                        }
+                        restoreTriggerFocus();
                     }, 300);
                 };
 
-                const handleDrawerTrap = (event) => {
-                    if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) {
+                const onKeydown = (event) => {
+                    if (!isOpen) {
                         return;
                     }
 
@@ -218,24 +276,28 @@
                         return;
                     }
 
-                    const focusables = drawerPanel.querySelectorAll(
-                        'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-                    );
+                    const focusables = Array.from(drawerPanel.querySelectorAll(focusableSelector));
                     if (focusables.length === 0) {
+                        event.preventDefault();
+                        drawerPanel.focus({ preventScroll: true });
                         return;
                     }
 
-                    const firstEl = focusables[0];
-                    const lastEl = focusables[focusables.length - 1];
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    const activeIndex = focusables.indexOf(document.activeElement);
 
                     if (event.shiftKey) {
-                        if (document.activeElement === firstEl || !drawerPanel.contains(document.activeElement)) {
+                        if (activeIndex <= 0) {
                             event.preventDefault();
-                            lastEl.focus();
+                            last.focus({ preventScroll: true });
                         }
-                    } else if (document.activeElement === lastEl || !drawerPanel.contains(document.activeElement)) {
+                        return;
+                    }
+
+                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
                         event.preventDefault();
-                        firstEl.focus();
+                        first.focus({ preventScroll: true });
                     }
                 };
 
@@ -299,16 +361,14 @@
                         return;
                     }
 
-                    lastTriggerElement = button;
-                    openDrawer();
-                    setLoading();
+                    abortActiveRequest();
+                    const token = requestToken;
 
-                    // Guard against a slower earlier response overwriting a newer one.
-                    const requestId = ++activeRequestId;
-                    if (activeController) {
-                        activeController.abort();
-                    }
-                    activeController = new AbortController();
+                    const controller = new AbortController();
+                    activeController = controller;
+
+                    openDrawer(button);
+                    setLoading();
 
                     try {
                         const response = await fetch(url, {
@@ -316,7 +376,7 @@
                                 'Accept': 'application/json',
                                 'X-Requested-With': 'XMLHttpRequest',
                             },
-                            signal: activeController.signal,
+                            signal: controller.signal,
                         });
 
                         if (!response.ok) {
@@ -324,32 +384,49 @@
                         }
 
                         const data = await response.json();
-                        if (requestId !== activeRequestId) {
+
+                        // Ignore a response that lost the race (superseded or aborted).
+                        if (token !== requestToken || controller.signal.aborted) {
                             return;
                         }
+
                         renderDetail(data);
                     } catch (error) {
-                        if (requestId !== activeRequestId || (error && error.name === 'AbortError')) {
+                        if (error && error.name === 'AbortError') {
+                            return;
+                        }
+                        if (token !== requestToken) {
                             return;
                         }
                         setError();
+                    } finally {
+                        if (activeController === controller) {
+                            activeController = null;
+                        }
                     }
                 };
 
                 detailButtons.forEach((button) => button.addEventListener('click', onDetailClick));
                 closeButtons.forEach((button) => button.addEventListener('click', closeDrawer));
                 drawerBackdrop?.addEventListener('click', closeDrawer);
+                document.addEventListener('keydown', onKeydown);
 
                 window.__customersDrawerCleanup = () => {
-                    if (activeController) {
-                        activeController.abort();
-                        activeController = null;
+                    abortActiveRequest();
+
+                    if (closeTimer !== null) {
+                        window.clearTimeout(closeTimer);
+                        closeTimer = null;
                     }
+
+                    isOpen = false;
+                    lastTriggerButton = null;
+
                     detailButtons.forEach((button) => button.removeEventListener('click', onDetailClick));
                     closeButtons.forEach((button) => button.removeEventListener('click', closeDrawer));
                     drawerBackdrop?.removeEventListener('click', closeDrawer);
-                    document.removeEventListener('keydown', handleDrawerTrap);
-                    document.body.style.overflow = '';
+                    document.removeEventListener('keydown', onKeydown);
+                    document.body.classList.remove('overflow-hidden');
                     root.dataset.customersInitialized = 'false';
                 };
             }
