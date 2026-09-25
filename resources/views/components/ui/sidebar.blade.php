@@ -1,9 +1,13 @@
 @props([
     'businessContext' => 'cafe', // 'cafe', 'laundry', 'grosir'
     'subscription' => 'unknown', // 'subscriber', 'free', 'unknown'
+    'businessRole' => null, // role of the user in the active business
 ])
 
 @php
+    $activeBusinessRole = $businessRole ?? ($dashboardBusinessRole ?? null);
+    $isBusinessOwner = $activeBusinessRole === 'owner';
+
     $subConfig = match($subscription) {
         'subscriber' => [
             'badgeClass' => 'bg-emerald-50 dark:bg-emerald-950/60 border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400',
@@ -137,10 +141,13 @@
                 label="Outlet"
                 route="outlets.index"
             />
-            <x-ui.sidebar-item
-                icon="user-cog"
-                label="Pengguna / Kasir"
-            />
+            @if($isBusinessOwner)
+                <x-ui.sidebar-item
+                    icon="user-cog"
+                    label="Pengguna / Kasir"
+                    route="users.index"
+                />
+            @endif
             <x-ui.sidebar-item
                 icon="monitor-smartphone"
                 label="Perangkat"
