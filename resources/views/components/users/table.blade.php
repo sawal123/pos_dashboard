@@ -23,6 +23,7 @@
                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Verifikasi</th>
                 <th class="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Bergabung</th>
                 <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Detail</th>
+                <th class="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Aksi</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -56,6 +57,22 @@
                             <i data-lucide="panel-right-open" class="w-4 h-4"></i>
                             Detail
                         </button>
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                        @if(($user['role_raw'] ?? '') === 'member')
+                            <button
+                                type="button"
+                                data-remove-member
+                                data-remove-url="{{ route('users.members.destroy', $user['id']) }}"
+                                data-member-name="{{ $user['name'] }}"
+                                class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                            >
+                                <i data-lucide="user-minus" class="w-4 h-4"></i>
+                                Hapus
+                            </button>
+                        @else
+                            <span class="text-xs text-slate-400 dark:text-slate-500">—</span>
+                        @endif
                     </td>
                 </tr>
             @endforeach

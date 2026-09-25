@@ -3,10 +3,12 @@
 namespace App\Services\Dashboard;
 
 use App\Models\Business;
+use App\Models\BusinessInvitation;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -21,6 +23,9 @@ use Illuminate\Support\Facades\DB;
 class DashboardUsersData
 {
     public const PER_PAGE = 25;
+
+    /** Maximum number of invitations rendered on the users page. */
+    public const INVITATIONS_LIMIT = 50;
 
     public const ROLE_OWNER = 'owner';
 
@@ -98,6 +103,71 @@ class DashboardUsersData
         }
 
         return $this->presentMember($member);
+    }
+
+    /**
+     * Tenant-scoped invitations for the active business, newest first.
+     *
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function invitations(Business $currentBusiness): Collection
+    {
+        /** @var Collection<int, array<string, mixed>> $rows */
+        $rows = BusinessInvitation::query()
+            ->forBusiness((int) $currentBusiness->id)
+            ->with('inviter')
+            ->orderByDesc('id')
+            ->limit(self::INVITATIONS_LIMIT)
+            ->get()
+            ->map(function (BusinessInvitation $invitation): array {
+                $inviter = $invitation->getRelation('inviter');
+
+                return [
+                    'id' => (int) $invitation->id,
+                    'email' => (string) $invitation->email,
+                    'role' => $invitation->roleLabel(),
+                    'role_raw' => (string) $invitation->role,
+                    'status' => $invitation->effectiveStatus(),
+                    'status_label' => $invitation->statusLabel(),
+                    'is_pending' => $invitation->effectiveStatus() === BusinessInvitation::STATUS_PENDING,
+                    'expires_at' => $this->formatDateTime($invitation->expires_at),
+                    'expires_at_raw' => $invitation->expires_at?->format('Y-m-d H:i:s'),
+                    'created_at' => $this->formatDateTime($invitation->created_at),
+                    'invited_by' => $inviter instanceof User ? (string) $inviter->name : '',
+                ];
+            });
+
+        return $rows;
+    }
+
+    /**
+     * Invitation counts by effective status for the active business.
+     *
+     * @return array{pending: int, accepted: int, expired: int, revoked: int}
+     */
+    public function invitationSummary(Business $currentBusiness): array
+    {
+        $counts = [
+            BusinessInvitation::STATUS_PENDING => 0,
+            BusinessInvitation::STATUS_ACCEPTED => 0,
+            BusinessInvitation::STATUS_EXPIRED => 0,
+            BusinessInvitation::STATUS_REVOKED => 0,
+        ];
+
+        BusinessInvitation::query()
+            ->forBusiness((int) $currentBusiness->id)
+            ->get(['status', 'expires_at'])
+            ->each(function (BusinessInvitation $invitation) use (&$counts): void {
+                $status = $invitation->effectiveStatus();
+                $counts[$status] = ($counts[$status] ?? 0) + 1;
+            });
+
+        return [
+            'pending' => $counts[BusinessInvitation::STATUS_PENDING],
+            'accepted' => $counts[BusinessInvitation::STATUS_ACCEPTED],
+            'expired' => $counts[BusinessInvitation::STATUS_EXPIRED],
+            'revoked' => $counts[BusinessInvitation::STATUS_REVOKED],
+        ];
     }
 
     /**

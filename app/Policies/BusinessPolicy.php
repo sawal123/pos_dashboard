@@ -24,6 +24,22 @@ class BusinessPolicy
     }
 
     /**
+     * Determine whether the user can invite new members to the business.
+     */
+    public function manageInvitations(User $user, Business $business): bool
+    {
+        return $business->isOwnedBy($user);
+    }
+
+    /**
+     * Determine whether the user can manage (e.g. remove) business members.
+     */
+    public function manageMembers(User $user, Business $business): bool
+    {
+        return $business->isOwnedBy($user);
+    }
+
+    /**
      * Determine whether the user can update the business.
      */
     public function update(User $user, Business $business): bool
