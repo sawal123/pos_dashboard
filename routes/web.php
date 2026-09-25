@@ -3,6 +3,7 @@
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\BusinessInvitationsController;
 use App\Http\Controllers\Dashboard\BusinessMembersController;
+use App\Http\Controllers\Dashboard\BusinessSettingsController;
 use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
@@ -130,6 +131,14 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('subscription', [SubscriptionsController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::SUBSCRIPTION_MANAGE)
         ->name('subscriptions.index');
+
+    // DASH-14 — owner-only business profile / business type setup.
+    Route::get('business-settings', [BusinessSettingsController::class, 'edit'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.edit');
+    Route::patch('business-settings/business-type', [BusinessSettingsController::class, 'update'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.business-type.update');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');
