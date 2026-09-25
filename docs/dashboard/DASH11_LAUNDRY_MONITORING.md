@@ -23,9 +23,18 @@ of the dataset. The lifecycle values used by the POS/sync contract are
 `Masuk`, `Diproses`, `Siap Diambil`, `Selesai` (`sales.order_status`).
 
 `order_status` is the operational lifecycle and is **completely independent of**
-`payment_status` (`paid` / `unpaid`) and of the transaction `status`
-(`completed` / `cancelled`). An order can be `Selesai` and still `unpaid`; the UI
-shows both separately.
+the transaction `status` and of `payment_status`. The three axes answer different
+questions and are never mixed:
+
+| Axis | Column | Values (audited) | Meaning |
+| --- | --- | --- | --- |
+| Status pengerjaan (laundry) | `sales.order_status` | `Masuk`, `Diproses`, `Siap Diambil`, `Selesai` | how far the laundry work has progressed |
+| Status transaksi | `sales.status` | `completed`, `cancelled` / `canceled`, `void` | whether the sale still stands |
+| Status pembayaran | `sales.payment_status` | `paid`, `unpaid` | whether the order has been paid |
+
+An order can be `Selesai` and still `unpaid` (both are shown separately), and a
+`completed + paid` transaction can still be `Diproses`. Only the overdue metric
+reacts to the transaction status (see §3); the order counters do not.
 
 ---
 
@@ -67,24 +76,43 @@ ignore list filters. This is a deliberate, documented decision.
 | Total Pesanan | `COUNT(*)` of laundry orders in the active business |
 | Masuk / Diproses / Siap Diambil / Selesai | `COUNT(*)` by exact `order_status` |
 | Terlambat | see overdue rule below |
-| Total Nilai Selesai & Lunas | `SUM(total_amount)` where transaction `status = completed` **AND** `payment_status = paid` |
+| Total Transaksi Lunas | `SUM(total_amount)` where transaction `status = completed` **AND** `payment_status = paid` (does **not** require `order_status = Selesai`) |
 
-`Total Nilai Selesai & Lunas` is intentionally a **separate** metric from the order
-counters. Canceled/void orders are never counted as realised revenue, and unpaid
-orders are excluded from it.
+`Total Transaksi Lunas` is intentionally a **separate** metric from the order
+counters. It reports completed + paid laundry transactions **regardless of the
+laundry `order_status`** — a paid order that is still `Diproses` is included.
+Cancelled/void transactions are never counted as realised revenue, and unpaid
+orders are excluded from it. The label deliberately avoids “Selesai” so it can
+never be confused with the laundry `Selesai` pengerjaan status; the underlying
+formula is unchanged.
 
 ### Overdue rule
 
-An order is **overdue** when:
+An order is **overdue** when all of the following hold:
 
 ```
 estimated_completed_at IS NOT NULL
 AND estimated_completed_at < now()
 AND order_status != 'Selesai'
+AND sales.status NOT IN ('cancelled', 'canceled', 'void')
 ```
 
 * Orders **without** an estimate are never overdue.
 * Orders already `Selesai` are never overdue, even if the estimate has passed.
+* A **cancelled or voided transaction is never overdue**, even while its laundry
+  `order_status` is still active. The audited cancellation values are
+  `cancelled` / `canceled` (dashboard presentation maps and feature tests) and
+  `void` (`SaleFoundationTest` proves a sale can be stored with `status = void`).
+  `deleted` is not included: sales are never tombstoned.
+* An **unpaid** order is still overdue while its laundry process is active —
+  payment status never suppresses overdue.
+* Cancellation affects **only** the overdue metric. The total order count and the
+  per-status (`Masuk`/`Diproses`/`Siap Diambil`/`Selesai`) counters are unchanged,
+  and the order still appears in the list.
+
+The exact same definition is applied to the summary `overdue` count, the
+`overdue` filter, the `ontime` filter (its complement), and the `is_overdue` field
+on both the list rows and the detail payload.
 
 ---
 
@@ -140,13 +168,15 @@ The laundry lifecycle continues to be controlled by the existing POS/sync system
 
 ## 7. Tests
 
-`tests/Feature/LaundryOrdersPageTest.php` (26 tests) covers access control, tenant
+`tests/Feature/LaundryOrdersPageTest.php` (32 tests) covers access control, tenant
 isolation, list/detail `404` for foreign and non-laundry sales, business switching,
-per-status summary, the three overdue scenarios, all filters (status, payment,
-outlet), search (number/name/phone), date ranges, 25-item pagination with query
-string, decimal quantity precision, snapshot pricing, customer identity fallback,
-revenue separation, order-vs-payment independence, invalid-parameter safety and
-cross-tenant data leakage.
+per-status summary, every overdue scenario (no estimate, finished, late active,
+late unpaid, cancelled, void, and summary/filter/detail consistency), all filters
+(status, payment, outlet, overdue/ontime), search (number/name/phone), date ranges,
+25-item pagination with query string, decimal quantity precision, snapshot pricing,
+customer identity fallback, revenue separation (cancelled/void/unpaid excluded; a
+completed+paid order still `Diproses` is included), order-vs-payment independence,
+invalid-parameter safety and cross-tenant data leakage.
 
 `DashboardTest` was updated to assert the laundry menu is now visible and wired to
 the route (it previously asserted the always-false gate).

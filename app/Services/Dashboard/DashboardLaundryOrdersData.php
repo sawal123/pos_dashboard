@@ -45,6 +45,19 @@ class DashboardLaundryOrdersData
     ];
 
     /**
+     * Transaction statuses that mean the sale was cancelled or voided.
+     *
+     * Audited from the project: `cancelled` / `canceled` (dashboard presentation
+     * maps and feature tests) and `void` (SaleFoundationTest proves a sale can be
+     * stored with status `void`). Sales are never tombstoned to `deleted` — the
+     * sync contract rejects sale deletions — so that value is intentionally not
+     * included.
+     *
+     * @var list<string>
+     */
+    private const CANCELLED_TRANSACTION_STATUSES = ['cancelled', 'canceled', 'void'];
+
+    /**
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
@@ -198,8 +211,10 @@ class DashboardLaundryOrdersData
     }
 
     /**
-     * Overdue = an estimate exists, it is in the past, and the order is not
-     * finished. Orders without an estimate are never overdue.
+     * Overdue = an estimate exists, it is in the past, the laundry order is not
+     * finished, and the underlying transaction was not cancelled or voided.
+     * Orders without an estimate are never overdue, and an unpaid order is still
+     * overdue while its laundry process remains active.
      *
      * @param  Builder<Sale>  $query
      * @return Builder<Sale>
@@ -209,6 +224,7 @@ class DashboardLaundryOrdersData
         return $query
             ->whereNotNull('estimated_completed_at')
             ->where('estimated_completed_at', '<', now()->toDateTimeString())
+            ->whereNotIn('status', self::CANCELLED_TRANSACTION_STATUSES)
             ->where(function (Builder $sub): void {
                 $sub->whereNull('order_status')
                     ->orWhere('order_status', '!=', self::STATUS_DONE);
@@ -216,6 +232,10 @@ class DashboardLaundryOrdersData
     }
 
     /**
+     * The exact complement of {@see applyOverdue()}: orders without an estimate,
+     * estimates not yet passed, finished orders, and cancelled/voided
+     * transactions are all "not overdue".
+     *
      * @param  Builder<Sale>  $query
      * @return Builder<Sale>
      */
@@ -224,7 +244,8 @@ class DashboardLaundryOrdersData
         return $query->where(function (Builder $sub): void {
             $sub->whereNull('estimated_completed_at')
                 ->orWhere('estimated_completed_at', '>=', now()->toDateTimeString())
-                ->orWhere('order_status', self::STATUS_DONE);
+                ->orWhere('order_status', self::STATUS_DONE)
+                ->orWhereIn('status', self::CANCELLED_TRANSACTION_STATUSES);
         });
     }
 
@@ -354,9 +375,11 @@ class DashboardLaundryOrdersData
         $paymentStatusRaw = (string) $sale->payment_status;
 
         $estimated = $sale->estimated_completed_at;
+        $isCancelled = in_array(strtolower((string) $sale->status), self::CANCELLED_TRANSACTION_STATUSES, true);
         $isOverdue = $estimated !== null
             && $estimated->isPast()
-            && $orderStatusRaw !== self::STATUS_DONE;
+            && $orderStatusRaw !== self::STATUS_DONE
+            && ! $isCancelled;
 
         $order = [
             'id' => (int) $sale->id,

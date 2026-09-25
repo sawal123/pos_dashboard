@@ -228,6 +228,125 @@ class LaundryOrdersPageTest extends TestCase
         $filtered->assertSee('LDR-OVERDUE');
     }
 
+    public function test_unpaid_active_order_with_past_estimate_is_still_overdue(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $this->createSale($business, [
+            'transaction_number' => 'LDR-UNPAID-LATE',
+            'order_status' => 'Diproses',
+            'payment_status' => 'unpaid',
+            'estimated_completed_at' => now()->subHours(5),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('laundry-orders.index'));
+
+        $response->assertOk();
+        // An unpaid order is still overdue while its laundry process is active.
+        $response->assertViewHas('summary', fn (array $summary): bool => $summary['overdue'] === 1);
+        $this->assertTrue($this->orderRow($response, 'LDR-UNPAID-LATE')['is_overdue']);
+    }
+
+    public function test_cancelled_transaction_is_not_overdue(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $this->createSale($business, [
+            'transaction_number' => 'LDR-CANCELLED',
+            'order_status' => 'Diproses',
+            'status' => 'cancelled',
+            'estimated_completed_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('laundry-orders.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('summary', fn (array $summary): bool => $summary['overdue'] === 0);
+        $this->assertFalse($this->orderRow($response, 'LDR-CANCELLED')['is_overdue']);
+
+        $overdue = $this->actingAs($user)->get(route('laundry-orders.index', ['overdue' => 'overdue']));
+        $overdue->assertDontSee('LDR-CANCELLED');
+
+        $onTime = $this->actingAs($user)->get(route('laundry-orders.index', ['overdue' => 'ontime']));
+        $onTime->assertSee('LDR-CANCELLED');
+    }
+
+    public function test_void_transaction_is_not_overdue(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $sale = $this->createSale($business, [
+            'transaction_number' => 'LDR-VOID',
+            'order_status' => 'Masuk',
+            'status' => 'void',
+            'estimated_completed_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('laundry-orders.index'));
+
+        $response->assertOk();
+        $response->assertViewHas('summary', fn (array $summary): bool => $summary['overdue'] === 0);
+        $this->assertFalse($this->orderRow($response, 'LDR-VOID')['is_overdue']);
+
+        $detail = $this->actingAs($user)->getJson(route('laundry-orders.detail', $sale->id));
+        $detail->assertOk();
+        $this->assertFalse($detail->json('is_overdue'));
+    }
+
+    public function test_cancelled_order_still_counts_in_totals_and_status_buckets(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $this->createSale($business, [
+            'order_status' => 'Diproses',
+            'status' => 'cancelled',
+            'estimated_completed_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('laundry-orders.index'));
+
+        $response->assertOk();
+        // Only the overdue metric ignores cancellation; totals and status buckets
+        // are unchanged.
+        $response->assertViewHas('summary', fn (array $summary): bool => $summary['total_orders'] === 1
+            && $summary['diproses'] === 1
+            && $summary['overdue'] === 0);
+    }
+
+    public function test_overdue_is_consistent_across_summary_filter_and_detail(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $late = $this->createSale($business, [
+            'transaction_number' => 'LDR-CONSIST-LATE',
+            'order_status' => 'Diproses',
+            'estimated_completed_at' => now()->subHours(2),
+        ]);
+        $this->createSale($business, [
+            'transaction_number' => 'LDR-CONSIST-CANCELLED',
+            'order_status' => 'Diproses',
+            'status' => 'canceled',
+            'estimated_completed_at' => now()->subHours(2),
+        ]);
+        $this->createSale($business, [
+            'transaction_number' => 'LDR-CONSIST-ONTIME',
+            'order_status' => 'Diproses',
+            'estimated_completed_at' => now()->addDay(),
+        ]);
+
+        $list = $this->actingAs($user)->get(route('laundry-orders.index'));
+        $list->assertOk();
+        $list->assertViewHas('summary', fn (array $summary): bool => $summary['overdue'] === 1);
+        $this->assertTrue($this->orderRow($list, 'LDR-CONSIST-LATE')['is_overdue']);
+        $this->assertFalse($this->orderRow($list, 'LDR-CONSIST-CANCELLED')['is_overdue']);
+        $this->assertFalse($this->orderRow($list, 'LDR-CONSIST-ONTIME')['is_overdue']);
+
+        $filtered = $this->actingAs($user)->get(route('laundry-orders.index', ['overdue' => 'overdue']));
+        $filtered->assertOk();
+        $filtered->assertSee('LDR-CONSIST-LATE');
+        $filtered->assertDontSee('LDR-CONSIST-CANCELLED');
+        $filtered->assertDontSee('LDR-CONSIST-ONTIME');
+
+        $detail = $this->actingAs($user)->getJson(route('laundry-orders.detail', $late->id));
+        $detail->assertOk();
+        $this->assertTrue($detail->json('is_overdue'));
+    }
+
     // ============================================================
     // Filters
     // ============================================================
@@ -440,7 +559,7 @@ class LaundryOrdersPageTest extends TestCase
     // Revenue separation & status independence
     // ============================================================
 
-    public function test_canceled_or_unpaid_orders_are_not_counted_as_revenue(): void
+    public function test_cancelled_void_or_unpaid_orders_are_not_counted_as_revenue(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
@@ -451,12 +570,19 @@ class LaundryOrdersPageTest extends TestCase
             'payment_status' => 'paid',
             'total_amount' => 25000,
         ]);
-        // Canceled but "paid" — must be excluded.
+        // Cancelled but "paid" — must be excluded.
         $this->createSale($business, [
             'order_status' => 'Selesai',
             'status' => 'cancelled',
             'payment_status' => 'paid',
             'total_amount' => 50000,
+        ]);
+        // Void but "paid" — must be excluded.
+        $this->createSale($business, [
+            'order_status' => 'Selesai',
+            'status' => 'void',
+            'payment_status' => 'paid',
+            'total_amount' => 70000,
         ]);
         // Completed but unpaid — must be excluded.
         $this->createSale($business, [
@@ -470,6 +596,26 @@ class LaundryOrdersPageTest extends TestCase
 
         $response->assertOk();
         $response->assertViewHas('summary', fn (array $summary): bool => $summary['paid_revenue'] === 25000);
+    }
+
+    public function test_completed_paid_processing_order_counts_toward_revenue(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        // Paid and completed transaction while the laundry process is still running.
+        $this->createSale($business, [
+            'transaction_number' => 'LDR-PAID-PROCESSING',
+            'order_status' => 'Diproses',
+            'status' => 'completed',
+            'payment_status' => 'paid',
+            'total_amount' => 40000,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('laundry-orders.index'));
+
+        $response->assertOk();
+        // The revenue metric does NOT require order_status = Selesai.
+        $response->assertViewHas('summary', fn (array $summary): bool => $summary['paid_revenue'] === 40000
+            && $summary['diproses'] === 1);
     }
 
     public function test_payment_status_is_never_mixed_with_order_status(): void

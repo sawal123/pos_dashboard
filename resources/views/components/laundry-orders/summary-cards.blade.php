@@ -32,18 +32,22 @@
         @endforeach
     </div>
 
-    {{-- Revenue is intentionally separated from the order counters: it only ever
-         sums completed + paid transactions, so canceled/void orders are excluded. --}}
+    {{-- Revenue is intentionally separated from the order counters. Its formula is
+         transaction status = completed AND payment_status = paid; it does NOT
+         require order_status = Selesai, so a paid-and-completed order still being
+         processed is included, while canceled/void/unpaid orders are excluded. --}}
     <div class="rounded-2xl bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-900/60 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 shrink-0 rounded-xl bg-white/70 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-300">
                 <i data-lucide="banknote" class="w-5 h-5"></i>
             </div>
             <div>
-                <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Total Nilai Selesai &amp; Lunas</p>
+                <p class="text-xs font-semibold text-indigo-700 dark:text-indigo-300">Total Transaksi Lunas</p>
                 <p class="text-[11px] text-indigo-600/80 dark:text-indigo-300/80">
-                    Hanya pesanan berstatus transaksi <span class="font-semibold">Selesai (completed)</span> dan
-                    <span class="font-semibold">Lunas (paid)</span>. Pesanan batal/void tidak dihitung.
+                    Total nilai transaksi laundry yang berstatus transaksi
+                    <span class="font-semibold">Selesai (completed)</span> dan
+                    <span class="font-semibold">Lunas (paid)</span>, terlepas dari status pengerjaan laundry.
+                    Transaksi batal, void, dan belum lunas tidak dihitung.
                 </p>
             </div>
         </div>
