@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\BusinessType;
 use Database\Factories\BusinessFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $slug
  * @property string $status
+ * @property string|null $business_type
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
@@ -37,7 +39,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
-#[Fillable(['name', 'slug', 'status'])]
+#[Fillable(['name', 'slug', 'status', 'business_type'])]
 class Business extends Model
 {
     /** Membership role values that have a defined authorization contract. */
@@ -314,5 +316,30 @@ class Business extends Model
     public function hasCloudAccess(): bool
     {
         return $this->subscription !== null && $this->subscription->hasCloudAccess();
+    }
+
+    /**
+     * The persisted business type, normalized from any explicit legacy value.
+     * Returns null when the type is not determined — never a guessed default.
+     */
+    public function businessType(): ?BusinessType
+    {
+        return BusinessType::tryFromInput($this->business_type);
+    }
+
+    /**
+     * Canonical stored value (`cafe` / `laundry` / `grosir`) or null (unknown).
+     */
+    public function normalizedBusinessType(): ?string
+    {
+        return $this->businessType()?->value;
+    }
+
+    /**
+     * Display label for the business type, or an explicit "not set" label.
+     */
+    public function businessTypeLabel(): string
+    {
+        return $this->businessType()?->label() ?? 'Belum ditentukan';
     }
 }

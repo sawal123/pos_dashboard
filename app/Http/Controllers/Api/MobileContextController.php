@@ -38,7 +38,7 @@ class MobileContextController extends Controller
 
         $deviceIdentifier = (string) $request->query('device_identifier', '');
 
-        /** @var array<int, array{id: int, name: string, subscription: array{plan: string, status: string}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
+        /** @var array<int, array{id: int, name: string, business_type: string|null, subscription: array{plan: string, status: string}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
         $businessData = $businesses->map(function (Business $business) use ($deviceIdentifier): array {
             /** @var Subscription|null $subscription */
             $subscription = $business->subscription;
@@ -81,6 +81,10 @@ class MobileContextController extends Controller
             return [
                 'id' => $business->id,
                 'name' => $business->name,
+                // DASH-14 — additive/optional business type: canonical value
+                // (`cafe` | `laundry` | `grosir`) or null when not determined.
+                // Existing keys are unchanged; legacy clients can ignore it.
+                'business_type' => $business->normalizedBusinessType(),
                 'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,
