@@ -171,6 +171,7 @@
             <x-ui.sidebar-item
                 icon="credit-card"
                 label="Langganan"
+                route="subscriptions.index"
             />
             <x-ui.sidebar-item
                 icon="settings"
@@ -198,19 +199,21 @@
             <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
                 {{ $subConfig['description'] }}
             </p>
-            <button
-                type="button"
+            <a
+                href="{{ route('subscriptions.index') }}"
+                wire:navigate
                 id="managePlanBtn"
-                class="mt-2 w-full py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                class="mt-2 block w-full py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
                 {{ $subConfig['buttonText'] }}
-            </button>
+            </a>
         </div>
 
         {{-- Collapsed State Mini Icon --}}
         <div class="sidebar-cloud-mini hidden justify-center py-2">
-            <button
-                type="button"
+            <a
+                href="{{ route('subscriptions.index') }}"
+                wire:navigate
                 id="managePlanMiniBtn"
                 class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 data-tooltip-right="{{ $subConfig['miniTooltip'] }}"
@@ -218,7 +221,7 @@
             >
                 <i data-lucide="cloud" class="w-4 h-4"></i>
                 <span class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full {{ $subConfig['miniDotClass'] }}"></span>
-            </button>
+            </a>
         </div>
     </div>
 
