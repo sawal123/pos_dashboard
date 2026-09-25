@@ -738,14 +738,22 @@ class ReportsPageTest extends TestCase
         $response->assertDontSee('const allExpenses', false);
     }
 
-    public function test_51_export_button_is_a_placeholder(): void
+    public function test_51_export_button_offers_csv_xlsx_and_pdf(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
         $response = $this->actingAs($user)->get(route('reports.index'));
         $response->assertOk();
         $response->assertSee('Ekspor Laporan');
-        $response->assertSee('Ekspor laporan dari dashboard belum tersedia.');
+        $response->assertSee('Download CSV');
+        $response->assertSee('Download Excel (XLSX)');
+        $response->assertSee('Download PDF');
+        // DASH-13: the placeholder toast is gone; the button is a real dropdown
+        // wired to the export endpoints.
+        $response->assertSee(route('reports.export.csv'), false);
+        $response->assertSee(route('reports.export.xlsx'), false);
+        $response->assertSee(route('reports.export.pdf'), false);
+        $response->assertDontSee('Ekspor laporan dari dashboard belum tersedia.');
     }
 
     public function test_52_report_queries_are_tenant_scoped(): void

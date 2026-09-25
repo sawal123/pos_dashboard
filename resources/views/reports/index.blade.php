@@ -53,14 +53,6 @@
             </div>
         @endif
 
-        {{-- Toast notification for placeholder actions --}}
-        <div id="reportActionToast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl text-xs font-semibold">
-                <i data-lucide="info" class="w-4 h-4 text-indigo-400 dark:text-indigo-600"></i>
-                <span id="reportActionToastText">Aksi belum tersedia</span>
-            </div>
-        </div>
-
     </main>
 
     {{-- ==================== CLIENT-SIDE SCRIPTS ==================== --}}
@@ -79,39 +71,79 @@
             }
             document.body.style.overflow = '';
 
-            // Date select toggle
+            // DASH-13 — export dropdown (CSV / XLSX / PDF).
             const dateSelect = document.getElementById('filterReportDate');
             const customDateContainer = document.getElementById('reportCustomDateContainer');
             const exportBtn = document.getElementById('exportReportBtn');
-            const toastEl = document.getElementById('reportActionToast');
-            const toastTextEl = document.getElementById('reportActionToastText');
-            let toastTimer = null;
+            const exportMenu = document.getElementById('exportReportMenu');
+            const exportLabel = document.getElementById('exportReportBtnLabel');
+            const filterForm = document.getElementById('reportFilterForm');
+            let exportBusy = false;
 
-            function showToast(message) {
-                if (!toastEl || !toastTextEl) return;
-                toastTextEl.textContent = message;
-                toastEl.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
-                toastEl.classList.add('translate-y-0', 'opacity-100');
-                if (toastTimer) clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => {
-                    toastEl.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-                    toastEl.classList.remove('translate-y-0', 'opacity-100');
-                }, 3000);
-            }
+            const setExportMenuOpen = (open) => {
+                if (!exportMenu || !exportBtn) return;
+                exportMenu.classList.toggle('hidden', !open);
+                exportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            };
 
-            if (exportBtn) {
-                exportBtn.onclick = () => {
-                    showToast('Ekspor laporan dari dashboard belum tersedia.');
+            // Build the download URL from the form's *current* values so the
+            // export always carries the filters the user is looking at.
+            const exportUrl = (baseUrl) => {
+                const url = new URL(baseUrl, window.location.origin);
+                const params = new URLSearchParams();
+
+                if (filterForm) {
+                    ['date', 'start_date', 'end_date', 'outlet_id'].forEach((name) => {
+                        const field = filterForm.elements.namedItem(name);
+                        if (!field) return;
+                        const value = field.value;
+                        if (value === '' || value === 'all') return;
+                        params.set(name, value);
+                    });
+                }
+
+                url.search = params.toString();
+
+                return url.toString();
+            };
+
+            if (exportBtn && exportMenu) {
+                exportBtn.onclick = (event) => {
+                    event.stopPropagation();
+                    setExportMenuOpen(exportMenu.classList.contains('hidden'));
+                };
+
+                exportMenu.onclick = (event) => {
+                    event.stopPropagation();
+                    const option = event.target instanceof Element
+                        ? event.target.closest('.export-report-option')
+                        : null;
+
+                    if (!option || exportBusy) return;
+
+                    event.preventDefault();
+                    exportBusy = true;
+
+                    if (exportLabel) exportLabel.textContent = 'Menyiapkan…';
+                    exportBtn.setAttribute('aria-busy', 'true');
+                    exportBtn.classList.add('opacity-60', 'pointer-events-none');
+
+                    window.location.href = exportUrl(option.getAttribute('data-export-base') || option.href);
+
+                    // A file download does not unload the page, so restore the
+                    // trigger shortly after.
+                    window.setTimeout(() => {
+                        exportBusy = false;
+                        if (exportLabel) exportLabel.textContent = 'Ekspor Laporan';
+                        exportBtn.removeAttribute('aria-busy');
+                        exportBtn.classList.remove('opacity-60', 'pointer-events-none');
+                    }, 2500);
                 };
             }
 
             if (dateSelect && customDateContainer) {
                 dateSelect.onchange = () => {
-                    if (dateSelect.value === 'custom') {
-                        customDateContainer.classList.remove('hidden');
-                    } else {
-                        customDateContainer.classList.add('hidden');
-                    }
+                    customDateContainer.classList.toggle('hidden', dateSelect.value !== 'custom');
                 };
             }
 
@@ -126,6 +158,49 @@
             window.__reportsListenersBound = true;
             document.addEventListener('DOMContentLoaded', initReportsPage);
             document.addEventListener('livewire:navigated', initReportsPage);
+
+            const closeExportMenu = () => {
+                const menu = document.getElementById('exportReportMenu');
+                const btn = document.getElementById('exportReportBtn');
+                if (!menu || menu.classList.contains('hidden')) return;
+                menu.classList.add('hidden');
+                if (btn) btn.setAttribute('aria-expanded', 'false');
+            };
+
+            // Registered once — closing the menu must not stack listeners on
+            // repeated Livewire navigations.
+            document.addEventListener('click', (event) => {
+                const wrapper = document.getElementById('exportReportWrapper');
+                if (!wrapper || (event.target instanceof Node && wrapper.contains(event.target))) return;
+                closeExportMenu();
+            });
+
+            document.addEventListener('keydown', (event) => {
+                const menu = document.getElementById('exportReportMenu');
+                const btn = document.getElementById('exportReportBtn');
+                if (!menu || menu.classList.contains('hidden')) return;
+
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeExportMenu();
+                    if (btn) btn.focus();
+                    return;
+                }
+
+                if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+                const options = Array.from(menu.querySelectorAll('.export-report-option'));
+                if (options.length === 0) return;
+
+                event.preventDefault();
+                const index = options.indexOf(document.activeElement);
+                const nextIndex = event.key === 'ArrowDown'
+                    ? (index + 1 + options.length) % options.length
+                    : (index - 1 + options.length) % options.length;
+                options[nextIndex].focus();
+            });
+
+            document.addEventListener('livewire:navigating', closeExportMenu);
         }
     </script>
 </x-layouts::app>
