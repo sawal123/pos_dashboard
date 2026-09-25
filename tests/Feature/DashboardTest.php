@@ -32,7 +32,10 @@ class DashboardTest extends TestCase
         $response->assertSee('Status Cloud');
         $response->assertSee('Belum Ada Notifikasi');
         $response->assertDontSee('Subscriber Aktif');
-        $response->assertDontSee('Pesanan Laundry');
+        // DASH-11: the laundry menu is always reachable — there is no persisted
+        // business type to gate on (see docs/dashboard/DASH11_LAUNDRY_MONITORING.md).
+        $response->assertSee('Pesanan Laundry');
+        $response->assertSee(route('laundry-orders.index'), false);
         $response->assertDontSee('sidebar-item-label truncate flex-1 tracking-tight">Categories', false);
     }
 

@@ -5,6 +5,7 @@ use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
+use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
 use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
@@ -35,6 +36,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('customers/{customerId}/detail', [CustomersController::class, 'detail'])
         ->whereNumber('customerId')
         ->name('customers.detail');
+    Route::get('laundry-orders', [LaundryOrdersController::class, 'index'])->name('laundry-orders.index');
+    Route::get('laundry-orders/{saleId}/detail', [LaundryOrdersController::class, 'detail'])
+        ->whereNumber('saleId')
+        ->name('laundry-orders.detail');
     Route::get('outlets', [OutletsController::class, 'index'])->name('outlets.index');
     Route::get('outlets/{outletId}/detail', [OutletsController::class, 'detail'])
         ->whereNumber('outletId')
