@@ -13,6 +13,7 @@ use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
+use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
@@ -123,6 +124,12 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('sync', [SyncMonitoringController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::SYNC_VIEW)
         ->name('sync.index');
+
+    // DASH-12A — subscription overview. Owner-only, aligned with the controller
+    // authorization via the shared SUBSCRIPTION_MANAGE permission (DASH-10B2).
+    Route::get('subscription', [SubscriptionsController::class, 'index'])
+        ->middleware('business.permission:'.BusinessPermission::SUBSCRIPTION_MANAGE)
+        ->name('subscriptions.index');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

@@ -58,11 +58,14 @@ Legend: ✓ = allowed, ✗ = HTTP 403.
 | `users.members.role.update` | `roles.manage` | ✓ | ✗ | ✗ |
 | `devices.index` | `devices.view` | ✓ | ✗ | ✗ |
 | `sync.index` | `sync.view` | ✓ | ✗ | ✗ |
+| `subscriptions.index` (DASH-12A) | `subscription.manage` | ✓ | ✗ | ✗ |
 | `dashboard.business-context.update` | membership (`BusinessPolicy::view`) | ✓ | ✓ | ✓ |
 
-`subscription.manage` is owner-only and currently has no route (the "Langganan"
-sidebar item is a placeholder); it exists so the UI does not advertise a page a
-non-owner cannot use.
+`subscription.manage` is owner-only and is enforced both by the route middleware
+and by `SubscriptionsController` (`Gate::authorize('update', ...)`). The sidebar
+"Langganan" entry and both "Kelola Paket" actions (expanded and collapsed) use
+this same permission and point at `subscriptions.index`; the "Paket Cloud" card
+itself stays visible to every role as read-only information.
 
 ### API endpoints (`routes/api.php`, `auth:sanctum`)
 

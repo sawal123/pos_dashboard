@@ -44,6 +44,7 @@ class CashierRbacTest extends TestCase
         'users.index',
         'devices.index',
         'sync.index',
+        'subscriptions.index',
     ];
 
     public function test_owner_can_access_every_dashboard_route(): void
@@ -97,6 +98,7 @@ class CashierRbacTest extends TestCase
         $this->get(route('devices.index'))->assertForbidden();
         $this->get(route('sync.index'))->assertForbidden();
         $this->get(route('outlets.index'))->assertForbidden();
+        $this->get(route('subscriptions.index'))->assertForbidden();
     }
 
     public function test_role_is_evaluated_against_the_active_business_only(): void
@@ -187,6 +189,7 @@ class CashierRbacTest extends TestCase
         $cashier->assertDontSee(route('users.index'), false);
         $cashier->assertDontSee(route('devices.index'), false);
         $cashier->assertDontSee(route('sync.index'), false);
+        $cashier->assertDontSee(route('subscriptions.index'), false);
 
         $ownerBusiness = Business::factory()->create();
         $this->actingAsRole($ownerBusiness, 'owner');
@@ -197,6 +200,7 @@ class CashierRbacTest extends TestCase
         $owner->assertSee(route('users.index'), false);
         $owner->assertSee(route('devices.index'), false);
         $owner->assertSee(route('sync.index'), false);
+        $owner->assertSee(route('subscriptions.index'), false);
     }
 
     public function test_user_without_business_keeps_empty_state_but_no_member_admin_access(): void

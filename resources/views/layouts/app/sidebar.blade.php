@@ -483,17 +483,6 @@
                 });
             });
 
-            // ========== MANAGE PLAN BUTTON ==========
-            const managePlanHandler = () => showToast('info', 'Halaman kelola paket langganan akan segera tersedia.');
-            const managePlanBtn = document.getElementById('managePlanBtn');
-            const managePlanMiniBtn = document.getElementById('managePlanMiniBtn');
-            if (managePlanBtn) {
-                managePlanBtn.addEventListener('click', managePlanHandler);
-            }
-            if (managePlanMiniBtn) {
-                managePlanMiniBtn.addEventListener('click', managePlanHandler);
-            }
-
             // ========== ACTION DROPDOWNS ==========
             function closeAllActionDropdowns(except) {
                 document.querySelectorAll('.action-dropdown').forEach(d => {
