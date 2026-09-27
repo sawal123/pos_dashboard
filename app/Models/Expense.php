@@ -6,6 +6,7 @@ use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property Carbon $occurred_at
  * @property string|null $notes
+ * @property string|null $idempotency_key
  * @property string $sync_id
  * @property int $sync_version
  * @property int $sync_sequence
@@ -27,8 +29,9 @@ use Illuminate\Support\Carbon;
  * @property-read Business|null $business
  * @property-read Outlet|null $outlet
  * @property-read Shift|null $shift
+ * @property-read CashLedger|null $cashLedger
  */
-#[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'category', 'amount', 'status', 'occurred_at', 'notes'])]
+#[Fillable(['business_id', 'outlet_id', 'shift_id', 'description', 'category', 'amount', 'status', 'occurred_at', 'notes', 'idempotency_key'])]
 class Expense extends Model
 {
     use HasSyncMetadata;
@@ -83,5 +86,23 @@ class Expense extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    /**
+     * The linked cash movement when the expense was explicitly paid from cash.
+     *
+     * The payment ledger is identified deterministically as the single cash-out
+     * (`type = out`) row for this expense that is not itself a correction
+     * (`reverses_ledger_id` is null). Void refunds and legacy reversals preserve
+     * the same `expense_id` but are cash-in corrections, so they can never be
+     * mistaken for the original payment.
+     *
+     * @return HasOne<CashLedger, $this>
+     */
+    public function cashLedger(): HasOne
+    {
+        return $this->hasOne(CashLedger::class, 'expense_id')
+            ->where('type', 'out')
+            ->whereNull('reverses_ledger_id');
     }
 }

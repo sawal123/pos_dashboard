@@ -661,7 +661,7 @@ class CashPageTest extends TestCase
     }
 
     // ============================================================
-    // 44-50. Fixture Removal & Read-Only Constraints
+    // 44-50. Fixture Removal & Management Actions
     // ============================================================
 
     public function test_44_fixture_trx_260921_001_does_not_appear_when_db_is_empty(): void
@@ -718,24 +718,28 @@ class CashPageTest extends TestCase
         }
     }
 
-    public function test_49_record_cash_is_readonly_placeholder(): void
+    public function test_49_record_cash_action_opens_real_form_without_placeholder_copy(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
         $response = $this->actingAs($user)->get(route('cash.index'));
         $response->assertOk();
         $response->assertSee('Catat Kas');
-        $response->assertSee('Catat kas dari dashboard belum tersedia.');
+        $response->assertSee(route('cash.ledger.store'), false);
+        $response->assertSee('name="idempotency_key"', false);
+        $response->assertDontSee('Catat kas dari dashboard belum tersedia.');
     }
 
-    public function test_50_add_expense_is_readonly_placeholder(): void
+    public function test_50_add_expense_action_opens_real_form_without_placeholder_copy(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
         $response = $this->actingAs($user)->get(route('cash.index'));
         $response->assertOk();
         $response->assertSee('Tambah Pengeluaran');
-        $response->assertSee('Tambah pengeluaran dari dashboard belum tersedia.');
+        $response->assertSee(route('cash.expenses.store'), false);
+        $response->assertSee('Dibayar dari Kas');
+        $response->assertDontSee('Tambah pengeluaran dari dashboard belum tersedia.');
     }
 
     public function test_51_cash_tabs_are_keyboard_focusable_links(): void
