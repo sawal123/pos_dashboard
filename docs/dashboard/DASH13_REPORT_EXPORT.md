@@ -181,9 +181,12 @@ library is installed. Required PHP extensions: `dom`, `mbstring`, `xmlreader`,
 The `Ekspor Laporan` button on the reports page is now a real dropdown with
 **Download CSV**, **Download Excel (XLSX)** and **Download PDF**:
 
-* Each item is a real link (works without JS) and its URL is **rebuilt from the
-  form's current values** on click, so the export carries the filters the user is
-  looking at.
+* Each item is a real link (works without JS) whose URL is built **server-side
+  from the filters that were actually applied** to the report on screen
+  (`$currentFilters` → normalised query). Clicking it downloads that exact URL,
+  so an unsaved change in the filter form (e.g. selecting another outlet without
+  pressing *Terapkan Filter*) can never leak into the file — the export always
+  matches the report currently displayed.
 * Keyboard accessible (`aria-haspopup`/`aria-expanded`, Arrow keys, Escape),
   closes on outside click, shows a short "Menyiapkan…" busy state, and registers
   its document listeners exactly once (no duplicates across Livewire
@@ -204,7 +207,10 @@ on-screen report, decimal preservation, CSV + XLSX formula-injection defence, an
 the export volume cap.
 
 `tests/Feature/ReportsPageTest.php` was updated (test 51) to assert the new
-dropdown instead of the old "not available yet" placeholder toast.
+dropdown instead of the old "not available yet" placeholder toast, and carries a
+regression guard (tests 55-58) that the export links are built from the
+**applied** filters for every format — outlet, custom date range and the no-filter
+default — and never from pending form values.
 
 Quality gates: `composer ci:check` (Pint + PHPStan level 7 + full suite),
 `npm run build`, `git diff --check`.

@@ -77,7 +77,6 @@
             const exportBtn = document.getElementById('exportReportBtn');
             const exportMenu = document.getElementById('exportReportMenu');
             const exportLabel = document.getElementById('exportReportBtnLabel');
-            const filterForm = document.getElementById('reportFilterForm');
             let exportBusy = false;
 
             const setExportMenuOpen = (open) => {
@@ -86,27 +85,11 @@
                 exportBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
             };
 
-            // Build the download URL from the form's *current* values so the
-            // export always carries the filters the user is looking at.
-            const exportUrl = (baseUrl) => {
-                const url = new URL(baseUrl, window.location.origin);
-                const params = new URLSearchParams();
-
-                if (filterForm) {
-                    ['date', 'start_date', 'end_date', 'outlet_id'].forEach((name) => {
-                        const field = filterForm.elements.namedItem(name);
-                        if (!field) return;
-                        const value = field.value;
-                        if (value === '' || value === 'all') return;
-                        params.set(name, value);
-                    });
-                }
-
-                url.search = params.toString();
-
-                return url.toString();
-            };
-
+            // Each option is a server-rendered link whose query string already
+            // carries the filters that were *applied* to the report currently
+            // on screen (normalised server-side). Downloading that exact URL
+            // keeps the export in lockstep with the displayed report, so an
+            // unsaved change in the filter form can never leak into the file.
             if (exportBtn && exportMenu) {
                 exportBtn.onclick = (event) => {
                     event.stopPropagation();
@@ -128,7 +111,7 @@
                     exportBtn.setAttribute('aria-busy', 'true');
                     exportBtn.classList.add('opacity-60', 'pointer-events-none');
 
-                    window.location.href = exportUrl(option.getAttribute('data-export-base') || option.href);
+                    window.location.href = option.href;
 
                     // A file download does not unload the page, so restore the
                     // trigger shortly after.

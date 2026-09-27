@@ -831,6 +831,78 @@ class ReportsPageTest extends TestCase
     }
 
     // ============================================================
+    // 55-58. DASH-13 — exports follow the *applied* filters
+    // ============================================================
+
+    public function test_55_export_links_use_the_applied_outlet_filter_for_every_format(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outletA = Outlet::factory()->create(['business_id' => $business->id]);
+        Outlet::factory()->create(['business_id' => $business->id]);
+
+        $response = $this->actingAs($user)->get(route('reports.index', ['outlet_id' => $outletA->id]));
+        $response->assertOk();
+
+        // The applied outlet must be baked into every download link, so a
+        // different selection left pending in the form cannot leak into a file.
+        foreach (['csv', 'xlsx', 'pdf'] as $format) {
+            $response->assertSee(route('reports.export.'.$format, [
+                'date' => 'all',
+                'outlet_id' => $outletA->id,
+            ]));
+        }
+    }
+
+    public function test_56_export_links_carry_the_applied_custom_date_range(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $response = $this->actingAs($user)->get(route('reports.index', [
+            'date' => 'custom',
+            'start_date' => '2026-06-01',
+            'end_date' => '2026-06-30',
+        ]));
+        $response->assertOk();
+
+        foreach (['csv', 'xlsx', 'pdf'] as $format) {
+            $response->assertSee(route('reports.export.'.$format, [
+                'date' => 'custom',
+                'start_date' => '2026-06-01',
+                'end_date' => '2026-06-30',
+            ]));
+        }
+    }
+
+    public function test_57_export_links_default_to_all_dates_when_no_filter_is_applied(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        $response = $this->actingAs($user)->get(route('reports.index'));
+        $response->assertOk();
+
+        foreach (['csv', 'xlsx', 'pdf'] as $format) {
+            $response->assertSee(route('reports.export.'.$format, ['date' => 'all']));
+        }
+    }
+
+    public function test_58_export_dropdown_never_rebuilds_urls_from_pending_form_values(): void
+    {
+        // Regression guard: the download must use the applied, server-rendered
+        // link (whose query carries the normalised filters), never the filter
+        // form's not-yet-submitted values.
+        $script = file_get_contents(resource_path('views/reports/index.blade.php'));
+        $filterBar = file_get_contents(resource_path('views/components/reports/filter-bar.blade.php'));
+
+        $this->assertIsString($script);
+        $this->assertIsString($filterBar);
+
+        $this->assertStringNotContainsString('filterForm', $script);
+        $this->assertStringNotContainsString('data-export-base', $script);
+        $this->assertStringNotContainsString('data-export-base', $filterBar);
+        $this->assertStringContainsString('option.href', $script);
+    }
+
+    // ============================================================
     // Helpers
     // ============================================================
 

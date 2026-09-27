@@ -98,7 +98,6 @@
                         role="menuitem"
                         href="{{ route('reports.export.csv', $exportQuery) }}"
                         data-export-format="csv"
-                        data-export-base="{{ route('reports.export.csv') }}"
                         class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
                     >
                         <i data-lucide="file-spreadsheet" class="w-4 h-4 text-slate-400"></i>
@@ -108,7 +107,6 @@
                         role="menuitem"
                         href="{{ route('reports.export.xlsx', $exportQuery) }}"
                         data-export-format="xlsx"
-                        data-export-base="{{ route('reports.export.xlsx') }}"
                         class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
                     >
                         <i data-lucide="table-2" class="w-4 h-4 text-slate-400"></i>
@@ -118,7 +116,6 @@
                         role="menuitem"
                         href="{{ route('reports.export.pdf', $exportQuery) }}"
                         data-export-format="pdf"
-                        data-export-base="{{ route('reports.export.pdf') }}"
                         class="export-report-option flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
                     >
                         <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
