@@ -59,8 +59,31 @@ a device *should* exist for an outlet. It is deliberately **not**:
 
 Therefore `last_seen_at` is never set by the dashboard. A device only appears as
 "seen" once it actually calls the mobile API (`POST /api/mobile/devices`) or the
-sync endpoints, which stamp `last_seen_at`. The UI never labels an `active`
-device as "Online".
+sync endpoints, which stamp `last_seen_at`.
+
+**Status wording contract (UI, flash messages and docs):**
+
+* `active` means the device is **allowed to access the API** — it does **not**
+  mean the device is online. The UI never labels an `active` device as
+  "Online"/"Terhubung".
+* `last_seen_at` ("Akses API Terakhir") only shows the last time the device
+  actually called the API; an `active` device with a null `last_seen_at` is shown
+  as "Belum Pernah Akses API", never as online or connected.
+
+### Validation-error recovery
+
+Only a *modal* submission carries a `device_form` (`create`/`edit`) hidden field,
+so the server can restore the exact form after a validation redirect:
+
+* failed **registration** → the registration modal reopens with the user's input
+  and the field-level validation errors;
+* failed **edit** → the edit modal reopens for the **same device** with the
+  original PATCH method, the same device endpoint, the user's input, and the
+  identifier/outlet kept immutable;
+* failed **status toggle** → the error is shown, and no modal opens.
+
+The restore runs on both a full-page reload and Livewire navigation, and the
+modal's document listeners are bound exactly once (no duplicates).
 
 ---
 
@@ -177,14 +200,17 @@ These are documented, not fixed here (fixing them would expand DASH-17's scope):
 
 ## 12. Tests
 
-`tests/Feature/DeviceManagementTest.php` (28 tests): owner registration,
+`tests/Feature/DeviceManagementTest.php` (33 tests): owner registration,
 member/cashier/unknown denial, guest/unverified denial, active-business tenant,
 forged `business_id`, cross-tenant outlet, duplicate identifier (same/other
 business), outlet mismatch, no auto-reactivation, activate/deactivate,
 non-owner denial, foreign 404, concurrency race, `last_seen_at` honesty,
 inactive rejected by sync push/pull, mobile API recognition, cashier denial,
-cloud entitlement, filters/pagination, modal replacement and no cross-tenant
-leak. `DevicesPageTest` test 34 updated from the placeholder to the real modal.
+cloud entitlement, filters/pagination, modal replacement, no cross-tenant leak,
+and validation-error recovery (registration vs edit restore, immutable
+identifier/outlet, status error without opening the modal, and the
+active-≠-online wording). `DevicesPageTest` test 34 updated from the placeholder
+to the real modal.
 
 Regression suites: `DevicesPageTest`, `DeviceFoundationTest`,
 `MobileRoleAuthorizationTest`, `MobileSyncContextTest`, `SyncAuthorizationTest`,

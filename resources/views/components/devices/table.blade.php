@@ -14,7 +14,7 @@
                     <th scope="col" class="py-3.5 px-4">Outlet</th>
                     <th scope="col" class="py-3.5 px-4 text-center">Status</th>
                     <th scope="col" class="py-3.5 px-4">Terdaftar</th>
-                    <th scope="col" class="py-3.5 px-4">Terakhir Terlihat</th>
+                    <th scope="col" class="py-3.5 px-4">Akses API Terakhir</th>
                     <th scope="col" class="py-3.5 px-4 text-right">Aksi</th>
                 </tr>
             </thead>
@@ -35,7 +35,7 @@
                             $statusBadgeClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                             $statusDotClass = 'bg-slate-400';
                         }
-                        $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Terlihat';
+                        $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Akses API';
                     @endphp
                     <tr
                         class="device-row hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
@@ -104,7 +104,7 @@
                             </span>
                         </td>
 
-                        {{-- 7. Terakhir Terlihat --}}
+                        {{-- 7. Akses API Terakhir --}}
                         <td class="py-3 px-4">
                             @if(!empty($device['last_seen_at']))
                                 <span class="font-mono text-[11px] text-slate-700 dark:text-slate-300">
@@ -112,7 +112,7 @@
                                 </span>
                             @else
                                 <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
-                                    Belum Pernah Terlihat
+                                    Belum Pernah Akses API
                                 </span>
                             @endif
                         </td>

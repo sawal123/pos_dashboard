@@ -20,7 +20,7 @@
                 $statusBadgeClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                 $statusDotClass = 'bg-slate-400';
             }
-            $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Terlihat';
+            $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Akses API';
         @endphp
         <div
             class="device-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3"
@@ -58,12 +58,12 @@
 
             <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                 <div>
-                    <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Terakhir Terlihat</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Akses API Terakhir</span>
                     @if(!empty($device['last_seen_at']))
                         <span class="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-semibold">{{ $device['last_seen_at'] }}</span>
                     @else
                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
-                            Belum Pernah Terlihat
+                            Belum Pernah Akses API
                         </span>
                     @endif
                 </div>

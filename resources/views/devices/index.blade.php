@@ -132,7 +132,7 @@
                 document.getElementById('deviceDrawerOutlet').textContent = itemData.outlet_name || '-';
                 document.getElementById('deviceDrawerPlatform').textContent = itemData.platform || 'Tidak Diketahui';
                 document.getElementById('deviceDrawerRegisteredAt').textContent = itemData.registered_at || '-';
-                document.getElementById('deviceDrawerLastSeenAt').textContent = itemData.last_seen_at || 'Belum Pernah Terlihat';
+                document.getElementById('deviceDrawerLastSeenAt').textContent = itemData.last_seen_at || 'Belum Pernah Akses API';
 
                 // Status Badge
                 const badgeContainer = document.getElementById('deviceDrawerStatusBadge');
@@ -298,12 +298,6 @@
     </script>
 
     @if($canManageDevices)
-        @if($errors->any())
-            <script>
-                window.__deviceModalOpenOnError = true;
-            </script>
-        @endif
-
         {{-- DASH-17 — registration/edit modal wiring (bound once, delegated). --}}
         <script>
             (function () {
@@ -364,20 +358,49 @@
                     lastTrigger = null;
                 };
 
+                // Identifier and outlet are immutable from the dashboard. The
+                // visible outlet select is disabled in edit mode while a hidden
+                // mirror keeps the id in the payload.
+                const applyMode = (mode, raw) => {
+                    const form = formEl();
+                    if (!form) return;
+
+                    const identifier = document.getElementById('deviceFormIdentifier');
+                    const outlet = document.getElementById('deviceFormOutlet');
+                    const mirror = document.getElementById('deviceFormOutletMirror');
+
+                    if (mode === 'edit' && raw) {
+                        form.setAttribute('action', form.dataset.updateUrlTemplate.replace('__ID__', raw.id));
+                        setValue(form, '_method', 'PATCH');
+                        setValue(form, 'device_form', 'edit');
+                        setValue(form, 'device_id', raw.id ?? '');
+                        if (identifier) identifier.setAttribute('readonly', 'readonly');
+                        if (outlet) outlet.setAttribute('disabled', 'disabled');
+                        if (mirror) {
+                            mirror.disabled = false;
+                            mirror.value = raw.outlet_id ?? '';
+                        }
+                    } else {
+                        form.setAttribute('action', form.dataset.storeUrl);
+                        setValue(form, '_method', 'POST');
+                        setValue(form, 'device_form', 'create');
+                        setValue(form, 'device_id', '');
+                        if (identifier) identifier.removeAttribute('readonly');
+                        if (outlet) outlet.removeAttribute('disabled');
+                        if (mirror) {
+                            mirror.disabled = true;
+                            mirror.value = '';
+                        }
+                    }
+                };
+
                 const openCreate = (trigger) => {
                     const form = formEl();
                     if (!form) return;
 
                     form.reset();
-                    form.setAttribute('action', form.dataset.storeUrl);
-                    setValue(form, '_method', 'POST');
-
-                    const identifier = document.getElementById('deviceFormIdentifier');
-                    const outlet = document.getElementById('deviceFormOutlet');
-                    identifier?.removeAttribute('disabled');
-                    identifier?.removeAttribute('readonly');
-                    outlet?.removeAttribute('disabled');
-
+                    ['name', 'identifier', 'platform', 'notes', 'outlet_id'].forEach((name) => setValue(form, name, ''));
+                    applyMode('create');
                     setHeading('Registrasi', 'Daftarkan Perangkat');
                     open(trigger);
                 };
@@ -388,22 +411,28 @@
                     if (!form) return;
 
                     form.reset();
-                    form.setAttribute('action', form.dataset.updateUrlTemplate.replace('__ID__', raw.id));
-                    setValue(form, '_method', 'PATCH');
                     setValue(form, 'name', raw.name || '');
                     setValue(form, 'identifier', raw.identifier || '');
-                    setValue(form, 'outlet_id', raw.outlet_id ?? '');
                     setValue(form, 'platform', raw.platform_raw || '');
                     setValue(form, 'notes', raw.notes || '');
-
-                    // Identifier and outlet are immutable from the dashboard.
-                    const identifier = document.getElementById('deviceFormIdentifier');
                     const outlet = document.getElementById('deviceFormOutlet');
-                    if (identifier) identifier.setAttribute('disabled', 'disabled');
-                    if (outlet) outlet.setAttribute('disabled', 'disabled');
+                    if (outlet) outlet.value = raw.outlet_id ?? '';
 
+                    applyMode('edit', raw);
                     setHeading('Edit', 'Edit Perangkat');
                     open(trigger);
+                };
+
+                // After a validation redirect the server has already rendered the
+                // form with the correct action, method, values and immutable
+                // fields; we only reopen the modal for the mode it recorded.
+                const restoreFromServerState = () => {
+                    const el = modalEl();
+                    if (!el) return;
+                    const mode = el.getAttribute('data-restore-mode');
+                    if (mode === 'create' || mode === 'edit') {
+                        open(null);
+                    }
                 };
 
                 const parseRaw = (el) => {
@@ -484,10 +513,10 @@
                     });
                 });
 
-                if (window.__deviceModalOpenOnError) {
-                    window.__deviceModalOpenOnError = null;
-                    requestAnimationFrame(() => openCreate(null));
-                }
+                // Reopen the modal when the server recorded a failed modal
+                // submission (full-page reload and Livewire navigation alike).
+                restoreFromServerState();
+                document.addEventListener('livewire:navigated', restoreFromServerState);
             })();
         </script>
     @endif

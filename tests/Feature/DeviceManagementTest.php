@@ -550,6 +550,148 @@ class DeviceManagementTest extends TestCase
     }
 
     // ============================================================
+    // Validation error recovery & status wording (DASH-17 review)
+    // ============================================================
+
+    public function test_28_invalid_registration_reopens_the_registration_modal_with_input(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'device_form' => 'create',
+                'name' => '',
+                'identifier' => 'KEEP-ME-01',
+                'outlet_id' => $outlet->id,
+            ])
+            ->assertSessionHasErrors('name');
+
+        $page = $this->get(route('devices.index'));
+        $page->assertOk();
+        $page->assertSee('data-restore-mode="create"', false);
+        $page->assertSee('name="device_form" value="create"', false);
+        // The user's input is preserved.
+        $page->assertSee('KEEP-ME-01');
+        // It must not reopen the edit form.
+        $page->assertDontSee('data-restore-mode="edit"', false);
+        $this->assertDatabaseCount('devices', 0);
+    }
+
+    public function test_29_invalid_edit_reopens_the_edit_modal_for_the_same_device(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $device = $this->createDevice([
+            'business_id' => $business->id,
+            'identifier' => 'EDIT-TARGET-01',
+            'name' => 'Nama Lama',
+        ]);
+
+        $this->from(route('devices.index'))
+            ->patch(route('devices.update', ['deviceId' => $device->id]), [
+                'device_form' => 'edit',
+                'device_id' => $device->id,
+                'name' => '',
+                'notes' => 'Catatan dipertahankan',
+            ])
+            ->assertSessionHasErrors('name');
+
+        $page = $this->get(route('devices.index'));
+        $page->assertOk();
+        $page->assertSee('data-restore-mode="edit"', false);
+        $page->assertSee('data-restore-id="'.$device->id.'"', false);
+        // PATCH + the same device endpoint are preserved.
+        $page->assertSee('name="device_form" value="edit"', false);
+        $page->assertSee(route('devices.update', ['deviceId' => $device->id]), false);
+        $page->assertSee('EDIT-TARGET-01');
+        $page->assertSee('Catatan dipertahankan');
+        // It must not reopen the registration form.
+        $page->assertDontSee('data-restore-mode="create"', false);
+
+        $this->assertSame('Nama Lama', $device->fresh()->name);
+    }
+
+    public function test_30_invalid_edit_keeps_identifier_and_outlet_immutable(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $otherOutlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $device = $this->createDevice([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'identifier' => 'IMMUTABLE-01',
+        ]);
+
+        $this->from(route('devices.index'))
+            ->patch(route('devices.update', ['deviceId' => $device->id]), [
+                'device_form' => 'edit',
+                'device_id' => $device->id,
+                'name' => '', // invalid → validation failure
+                'identifier' => 'HACKED',
+                'outlet_id' => $otherOutlet->id,
+            ])
+            ->assertSessionHasErrors('name');
+
+        $device->refresh();
+        $this->assertSame('IMMUTABLE-01', $device->identifier);
+        $this->assertSame($outlet->id, $device->outlet_id);
+
+        $page = $this->get(route('devices.index'));
+        $page->assertOk();
+        // The edit form renders the immutable outlet mirror and reopens as edit.
+        $page->assertSee('id="deviceFormOutletMirror"', false);
+        $page->assertSee('data-restore-mode="edit"', false);
+    }
+
+    public function test_31_invalid_status_change_shows_error_without_opening_the_modal(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $device = $this->createDevice(['business_id' => $business->id, 'status' => 'active']);
+
+        $page = $this->followingRedirects()
+            ->from(route('devices.index'))
+            ->patch(route('devices.status.update', ['deviceId' => $device->id]), ['status' => 'deleted']);
+
+        $page->assertOk();
+        $page->assertSee('Status perangkat hanya dapat Aktif atau Nonaktif.');
+        // No modal is reopened for a failed status toggle.
+        $page->assertSee('data-restore-mode=""', false);
+        $page->assertDontSee('data-restore-mode="create"', false);
+        $page->assertDontSee('data-restore-mode="edit"', false);
+
+        $this->assertSame('active', $device->fresh()->status);
+    }
+
+    public function test_32_active_device_without_last_seen_is_not_shown_as_online(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $this->createDevice([
+            'business_id' => $business->id,
+            'status' => 'active',
+            'last_seen_at' => null,
+        ]);
+
+        $response = $this->get(route('devices.index'));
+        $response->assertOk();
+        $response->assertSee('Aktif');
+        $response->assertSee('Belum Pernah Akses API');
+        $response->assertDontSee('>Online<', false);
+        $response->assertDontSee('Perangkat Online');
+    }
+
+    public function test_33_modal_and_listing_clarify_active_is_not_online(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $this->createDevice(['business_id' => $business->id, 'status' => 'active', 'last_seen_at' => null]);
+
+        $response = $this->get(route('devices.index'));
+        $response->assertOk();
+        $response->assertSee('diizinkan mengakses API');
+        $response->assertSee('bukan berarti perangkat sedang online');
+        $response->assertSee('Akses API Terakhir');
+    }
+
+    // ============================================================
     // Helpers
     // ============================================================
 

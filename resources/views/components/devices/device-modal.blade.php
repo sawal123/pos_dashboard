@@ -3,12 +3,26 @@
     'outlets' => [],
 ])
 
+@php
+    // Restore state after a validation redirect: only a *modal* submission
+    // carries `device_form`, so a failed status toggle never reopens the modal.
+    $oldForm = old('device_form');
+    $oldDeviceId = old('device_id');
+    $isEditRestore = $oldForm === 'edit' && $oldDeviceId !== null && $oldDeviceId !== '';
+    $restoreMode = $oldForm === 'edit' ? 'edit' : ($oldForm === 'create' ? 'create' : '');
+    $formAction = $isEditRestore
+        ? route('devices.update', ['deviceId' => $oldDeviceId])
+        : route('devices.store');
+@endphp
+
 <div
     id="deviceModal"
     class="fixed inset-0 z-[90] hidden"
     role="dialog"
     aria-modal="true"
     aria-labelledby="deviceModalTitle"
+    data-restore-mode="{{ $restoreMode }}"
+    data-restore-id="{{ $oldDeviceId }}"
     tabindex="-1"
 >
     <div class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-xs" data-close-device-modal></div>
@@ -17,8 +31,8 @@
         <div class="w-full max-w-lg my-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl">
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 rounded-t-2xl">
                 <div>
-                    <span id="deviceModalSubtitle" class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Registrasi</span>
-                    <h2 id="deviceModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white">Daftarkan Perangkat</h2>
+                    <span id="deviceModalSubtitle" class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">{{ $isEditRestore ? 'Edit' : 'Registrasi' }}</span>
+                    <h2 id="deviceModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white">{{ $isEditRestore ? 'Edit Perangkat' : 'Daftarkan Perangkat' }}</h2>
                 </div>
                 <button
                     type="button"
@@ -33,14 +47,16 @@
             <form
                 id="deviceForm"
                 method="POST"
-                action="{{ route('devices.store') }}"
+                action="{{ $formAction }}"
                 data-store-url="{{ route('devices.store') }}"
                 data-update-url-template="{{ route('devices.update', ['deviceId' => '__ID__']) }}"
                 class="p-5 space-y-4"
                 novalidate
             >
                 @csrf
-                <input type="hidden" name="_method" value="POST" id="deviceFormMethod">
+                <input type="hidden" name="_method" value="{{ $isEditRestore ? 'PATCH' : 'POST' }}" id="deviceFormMethod">
+                <input type="hidden" name="device_form" value="{{ $restoreMode === 'edit' ? 'edit' : 'create' }}" id="deviceFormContext">
+                <input type="hidden" name="device_id" value="{{ $oldDeviceId }}" id="deviceFormDeviceId">
 
                 <div>
                     <label for="deviceFormName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama Perangkat</label>
@@ -70,6 +86,7 @@
                         value="{{ old('identifier') }}"
                         placeholder="mis. POS-MEDAN-01"
                         autocomplete="off"
+                        @if($isEditRestore) readonly @endif
                         class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                     <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Maksimal 100 karakter. Identifier tidak dapat diubah setelah terdaftar.</p>
@@ -82,6 +99,7 @@
                         id="deviceFormOutlet"
                         name="outlet_id"
                         required
+                        @if($isEditRestore) disabled @endif
                         class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <option value="">Pilih outlet</option>
@@ -89,6 +107,9 @@
                             <option value="{{ $outlet['id'] }}" @selected((string) old('outlet_id') === (string) $outlet['id'])>{{ $outlet['name'] }}</option>
                         @endforeach
                     </select>
+                    {{-- Mirror keeps the immutable outlet id in the payload while the
+                         visible select is disabled in edit mode. --}}
+                    <input type="hidden" name="outlet_id" id="deviceFormOutletMirror" value="{{ old('outlet_id') }}" @unless($isEditRestore) disabled @endunless>
                     <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Outlet tidak dapat dipindahkan dari dashboard.</p>
                     @error('outlet_id')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
@@ -124,11 +145,16 @@
                     @error('notes')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
 
-                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3">
+                <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3 space-y-1.5">
                     <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                         Ini adalah <span class="font-semibold">pra-registrasi</span> berdasarkan identifier,
-                        bukan pairing aman atau bukti perangkat sudah terhubung. Status perangkat akan
-                        terlihat aktif setelah ia benar-benar melakukan sinkronisasi.
+                        bukan pairing aman dan bukan bukti perangkat sedang online.
+                    </p>
+                    <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                        Status <span class="font-semibold">Aktif</span> berarti perangkat
+                        <span class="font-semibold">diizinkan mengakses API</span> — bukan berarti perangkat
+                        sedang online. Kolom “Akses API Terakhir” hanya terisi saat perangkat benar-benar
+                        memanggil API.
                     </p>
                 </div>
 
