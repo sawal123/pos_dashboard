@@ -520,6 +520,103 @@ class ProductsCrudTest extends TestCase
     }
 
     // ============================================================
+    // Service SKU uniqueness (must be a validation error, never a 500)
+    // ============================================================
+
+    public function test_28_duplicate_service_sku_in_the_same_business_is_rejected(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        Product::factory()->create(['business_id' => $business->id, 'kind' => 'service', 'sku' => 'SRV-DUP']);
+
+        $this->from(route('products.index'))
+            ->post(route('products.store'), [
+                'kind' => 'service',
+                'name' => 'Layanan Kedua',
+                'sku' => 'SRV-DUP',
+                'price' => 5000,
+            ])
+            ->assertSessionHasErrors('sku');
+
+        $this->assertSame(1, Product::where('business_id', $business->id)->where('sku', 'SRV-DUP')->count());
+    }
+
+    public function test_29_same_service_sku_is_allowed_in_another_business(): void
+    {
+        [$businessA] = $this->actingAsRole('owner');
+        Product::factory()->create([
+            'business_id' => Business::factory()->create()->id,
+            'kind' => 'service',
+            'sku' => 'SRV-SHARE',
+        ]);
+
+        $this->post(route('products.store'), [
+            'kind' => 'service',
+            'name' => 'Layanan',
+            'sku' => 'SRV-SHARE',
+            'price' => 5000,
+        ])->assertRedirect();
+
+        $this->assertSame(1, Product::where('business_id', $businessA->id)->where('sku', 'SRV-SHARE')->count());
+    }
+
+    public function test_30_service_sku_colliding_with_a_product_sku_is_rejected(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        Product::factory()->create(['business_id' => $business->id, 'kind' => 'product', 'sku' => 'MIX-1']);
+
+        $this->from(route('products.index'))
+            ->post(route('products.store'), [
+                'kind' => 'service',
+                'name' => 'Layanan Bentrok',
+                'sku' => 'MIX-1',
+                'price' => 5000,
+            ])
+            ->assertSessionHasErrors('sku');
+
+        $this->assertSame(1, Product::where('business_id', $business->id)->where('sku', 'MIX-1')->count());
+    }
+
+    public function test_31_editing_a_service_without_changing_its_sku_is_allowed(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        $service = Product::factory()->create([
+            'business_id' => $business->id,
+            'kind' => 'service',
+            'sku' => 'SRV-KEEP',
+            'pricing_unit' => 'pcs',
+        ]);
+
+        $this->patch(route('products.update', ['productId' => $service->id]), [
+            'name' => 'Nama Layanan Baru',
+            'sku' => 'SRV-KEEP',
+            'price' => 9000,
+            'pricing_unit' => 'kg',
+        ])->assertRedirect(route('products.index', ['tab' => 'services']));
+
+        $service->refresh();
+        $this->assertSame('SRV-KEEP', $service->sku);
+        $this->assertSame('Nama Layanan Baru', $service->name);
+        $this->assertSame('kg', $service->pricing_unit);
+    }
+
+    public function test_32_updating_a_service_to_a_duplicate_sku_is_rejected(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+        Product::factory()->create(['business_id' => $business->id, 'kind' => 'service', 'sku' => 'SRV-A']);
+        $service = Product::factory()->create(['business_id' => $business->id, 'kind' => 'service', 'sku' => 'SRV-B']);
+
+        $this->from(route('products.index'))
+            ->patch(route('products.update', ['productId' => $service->id]), [
+                'name' => $service->name,
+                'sku' => 'SRV-A',
+                'price' => 5000,
+            ])
+            ->assertSessionHasErrors('sku');
+
+        $this->assertSame('SRV-B', $service->fresh()->sku);
+    }
+
+    // ============================================================
     // Helpers
     // ============================================================
 

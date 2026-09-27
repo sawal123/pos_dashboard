@@ -93,7 +93,11 @@ leaked); a cross-tenant `category_id` on a product fails validation.
 * `categories.name`, `products.sku`, `products.barcode` are unique per business
   (matching DB constraints). Same value in another business is allowed.
 * A service without a SKU receives a generated business-unique `SRV-…` value
-  (the `sku` column is NOT NULL).
+  (the `sku` column is NOT NULL). A service **with** a SKU is validated with the
+  same per-business uniqueness rule as products (scoped to `business_id`,
+  ignoring the edited record's own id), and it shares the one `products.sku`
+  column — so a service SKU colliding with a product SKU in the same business is
+  a validation error, never a 500.
 
 ---
 
@@ -166,12 +170,14 @@ Changing the business type never deletes historical catalog or transaction data.
 
 ## 9. Tests
 
-`tests/Feature/ProductsCrudTest.php` (27 tests): category CRUD, product/service
+`tests/Feature/ProductsCrudTest.php` (32 tests): category CRUD, product/service
 CRUD, owner-only mutation, member/cashier read-only, unknown role denied,
 cross-tenant product/category 404, forged `business_id`, duplicate SKU/barcode
-and category name, invalid nominal, laundry decimals, negative stock, minimum
-stock, active/inactive, historical snapshot safety, sync metadata, no hard
-delete, double submit, and listing integration.
+and category name, service SKU uniqueness (same business, other business,
+collision with a product SKU, edit without changing SKU, update to a duplicate),
+invalid nominal, laundry decimals, negative stock, minimum stock,
+active/inactive, historical snapshot safety, sync metadata, no hard delete,
+double submit, and listing integration.
 
 Regression suites run: `ProductsPageTest`, `StockPageTest`, `CashierRbacTest`,
 `BusinessTypeTest`, `BusinessTypeNavigationTest`, sync tests and historical sale

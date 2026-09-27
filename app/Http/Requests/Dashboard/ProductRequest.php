@@ -100,8 +100,15 @@ class ProductRequest extends FormRequest
         }
 
         if ($kind === 'service') {
-            // SKU is optional for services; the server generates a unique one.
-            $rules['sku'] = ['nullable', 'string', 'max:255'];
+            // SKU is optional for services; when omitted the server generates a
+            // unique one. When supplied it must still be unique per business —
+            // including collisions with a product SKU (one shared column).
+            $rules['sku'] = [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('products', 'sku')->where('business_id', $businessId)->ignore($productId),
+            ];
             $rules['pricing_unit'] = ['nullable', 'string', 'max:20'];
             $rules['unit'] = ['nullable', 'string', 'max:20'];
             $rules['min_quantity'] = ['nullable', 'numeric', 'min:0'];
