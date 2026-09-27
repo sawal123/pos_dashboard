@@ -1,5 +1,6 @@
 @props([
     'devices' => [],
+    'canManage' => false,
 ])
 
 <div class="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
@@ -118,12 +119,41 @@
 
                         {{-- 8. Aksi --}}
                         <td class="py-3 px-4 text-right">
-                            <button
-                                type="button"
-                                class="view-device-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                            >
-                                Lihat Detail
-                            </button>
+                            <div class="inline-flex items-center gap-1.5">
+                                @if($canManage)
+                                    <button
+                                        type="button"
+                                        data-open-device-modal
+                                        data-device-mode="edit"
+                                        data-device-raw="{{ json_encode($device) }}"
+                                        class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                    >
+                                        Edit
+                                    </button>
+                                    <form
+                                        method="POST"
+                                        action="{{ route('devices.status.update', ['deviceId' => $device['id']]) }}"
+                                        class="inline"
+                                        onsubmit="return confirm('{{ $statusRaw === 'active' ? 'Nonaktifkan perangkat ini? Perangkat tidak akan bisa sinkronisasi sampai diaktifkan kembali.' : 'Aktifkan kembali perangkat ini?' }}')"
+                                    >
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="status" value="{{ $statusRaw === 'active' ? 'inactive' : 'active' }}">
+                                        <button
+                                            type="submit"
+                                            class="px-2.5 py-1.5 rounded-xl border font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 {{ $statusRaw === 'active' ? 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40' }}"
+                                        >
+                                            {{ $statusRaw === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}
+                                        </button>
+                                    </form>
+                                @endif
+                                <button
+                                    type="button"
+                                    class="view-device-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                >
+                                    Lihat Detail
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

@@ -516,14 +516,16 @@ class DevicesPageTest extends TestCase
         $response->assertDontSee('sync_cursor');
     }
 
-    public function test_34_device_registration_button_remains_read_only_placeholder(): void
+    public function test_34_device_registration_button_is_wired_to_the_dashboard_modal(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
         $response = $this->actingAs($user)->get(route('devices.index'));
         $response->assertOk();
         $response->assertSee('Daftarkan Perangkat');
-        $response->assertSee('Registrasi perangkat dari dashboard belum tersedia.');
+        // DASH-17: the placeholder alert is gone; the page renders a real modal.
+        $response->assertSee('id="deviceModal"', false);
+        $response->assertDontSee('Registrasi perangkat dari dashboard belum tersedia.');
     }
 
     // ============================================================

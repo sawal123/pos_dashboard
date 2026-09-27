@@ -1,5 +1,6 @@
 @props([
     'devices' => [],
+    'canManage' => false,
 ])
 
 <div id="mobileDeviceCards" class="md:hidden space-y-3">
@@ -67,12 +68,38 @@
                     @endif
                 </div>
 
-                <button
-                    type="button"
-                    class="view-device-detail-btn py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
-                >
-                    Lihat Detail
-                </button>
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                    @if($canManage)
+                        <button
+                            type="button"
+                            data-open-device-modal
+                            data-device-mode="edit"
+                            data-device-raw="{{ json_encode($device) }}"
+                            class="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors shrink-0"
+                        >
+                            Edit
+                        </button>
+                        <form
+                            method="POST"
+                            action="{{ route('devices.status.update', ['deviceId' => $device['id']]) }}"
+                            class="shrink-0"
+                            onsubmit="return confirm('{{ $statusRaw === 'active' ? 'Nonaktifkan perangkat ini? Perangkat tidak akan bisa sinkronisasi sampai diaktifkan kembali.' : 'Aktifkan kembali perangkat ini?' }}')"
+                        >
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="status" value="{{ $statusRaw === 'active' ? 'inactive' : 'active' }}">
+                            <button type="submit" class="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors">
+                                {{ $statusRaw === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}
+                            </button>
+                        </form>
+                    @endif
+                    <button
+                        type="button"
+                        class="view-device-detail-btn py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
+                    >
+                        Lihat Detail
+                    </button>
+                </div>
             </div>
         </div>
     @endforeach
