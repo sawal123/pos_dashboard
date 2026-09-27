@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Services\Dashboard\DashboardReportsData;
+use App\Services\Dashboard\Reporting\ReportFilters;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ReportsController extends Controller
@@ -28,12 +28,9 @@ class ReportsController extends Controller
             'outlet_id',
         ]);
 
-        $validator = Validator::make($filters, [
-            'date' => ['nullable', 'string', Rule::in(['all', 'today', '7d', '30d', 'custom'])],
-            'start_date' => ['nullable', 'date_format:Y-m-d'],
-            'end_date' => ['nullable', 'date_format:Y-m-d'],
-            'outlet_id' => ['nullable', 'integer'],
-        ]);
+        // Shared with the export endpoints via ReportFilters (DASH-13); the
+        // page keeps its "drop invalid filters, never 500" behaviour.
+        $validator = Validator::make($filters, ReportFilters::rules());
 
         if ($validator->fails()) {
             foreach (array_keys($validator->failed()) as $invalidField) {
