@@ -23,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $note
  * @property string|null $reference_id
  * @property string|null $sale_sync_id
+ * @property int|null $expense_id
+ * @property string|null $idempotency_key
  * @property Carbon $occurred_at
  * @property string $sync_id
  * @property int $sync_version
@@ -32,8 +34,9 @@ use Illuminate\Support\Carbon;
  * @property-read Business|null $business
  * @property-read Outlet|null $outlet
  * @property-read Shift|null $shift
+ * @property-read Expense|null $expense
  */
-#[Fillable(['business_id', 'outlet_id', 'shift_id', 'type', 'amount', 'category', 'note', 'reference_id', 'sale_sync_id', 'occurred_at'])]
+#[Fillable(['business_id', 'outlet_id', 'shift_id', 'type', 'amount', 'category', 'note', 'reference_id', 'sale_sync_id', 'expense_id', 'idempotency_key', 'occurred_at'])]
 class CashLedger extends Model
 {
     /** @var string */
@@ -82,5 +85,15 @@ class CashLedger extends Model
     public function shift(): BelongsTo
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    /**
+     * The expense this cash movement paid for or reverses, when applicable.
+     *
+     * @return BelongsTo<Expense, $this>
+     */
+    public function expense(): BelongsTo
+    {
+        return $this->belongsTo(Expense::class);
     }
 }

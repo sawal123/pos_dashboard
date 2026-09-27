@@ -52,6 +52,20 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('cash', [CashController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::CASH_VIEW)
         ->name('cash.index');
+    Route::post('cash/ledger', [CashController::class, 'storeLedger'])
+        ->middleware('business.permission:'.BusinessPermission::CASH_MANAGE)
+        ->name('cash.ledger.store');
+    Route::post('cash/ledger/{cashLedger}/reverse', [CashController::class, 'reverseLedger'])
+        ->whereNumber('cashLedger')
+        ->middleware('business.permission:'.BusinessPermission::CASH_MANAGE)
+        ->name('cash.ledger.reverse');
+    Route::post('cash/expenses', [CashController::class, 'storeExpense'])
+        ->middleware('business.permission:'.BusinessPermission::CASH_MANAGE)
+        ->name('cash.expenses.store');
+    Route::post('cash/expenses/{expense}/void', [CashController::class, 'voidExpense'])
+        ->whereNumber('expense')
+        ->middleware('business.permission:'.BusinessPermission::CASH_MANAGE)
+        ->name('cash.expenses.void');
 
     Route::get('shifts', [ShiftsController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::SHIFTS_VIEW)

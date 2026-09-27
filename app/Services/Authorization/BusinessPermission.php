@@ -27,6 +27,9 @@ final class BusinessPermission
 
     public const CASH_VIEW = 'cash.view';
 
+    // Financial mutations (owner only for DASH-16).
+    public const CASH_MANAGE = 'cash.manage';
+
     public const SHIFTS_VIEW = 'shifts.view';
 
     public const CUSTOMERS_VIEW = 'customers.view';

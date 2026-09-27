@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\CashLedger;
 use App\Models\Expense;
 use App\Models\Outlet;
+use App\Models\Shift;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -63,6 +64,7 @@ class DashboardCashData
                 'filterOptions' => [
                     'outlets' => [],
                     'categories' => [],
+                    'shifts' => [],
                 ],
                 'currentFilters' => $currentFilters,
                 'hasAnyLedgers' => false,
@@ -94,6 +96,19 @@ class DashboardCashData
             ->distinct()
             ->orderBy('category')
             ->pluck('category')
+            ->toArray();
+
+        $shifts = Shift::where('business_id', $businessId)
+            ->orderByDesc('opened_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get(['id', 'outlet_id', 'shift_number', 'status'])
+            ->map(fn (Shift $shift): array => [
+                'id' => (int) $shift->id,
+                'outlet_id' => (int) $shift->outlet_id,
+                'shift_number' => $shift->shift_number,
+                'status' => $shift->status,
+            ])
             ->toArray();
 
         // 4. Summary metrics using independent clones with COMMON filters only
@@ -157,7 +172,7 @@ class DashboardCashData
                 $expenseQuery->where('category', $currentFilters['category']);
             }
 
-            $paginatedExpenses = $expenseQuery->with(['outlet', 'shift'])
+            $paginatedExpenses = $expenseQuery->with(['outlet', 'shift', 'cashLedger'])
                 ->orderByDesc('occurred_at')
                 ->orderByDesc('id')
                 ->paginate(self::PER_PAGE)
@@ -186,6 +201,7 @@ class DashboardCashData
             'filterOptions' => [
                 'outlets' => $outlets,
                 'categories' => $categories,
+                'shifts' => $shifts,
             ],
             'currentFilters' => $currentFilters,
             'hasAnyLedgers' => $hasAnyLedgers,
@@ -364,6 +380,7 @@ class DashboardCashData
             'category' => $categoryLabel,
             'note' => $ledger->note !== null ? (string) $ledger->note : null,
             'reference_id' => $ledger->reference_id !== null ? (string) $ledger->reference_id : null,
+            'expense_id' => $ledger->expense_id !== null ? (int) $ledger->expense_id : null,
             'occurred_at_raw' => $ledger->occurred_at->format('Y-m-d H:i:s'),
             'occurred_at' => $ledger->occurred_at->translatedFormat('d M Y · H:i'),
             'outlet_id' => (int) $ledger->outlet_id,
@@ -401,6 +418,8 @@ class DashboardCashData
             'occurred_at_raw' => $expense->occurred_at->format('Y-m-d H:i:s'),
             'occurred_at' => $expense->occurred_at->translatedFormat('d M Y · H:i'),
             'notes' => $expense->notes !== null ? (string) $expense->notes : null,
+            'paid_from_cash' => $expense->cashLedger !== null,
+            'cash_ledger_id' => $expense->cashLedger !== null ? (int) $expense->cashLedger->id : null,
             'outlet_id' => (int) $expense->outlet_id,
             'outlet_name' => $expense->outlet !== null ? $expense->outlet->name : '-',
             'shift_number' => $expense->shift !== null ? $expense->shift->shift_number : null,
