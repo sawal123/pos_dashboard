@@ -702,7 +702,7 @@ class LaundryOrdersPageTest extends TestCase
         $user = User::factory()->create([
             'email_verified_at' => $verified ? now() : null,
         ]);
-        $business = Business::factory()->create();
+        $business = Business::factory()->laundry()->create();
         $user->businesses()->attach($business->id, ['role' => 'owner']);
 
         if ($verified) {

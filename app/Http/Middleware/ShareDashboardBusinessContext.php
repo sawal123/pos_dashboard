@@ -31,6 +31,9 @@ class ShareDashboardBusinessContext
             $currentBusiness = $this->businessContext->current($user);
             $subscriptionState = $this->businessContext->subscriptionState($currentBusiness);
             $cloudAccess = $this->businessContext->hasCloudAccess($currentBusiness);
+            // DASH-14 — canonical business type of the active business (null when
+            // unknown). The UI adapts to it; permissions still govern access.
+            $businessType = $this->businessContext->businessType($currentBusiness);
 
             $businessRole = null;
             if ($currentBusiness && $currentBusiness->relationLoaded('pivot')) {
@@ -52,6 +55,7 @@ class ShareDashboardBusinessContext
             $request->attributes->set('dashboard_cloud_access', $cloudAccess);
             $request->attributes->set('dashboard_business_role', $businessRole);
             $request->attributes->set('dashboard_business_permissions', $businessPermissions);
+            $request->attributes->set('dashboard_business_type', $businessType);
 
             // Expose to views for Blade components
             View::share('dashboardBusinesses', $businesses);
@@ -60,6 +64,7 @@ class ShareDashboardBusinessContext
             View::share('dashboardCloudAccess', $cloudAccess);
             View::share('dashboardBusinessRole', $businessRole);
             View::share('dashboardPermissions', $businessPermissions);
+            View::share('dashboardBusinessType', $businessType);
         }
 
         return $next($request);

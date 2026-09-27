@@ -1,5 +1,5 @@
 @props([
-    'businessContext' => 'cafe', // 'cafe', 'laundry', 'grosir'
+    'businessType' => null, // canonical: 'cafe' | 'laundry' | 'grosir' | null (unknown)
     'subscription' => 'unknown', // 'subscriber', 'free', 'unknown'
 ])
 
@@ -10,6 +10,12 @@
     $can = fn (string $permission): bool => in_array('*', $permissions, true)
         || in_array($permission, $permissions, true);
     $P = \App\Services\Authorization\BusinessPermission::class;
+
+    // DASH-14 — persisted business type of the active business (null = unknown).
+    // It only shapes which menus are *relevant*; the permission matrix below
+    // still governs authorization and every route is enforced server-side.
+    $activeBusinessType = $businessType ?? ($dashboardBusinessType ?? null);
+    $isLaundryBusiness = $activeBusinessType === 'laundry';
 
     $subConfig = match($subscription) {
         'subscriber' => [
@@ -50,7 +56,7 @@
     id="sidebar"
     class="fixed top-0 left-0 z-50 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200/90 dark:border-slate-800 sidebar-transition flex flex-col -translate-x-full md:translate-x-0 select-none"
     aria-label="Navigasi Utama"
-    data-business-context="{{ $businessContext }}"
+    data-business-context="{{ $activeBusinessType ?? 'unknown' }}"
 >
     {{-- Sidebar Header / Brand Logo --}}
     <div class="flex items-center justify-between h-16 px-4 sm:px-5 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
@@ -80,6 +86,25 @@
     {{-- Navigation Menu Container --}}
     <nav class="flex-1 overflow-y-auto py-3 px-3 space-y-4" aria-label="Menu Utama">
 
+        {{-- DASH-14 — an owner of a business without a type gets a clear prompt
+             instead of a guessed Cafe navigation. --}}
+        @if($activeBusinessType === null && $can($P::BUSINESS_SETTINGS_MANAGE))
+            <div class="rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-3 space-y-1.5">
+                <p class="text-[11px] font-semibold text-amber-800 dark:text-amber-200">Tipe bisnis belum ditentukan</p>
+                <p class="text-[11px] text-amber-700/90 dark:text-amber-200/80 leading-snug">
+                    Menu menyesuaikan tipe bisnis. Pilih tipe agar navigasi relevan.
+                </p>
+                <a
+                    href="{{ route('business-settings.edit') }}"
+                    wire:navigate
+                    class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-amber-900 dark:text-amber-100 underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 rounded-md"
+                >
+                    <i data-lucide="settings-2" class="w-3.5 h-3.5"></i>
+                    Pilih Tipe Bisnis
+                </a>
+            </div>
+        @endif
+
         {{-- 1. RINGKASAN --}}
         @if($can($P::DASHBOARD_VIEW))
             <x-ui.sidebar-section title="Ringkasan">
@@ -95,12 +120,12 @@
         @if($can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW))
             <x-ui.sidebar-section title="Operasional">
                 {{--
-                    DASH-11: "Pesanan Laundry" visibility is now permission-based
-                    (DASH-10B2). There is still no persisted business type, so the
-                    old `businessContext === 'laundry'` gate remains removed. See
-                    docs/dashboard/DASH11_LAUNDRY_MONITORING.md.
+                    DASH-14: "Pesanan Laundry" is relevant only for a laundry
+                    business, so it requires BOTH the LAUNDRY_VIEW permission
+                    (authorization) and business_type = laundry (relevance).
+                    See docs/dashboard/DASH14_BUSINESS_TYPE.md.
                 --}}
-                @if($can($P::LAUNDRY_VIEW))
+                @if($can($P::LAUNDRY_VIEW) && $isLaundryBusiness)
                     <x-ui.sidebar-item
                         icon="washing-machine"
                         label="Pesanan Laundry"
@@ -164,13 +189,21 @@
         @endif
 
         {{-- 4. BISNIS --}}
-        @if($can($P::OUTLETS_VIEW) || $can($P::USERS_VIEW) || $can($P::DEVICES_VIEW))
+        @if($can($P::OUTLETS_VIEW) || $can($P::USERS_VIEW) || $can($P::DEVICES_VIEW) || $can($P::BUSINESS_SETTINGS_MANAGE))
             <x-ui.sidebar-section title="Bisnis">
                 @if($can($P::OUTLETS_VIEW))
                     <x-ui.sidebar-item
                         icon="store"
                         label="Outlet"
                         route="outlets.index"
+                    />
+                @endif
+                {{-- DASH-14 — owner-only business profile / type setup. --}}
+                @if($can($P::BUSINESS_SETTINGS_MANAGE))
+                    <x-ui.sidebar-item
+                        icon="briefcase-business"
+                        label="Pengaturan Bisnis"
+                        route="business-settings.edit"
                     />
                 @endif
                 @if($can($P::USERS_VIEW))
