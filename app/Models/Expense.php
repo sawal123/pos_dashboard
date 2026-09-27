@@ -91,10 +91,18 @@ class Expense extends Model
     /**
      * The linked cash movement when the expense was explicitly paid from cash.
      *
+     * The payment ledger is identified deterministically as the single cash-out
+     * (`type = out`) row for this expense that is not itself a correction
+     * (`reverses_ledger_id` is null). Void refunds and legacy reversals preserve
+     * the same `expense_id` but are cash-in corrections, so they can never be
+     * mistaken for the original payment.
+     *
      * @return HasOne<CashLedger, $this>
      */
     public function cashLedger(): HasOne
     {
-        return $this->hasOne(CashLedger::class);
+        return $this->hasOne(CashLedger::class, 'expense_id')
+            ->where('type', 'out')
+            ->whereNull('reverses_ledger_id');
     }
 }

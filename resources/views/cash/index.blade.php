@@ -43,6 +43,28 @@
             </div>
         </div>
 
+        {{-- ==================== FLASH FEEDBACK ==================== --}}
+        @if(session('status'))
+            <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-start gap-3" role="status">
+                <i data-lucide="check-circle-2" class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+                <p class="text-sm text-emerald-800 dark:text-emerald-200">{{ session('status') }}</p>
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-4 space-y-1" role="alert">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400"></i>
+                    <p class="text-sm font-semibold text-rose-800 dark:text-rose-200">Tindakan tidak dapat diproses.</p>
+                </div>
+                <ul class="pl-8 list-disc text-xs text-rose-700 dark:text-rose-300 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
         <x-cash.summary-cards :summary="$summary" />
 

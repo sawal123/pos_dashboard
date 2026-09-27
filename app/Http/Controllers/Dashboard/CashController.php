@@ -8,6 +8,7 @@ use App\Models\CashLedger;
 use App\Models\Expense;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\DashboardCashData;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -199,11 +200,34 @@ class CashController extends Controller
     {
         $business = $this->activeBusiness($request);
 
-        DB::transaction(function () use ($business, $cashLedger): void {
+        $rejection = null;
+
+        DB::transaction(function () use ($business, $cashLedger, &$rejection): void {
             $original = CashLedger::where('business_id', $business->id)
                 ->where('id', $cashLedger)
                 ->lockForUpdate()
                 ->firstOrFail();
+
+            // Only plain manual dashboard entries are reversible. Sale
+            // settlements, expense payments, and earlier corrections must be
+            // corrected through the mechanism that owns their origin.
+            if (! $original->isManuallyReversible()) {
+                $rejection = $this->reversalRejectionMessage($original);
+
+                return;
+            }
+
+            // A row can only ever carry one correction. A retry or a
+            // simultaneous request re-uses the deterministic link instead of
+            // appending a second reversal.
+            $alreadyReversed = CashLedger::where('business_id', $business->id)
+                ->where('reverses_ledger_id', $original->id)
+                ->lockForUpdate()
+                ->exists();
+
+            if ($alreadyReversed) {
+                return;
+            }
 
             $idempotencyKey = 'cash-reversal:'.$original->id;
             $existing = CashLedger::where('business_id', $business->id)
@@ -215,21 +239,32 @@ class CashController extends Controller
                 return;
             }
 
-            CashLedger::create([
-                'business_id' => $business->id,
-                'outlet_id' => $original->outlet_id,
-                'shift_id' => $original->shift_id,
-                'type' => $original->type === 'in' ? 'out' : 'in',
-                'amount' => $original->amount,
-                'category' => 'reversal',
-                'note' => 'Reversal untuk '.$this->referenceLabel($original),
-                'reference_id' => 'REV-CASH-'.$original->id,
-                'sale_sync_id' => null,
-                'expense_id' => $original->expense_id,
-                'idempotency_key' => $idempotencyKey,
-                'occurred_at' => now(),
-            ]);
+            try {
+                CashLedger::create([
+                    'business_id' => $business->id,
+                    'outlet_id' => $original->outlet_id,
+                    'shift_id' => $original->shift_id,
+                    'type' => $original->type === 'in' ? 'out' : 'in',
+                    'amount' => $original->amount,
+                    'category' => CashLedger::CATEGORY_REVERSAL,
+                    'note' => 'Reversal untuk '.$this->referenceLabel($original),
+                    'reference_id' => 'REV-CASH-'.$original->id,
+                    'sale_sync_id' => null,
+                    'expense_id' => null,
+                    'reverses_ledger_id' => $original->id,
+                    'idempotency_key' => $idempotencyKey,
+                    'occurred_at' => now(),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Another request won the insert race; the reversal exists.
+            }
         });
+
+        if ($rejection !== null) {
+            return redirect()
+                ->route('cash.index', ['tab' => 'ledgers'])
+                ->withErrors(['reversal' => $rejection]);
+        }
 
         return redirect()
             ->route('cash.index', ['tab' => 'ledgers'])
@@ -252,8 +287,17 @@ class CashController extends Controller
                 $record->save();
             }
 
+            // `cashLedger` resolves the original payment row deterministically,
+            // so a previously appended void refund can never be mistaken for it.
             $linkedLedger = $record->cashLedger;
             if (! $linkedLedger instanceof CashLedger || $linkedLedger->type !== 'out') {
+                return;
+            }
+
+            // The cash for this expense may already be corrected (for example
+            // by a legacy manual reversal appended before this guard existed).
+            // Never return the same cash out twice.
+            if ($this->linkedCashAlreadyCorrected($business, $record, $linkedLedger)) {
                 return;
             }
 
@@ -267,25 +311,54 @@ class CashController extends Controller
                 return;
             }
 
-            CashLedger::create([
-                'business_id' => $business->id,
-                'outlet_id' => $record->outlet_id,
-                'shift_id' => $record->shift_id,
-                'type' => 'in',
-                'amount' => $record->amount,
-                'category' => 'expense_void',
-                'note' => 'Void pengeluaran #'.$record->id,
-                'reference_id' => 'VOID-EXP-'.$record->id,
-                'sale_sync_id' => null,
-                'expense_id' => $record->id,
-                'idempotency_key' => $idempotencyKey,
-                'occurred_at' => now(),
-            ]);
+            try {
+                CashLedger::create([
+                    'business_id' => $business->id,
+                    'outlet_id' => $record->outlet_id,
+                    'shift_id' => $record->shift_id,
+                    'type' => 'in',
+                    'amount' => $record->amount,
+                    'category' => CashLedger::CATEGORY_EXPENSE_VOID,
+                    'note' => 'Void pengeluaran #'.$record->id,
+                    'reference_id' => 'VOID-EXP-'.$record->id,
+                    'sale_sync_id' => null,
+                    'expense_id' => $record->id,
+                    'reverses_ledger_id' => $linkedLedger->id,
+                    'idempotency_key' => $idempotencyKey,
+                    'occurred_at' => now(),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Another request won the insert race; the refund exists.
+            }
         });
 
         return redirect()
             ->route('cash.index', ['tab' => 'expenses'])
             ->with('status', 'Pengeluaran berhasil dibatalkan.');
+    }
+
+    /**
+     * Determine whether the cash linked to an expense was already corrected.
+     *
+     * Uses the explicit `reverses_ledger_id` link first, then falls back to
+     * legacy correction rows that only carried the shared `expense_id`.
+     */
+    private function linkedCashAlreadyCorrected(Business $business, Expense $expense, CashLedger $payment): bool
+    {
+        return CashLedger::where('business_id', $business->id)
+            ->where(function ($query) use ($expense, $payment): void {
+                $query->where('reverses_ledger_id', $payment->id)
+                    ->orWhere(function ($legacy) use ($expense, $payment): void {
+                        $legacy->where('expense_id', $expense->id)
+                            ->where('id', '!=', $payment->id)
+                            ->whereIn('category', [
+                                CashLedger::CATEGORY_REVERSAL,
+                                CashLedger::CATEGORY_EXPENSE_VOID,
+                            ]);
+                    });
+            })
+            ->lockForUpdate()
+            ->exists();
     }
 
     private function activeBusiness(Request $request): Business
@@ -327,5 +400,24 @@ class CashController extends Controller
         return $ledger->reference_id !== null && $ledger->reference_id !== ''
             ? $ledger->reference_id
             : 'kas #'.$ledger->id;
+    }
+
+    /**
+     * Explain which correction mechanism owns the original transaction so the
+     * generic reversal flow is never used on cash it does not own.
+     */
+    private function reversalRejectionMessage(CashLedger $ledger): string
+    {
+        if ($ledger->sale_sync_id !== null) {
+            return 'Pergerakan kas dari penjualan tidak dapat dibalik dari halaman kas. '
+                .'Koreksi melalui transaksi penjualan terkait.';
+        }
+
+        if ($ledger->expense_id !== null) {
+            return 'Pergerakan kas yang terhubung dengan pengeluaran harus dikoreksi '
+                .'dengan membatalkan (void) pengeluaran terkait.';
+        }
+
+        return 'Koreksi kas sebelumnya tidak dapat dibalik kembali.';
     }
 }

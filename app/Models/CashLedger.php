@@ -6,6 +6,7 @@ use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Carbon;
 
 /**
@@ -24,6 +25,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $reference_id
  * @property string|null $sale_sync_id
  * @property int|null $expense_id
+ * @property int|null $reverses_ledger_id
  * @property string|null $idempotency_key
  * @property Carbon $occurred_at
  * @property string $sync_id
@@ -35,14 +37,46 @@ use Illuminate\Support\Carbon;
  * @property-read Outlet|null $outlet
  * @property-read Shift|null $shift
  * @property-read Expense|null $expense
+ * @property-read CashLedger|null $reverses
+ * @property-read CashLedger|null $reversal
  */
-#[Fillable(['business_id', 'outlet_id', 'shift_id', 'type', 'amount', 'category', 'note', 'reference_id', 'sale_sync_id', 'expense_id', 'idempotency_key', 'occurred_at'])]
+#[Fillable(['business_id', 'outlet_id', 'shift_id', 'type', 'amount', 'category', 'note', 'reference_id', 'sale_sync_id', 'expense_id', 'reverses_ledger_id', 'idempotency_key', 'occurred_at'])]
 class CashLedger extends Model
 {
+    /**
+     * Category of the cash-out row created when an expense is paid from cash.
+     */
+    public const CATEGORY_EXPENSE = 'expense';
+
+    /**
+     * Category of a manual reversal appended by the dashboard.
+     */
+    public const CATEGORY_REVERSAL = 'reversal';
+
+    /**
+     * Category of the cash-in row appended when an expense is voided.
+     */
+    public const CATEGORY_EXPENSE_VOID = 'expense_void';
+
     /** @var string */
     protected $table = 'cash_ledger';
 
     use HasSyncMetadata;
+
+    /**
+     * Correction rows always carry a `reverses_ledger_id`, so a row is only
+     * reversible when it is a plain manual dashboard entry: never a
+     * sale-synced settlement, never an expense payment, and never a
+     * correction of an earlier row.
+     */
+    public function isManuallyReversible(): bool
+    {
+        return $this->sale_sync_id === null
+            && $this->expense_id === null
+            && $this->reverses_ledger_id === null
+            && $this->category !== self::CATEGORY_REVERSAL
+            && $this->category !== self::CATEGORY_EXPENSE_VOID;
+    }
 
     /**
      * Get the attributes that should be cast.
@@ -95,5 +129,25 @@ class CashLedger extends Model
     public function expense(): BelongsTo
     {
         return $this->belongsTo(Expense::class);
+    }
+
+    /**
+     * The ledger row this row corrects, when this row is a correction.
+     *
+     * @return BelongsTo<CashLedger, $this>
+     */
+    public function reverses(): BelongsTo
+    {
+        return $this->belongsTo(CashLedger::class, 'reverses_ledger_id');
+    }
+
+    /**
+     * The correction appended for this ledger row, when one exists.
+     *
+     * @return HasOne<CashLedger, $this>
+     */
+    public function reversal(): HasOne
+    {
+        return $this->hasOne(CashLedger::class, 'reverses_ledger_id');
     }
 }

@@ -44,6 +44,31 @@ Financial rows are not hard-deleted by dashboard actions.
 
 Both correction paths use deterministic idempotency keys so retries do not create duplicate reversals.
 
+### Correction Ownership
+
+The generic `cash.ledger.reverse` flow only owns plain manual dashboard entries. It is
+rejected, with guidance toward the originating mechanism, for:
+
+- cash synced from a sale (`sale_sync_id` is set),
+- cash linked to an expense (`expense_id` is set) — correct it by voiding the expense,
+- a previous correction (`category` is `reversal` / `expense_void`, or `reverses_ledger_id` is set).
+
+### Deterministic Correction Link
+
+`cash_ledger.reverses_ledger_id` records exactly which row a correction reverses. This makes
+"has this row already been corrected?" an exact lookup instead of a guess from shared
+`expense_id` values, and it lets a retry or a simultaneous request re-use the existing
+correction rather than append a second one.
+
+`Expense->cashLedger` resolves the original payment deterministically as the single cash-out
+(`type = out`) row for the expense that is not itself a correction (`reverses_ledger_id`
+is null). Void refunds preserve the same `expense_id` but are cash-in corrections, so they
+can never be mistaken for the payment row.
+
+`voidExpense` therefore refunds the linked cash at most once. If that cash was already
+corrected, no second refund is appended.
+
+
 ## Reporting Note
 
 Dashboard cash summaries keep cash and expense totals separate:
