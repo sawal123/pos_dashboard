@@ -109,7 +109,7 @@ class CashController extends Controller
                 'amount' => (int) $validated['amount'],
                 'category' => trim((string) $validated['category']),
                 'note' => $this->nullableString($validated['note'] ?? null),
-                'reference_id' => $this->referenceId('DASH-CASH', (string) $validated['idempotency_key']),
+                'reference_id' => CashLedger::manualReferenceId((string) $validated['idempotency_key']),
                 'sale_sync_id' => null,
                 'expense_id' => null,
                 'idempotency_key' => (string) $validated['idempotency_key'],
@@ -418,6 +418,12 @@ class CashController extends Controller
                 .'dengan membatalkan (void) pengeluaran terkait.';
         }
 
-        return 'Koreksi kas sebelumnya tidak dapat dibalik kembali.';
+        if ($ledger->reverses_ledger_id !== null
+            || in_array($ledger->category, [CashLedger::CATEGORY_REVERSAL, CashLedger::CATEGORY_EXPENSE_VOID], true)) {
+            return 'Koreksi kas sebelumnya tidak dapat dibalik kembali.';
+        }
+
+        return 'Hanya pergerakan kas manual yang dibuat dari dashboard yang dapat dibalik. '
+            .'Kas dari POS Mobile dikoreksi melalui perangkat asalnya.';
     }
 }

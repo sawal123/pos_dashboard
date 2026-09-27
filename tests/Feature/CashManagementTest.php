@@ -135,15 +135,18 @@ class CashManagementTest extends TestCase
     public function test_cash_reversal_is_append_only_and_idempotent(): void
     {
         [$user, $business, $outlet] = $this->makeUserWithBusiness();
-        $ledger = CashLedger::create([
-            'business_id' => $business->id,
+
+        // Only dashboard-origin manual entries are reversible, so create the
+        // ledger through the real dashboard endpoint.
+        $this->actingAs($user)->post(route('cash.ledger.store'), $this->cashPayload([
             'outlet_id' => $outlet->id,
             'type' => 'in',
             'amount' => 50000,
             'category' => 'cash_in',
-            'reference_id' => 'MANUAL-IN',
-            'occurred_at' => now(),
-        ]);
+            'idempotency_key' => (string) Str::uuid(),
+        ]))->assertRedirect();
+
+        $ledger = CashLedger::where('business_id', $business->id)->firstOrFail();
 
         $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id))->assertRedirect();
         $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id))->assertRedirect();

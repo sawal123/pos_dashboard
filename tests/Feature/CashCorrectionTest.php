@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Business;
 use App\Models\CashLedger;
+use App\Models\Device;
 use App\Models\Expense;
 use App\Models\Outlet;
 use App\Models\Subscription;
@@ -35,7 +36,6 @@ class CashCorrectionTest extends TestCase
             'type' => 'in',
             'amount' => 75000,
             'category' => 'cash_in',
-            'reference_id' => 'DASH-CASH-MANUAL-IN',
         ]);
 
         $this->actingAs($user)
@@ -137,6 +137,103 @@ class CashCorrectionTest extends TestCase
         $response->assertSessionHasErrors('reversal');
         $this->assertStringContainsString('penjualan', (string) session('errors')->first('reversal'));
 
+        $this->assertSame(1, CashLedger::where('business_id', $business->id)->count());
+    }
+
+    public function test_pos_mobile_manual_cash_cannot_be_reversed(): void
+    {
+        [$user, $business, $outlet] = $this->makeUserWithBusiness();
+        $ledger = $this->mobileLedger($business, $outlet);
+
+        $response = $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id));
+
+        $response->assertRedirect(route('cash.index', ['tab' => 'ledgers']));
+        $response->assertSessionHasErrors('reversal');
+        $this->assertStringContainsString('POS Mobile', (string) session('errors')->first('reversal'));
+
+        $this->assertSame(1, CashLedger::where('business_id', $business->id)->count());
+        $this->assertSame(0, CashLedger::where('business_id', $business->id)
+            ->where('category', CashLedger::CATEGORY_REVERSAL)->count());
+    }
+
+    public function test_pos_mobile_synced_manual_cash_cannot_be_reversed(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+        $user->businesses()->attach($business->id, ['role' => 'owner']);
+        Device::create([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'name' => 'Mobile POS',
+            'identifier' => 'POS-MOB-01',
+            'status' => 'active',
+            'registered_at' => now(),
+        ]);
+        $token = $user->createToken('mobile-api', ['mobile'])->plainTextToken;
+        $syncId = (string) Str::uuid();
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/sync/push', [
+                'business_id' => $business->id,
+                'device_identifier' => 'POS-MOB-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'cash_ledger' => [[
+                        'sync_id' => $syncId,
+                        'base_sync_version' => null,
+                        'type' => 'in',
+                        'amount' => 55000,
+                        'category' => 'cash_in',
+                        'note' => 'Setoran kas manual POS Mobile',
+                        'reference_id' => 'MOBILE-CASH-001',
+                        'occurred_at' => now()->format('Y-m-d H:i:s'),
+                    ]],
+                ],
+            ])->assertStatus(200);
+
+        $ledger = CashLedger::where('business_id', $business->id)
+            ->where('sync_id', $syncId)
+            ->firstOrFail();
+
+        // Sync rows are plain manual cash, yet carry no dashboard identity.
+        $this->assertNull($ledger->sale_sync_id);
+        $this->assertNull($ledger->expense_id);
+        $this->assertNull($ledger->idempotency_key);
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('cash.ledger.reverse', $ledger->id));
+
+        $response->assertRedirect(route('cash.index', ['tab' => 'ledgers']));
+        $response->assertSessionHasErrors('reversal');
+        $this->assertSame(1, CashLedger::where('business_id', $business->id)->count());
+    }
+
+    public function test_row_cannot_forge_dashboard_reference_without_idempotency_key(): void
+    {
+        [$user, $business, $outlet] = $this->makeUserWithBusiness();
+        $ledger = $this->mobileLedger($business, $outlet, [
+            'reference_id' => 'DASH-CASH-ABCDEF123456',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id));
+
+        $response->assertSessionHasErrors('reversal');
+        $this->assertSame(1, CashLedger::where('business_id', $business->id)->count());
+    }
+
+    public function test_row_with_mismatched_dashboard_identity_is_rejected(): void
+    {
+        [$user, $business, $outlet] = $this->makeUserWithBusiness();
+        $ledger = $this->manualLedger($business, $outlet, [
+            'reference_id' => 'DASH-CASH-000000000000',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id));
+
+        $response->assertSessionHasErrors('reversal');
         $this->assertSame(1, CashLedger::where('business_id', $business->id)->count());
     }
 
@@ -406,13 +503,37 @@ class CashCorrectionTest extends TestCase
      */
     private function manualLedger(Business $business, Outlet $outlet, array $overrides = []): CashLedger
     {
+        $idempotencyKey = (string) Str::uuid();
+
         return CashLedger::create(array_merge([
             'business_id' => $business->id,
             'outlet_id' => $outlet->id,
             'type' => 'in',
             'amount' => 10000,
             'category' => 'cash_in',
-            'reference_id' => 'DASH-CASH-'.Str::upper(Str::random(8)),
+            'reference_id' => CashLedger::manualReferenceId($idempotencyKey),
+            'idempotency_key' => $idempotencyKey,
+            'occurred_at' => now(),
+        ], $overrides));
+    }
+
+    /**
+     * A manual cash entry as pushed by POS Mobile sync: no sale or expense
+     * link, no dashboard idempotency key, device-local reference.
+     *
+     * @param  array<string, mixed>  $overrides
+     */
+    private function mobileLedger(Business $business, Outlet $outlet, array $overrides = []): CashLedger
+    {
+        return CashLedger::create(array_merge([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'type' => 'in',
+            'amount' => 55000,
+            'category' => 'cash_in',
+            'reference_id' => 'MOBILE-CASH-'.Str::upper(Str::random(6)),
+            'sync_id' => (string) Str::uuid(),
+            'idempotency_key' => null,
             'occurred_at' => now(),
         ], $overrides));
     }

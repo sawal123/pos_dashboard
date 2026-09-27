@@ -46,12 +46,17 @@ Both correction paths use deterministic idempotency keys so retries do not creat
 
 ### Correction Ownership
 
-The generic `cash.ledger.reverse` flow only owns plain manual dashboard entries. It is
-rejected, with guidance toward the originating mechanism, for:
+The generic `cash.ledger.reverse` flow only owns cash that verifiably originated from the
+dashboard. A row is reversible only when it is a plain manual entry **and** carries the
+dashboard origin identity: a non-null `idempotency_key` whose derived reference equals
+`reference_id` (`DASH-CASH-` + first 12 characters of the key). It is rejected, with
+guidance toward the originating mechanism, for:
 
 - cash synced from a sale (`sale_sync_id` is set),
 - cash linked to an expense (`expense_id` is set) — correct it by voiding the expense,
-- a previous correction (`category` is `reversal` / `expense_void`, or `reverses_ledger_id` is set).
+- a previous correction (`category` is `reversal` / `expense_void`, or `reverses_ledger_id` is set),
+- manual cash pushed by POS Mobile, which never carries a dashboard `idempotency_key`
+  and uses a device-local `reference_id` — it is corrected on the originating device.
 
 ### Deterministic Correction Link
 

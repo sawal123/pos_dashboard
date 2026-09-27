@@ -58,16 +58,52 @@ class CashLedger extends Model
      */
     public const CATEGORY_EXPENSE_VOID = 'expense_void';
 
+    /**
+     * Reference prefix stamped on manual cash entries created by the dashboard.
+     */
+    public const REFERENCE_PREFIX_MANUAL = 'DASH-CASH-';
+
     /** @var string */
     protected $table = 'cash_ledger';
 
     use HasSyncMetadata;
 
     /**
+     * Build the deterministic dashboard reference for a manual cash entry.
+     *
+     * The dashboard stamps both `reference_id` and `idempotency_key` on manual
+     * entries, and the reference is derived from the key, so the two together
+     * are a verifiable origin identity that POS Mobile sync cannot produce.
+     */
+    public static function manualReferenceId(string $idempotencyKey): string
+    {
+        return self::REFERENCE_PREFIX_MANUAL.strtoupper(substr(str_replace('-', '', $idempotencyKey), 0, 12));
+    }
+
+    /**
+     * Whether this row is verifiably a manual entry created by the dashboard.
+     *
+     * POS Mobile rows arrive through sync, which never supplies
+     * `idempotency_key` and stamps a device-local `reference_id`. Requiring the
+     * deterministic dashboard reference/idempotency-key pair keeps those rows
+     * out of the dashboard reversal flow.
+     */
+    public function hasDashboardManualOrigin(): bool
+    {
+        $idempotencyKey = $this->idempotency_key;
+
+        if (! is_string($idempotencyKey) || $idempotencyKey === '') {
+            return false;
+        }
+
+        return $this->reference_id === self::manualReferenceId($idempotencyKey);
+    }
+
+    /**
      * Correction rows always carry a `reverses_ledger_id`, so a row is only
      * reversible when it is a plain manual dashboard entry: never a
-     * sale-synced settlement, never an expense payment, and never a
-     * correction of an earlier row.
+     * sale-synced settlement, never an expense payment, never a correction of
+     * an earlier row, and never a manual cash entry pushed from POS Mobile.
      */
     public function isManuallyReversible(): bool
     {
@@ -75,7 +111,8 @@ class CashLedger extends Model
             && $this->expense_id === null
             && $this->reverses_ledger_id === null
             && $this->category !== self::CATEGORY_REVERSAL
-            && $this->category !== self::CATEGORY_EXPENSE_VOID;
+            && $this->category !== self::CATEGORY_EXPENSE_VOID
+            && $this->hasDashboardManualOrigin();
     }
 
     /**
