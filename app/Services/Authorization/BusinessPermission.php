@@ -53,6 +53,9 @@ final class BusinessPermission
 
     public const SUBSCRIPTION_MANAGE = 'subscription.manage';
 
+    // DASH-14 — business profile / type setup (owner only).
+    public const BUSINESS_SETTINGS_MANAGE = 'business.settings.manage';
+
     // Mobile/sync API. Cashier is intentionally denied: the sync contract is
     // not cashier-safe yet (see DASH10B2 doc).
     public const SYNC_PUSH = 'sync.push';

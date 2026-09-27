@@ -39,23 +39,26 @@ class DashboardTest extends TestCase
         $response->assertDontSee('sidebar-item-label truncate flex-1 tracking-tight">Categories', false);
     }
 
-    public function test_owner_sees_the_operational_and_laundry_menu(): void
+    public function test_owner_without_a_business_type_does_not_get_a_guessed_laundry_menu(): void
     {
         $owner = User::factory()->create(['email_verified_at' => now()]);
+        // No business_type: NULL/"unknown" must never be presented as Cafe or as
+        // a laundry tenant (DASH-14). The laundry menu requires BOTH the
+        // LAUNDRY_VIEW permission and business_type = laundry.
         $business = Business::factory()->create();
         $business->users()->attach($owner->id, ['role' => 'owner']);
         $this->actingAs($owner);
 
-        // DASH-11 — the laundry menu is visible for every active business. It is
-        // now driven by the DASH-10B2 permission matrix instead of business type.
         $response = $this->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('dashboard'));
 
         $response->assertOk();
         $response->assertSee('Operasional');
         $response->assertSee('Produk &amp; Layanan', false);
-        $response->assertSee('Pesanan Laundry');
-        $response->assertSee(route('laundry-orders.index'), false);
+        $response->assertDontSee('Pesanan Laundry');
+        $response->assertDontSee(route('laundry-orders.index'), false);
+        // The owner is still guided to choose a type instead of being locked out.
+        $response->assertSee('Tipe bisnis belum ditentukan');
     }
 
     public function test_unverified_users_cannot_visit_the_dashboard(): void

@@ -146,4 +146,14 @@ class DashboardBusinessContext
     {
         return (bool) $business?->hasCloudAccess();
     }
+
+    /**
+     * Canonical business type of the given business (`cafe` / `laundry` /
+     * `grosir`), or null when the type is not determined. Legacy explicit
+     * values are normalized; NULL is never coerced to a default.
+     */
+    public function businessType(?Business $business): ?string
+    {
+        return $business?->normalizedBusinessType();
+    }
 }
