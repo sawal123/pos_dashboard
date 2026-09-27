@@ -1,4 +1,7 @@
 {{-- ==================== DEVICE DETAIL DRAWER ==================== --}}
+@props([
+    'canManage' => false,
+])
 <div
     id="deviceDrawerWrapper"
     class="fixed inset-0 z-50 hidden"
@@ -42,14 +45,19 @@
         <div class="flex-1 overflow-y-auto p-5 space-y-5 text-xs sm:text-sm">
 
             {{-- Status Hero Card --}}
-            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 flex items-center justify-between gap-3">
-                <div>
-                    <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Status Registrasi</span>
-                    <h3 id="deviceDrawerNameHeading" class="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">-</h3>
+            <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 space-y-2">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Status Akses API</span>
+                        <h3 id="deviceDrawerNameHeading" class="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white">-</h3>
+                    </div>
+                    <div id="deviceDrawerStatusBadge">
+                        {{-- Dynamically populated badge --}}
+                    </div>
                 </div>
-                <div id="deviceDrawerStatusBadge">
-                    {{-- Dynamically populated badge --}}
-                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                    Aktif berarti perangkat diizinkan mengakses API, bukan berarti perangkat sedang online.
+                </p>
             </div>
 
             {{-- Attributes List --}}
@@ -80,7 +88,7 @@
                     </div>
                     {{-- Last Seen At --}}
                     <div class="flex items-center justify-between p-3 bg-white dark:bg-slate-900">
-                        <span class="text-slate-500 dark:text-slate-400">Terakhir Terlihat</span>
+                        <span class="text-slate-500 dark:text-slate-400">Akses API Terakhir</span>
                         <span id="deviceDrawerLastSeenAt" class="font-mono text-slate-700 dark:text-slate-300">-</span>
                     </div>
                 </div>
@@ -95,7 +103,19 @@
         </div>
 
         {{-- Drawer Footer --}}
-        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+            @if($canManage)
+                <button
+                    type="button"
+                    id="deviceDrawerEditBtn"
+                    data-open-device-modal
+                    data-device-mode="edit"
+                    class="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-h-[42px]"
+                >
+                    <i data-lucide="pencil" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+                    <span>Edit Perangkat</span>
+                </button>
+            @endif
             <button
                 type="button"
                 id="closeDeviceDrawerFooterBtn"

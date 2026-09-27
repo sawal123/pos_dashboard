@@ -175,6 +175,21 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->middleware('business.permission:'.BusinessPermission::DEVICES_VIEW)
         ->name('devices.index');
 
+    // DASH-17 — owner-only device registration & management. Reading stays on
+    // devices.view; every mutation requires devices.manage. The status route is
+    // registered before the generic {deviceId} route.
+    Route::patch('devices/{deviceId}/status', [DevicesController::class, 'updateStatus'])
+        ->whereNumber('deviceId')
+        ->middleware('business.permission:'.BusinessPermission::DEVICES_MANAGE)
+        ->name('devices.status.update');
+    Route::post('devices', [DevicesController::class, 'store'])
+        ->middleware('business.permission:'.BusinessPermission::DEVICES_MANAGE)
+        ->name('devices.store');
+    Route::patch('devices/{deviceId}', [DevicesController::class, 'update'])
+        ->whereNumber('deviceId')
+        ->middleware('business.permission:'.BusinessPermission::DEVICES_MANAGE)
+        ->name('devices.update');
+
     Route::get('sync', [SyncMonitoringController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::SYNC_VIEW)
         ->name('sync.index');

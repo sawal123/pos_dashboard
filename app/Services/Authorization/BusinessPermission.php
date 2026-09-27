@@ -55,6 +55,10 @@ final class BusinessPermission
     // Business/system administration (owner only).
     public const DEVICES_VIEW = 'devices.view';
 
+    // DASH-17 — owner-only device registration & management (dashboard).
+    // Distinct from MOBILE_DEVICES_MANAGE, which governs the mobile API.
+    public const DEVICES_MANAGE = 'devices.manage';
+
     public const SYNC_VIEW = 'sync.view';
 
     public const SUBSCRIPTION_MANAGE = 'subscription.manage';

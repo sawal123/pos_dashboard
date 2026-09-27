@@ -18,18 +18,44 @@
                 </p>
             </div>
 
-            {{-- Action Button --}}
-            <div class="flex items-center gap-2.5 shrink-0">
-                <button
-                    type="button"
-                    id="registerDeviceBtn"
-                    class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                >
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Daftarkan Perangkat</span>
-                </button>
-            </div>
+            {{-- Action Button (owner-only) --}}
+            @if($canManageDevices)
+                <div class="flex items-center gap-2.5 shrink-0">
+                    <button
+                        type="button"
+                        id="registerDeviceBtn"
+                        data-open-device-modal
+                        data-device-mode="create"
+                        class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Daftarkan Perangkat</span>
+                    </button>
+                </div>
+            @endif
         </div>
+
+        {{-- ==================== FLASH / VALIDATION FEEDBACK ==================== --}}
+        @if(session('status'))
+            <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-start gap-3" role="status">
+                <i data-lucide="check-circle-2" class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+                <p class="text-sm text-emerald-800 dark:text-emerald-200">{{ session('status') }}</p>
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-4 space-y-1" role="alert">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400"></i>
+                    <p class="text-sm font-semibold text-rose-800 dark:text-rose-200">Tindakan tidak dapat diproses.</p>
+                </div>
+                <ul class="pl-8 list-disc text-xs text-rose-700 dark:text-rose-300 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
         <x-devices.summary-cards :summary="$summary" />
@@ -43,19 +69,17 @@
 
         {{-- ==================== 3. DATA LIST / EMPTY STATES ==================== --}}
         @if(!$hasAnyDevices)
-            <x-devices.empty-state mode="no-data" />
+            <x-devices.empty-state mode="no-data" :can-manage="$canManageDevices" />
         @elseif($devices->isEmpty())
-            <x-devices.empty-state mode="no-results" />
+            <x-devices.empty-state mode="no-results" :can-manage="$canManageDevices" />
         @else
             <div id="deviceDataContainer" class="space-y-4">
                 {{-- Desktop Table View --}}
-                <x-devices.table :devices="$devices" />
+                <x-devices.table :devices="$devices" :can-manage="$canManageDevices" />
 
                 {{-- Mobile Cards View --}}
-                <x-devices.mobile-cards :devices="$devices" />
+                <x-devices.mobile-cards :devices="$devices" :can-manage="$canManageDevices" />
             </div>
-
-            {{-- Pagination --}}
             @if($devices->hasPages())
                 <div class="pt-2">
                     {{ $devices->links() }}
@@ -64,7 +88,12 @@
         @endif
 
         {{-- ==================== 4. DETAIL DRAWER ==================== --}}
-        <x-devices.detail-drawer />
+        <x-devices.detail-drawer :can-manage="$canManageDevices" />
+
+        @if($canManageDevices)
+            {{-- ==================== 5. REGISTRATION / EDIT MODAL (DASH-17) ==================== --}}
+            <x-devices.device-modal :outlets="$outlets" />
+        @endif
 
     </main>
 
@@ -77,8 +106,6 @@
             }
             root.dataset.devicesInitialized = 'true';
 
-            const registerBtn = document.getElementById('registerDeviceBtn');
-
             // Drawer Elements
             const drawerWrapper = document.getElementById('deviceDrawerWrapper');
             const drawerBackdrop = document.getElementById('deviceDrawerBackdrop');
@@ -88,16 +115,16 @@
 
             let lastTriggerElement = null;
 
-            // Register Action Placeholder
-            if (registerBtn) {
-                registerBtn.onclick = () => {
-                    alert('Registrasi perangkat dari dashboard belum tersedia.');
-                };
-            }
-
             // Safe DOM Rendering for Device Detail Drawer
             function openDrawer(itemData) {
                 if (!drawerWrapper || !itemData) return;
+
+                // Hand the row data to the DASH-17 edit modal via the drawer
+                // button so both features share one source without coupling.
+                const drawerEditBtn = document.getElementById('deviceDrawerEditBtn');
+                if (drawerEditBtn) {
+                    drawerEditBtn.dataset.deviceRaw = JSON.stringify(itemData);
+                }
 
                 document.getElementById('deviceDrawerTitle').textContent = itemData.name || '-';
                 document.getElementById('deviceDrawerNameHeading').textContent = itemData.name || '-';
@@ -105,7 +132,7 @@
                 document.getElementById('deviceDrawerOutlet').textContent = itemData.outlet_name || '-';
                 document.getElementById('deviceDrawerPlatform').textContent = itemData.platform || 'Tidak Diketahui';
                 document.getElementById('deviceDrawerRegisteredAt').textContent = itemData.registered_at || '-';
-                document.getElementById('deviceDrawerLastSeenAt').textContent = itemData.last_seen_at || 'Belum Pernah Terlihat';
+                document.getElementById('deviceDrawerLastSeenAt').textContent = itemData.last_seen_at || 'Belum Pernah Akses API';
 
                 // Status Badge
                 const badgeContainer = document.getElementById('deviceDrawerStatusBadge');
@@ -269,4 +296,228 @@
             });
         }
     </script>
+
+    @if($canManageDevices)
+        {{-- DASH-17 — registration/edit modal wiring (bound once, delegated). --}}
+        <script>
+            (function () {
+                if (window.__deviceModalBound) {
+                    return;
+                }
+                window.__deviceModalBound = true;
+
+                const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+                let lastTrigger = null;
+
+                const modalEl = () => document.getElementById('deviceModal');
+                const formEl = () => document.getElementById('deviceForm');
+
+                const setValue = (form, name, value) => {
+                    const field = form.elements.namedItem(name);
+                    if (field) {
+                        field.value = value === null || value === undefined ? '' : value;
+                    }
+                };
+
+                const setHeading = (subtitle, title) => {
+                    const subEl = document.getElementById('deviceModalSubtitle');
+                    const titleEl = document.getElementById('deviceModalTitle');
+                    if (subEl) subEl.textContent = subtitle;
+                    if (titleEl) titleEl.textContent = title;
+                };
+
+                const open = (trigger) => {
+                    const el = modalEl();
+                    if (!el) return;
+
+                    lastTrigger = trigger || null;
+                    el.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+
+                    requestAnimationFrame(() => {
+                        const focusables = Array.from(el.querySelectorAll(focusableSelector));
+                        if (focusables.length > 0) {
+                            focusables[0].focus({ preventScroll: true });
+                        } else {
+                            el.focus({ preventScroll: true });
+                        }
+                    });
+                };
+
+                const close = () => {
+                    const el = modalEl();
+                    if (!el || el.classList.contains('hidden')) return;
+
+                    el.classList.add('hidden');
+                    document.body.style.overflow = '';
+
+                    if (lastTrigger && document.contains(lastTrigger) && typeof lastTrigger.focus === 'function') {
+                        lastTrigger.focus({ preventScroll: true });
+                    }
+                    lastTrigger = null;
+                };
+
+                // Identifier and outlet are immutable from the dashboard. The
+                // visible outlet select is disabled in edit mode while a hidden
+                // mirror keeps the id in the payload.
+                const applyMode = (mode, raw) => {
+                    const form = formEl();
+                    if (!form) return;
+
+                    const identifier = document.getElementById('deviceFormIdentifier');
+                    const outlet = document.getElementById('deviceFormOutlet');
+                    const mirror = document.getElementById('deviceFormOutletMirror');
+
+                    if (mode === 'edit' && raw) {
+                        form.setAttribute('action', form.dataset.updateUrlTemplate.replace('__ID__', raw.id));
+                        setValue(form, '_method', 'PATCH');
+                        setValue(form, 'device_form', 'edit');
+                        setValue(form, 'device_id', raw.id ?? '');
+                        if (identifier) identifier.setAttribute('readonly', 'readonly');
+                        if (outlet) outlet.setAttribute('disabled', 'disabled');
+                        if (mirror) {
+                            mirror.disabled = false;
+                            mirror.value = raw.outlet_id ?? '';
+                        }
+                    } else {
+                        form.setAttribute('action', form.dataset.storeUrl);
+                        setValue(form, '_method', 'POST');
+                        setValue(form, 'device_form', 'create');
+                        setValue(form, 'device_id', '');
+                        if (identifier) identifier.removeAttribute('readonly');
+                        if (outlet) outlet.removeAttribute('disabled');
+                        if (mirror) {
+                            mirror.disabled = true;
+                            mirror.value = '';
+                        }
+                    }
+                };
+
+                const openCreate = (trigger) => {
+                    const form = formEl();
+                    if (!form) return;
+
+                    form.reset();
+                    ['name', 'identifier', 'platform', 'notes', 'outlet_id'].forEach((name) => setValue(form, name, ''));
+                    applyMode('create');
+                    setHeading('Registrasi', 'Daftarkan Perangkat');
+                    open(trigger);
+                };
+
+                const openEdit = (raw, trigger) => {
+                    if (!raw) return;
+                    const form = formEl();
+                    if (!form) return;
+
+                    form.reset();
+                    setValue(form, 'name', raw.name || '');
+                    setValue(form, 'identifier', raw.identifier || '');
+                    setValue(form, 'platform', raw.platform_raw || '');
+                    setValue(form, 'notes', raw.notes || '');
+                    const outlet = document.getElementById('deviceFormOutlet');
+                    if (outlet) outlet.value = raw.outlet_id ?? '';
+
+                    applyMode('edit', raw);
+                    setHeading('Edit', 'Edit Perangkat');
+                    open(trigger);
+                };
+
+                // After a validation redirect the server has already rendered the
+                // form with the correct action, method, values and immutable
+                // fields; we only reopen the modal for the mode it recorded.
+                const restoreFromServerState = () => {
+                    const el = modalEl();
+                    if (!el) return;
+                    const mode = el.getAttribute('data-restore-mode');
+                    if (mode === 'create' || mode === 'edit') {
+                        open(null);
+                    }
+                };
+
+                const parseRaw = (el) => {
+                    const raw = el.getAttribute('data-device-raw');
+                    if (!raw) return null;
+                    try {
+                        return JSON.parse(raw);
+                    } catch (error) {
+                        return null;
+                    }
+                };
+
+                document.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+
+                    if (target.closest('[data-close-device-modal]')) {
+                        close();
+                        return;
+                    }
+
+                    const trigger = target.closest('[data-open-device-modal]');
+                    if (!trigger) return;
+
+                    event.preventDefault();
+                    const mode = trigger.getAttribute('data-device-mode') || 'create';
+
+                    if (mode === 'edit') {
+                        openEdit(parseRaw(trigger), trigger);
+                    } else {
+                        openCreate(trigger);
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    const el = modalEl();
+                    if (!el || el.classList.contains('hidden')) return;
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        close();
+                        return;
+                    }
+
+                    if (event.key !== 'Tab') return;
+
+                    const focusables = Array.from(el.querySelectorAll(focusableSelector));
+                    if (focusables.length === 0) return;
+
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    const activeIndex = focusables.indexOf(document.activeElement);
+
+                    if (event.shiftKey) {
+                        if (activeIndex <= 0) {
+                            event.preventDefault();
+                            last.focus({ preventScroll: true });
+                        }
+                        return;
+                    }
+
+                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
+                        event.preventDefault();
+                        first.focus({ preventScroll: true });
+                    }
+                });
+
+                // Prevent double submits; the identifier's uniqueness is also
+                // enforced server-side (idempotent resolution).
+                document.addEventListener('submit', (event) => {
+                    const form = event.target;
+                    if (!(form instanceof HTMLFormElement) || form.id !== 'deviceForm') return;
+
+                    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                        button.disabled = true;
+                        const label = button.querySelector('[data-submit-label]');
+                        if (label) label.textContent = 'Menyimpan…';
+                    });
+                });
+
+                // Reopen the modal when the server recorded a failed modal
+                // submission (full-page reload and Livewire navigation alike).
+                restoreFromServerState();
+                document.addEventListener('livewire:navigated', restoreFromServerState);
+            })();
+        </script>
+    @endif
 </x-layouts::app>

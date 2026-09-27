@@ -1,5 +1,6 @@
 @props([
     'devices' => [],
+    'canManage' => false,
 ])
 
 <div id="mobileDeviceCards" class="md:hidden space-y-3">
@@ -19,7 +20,7 @@
                 $statusBadgeClass = 'bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                 $statusDotClass = 'bg-slate-400';
             }
-            $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Terlihat';
+            $lastSeenText = !empty($device['last_seen_at']) ? $device['last_seen_at'] : 'Belum Pernah Akses API';
         @endphp
         <div
             class="device-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3"
@@ -57,22 +58,48 @@
 
             <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
                 <div>
-                    <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Terakhir Terlihat</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 block">Akses API Terakhir</span>
                     @if(!empty($device['last_seen_at']))
                         <span class="font-mono text-[11px] text-slate-800 dark:text-slate-200 font-semibold">{{ $device['last_seen_at'] }}</span>
                     @else
                         <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60">
-                            Belum Pernah Terlihat
+                            Belum Pernah Akses API
                         </span>
                     @endif
                 </div>
 
-                <button
-                    type="button"
-                    class="view-device-detail-btn py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
-                >
-                    Lihat Detail
-                </button>
+                <div class="flex items-center gap-1.5 flex-wrap justify-end">
+                    @if($canManage)
+                        <button
+                            type="button"
+                            data-open-device-modal
+                            data-device-mode="edit"
+                            data-device-raw="{{ json_encode($device) }}"
+                            class="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors shrink-0"
+                        >
+                            Edit
+                        </button>
+                        <form
+                            method="POST"
+                            action="{{ route('devices.status.update', ['deviceId' => $device['id']]) }}"
+                            class="shrink-0"
+                            onsubmit="return confirm('{{ $statusRaw === 'active' ? 'Nonaktifkan perangkat ini? Perangkat tidak akan bisa sinkronisasi sampai diaktifkan kembali.' : 'Aktifkan kembali perangkat ini?' }}')"
+                        >
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="status" value="{{ $statusRaw === 'active' ? 'inactive' : 'active' }}">
+                            <button type="submit" class="py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold text-xs transition-colors">
+                                {{ $statusRaw === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}
+                            </button>
+                        </form>
+                    @endif
+                    <button
+                        type="button"
+                        class="view-device-detail-btn py-1.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shrink-0"
+                    >
+                        Lihat Detail
+                    </button>
+                </div>
             </div>
         </div>
     @endforeach

@@ -168,7 +168,7 @@ class DashboardDevicesData
             'registered_at_raw' => $device->registered_at->format('Y-m-d H:i:s'),
             'registered_at' => $this->formatDateTime($device->registered_at) ?? '-',
             'last_seen_at_raw' => $device->last_seen_at?->format('Y-m-d H:i:s'),
-            'last_seen_at' => $this->formatDateTime($device->last_seen_at) ?? 'Belum Pernah Terlihat',
+            'last_seen_at' => $this->formatDateTime($device->last_seen_at) ?? 'Belum Pernah Akses API',
             'notes' => $device->notes !== null ? (string) $device->notes : null,
         ];
     }

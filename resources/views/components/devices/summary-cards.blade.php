@@ -29,7 +29,7 @@
             <h3 id="deviceSummaryActive" class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
                 {{ number_format($summary['active_devices'] ?? 0, 0, ',', '.') }}
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Registrasi perangkat aktif</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">Diizinkan mengakses API</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-800/60 shadow-xs">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i>
@@ -43,21 +43,21 @@
             <h3 id="deviceSummaryInactive" class="text-xl sm:text-2xl font-extrabold text-slate-600 dark:text-slate-300 tracking-tight tabular-nums">
                 {{ number_format($summary['inactive_devices'] ?? 0, 0, ',', '.') }}
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Registrasi perangkat nonaktif</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">Akses API ditolak</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
             <i data-lucide="shield-alert" class="w-5 h-5"></i>
         </div>
     </div>
 
-    {{-- 4. Belum Pernah Terlihat --}}
+    {{-- 4. Belum Pernah Akses API --}}
     <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs flex items-center justify-between gap-4">
         <div class="space-y-1">
-            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Belum Pernah Terlihat</span>
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Belum Pernah Akses API</span>
             <h3 id="deviceSummaryNeverSeen" class="text-xl sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400 tracking-tight tabular-nums">
                 {{ number_format($summary['never_seen_devices'] ?? 0, 0, ',', '.') }}
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Belum ada aktivitas tercatat</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">Belum pernah memanggil API</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 border border-amber-100 dark:border-amber-800/60 shadow-xs">
             <i data-lucide="clock-alert" class="w-5 h-5"></i>

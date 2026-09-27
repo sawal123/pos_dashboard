@@ -1,5 +1,6 @@
 @props([
     'mode' => 'no-data', // 'no-data', 'no-results'
+    'canManage' => false,
 ])
 
 @if($mode === 'no-data')
@@ -15,6 +16,19 @@
                 Perangkat yang terdaftar di Cloud akan muncul di sini.
             </p>
         </div>
+        @if($canManage)
+            <div class="pt-1">
+                <button
+                    type="button"
+                    data-open-device-modal
+                    data-device-mode="create"
+                    class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span>Daftarkan Perangkat</span>
+                </button>
+            </div>
+        @endif
     </div>
 @elseif($mode === 'no-results')
     <div id="deviceFilterEmptyState" class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs p-8 text-center space-y-3">
