@@ -23,7 +23,9 @@
                 <button
                     type="button"
                     id="recordCashBtn"
-                    class="py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    @disabled(!($canManageCash ?? false))
+                    class="py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="{{ ($canManageCash ?? false) ? 'Catat kas' : 'Hanya pemilik bisnis yang dapat mencatat kas' }}"
                 >
                     <i data-lucide="arrow-down-left" class="w-4 h-4 text-emerald-600"></i>
                     <span>Catat Kas</span>
@@ -31,13 +33,37 @@
                 <button
                     type="button"
                     id="addExpenseBtn"
-                    class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    @disabled(!($canManageCash ?? false))
+                    class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="{{ ($canManageCash ?? false) ? 'Tambah pengeluaran' : 'Hanya pemilik bisnis yang dapat mencatat pengeluaran' }}"
                 >
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Tambah Pengeluaran</span>
                 </button>
             </div>
         </div>
+
+        {{-- ==================== FLASH FEEDBACK ==================== --}}
+        @if(session('status'))
+            <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-start gap-3" role="status">
+                <i data-lucide="check-circle-2" class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+                <p class="text-sm text-emerald-800 dark:text-emerald-200">{{ session('status') }}</p>
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-4 space-y-1" role="alert">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400"></i>
+                    <p class="text-sm font-semibold text-rose-800 dark:text-rose-200">Tindakan tidak dapat diproses.</p>
+                </div>
+                <ul class="pl-8 list-disc text-xs text-rose-700 dark:text-rose-300 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
         <x-cash.summary-cards :summary="$summary" />
@@ -134,13 +160,11 @@
         {{-- ==================== 4. DETAIL DRAWER ==================== --}}
         <x-cash.detail-drawer />
 
-        {{-- Toast container for placeholder messages --}}
-        <div id="cashActionToast" class="fixed bottom-6 right-6 z-50 transform transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
-            <div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 shadow-xl text-xs font-semibold">
-                <i data-lucide="info" class="w-4 h-4 text-indigo-400 dark:text-indigo-600"></i>
-                <span id="cashActionToastText">Aksi belum tersedia</span>
-            </div>
-        </div>
+        <x-cash.management-modals
+            :canManageCash="$canManageCash ?? false"
+            :outlets="$filterOptions['outlets'] ?? []"
+            :shifts="$filterOptions['shifts'] ?? []"
+        />
 
     </main>
 
@@ -165,32 +189,85 @@
             const customDateContainer = document.getElementById('cashCustomDateContainer');
             const recordCashBtn = document.getElementById('recordCashBtn');
             const addExpenseBtn = document.getElementById('addExpenseBtn');
-            const toastEl = document.getElementById('cashActionToast');
-            const toastTextEl = document.getElementById('cashActionToastText');
-            let toastTimer = null;
+            const cashModal = document.getElementById('cashLedgerModal');
+            const expenseModal = document.getElementById('expenseModal');
 
-            function showToast(message) {
-                if (!toastEl || !toastTextEl) return;
-                toastTextEl.textContent = message;
-                toastEl.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
-                toastEl.classList.add('translate-y-0', 'opacity-100');
-                if (toastTimer) clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => {
-                    toastEl.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
-                    toastEl.classList.remove('translate-y-0', 'opacity-100');
-                }, 3000);
+            function openModal(modal) {
+                if (!modal) return;
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                const firstField = modal.querySelector('input:not([type="hidden"]), select, textarea, button');
+                setTimeout(() => firstField?.focus(), 50);
             }
 
-            if (recordCashBtn) {
+            function closeModal(modal) {
+                if (!modal) return;
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+
+            function syncShiftOptions(modal) {
+                if (!modal) return;
+                const outletSelect = modal.querySelector('[data-cash-outlet-select]');
+                const shiftSelect = modal.querySelector('[data-cash-shift-select]');
+                if (!outletSelect || !shiftSelect) return;
+
+                const selectedOutlet = outletSelect.value;
+                Array.from(shiftSelect.options).forEach((option) => {
+                    if (!option.value) {
+                        option.hidden = false;
+                        option.disabled = false;
+                        return;
+                    }
+                    const matches = option.dataset.outletId === selectedOutlet;
+                    option.hidden = !matches;
+                    option.disabled = !matches;
+                    if (!matches && option.selected) {
+                        shiftSelect.value = '';
+                    }
+                });
+            }
+
+            document.querySelectorAll('[data-cash-modal-close]').forEach((btn) => {
+                btn.addEventListener('click', () => closeModal(btn.closest('[data-cash-modal]')));
+            });
+
+            document.querySelectorAll('[data-cash-modal]').forEach((modal) => {
+                modal.addEventListener('click', (event) => {
+                    if (event.target === modal) {
+                        closeModal(modal);
+                    }
+                });
+                modal.querySelectorAll('[data-cash-outlet-select]').forEach((select) => {
+                    select.addEventListener('change', () => syncShiftOptions(modal));
+                    syncShiftOptions(modal);
+                });
+            });
+
+            document.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape') {
+                    closeModal(cashModal);
+                    closeModal(expenseModal);
+                }
+            });
+
+            if (recordCashBtn && !recordCashBtn.disabled) {
                 recordCashBtn.onclick = () => {
-                    showToast('Catat kas dari dashboard belum tersedia.');
+                    openModal(cashModal);
                 };
             }
 
-            if (addExpenseBtn) {
+            if (addExpenseBtn && !addExpenseBtn.disabled) {
                 addExpenseBtn.onclick = () => {
-                    showToast('Tambah pengeluaran dari dashboard belum tersedia.');
+                    openModal(expenseModal);
                 };
+            }
+
+            if (cashModal?.dataset.openOnLoad === 'true') {
+                openModal(cashModal);
+            }
+            if (expenseModal?.dataset.openOnLoad === 'true') {
+                openModal(expenseModal);
             }
 
             if (dateSelect && customDateContainer) {
