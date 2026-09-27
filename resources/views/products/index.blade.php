@@ -20,6 +20,27 @@
         </div>
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
+        @if(session('status'))
+            <div class="rounded-2xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50 dark:bg-emerald-950/20 p-4 flex items-start gap-3" role="status">
+                <i data-lucide="check-circle-2" class="w-5 h-5 shrink-0 text-emerald-600 dark:text-emerald-400"></i>
+                <p class="text-sm text-emerald-800 dark:text-emerald-200">{{ session('status') }}</p>
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-4 space-y-1" role="alert">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400"></i>
+                    <p class="text-sm font-semibold text-rose-800 dark:text-rose-200">Perubahan tidak dapat disimpan.</p>
+                </div>
+                <ul class="pl-8 list-disc text-xs text-rose-700 dark:text-rose-300 space-y-0.5">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         <x-products.summary-cards :summary="$summary" />
 
         {{-- ==================== 2. TABS NAVIGATOR ==================== --}}
@@ -79,22 +100,23 @@
             :categories="$categories"
             :statuses="$statuses"
             :active-tab="$activeTab"
-            :filters="$filters"
+            :current-filters="$filters"
+            :can-manage="$canManageCatalog"
         />
 
         {{-- ==================== 4. DATA LIST / EMPTY STATE ==================== --}}
         @if($items->total() > 0)
             @if($activeTab === 'products')
                 <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
-                    <x-products.product-table :products="$items" />
+                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
                 </div>
             @elseif($activeTab === 'services')
                 <div id="panelServices" role="tabpanel" aria-labelledby="tabServices" class="catalog-panel space-y-4">
-                    <x-products.service-table :services="$items" />
+                    <x-products.service-table :services="$items" :can-manage="$canManageCatalog" />
                 </div>
             @elseif($activeTab === 'categories')
                 <div id="panelCategories" role="tabpanel" aria-labelledby="tabCategories" class="catalog-panel space-y-4">
-                    <x-products.category-table :categories="$items" />
+                    <x-products.category-table :categories="$items" :can-manage="$canManageCatalog" />
                 </div>
             @endif
 
@@ -103,6 +125,7 @@
                 <x-products.mobile-cards
                     :items="$items"
                     :active-tab="$activeTab"
+                    :can-manage="$canManageCatalog"
                 />
             </div>
 
@@ -167,7 +190,12 @@
         @endif
 
         {{-- ==================== 6. DETAIL DRAWER ==================== --}}
-        <x-products.detail-drawer />
+        <x-products.detail-drawer :can-manage="$canManageCatalog" />
+
+        @if($canManageCatalog)
+            {{-- ==================== 7. CATALOG MODAL (DASH-15) ==================== --}}
+            <x-products.catalog-modal :categories="$categories" :business-type="$dashboardBusinessType ?? null" />
+        @endif
 
     </main>
 
@@ -240,6 +268,13 @@
                 currentItemData = itemData;
 
                 const isService = itemData.kind === 'service';
+
+                // Hand the row data to the DASH-15 edit modal through the drawer
+                // button so the two features share one source without coupling.
+                if (drawerEditCatalogBtn) {
+                    drawerEditCatalogBtn.dataset.catalogKind = isService ? 'service' : 'product';
+                    drawerEditCatalogBtn.dataset.catalogRaw = JSON.stringify(itemData);
+                }
 
                 // Subheading & Title
                 document.getElementById('productDrawerSubheading').textContent = isService ? 'Detail Layanan' : 'Detail Produk';
@@ -395,16 +430,6 @@
                 };
             });
 
-            if (drawerEditCatalogBtn) {
-                drawerEditCatalogBtn.onclick = () => {
-                    const isService = currentItemData && currentItemData.kind === 'service';
-                    const msg = isService
-                        ? 'Pengelolaan layanan dari dashboard belum tersedia.'
-                        : 'Pengelolaan produk dari dashboard belum tersedia.';
-                    showToast('info', msg);
-                };
-            }
-
             if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
             if (closeDrawerFooterBtn) closeDrawerFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
@@ -418,4 +443,273 @@
             document.addEventListener('livewire:navigated', initProductsPage);
         }
     </script>
+
+    @if($canManageCatalog)
+        @if($errors->any())
+            <script>
+                window.__catalogModalOpenOnError = @json(old('kind', $activeTab === 'services' ? 'service' : ($activeTab === 'categories' ? 'category' : 'product')));
+            </script>
+        @endif
+
+        {{-- DASH-15 — catalog modal: open/close, kind switching, edit prefill. --}}
+        <script>
+            (function () {
+                if (window.__catalogModalBound) {
+                    return;
+                }
+                window.__catalogModalBound = true;
+
+                const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+                let lastTrigger = null;
+
+                const modalEl = () => document.getElementById('catalogModal');
+                const productForm = () => document.getElementById('catalogProductForm');
+                const categoryForm = () => document.getElementById('catalogCategoryForm');
+
+                const setValue = (form, name, value) => {
+                    const field = form.elements.namedItem(name);
+                    if (field) {
+                        field.value = value === null || value === undefined ? '' : value;
+                    }
+                };
+
+                const applyKind = (form, kind, editing) => {
+                    form.querySelectorAll('[data-catalog-field="product"], [data-catalog-field="service"]').forEach((group) => {
+                        group.classList.toggle('hidden', group.getAttribute('data-catalog-field') !== kind);
+                    });
+
+                    const createGroup = form.querySelector('[data-catalog-field="product-create"]');
+                    if (createGroup) {
+                        createGroup.classList.toggle('hidden', editing || kind !== 'product');
+                    }
+
+                    const skuHint = document.getElementById('catalogProductSkuHint');
+                    if (skuHint) {
+                        skuHint.textContent = kind === 'service' ? '(opsional)' : '(wajib)';
+                    }
+                };
+
+                const setHeading = (subtitle, title) => {
+                    const subEl = document.getElementById('catalogModalSubtitle');
+                    const titleEl = document.getElementById('catalogModalTitle');
+                    if (subEl) subEl.textContent = subtitle;
+                    if (titleEl) titleEl.textContent = title;
+                };
+
+                const showProductForm = (form) => {
+                    form.classList.remove('hidden');
+                    categoryForm()?.classList.add('hidden');
+                };
+
+                const showCategoryForm = (form) => {
+                    form.classList.remove('hidden');
+                    productForm()?.classList.add('hidden');
+                };
+
+                const open = (trigger) => {
+                    const el = modalEl();
+                    if (!el) return;
+
+                    lastTrigger = trigger || null;
+                    el.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+
+                    requestAnimationFrame(() => {
+                        const focusables = Array.from(el.querySelectorAll(focusableSelector));
+                        if (focusables.length > 0) {
+                            focusables[0].focus({ preventScroll: true });
+                        } else {
+                            el.focus({ preventScroll: true });
+                        }
+                    });
+                };
+
+                const close = () => {
+                    const el = modalEl();
+                    if (!el || el.classList.contains('hidden')) return;
+
+                    el.classList.add('hidden');
+                    document.body.style.overflow = '';
+
+                    if (lastTrigger && document.contains(lastTrigger) && typeof lastTrigger.focus === 'function') {
+                        lastTrigger.focus({ preventScroll: true });
+                    }
+                    lastTrigger = null;
+                };
+
+                const openCreate = (kind, trigger) => {
+                    const form = productForm();
+                    const catForm = categoryForm();
+                    const el = modalEl();
+                    if (!form || !catForm || !el) return;
+
+                    if (kind === 'category') {
+                        catForm.reset();
+                        catForm.setAttribute('action', catForm.dataset.storeUrl);
+                        setValue(catForm, '_method', 'POST');
+                        setValue(catForm, 'status', 'active');
+                        showCategoryForm(catForm);
+                        setHeading('Tambah', 'Kategori');
+                    } else {
+                        form.reset();
+                        form.setAttribute('action', form.dataset.storeUrl);
+                        setValue(form, '_method', 'POST');
+                        setValue(form, 'kind', kind);
+                        setValue(form, 'status', 'active');
+                        setValue(form, 'stock', '0');
+                        setValue(form, 'min_stock', '0');
+                        setValue(form, 'min_quantity', '0');
+
+                        const defaultUnit = el.dataset.defaultUnit || 'pcs';
+                        if (!form.elements.namedItem('unit').value) {
+                            setValue(form, 'unit', defaultUnit);
+                        }
+                        if (kind === 'service' && !form.elements.namedItem('pricing_unit').value) {
+                            setValue(form, 'pricing_unit', defaultUnit);
+                        }
+
+                        applyKind(form, kind, false);
+                        showProductForm(form);
+                        setHeading('Tambah', kind === 'service' ? 'Layanan' : 'Produk');
+                    }
+
+                    open(trigger);
+                };
+
+                const openEdit = (kind, raw, trigger) => {
+                    if (!raw) return;
+
+                    if (kind === 'category') {
+                        const catForm = categoryForm();
+                        if (!catForm) return;
+                        showCategoryForm(catForm);
+                        catForm.reset();
+                        catForm.setAttribute('action', catForm.dataset.updateUrlTemplate.replace('__ID__', raw.id));
+                        setValue(catForm, '_method', 'PATCH');
+                        setValue(catForm, 'name', raw.name || '');
+                        setValue(catForm, 'status', raw.status_raw || raw.status || 'active');
+                        setHeading('Edit', 'Kategori');
+                        open(trigger);
+
+                        return;
+                    }
+
+                    const form = productForm();
+                    if (!form) return;
+                    showProductForm(form);
+                    form.reset();
+                    form.setAttribute('action', form.dataset.updateUrlTemplate.replace('__ID__', raw.id));
+                    setValue(form, '_method', 'PATCH');
+                    setValue(form, 'kind', kind);
+                    setValue(form, 'name', raw.name || '');
+                    setValue(form, 'category_id', raw.category_id === null || raw.category_id === undefined ? '' : raw.category_id);
+                    setValue(form, 'price', raw.price ?? '');
+                    setValue(form, 'sku', raw.sku || '');
+                    setValue(form, 'unit', raw.unit || '');
+                    setValue(form, 'status', raw.status_raw || raw.status || 'active');
+
+                    if (kind === 'service') {
+                        setValue(form, 'pricing_unit', raw.pricing_unit || '');
+                        setValue(form, 'min_quantity', raw.min_quantity ?? '0');
+                        setValue(form, 'estimated_duration', raw.estimated_duration || '');
+                    } else {
+                        setValue(form, 'barcode', raw.barcode || '');
+                        setValue(form, 'cost', raw.cost ?? '0');
+                        setValue(form, 'min_stock', raw.min_stock ?? '0');
+                    }
+
+                    applyKind(form, kind, true);
+                    setHeading('Edit', kind === 'service' ? 'Layanan' : 'Produk');
+                    open(trigger);
+                };
+
+                const parseRaw = (el) => {
+                    const raw = el.getAttribute('data-catalog-raw');
+                    if (!raw) return null;
+                    try {
+                        return JSON.parse(raw);
+                    } catch (error) {
+                        return null;
+                    }
+                };
+
+                document.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+
+                    if (target.closest('[data-close-catalog-modal]')) {
+                        close();
+                        return;
+                    }
+
+                    const trigger = target.closest('[data-open-catalog-modal]');
+                    if (!trigger) return;
+
+                    event.preventDefault();
+                    const mode = trigger.getAttribute('data-catalog-mode') || 'create';
+                    const kind = trigger.getAttribute('data-catalog-kind') || 'product';
+
+                    if (mode === 'edit') {
+                        openEdit(kind, parseRaw(trigger), trigger);
+                    } else {
+                        openCreate(kind, trigger);
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    const el = modalEl();
+                    if (!el || el.classList.contains('hidden')) return;
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        close();
+                        return;
+                    }
+
+                    if (event.key !== 'Tab') return;
+
+                    const focusables = Array.from(el.querySelectorAll(focusableSelector));
+                    if (focusables.length === 0) return;
+
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    const activeIndex = focusables.indexOf(document.activeElement);
+
+                    if (event.shiftKey) {
+                        if (activeIndex <= 0) {
+                            event.preventDefault();
+                            last.focus({ preventScroll: true });
+                        }
+                        return;
+                    }
+
+                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
+                        event.preventDefault();
+                        first.focus({ preventScroll: true });
+                    }
+                });
+
+                // Prevent double submits: disable the button once a catalog form
+                // is submitted. Unique constraints also reject duplicates server-side.
+                document.addEventListener('submit', (event) => {
+                    const form = event.target;
+                    if (!(form instanceof HTMLFormElement)) return;
+                    if (form.id !== 'catalogProductForm' && form.id !== 'catalogCategoryForm') return;
+
+                    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                        button.disabled = true;
+                        const label = button.querySelector('[data-submit-label]');
+                        if (label) label.textContent = 'Menyimpan…';
+                    });
+                });
+
+                if (window.__catalogModalOpenOnError) {
+                    const kind = window.__catalogModalOpenOnError;
+                    window.__catalogModalOpenOnError = null;
+                    requestAnimationFrame(() => openCreate(kind, null));
+                }
+            })();
+        </script>
+    @endif
 </x-layouts::app>
