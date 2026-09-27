@@ -23,6 +23,9 @@ final class BusinessPermission
 
     public const PRODUCTS_VIEW = 'products.view';
 
+    // DASH-15 — owner-only catalog management (products, services, categories).
+    public const PRODUCTS_MANAGE = 'products.manage';
+
     public const STOCK_VIEW = 'stock.view';
 
     public const CASH_VIEW = 'cash.view';

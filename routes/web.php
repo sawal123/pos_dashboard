@@ -42,6 +42,32 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->middleware('business.permission:'.BusinessPermission::PRODUCTS_VIEW)
         ->name('products.index');
 
+    // DASH-15 — owner-only catalog management (products, services, categories).
+    // Reading stays on products.view; every mutation requires products.manage.
+    // Specific routes are registered before the generic {productId} route.
+    Route::patch('products/{productId}/status', [ProductsController::class, 'updateStatus'])
+        ->whereNumber('productId')
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.status.update');
+    Route::patch('products/categories/{categoryId}/status', [ProductsController::class, 'updateCategoryStatus'])
+        ->whereNumber('categoryId')
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.categories.status.update');
+    Route::post('products/categories', [ProductsController::class, 'storeCategory'])
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.categories.store');
+    Route::patch('products/categories/{categoryId}', [ProductsController::class, 'updateCategory'])
+        ->whereNumber('categoryId')
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.categories.update');
+    Route::post('products', [ProductsController::class, 'store'])
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.store');
+    Route::patch('products/{productId}', [ProductsController::class, 'update'])
+        ->whereNumber('productId')
+        ->middleware('business.permission:'.BusinessPermission::PRODUCTS_MANAGE)
+        ->name('products.update');
+
     Route::get('stock', [StockController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::STOCK_VIEW)
         ->name('stock.index');
