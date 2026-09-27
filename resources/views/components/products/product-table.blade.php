@@ -1,5 +1,6 @@
 @props([
     'products' => [],
+    'canManage' => false,
 ])
 
 @php
@@ -145,12 +146,37 @@
 
                         {{-- 8. Aksi --}}
                         <td class="py-3 px-4 text-right">
-                            <button
-                                type="button"
-                                class="view-product-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                            >
-                                Lihat Detail
-                            </button>
+                            <div class="inline-flex items-center gap-1.5">
+                                @if($canManage)
+                                    <button
+                                        type="button"
+                                        data-open-catalog-modal
+                                        data-catalog-mode="edit"
+                                        data-catalog-kind="product"
+                                        data-catalog-raw="{{ json_encode($product) }}"
+                                        class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                    >
+                                        Edit
+                                    </button>
+                                    <form method="POST" action="{{ route('products.status.update', ['productId' => $product['id']]) }}" class="inline">
+                                        @csrf
+                                        @method('PATCH')
+                                        <input type="hidden" name="status" value="{{ $rawStatus === 'active' ? 'inactive' : 'active' }}">
+                                        <button
+                                            type="submit"
+                                            class="px-2.5 py-1.5 rounded-xl border font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 {{ $rawStatus === 'active' ? 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800' : 'border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40' }}"
+                                        >
+                                            {{ $rawStatus === 'active' ? 'Nonaktifkan' : 'Aktifkan' }}
+                                        </button>
+                                    </form>
+                                @endif
+                                <button
+                                    type="button"
+                                    class="view-product-detail-btn px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                >
+                                    Lihat Detail
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 @endforeach

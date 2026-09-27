@@ -3,14 +3,15 @@
     'statuses' => [],
     'currentFilters' => [],
     'activeTab' => 'products',
+    'canManage' => false,
 ])
 
 @php
     $cf = $currentFilters;
-    $actionWording = match($activeTab) {
-        'services' => 'Pengelolaan layanan dari dashboard belum tersedia.',
-        'categories' => 'Pengelolaan kategori dari dashboard belum tersedia.',
-        default => 'Pengelolaan produk dari dashboard belum tersedia.',
+    $catalogKind = match($activeTab) {
+        'services' => 'service',
+        'categories' => 'category',
+        default => 'product',
     };
     $btnLabel = match($activeTab) {
         'services' => 'Tambah Layanan',
@@ -119,16 +120,20 @@
                 <span class="hidden sm:inline">Reset</span>
             </a>
 
-            {{-- Action Button (Neutral non-fake placeholder) --}}
-            <button
-                type="button"
-                id="addCatalogBtn"
-                onclick="showToast('info', '{{ $actionWording }}')"
-                class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-                <i data-lucide="plus" class="w-4 h-4"></i>
-                <span id="addCatalogBtnText">{{ $btnLabel }}</span>
-            </button>
+            {{-- DASH-15 — owner-only "add" action opens the catalog modal. --}}
+            @if($canManage)
+                <button
+                    type="button"
+                    id="addCatalogBtn"
+                    data-open-catalog-modal
+                    data-catalog-mode="create"
+                    data-catalog-kind="{{ $catalogKind }}"
+                    class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    <span id="addCatalogBtnText">{{ $btnLabel }}</span>
+                </button>
+            @endif
         </div>
     </div>
 </form>
