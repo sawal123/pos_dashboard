@@ -300,11 +300,28 @@ final class SyncAuthorizationPolicy
         $violations = [];
 
         foreach ($items as $item) {
+            $saleSyncId = (string) $item['sale_sync_id'];
+            $productSyncId = (string) $item['product_sync_id'];
+
+            $incomingProductId = Product::where('business_id', $business->id)
+                ->where('sync_id', $productSyncId)
+                ->value('id');
+            $incomingSaleId = Sale::where('business_id', $business->id)
+                ->where('sync_id', $saleSyncId)
+                ->value('id');
+
             $record = SaleItem::where('business_id', $business->id)->where('sync_id', (string) $item['sync_id'])->first();
             if ($record instanceof SaleItem) {
                 $saleOutletId = Sale::where('business_id', $business->id)->where('id', $record->sale_id)->value('outlet_id');
                 if ((int) $saleOutletId !== $outletId) {
                     $violations[] = $this->violation('sale_items', 'upsert', 'foreign_outlet_relation');
+                }
+
+                // A formed sale item can never be repointed at another sale or
+                // product, not even inside the same outlet.
+                if (($incomingSaleId !== null && (int) $incomingSaleId !== (int) $record->sale_id)
+                    || ($incomingProductId !== null && (int) $incomingProductId !== (int) $record->product_id)) {
+                    $violations[] = $this->violation('sale_items', 'upsert', 'sale_item_relation_immutable');
                 }
 
                 // Price, quantity and captured HPP are historical evidence:
@@ -314,12 +331,11 @@ final class SyncAuthorizationPolicy
                 }
             }
 
-            $saleSyncId = (string) $item['sale_sync_id'];
             if (! $this->saleIsAllowed($business, $outletId, $saleSyncId, $incomingSales)) {
                 $violations[] = $this->violation('sale_items', 'upsert', 'invalid_sale_relation');
             }
 
-            if (! Product::where('business_id', $business->id)->where('sync_id', (string) $item['product_sync_id'])->exists()) {
+            if (! $incomingProductId) {
                 $violations[] = $this->violation('sale_items', 'upsert', 'invalid_product_relation');
             }
         }
@@ -378,15 +394,14 @@ final class SyncAuthorizationPolicy
 
                 // An existing cash row accepts only a valid identical retry:
                 // its origin (manual owner entry vs sale payment), its sale
-                // linkage and its recorded amount/type are immutable.
+                // linkage and its recorded classification/metadata are immutable.
                 if ($record->sale_sync_id === null) {
                     $violations[] = $this->violation('cash_ledger', 'upsert', 'cash_ledger_origin_immutable');
                 } elseif ((string) $record->sale_sync_id !== $saleSyncId) {
                     $violations[] = $this->violation('cash_ledger', 'upsert', 'cash_ledger_sale_link_immutable');
                 }
 
-                if ((string) $record->type !== (string) ($item['type'] ?? '')
-                    || ! $this->numericSame($record->amount, $item['amount'] ?? 0)) {
+                if (! $this->cashLedgerMetadataMatches($record, $item, $business, $outletId)) {
                     $violations[] = $this->violation('cash_ledger', 'upsert', 'cash_ledger_immutable');
                 }
             }
@@ -441,13 +456,23 @@ final class SyncAuthorizationPolicy
                 $valid = false;
             }
 
-            // The identity of an existing movement is immutable: a retry may
-            // never repoint the same sync_id at another product or sale.
+            // The identity and kind of an existing movement are immutable: a
+            // retry may never repoint the same sync_id at another product, sale
+            // or movement type.
             $record = StockMovement::where('business_id', $business->id)->where('sync_id', $syncId)->first();
-            if ($record instanceof StockMovement && $productId) {
-                if ((int) $record->product_id !== (int) $productId
-                    || (string) ($record->sale_sync_id ?? '') !== $saleSyncId) {
+            if ($record instanceof StockMovement) {
+                if (($productId && (int) $record->product_id !== (int) $productId)
+                    || (string) ($record->sale_sync_id ?? '') !== $saleSyncId
+                    || (string) $record->movement_type !== (string) ($item['movement_type'] ?? '')) {
                     $violations[] = $this->violation('stock_movements', 'upsert', 'stock_movement_identity_immutable');
+                    $valid = false;
+                }
+
+                // The recorded stock effect is historical evidence and can
+                // never be rewritten by a cashier push, even with a valid base
+                // version: an accepted deduction is applied exactly once.
+                if (! $this->numericSame($record->quantity_change, $item['quantity_change'] ?? 0)) {
+                    $violations[] = $this->violation('stock_movements', 'upsert', 'stock_movement_value_immutable');
                     $valid = false;
                 }
             }
@@ -686,6 +711,57 @@ final class SyncAuthorizationPolicy
         }
 
         return false;
+    }
+
+    /**
+     * Whether an existing sale-linked cash entry still matches the incoming
+     * payload across every attribute the sync writer persists. Only a fully
+     * identical retry is accepted, so a cashier can never re-classify an
+     * existing cash row (category, shift, note, reference or timestamp).
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function cashLedgerMetadataMatches(CashLedger $record, array $item, Business $business, int $outletId): bool
+    {
+        if ((string) $record->type !== (string) ($item['type'] ?? '')) {
+            return false;
+        }
+
+        if (! $this->numericSame($record->amount, $item['amount'] ?? 0)) {
+            return false;
+        }
+
+        $category = isset($item['category']) ? (string) $item['category'] : null;
+        if ($record->category !== $category) {
+            return false;
+        }
+
+        $note = isset($item['note']) ? (string) $item['note'] : null;
+        if ($record->note !== $note) {
+            return false;
+        }
+
+        $reference = isset($item['reference_id']) ? (string) $item['reference_id'] : null;
+        if ($record->reference_id !== $reference) {
+            return false;
+        }
+
+        $occurredAt = Carbon::parse((string) $item['occurred_at']);
+        if ($record->occurred_at->getTimestamp() !== $occurredAt->getTimestamp()) {
+            return false;
+        }
+
+        $shiftId = null;
+        if (! empty($item['shift_sync_id'])) {
+            $shiftId = Shift::where('business_id', $business->id)
+                ->where('outlet_id', $outletId)
+                ->where('sync_id', (string) $item['shift_sync_id'])
+                ->value('id');
+        }
+
+        $storedShiftId = $record->shift_id !== null ? (int) $record->shift_id : null;
+
+        return $storedShiftId === ($shiftId !== null ? (int) $shiftId : null);
     }
 
     /**

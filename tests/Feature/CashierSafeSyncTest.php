@@ -797,6 +797,178 @@ class CashierSafeSyncTest extends TestCase
         $this->assertSame('FOREIGN-HISTORY', $foreignSale->fresh()->transaction_number);
     }
 
+    // =========================================================================
+    // Finding 1 (round 2) — existing movement identity/value immutability
+    // =========================================================================
+
+    public function test_cashier_cannot_rewrite_an_existing_movement_delta_even_with_valid_version(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $movementSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id)],
+            'stock_movements' => [$this->movementWithId($movementSyncId, $product->sync_id, $saleSyncId, -1)],
+        ])->assertOk();
+
+        $this->assertSame(9.0, (float) $product->fresh()->stock);
+
+        // A fresh, *valid* base version does not authorize rewriting the delta.
+        $this->pushCashier($env, [
+            'stock_movements' => [array_merge(
+                $this->movementWithId($movementSyncId, $product->sync_id, $saleSyncId, -2),
+                ['base_sync_version' => 1],
+            )],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'stock_movement_value_immutable');
+
+        $this->assertSame(-1.0, (float) StockMovement::where('sync_id', $movementSyncId)->value('quantity_change'));
+        $this->assertSame(9.0, (float) $product->fresh()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_cashier_identical_movement_retry_does_not_reapply_stock(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $changes = [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id)],
+            'stock_movements' => [$this->movementWithId((string) Str::uuid(), $product->sync_id, $saleSyncId, -1)],
+        ];
+
+        // Identical retry under a new request id: acknowledged, applied once.
+        $this->pushCashier($env, $changes)->assertOk();
+        $this->pushCashier($env, $changes)->assertOk();
+        $this->assertSame(9.0, (float) $product->fresh()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $env['business']->id)->count());
+    }
+
+    public function test_cashier_cannot_rewrite_an_existing_movement_type(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $movementSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, ['sales' => [$this->sale($saleSyncId)]])->assertOk();
+
+        // An owner-created adjustment the cashier tries to relabel as a sale.
+        $movement = new StockMovement([
+            'movement_type' => 'adjustment',
+            'quantity_change' => -1,
+            'stock_before' => 10,
+            'stock_after' => 9,
+            'sale_sync_id' => $saleSyncId,
+            'occurred_at' => '2026-09-28 08:00:00',
+        ]);
+        $movement->business_id = $env['business']->id;
+        $movement->product_id = $product->id;
+        $movement->sync_id = $movementSyncId;
+        $movement->save();
+
+        $this->pushCashier($env, [
+            'stock_movements' => [array_merge(
+                $this->movementWithId($movementSyncId, $product->sync_id, $saleSyncId, -1),
+                ['base_sync_version' => 1],
+            )],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'stock_movement_identity_immutable');
+
+        $this->assertSame('adjustment', StockMovement::where('sync_id', $movementSyncId)->value('movement_type'));
+    }
+
+    // =========================================================================
+    // Finding 2 (round 2) — existing sale item relation immutability
+    // =========================================================================
+
+    public function test_cashier_cannot_repoint_a_sale_item_to_another_product_or_sale(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $otherProduct = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $otherSaleSyncId = (string) Str::uuid();
+        $itemSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, ['sync_id' => $itemSyncId])],
+        ])->assertOk();
+
+        $this->pushCashier($env, ['sales' => [$this->sale($otherSaleSyncId)]])->assertOk();
+
+        // Same outlet, different product.
+        $this->pushCashier($env, [
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $otherProduct->sync_id, [
+                'sync_id' => $itemSyncId,
+                'base_sync_version' => 1,
+            ])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'sale_item_relation_immutable');
+
+        // Same outlet, different sale.
+        $this->pushCashier($env, [
+            'sale_items' => [$this->saleItemPayload($otherSaleSyncId, $product->sync_id, [
+                'sync_id' => $itemSyncId,
+                'base_sync_version' => 1,
+            ])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'sale_item_relation_immutable');
+
+        $item = SaleItem::where('sync_id', $itemSyncId)->firstOrFail();
+        $this->assertSame((int) $product->id, (int) $item->product_id);
+        $this->assertSame((int) Sale::where('sync_id', $saleSyncId)->value('id'), (int) $item->sale_id);
+    }
+
+    public function test_cashier_cannot_reclassify_an_existing_cash_entry(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $payload = $this->safeTransactionPayload($env, $product);
+        $saleSyncId = $payload['changes']['sales'][0]['sync_id'];
+        $cashSyncId = $payload['changes']['cash_ledger'][0]['sync_id'];
+        $original = $payload['changes']['cash_ledger'][0];
+        $this->pushCashier($env, $payload['changes'])->assertOk();
+
+        $shiftSyncId = (string) Str::uuid();
+        $this->pushCashier($env, ['shifts' => [$this->shiftPayload($shiftSyncId)]])->assertOk();
+
+        // Category (classification) change.
+        $this->pushCashier($env, [
+            'cash_ledger' => [array_merge($original, ['category' => 'reversal'])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'cash_ledger_immutable');
+
+        // Historical note change.
+        $this->pushCashier($env, [
+            'cash_ledger' => [array_merge($original, ['note' => 'tampered'])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'cash_ledger_immutable');
+
+        // Attaching the entry to a shift it was never recorded against.
+        $this->pushCashier($env, [
+            'cash_ledger' => [array_merge($original, ['shift_sync_id' => $shiftSyncId])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'cash_ledger_immutable');
+
+        $record = CashLedger::where('sync_id', $cashSyncId)->firstOrFail();
+        $this->assertSame('sale', $record->category);
+        $this->assertSame('POS payment', $record->note);
+        $this->assertNull($record->shift_id);
+    }
+
     /**
      * @return array<string, mixed>
      */

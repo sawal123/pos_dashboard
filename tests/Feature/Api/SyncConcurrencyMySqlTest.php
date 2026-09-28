@@ -8,6 +8,7 @@ use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\StockMovement;
 use App\Models\Subscription;
 use App\Models\User;
@@ -120,6 +121,25 @@ class SyncConcurrencyMySqlTest extends TestCase
             'stock_before' => $before,
             'stock_after' => $after,
             'reference_id' => $reference,
+            'occurred_at' => '2026-09-17 10:00:00',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function cashierMovement(string $syncId, string $productSyncId, string $saleSyncId, float $delta, string $reference): array
+    {
+        return [
+            'sync_id' => $syncId,
+            'base_sync_version' => null,
+            'product_sync_id' => $productSyncId,
+            'movement_type' => 'sale',
+            'quantity_change' => $delta,
+            'stock_before' => 10,
+            'stock_after' => 10 + $delta,
+            'reference_id' => $reference,
+            'sale_sync_id' => $saleSyncId,
             'occurred_at' => '2026-09-17 10:00:00',
         ];
     }
@@ -278,5 +298,74 @@ class SyncConcurrencyMySqlTest extends TestCase
         $this->assertSame(1, CashLedger::where('business_id', $this->fixture['businessId'])->count());
         $this->assertSame(1, CashLedger::where('sale_sync_id', $saleSyncId)->count());
         $this->assertSame(25000, (int) CashLedger::where('sale_sync_id', $saleSyncId)->value('amount'));
+    }
+
+    public function test_concurrent_cashier_movements_cannot_exceed_sold_quantity(): void
+    {
+        $businessId = $this->fixture['businessId'];
+        $outletId = $this->fixture['outletId'];
+
+        // A cashier membership drives the cashier_safe contract.
+        $cashier = User::factory()->create();
+        $cashier->businesses()->attach($businessId, ['role' => 'cashier']);
+
+        $prodSyncId = (string) Str::uuid();
+        $this->makeProduct($prodSyncId, 'SKU-CONC-CASHIER', 10);
+
+        // Exactly one unit sold: only a single -1 deduction is ever authorized.
+        $saleSyncId = (string) Str::uuid();
+        $sale = new Sale([
+            'transaction_number' => 'TRX-CONC-CASHIER',
+            'status' => 'completed',
+            'subtotal' => 10000,
+            'total_amount' => 10000,
+            'payment_method' => 'cash',
+            'payment_status' => 'paid',
+            'sold_at' => '2026-09-17 09:00:00',
+        ]);
+        $sale->business_id = $businessId;
+        $sale->outlet_id = $outletId;
+        $sale->sync_id = $saleSyncId;
+        $sale->save();
+
+        $item = new SaleItem([
+            'product_name' => 'Master',
+            'product_sku' => 'SKU-CONC-CASHIER',
+            'unit_price' => 10000,
+            'quantity' => 1,
+            'line_total' => 10000,
+        ]);
+        $item->business_id = $businessId;
+        $item->sale_id = $sale->id;
+        $item->product_id = (int) Product::where('sync_id', $prodSyncId)->value('id');
+        $item->sync_id = (string) Str::uuid();
+        $item->save();
+
+        $fixture = array_merge($this->fixture, ['userId' => (int) $cashier->id]);
+
+        $changeA = ['stock_movements' => [self::cashierMovement((string) Str::uuid(), $prodSyncId, $saleSyncId, -1, 'cashier-a')]];
+        $changeB = ['stock_movements' => [self::cashierMovement((string) Str::uuid(), $prodSyncId, $saleSyncId, -1, 'cashier-b')]];
+
+        [$resultA, $resultB] = Concurrency::run([
+            fn () => self::concurrentPush($fixture, $changeA, (string) Str::uuid()),
+            fn () => self::concurrentPush($fixture, $changeB, (string) Str::uuid()),
+        ]);
+
+        $this->assertIsArray($resultA, 'process A failed: '.(is_string($resultA) ? $resultA : ''));
+        $this->assertIsArray($resultB, 'process B failed: '.(is_string($resultB) ? $resultB : ''));
+
+        $statuses = [$resultA['status'], $resultB['status']];
+        sort($statuses);
+
+        // Exactly one parallel deduction is accepted; the loser is rejected with
+        // a domain 403, never a 5xx. The winner serializes on the product lock,
+        // so the loser observes the committed movement and is stopped.
+        $this->assertSame([200, 403], $statuses);
+        $this->assertSame(9.0, (float) Product::where('sync_id', $prodSyncId)->first()->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $businessId)->count());
+
+        $loser = $resultA['status'] === 403 ? $resultA : $resultB;
+        $this->assertSame('SYNC_OPERATION_NOT_ALLOWED', $loser['body']['code'] ?? null);
+        $this->assertSame('stock_movement_exceeds_sold_quantity', $loser['body']['violations'][0]['reason'] ?? null);
     }
 }

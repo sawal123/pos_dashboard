@@ -115,13 +115,30 @@ their stable `sync_id`. A movement is rejected when:
 | --- | --- |
 | No matching sale item exists at all | `stock_movement_without_sale_item` |
 | Committed + incoming deduction exceeds the sold quantity | `stock_movement_exceeds_sold_quantity` |
-| An existing movement's `sync_id` is repointed to another product/sale | `stock_movement_identity_immutable` |
+| An existing movement's `sync_id` is repointed to another product, sale or movement type | `stock_movement_identity_immutable` |
+| An existing movement's `quantity_change` is rewritten | `stock_movement_value_immutable` |
 
 This blocks a duplicate movement that reuses a fresh `sync_id` to double the
 stock reduction. A legitimate offline oversell is still accepted: the
 deduction may exceed the *remaining* stock, it may only never exceed the
 quantity *sold*. Sale items and movements may arrive in different batches — a
 movement alone is validated against the sale items already stored.
+
+The cumulative-deduction rule is enforced **twice**: in the preflight (`403`)
+and again inside the write transaction, after the product row is locked. The
+transactional pass uses a locking read (`SELECT ... FOR UPDATE`) for the
+accepted movements, so two concurrent requests with different `sync_id`s on the
+same `(sale, product)` serialize on the product lock and at most one deduction
+is accepted. Lock order is kept consistent (`Product -> StockMovement`, sold
+quantity read without a lock) to avoid deadlocks. Only an identical retry is
+acknowledged, and it never re-applies the delta.
+
+### Sale item identity
+
+An existing sale item's `sale_id` and `product_id` are immutable — including
+inside the same outlet — so a formed item can never be moved to another sale or
+product (`sale_item_relation_immutable`). Its financial snapshot stays
+immutable (`sale_item_snapshot_immutable`).
 
 ### Cash ledger
 
@@ -133,7 +150,7 @@ A cashier payment must target a sale that is actually settled in cash:
 | Sale `payment_status` is not `paid` | `cash_payment_requires_paid_sale` |
 | Existing row has no `sale_sync_id` (manual owner entry) | `cash_ledger_origin_immutable` |
 | Existing row's `sale_sync_id` differs | `cash_ledger_sale_link_immutable` |
-| Existing row's `amount`/`type` differs | `cash_ledger_immutable` |
+| Existing row's `amount`, `type`, `category`, `note`, `reference_id`, `occurred_at` or `shift` differs | `cash_ledger_immutable` |
 
 A manual owner cash row can therefore never be converted into a sale payment,
 an existing settlement can never be repointed at another sale, and an existing

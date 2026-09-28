@@ -51,6 +51,12 @@ class SyncPushService
             ], 403);
         }
 
+        // The cashier-safe contract additionally re-checks stock deductions
+        // inside the write transaction, after row locks, so two concurrent
+        // requests can never both deduct beyond the quantity sold.
+        $cashierSafe = $this->authorizationPolicy->pushMode($context['user'], $context['business'])
+            === SyncAuthorizationPolicy::PUSH_MODE_CASHIER_SAFE;
+
         // 1. Idempotency Check
         $existingRequest = SyncRequest::where('business_id', $business->id)
             ->where('device_id', $device->id)
@@ -70,7 +76,7 @@ class SyncPushService
 
         // 2. Transactional processing of changes
         try {
-            DB::transaction(function () use ($business, $outletId, $device, $requestId, $changes): void {
+            DB::transaction(function () use ($business, $outletId, $device, $requestId, $changes, $cashierSafe): void {
                 $this->processCategories($business, $changes['categories'] ?? []);
                 $this->processProducts($business, $changes['products'] ?? []);
                 $this->processCustomers($business, $changes['customers'] ?? []);
@@ -79,7 +85,7 @@ class SyncPushService
                 $this->processSaleItems($business, $outletId, $changes['sale_items'] ?? []);
                 $this->processExpenses($business, $outletId, $changes['expenses'] ?? []);
                 $this->processCashLedger($business, $outletId, $changes['cash_ledger'] ?? []);
-                $this->processStockMovements($business, $changes['stock_movements'] ?? []);
+                $this->processStockMovements($business, $changes['stock_movements'] ?? [], $cashierSafe);
                 $this->processDeletions($business, $outletId, $changes['deletions'] ?? []);
 
                 SyncRequest::create([
@@ -111,6 +117,21 @@ class SyncPushService
                     'sync_id' => $e->syncId,
                 ], $e->details),
             ], 409);
+        } catch (SyncIntegrityViolationException $e) {
+            // Authoritative cashier integrity guard tripped inside the
+            // transaction (for example a concurrent movement that would
+            // double-deduct). Nothing was applied: the transaction rolled back.
+            return response()->json([
+                'message' => 'Sync operation is not allowed for this role.',
+                'code' => 'SYNC_OPERATION_NOT_ALLOWED',
+                'violations' => [
+                    [
+                        'entity' => $e->entity,
+                        'operation' => 'upsert',
+                        'reason' => $e->reason,
+                    ],
+                ],
+            ], 403);
         } catch (QueryException $e) {
             // Check if duplicate request_id race occurred and was committed by concurrent request
             $duplicate = SyncRequest::where('business_id', $business->id)
@@ -838,8 +859,11 @@ class SyncPushService
 
     /**
      * @param  list<array<string, mixed>>  $items
+     * @param  bool  $cashierSafe  enforce the cashier-safe stock contract inside
+     *                             the transaction (immutable historical values
+     *                             and a locked cumulative-deduction check)
      */
-    protected function processStockMovements(Business $business, array $items): void
+    protected function processStockMovements(Business $business, array $items, bool $cashierSafe = false): void
     {
         foreach ($items as $item) {
             $syncId = (string) $item['sync_id'];
@@ -890,6 +914,13 @@ class SyncPushService
                     continue;
                 }
 
+                // Cashier-safe: the identity, kind and recorded stock effect of
+                // an accepted movement are immutable. Only a fully identical
+                // retry is acknowledged, and it never re-applies the delta.
+                if ($cashierSafe && $this->cashierMovementImmutableFieldChanged($record, $attributes)) {
+                    throw new SyncIntegrityViolationException('stock_movements', $syncId, 'stock_movement_immutable');
+                }
+
                 // Only the historical evidence may be updated; the current
                 // stock effect is never re-applied on a retry.
                 $this->validateConcurrency('stock_movements', $record, $syncId, $baseVersion);
@@ -898,6 +929,22 @@ class SyncPushService
                 $record->save();
 
                 continue;
+            }
+
+            // Cashier-safe: authoritative cumulative-deduction guard. It runs
+            // AFTER the product row lock, so concurrent pushes for the same
+            // product serialize here and the locking read below observes the
+            // winner's committed movement. The total deduction for a
+            // (sale, product) pair can never exceed the quantity actually sold,
+            // even across two parallel requests using different sync_ids.
+            if ($cashierSafe) {
+                $this->assertCashierMovementWithinSoldQuantity(
+                    $business,
+                    (string) ($attributes['sale_sync_id'] ?? ''),
+                    $productId,
+                    (float) $attributes['quantity_change'],
+                    $syncId,
+                );
             }
 
             $this->validateConcurrency('stock_movements', null, $syncId, $baseVersion);
@@ -919,6 +966,103 @@ class SyncPushService
             $lockedProduct->stock = (string) $serverStockAfter;
             $lockedProduct->save();
         }
+    }
+
+    /**
+     * Cashier-safe: whether an existing movement would have its immutable
+     * identity or recorded stock effect rewritten (product, sale, type or
+     * delta). Changing any of them is rejected; only an identical retry — which
+     * never re-applies the delta — is accepted.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    protected function cashierMovementImmutableFieldChanged(StockMovement $record, array $attributes): bool
+    {
+        if ((int) $record->product_id !== (int) $attributes['product_id']
+            || (string) $record->movement_type !== (string) $attributes['movement_type']
+            || (string) ($record->sale_sync_id ?? '') !== (string) ($attributes['sale_sync_id'] ?? '')) {
+            return true;
+        }
+
+        return abs((float) $record->quantity_change - (float) $attributes['quantity_change']) > 0.0001;
+    }
+
+    /**
+     * Cashier-safe: reject a new movement whose accepted deduction would push
+     * the total for its (sale, product) pair beyond the quantity sold.
+     *
+     * Must be called while the product row is locked (it is, inside
+     * {@see self::processStockMovements}), so parallel pushes for the same
+     * product are serialized and the locking read sees the winner's movement.
+     * The sold quantity is read without a lock on purpose: sale items are
+     * immutable and locking them here (after the product lock) would reverse
+     * the lock order and risk a deadlock with a concurrent sale-item phase.
+     */
+    protected function assertCashierMovementWithinSoldQuantity(
+        Business $business,
+        string $saleSyncId,
+        int $productId,
+        float $delta,
+        string $syncId
+    ): void {
+        if ($saleSyncId === '') {
+            throw new SyncIntegrityViolationException('stock_movements', $syncId, 'stock_movement_without_sale_item');
+        }
+
+        $sold = $this->cashierSoldQuantity($business, $saleSyncId, $productId);
+
+        if ($sold === null || $sold <= 0.0) {
+            throw new SyncIntegrityViolationException('stock_movements', $syncId, 'stock_movement_without_sale_item');
+        }
+
+        $accepted = $this->cashierAcceptedMovementMagnitude($business, $saleSyncId, $productId);
+
+        if ($accepted + abs($delta) > $sold + 0.0001) {
+            throw new SyncIntegrityViolationException('stock_movements', $syncId, 'stock_movement_exceeds_sold_quantity');
+        }
+    }
+
+    /**
+     * Quantity sold for one (sale, product) pair, straight from the immutable
+     * sale items. Null when no sale item exists.
+     */
+    protected function cashierSoldQuantity(Business $business, string $saleSyncId, int $productId): ?float
+    {
+        $saleId = Sale::where('business_id', $business->id)
+            ->where('sync_id', $saleSyncId)
+            ->value('id');
+
+        if ($saleId === null) {
+            return null;
+        }
+
+        $items = SaleItem::where('business_id', $business->id)
+            ->where('sale_id', $saleId)
+            ->where('product_id', $productId)
+            ->get(['quantity']);
+
+        if ($items->isEmpty()) {
+            return null;
+        }
+
+        return (float) $items->sum('quantity');
+    }
+
+    /**
+     * Total stock magnitude already committed for one (sale, product) pair.
+     * Uses a locking read so it observes the latest committed movements even
+     * under REPEATABLE READ. Lock order stays Product -> StockMovement, matching
+     * the movement dedupe lock above.
+     */
+    protected function cashierAcceptedMovementMagnitude(Business $business, string $saleSyncId, int $productId): float
+    {
+        $movements = StockMovement::where('business_id', $business->id)
+            ->where('sale_sync_id', $saleSyncId)
+            ->where('product_id', $productId)
+            ->lockForUpdate()
+            ->get(['quantity_change']);
+
+        return (float) $movements->sum(fn (StockMovement $movement): float => abs((float) $movement->quantity_change));
     }
 
     /**
