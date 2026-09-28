@@ -128,8 +128,8 @@
                 @elseif($ledgers->isEmpty())
                     <x-cash.empty-state mode="no-results-cash" />
                 @else
-                    <x-cash.ledger-table :ledgers="$ledgers" />
-                    <x-cash.mobile-cards :activeTab="'ledgers'" :ledgers="$ledgers" />
+                    <x-cash.ledger-table :ledgers="$ledgers" :canManageCash="$canManageCash ?? false" />
+                    <x-cash.mobile-cards :activeTab="'ledgers'" :ledgers="$ledgers" :canManageCash="$canManageCash ?? false" />
 
                     @if($ledgers->hasPages())
                         <div class="pt-2">
@@ -145,8 +145,8 @@
                 @elseif($expenses->isEmpty())
                     <x-cash.empty-state mode="no-results-expense" />
                 @else
-                    <x-cash.expense-table :expenses="$expenses" />
-                    <x-cash.mobile-cards :activeTab="'expenses'" :expenses="$expenses" />
+                    <x-cash.expense-table :expenses="$expenses" :canManageCash="$canManageCash ?? false" />
+                    <x-cash.mobile-cards :activeTab="'expenses'" :expenses="$expenses" :canManageCash="$canManageCash ?? false" />
 
                     @if($expenses->hasPages())
                         <div class="pt-2">
@@ -165,6 +165,9 @@
             :outlets="$filterOptions['outlets'] ?? []"
             :shifts="$filterOptions['shifts'] ?? []"
         />
+
+        {{-- DASH-16 — owner-only confirmation dialog for cash reversal / expense void. --}}
+        <x-cash.correction-modal :canManageCash="$canManageCash ?? false" />
 
     </main>
 
@@ -191,6 +194,8 @@
             const addExpenseBtn = document.getElementById('addExpenseBtn');
             const cashModal = document.getElementById('cashLedgerModal');
             const expenseModal = document.getElementById('expenseModal');
+            const correctionModal = document.getElementById('cashCorrectionModal');
+            const correctionForm = document.getElementById('cashCorrectionForm');
 
             function openModal(modal) {
                 if (!modal) return;
@@ -248,6 +253,7 @@
                 if (event.key === 'Escape') {
                     closeModal(cashModal);
                     closeModal(expenseModal);
+                    closeModal(correctionModal);
                 }
             });
 
@@ -261,6 +267,55 @@
                 addExpenseBtn.onclick = () => {
                     openModal(expenseModal);
                 };
+            }
+
+            // DASH-16 — cash reversal / expense void confirmation dialog.
+            // The dialog only explains the consequence; the server re-validates
+            // every rule (reversibility, tenant, permission) on submit.
+            const correctionTitle = document.getElementById('cashCorrectionTitle');
+            const correctionType = document.getElementById('cashCorrectionType');
+            const correctionAmount = document.getElementById('cashCorrectionAmount');
+            const correctionRef = document.getElementById('cashCorrectionRef');
+            const correctionConsequence = document.getElementById('cashCorrectionConsequence');
+            const correctionSubmit = document.getElementById('cashCorrectionSubmit');
+
+            root.addEventListener('click', (event) => {
+                const trigger = event.target.closest('.cash-correction-btn');
+                if (!trigger || !correctionForm || !correctionModal) {
+                    return;
+                }
+
+                const kind = trigger.dataset.correctionKind === 'void' ? 'void' : 'reversal';
+                correctionForm.setAttribute('action', trigger.dataset.correctionAction || '');
+
+                if (correctionTitle) {
+                    correctionTitle.textContent = kind === 'void' ? 'Batalkan Pengeluaran' : 'Koreksi Kas';
+                }
+                if (correctionType) correctionType.textContent = trigger.dataset.correctionType || '-';
+                if (correctionAmount) correctionAmount.textContent = formatRupiah(trigger.dataset.correctionAmount);
+                if (correctionRef) correctionRef.textContent = trigger.dataset.correctionReference || '-';
+                if (correctionConsequence) {
+                    correctionConsequence.textContent = kind === 'void'
+                        ? 'Pengeluaran akan ditandai void. Jika dibayar dari kas, kas yang terhubung dikembalikan tepat satu kali.'
+                        : 'Sistem menambahkan baris kas berlawanan arah. Baris asli tetap tersimpan dan hanya dapat dikoreksi satu kali.';
+                }
+                if (correctionSubmit) {
+                    correctionSubmit.disabled = false;
+                    const label = correctionSubmit.querySelector('[data-correction-label]');
+                    if (label) label.textContent = kind === 'void' ? 'Batalkan Pengeluaran' : 'Koreksi Kas';
+                }
+
+                openModal(correctionModal);
+            });
+
+            if (correctionForm) {
+                correctionForm.addEventListener('submit', () => {
+                    if (correctionSubmit) {
+                        correctionSubmit.disabled = true;
+                        const label = correctionSubmit.querySelector('[data-correction-label]');
+                        if (label) label.textContent = 'Memproses…';
+                    }
+                });
             }
 
             if (cashModal?.dataset.openOnLoad === 'true') {

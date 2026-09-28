@@ -137,7 +137,7 @@ class DashboardCashData
                 $ledgerQuery->where('type', $currentFilters['type']);
             }
 
-            $paginatedLedgers = $ledgerQuery->with(['outlet', 'shift'])
+            $paginatedLedgers = $ledgerQuery->with(['outlet', 'shift', 'reversal'])
                 ->orderByDesc('occurred_at')
                 ->orderByDesc('id')
                 ->paginate(self::PER_PAGE)
@@ -381,6 +381,13 @@ class DashboardCashData
             'note' => $ledger->note !== null ? (string) $ledger->note : null,
             'reference_id' => $ledger->reference_id !== null ? (string) $ledger->reference_id : null,
             'expense_id' => $ledger->expense_id !== null ? (int) $ledger->expense_id : null,
+            // DASH-16 correction affordance. The server stays the final
+            // authority (the reversal endpoint re-validates), but the UI only
+            // invites a correction for a plain manual dashboard row that has
+            // not been corrected yet.
+            'is_reversible' => $ledger->isManuallyReversible() && $ledger->reversal === null,
+            'is_correction' => $ledger->reverses_ledger_id !== null
+                || in_array($ledger->category, [CashLedger::CATEGORY_REVERSAL, CashLedger::CATEGORY_EXPENSE_VOID], true),
             'occurred_at_raw' => $ledger->occurred_at->format('Y-m-d H:i:s'),
             'occurred_at' => $ledger->occurred_at->translatedFormat('d M Y · H:i'),
             'outlet_id' => (int) $ledger->outlet_id,
@@ -415,6 +422,10 @@ class DashboardCashData
             'amount' => (int) $expense->amount,
             'status_raw' => $statusRaw,
             'status' => $statusLabel,
+            // DASH-16 correction affordance: only a still-recorded expense can
+            // be voided. Voiding is idempotent server-side; the UI simply does
+            // not offer it once the expense is no longer recorded.
+            'is_voidable' => $statusRaw === 'recorded',
             'occurred_at_raw' => $expense->occurred_at->format('Y-m-d H:i:s'),
             'occurred_at' => $expense->occurred_at->translatedFormat('d M Y · H:i'),
             'notes' => $expense->notes !== null ? (string) $expense->notes : null,
