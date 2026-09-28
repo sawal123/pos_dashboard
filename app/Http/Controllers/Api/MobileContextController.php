@@ -10,12 +10,19 @@ use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Authorization\BusinessAuthorizer;
+use App\Services\Sync\SyncAuthorizationPolicy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MobileContextController extends Controller
 {
+    public function __construct(
+        private readonly BusinessAuthorizer $authorizer,
+        private readonly SyncAuthorizationPolicy $syncAuthorizationPolicy,
+    ) {}
+
     /**
      * Return the authenticated mobile user's full context:
      * user info, accessible businesses (with subscription + cloud_access),
@@ -39,11 +46,12 @@ class MobileContextController extends Controller
         $deviceIdentifier = (string) $request->query('device_identifier', '');
 
         /** @var array<int, array{id: int, name: string, business_type: string|null, subscription: array{plan: string, status: string}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
-        $businessData = $businesses->map(function (Business $business) use ($deviceIdentifier): array {
+        $businessData = $businesses->map(function (Business $business) use ($deviceIdentifier, $user): array {
             /** @var Subscription|null $subscription */
             $subscription = $business->subscription;
 
             $cloudAccess = $business->hasCloudAccess();
+            $role = $this->authorizer->roleIn($user, $business);
 
             /** @var list<array{id: int, name: string, code: string, status: string}> $outlets */
             $outlets = $business->outlets
@@ -81,6 +89,8 @@ class MobileContextController extends Controller
             return [
                 'id' => $business->id,
                 'name' => $business->name,
+                'role' => $role,
+                'sync_capabilities' => $this->syncAuthorizationPolicy->capabilities($user, $business),
                 // DASH-14 — additive/optional business type: canonical value
                 // (`cafe` | `laundry` | `grosir`) or null when not determined.
                 // Existing keys are unchanged; legacy clients can ignore it.

@@ -21,7 +21,7 @@ class SyncContextResolver
      * @param  string  $permission  the sync permission required for this call
      *                              ({@see BusinessPermission::SYNC_PUSH} or
      *                              {@see BusinessPermission::SYNC_PULL})
-     * @return array{user: User, business: Business, device: Device, outlet_id: int}
+     * @return array{user: User, business: Business, device: Device, outlet_id: int, role: string}
      */
     public function resolve(Request $request, int $businessId, string $deviceIdentifier, string $permission): array
     {
@@ -44,11 +44,17 @@ class SyncContextResolver
             ], 403));
         }
 
-        // DASH-10B2 — the mobile sync contract is not cashier-safe yet, so a
-        // role without the explicit sync permission is denied here. The role is
-        // re-read from the membership row on every request, so a role change
-        // applies to already-issued tokens too.
-        if (! $this->authorizer->allows($user, $business, $permission)) {
+        // Membership is the authority, not the token: role changes apply to
+        // already-issued mobile tokens on the next request.
+        $role = $this->authorizer->roleIn($user, $business);
+        $allowed = $this->authorizer->allows($user, $business, $permission);
+
+        if ($permission === BusinessPermission::SYNC_PUSH) {
+            $allowed = $allowed
+                || $this->authorizer->allows($user, $business, BusinessPermission::SYNC_PUSH_CASHIER_SAFE);
+        }
+
+        if (! $allowed) {
             abort(response()->json([
                 'message' => 'This role is not supported by the mobile sync API yet.',
                 'code' => 'MOBILE_ROLE_NOT_SUPPORTED',
@@ -85,6 +91,7 @@ class SyncContextResolver
             'business' => $business,
             'device' => $device,
             'outlet_id' => $device->outlet_id,
+            'role' => (string) $role,
         ];
     }
 }
