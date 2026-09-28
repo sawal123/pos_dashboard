@@ -25,10 +25,6 @@
 
         </div>
 
-        {{-- ==================== MODALS ==================== --}}
-        <x-ui.modal-add-product />
-        <x-ui.modal-delete />
-
         {{-- ==================== TOAST CONTAINER ==================== --}}
         <x-ui.toast-container />
 
@@ -405,10 +401,6 @@
                         closeMobileSidebar();
                     }
                     hideFloatingTooltip();
-                    const addProductModal = document.getElementById('addProductModal');
-                    const deleteModal = document.getElementById('deleteModal');
-                    if (addProductModal && !addProductModal.classList.contains('hidden')) closeModal(addProductModal);
-                    if (deleteModal && !deleteModal.classList.contains('hidden')) closeModal(deleteModal);
                     closeAllDropdowns(null);
                     closeAllCustomSelects(null);
                     closeAllActionDropdowns();
