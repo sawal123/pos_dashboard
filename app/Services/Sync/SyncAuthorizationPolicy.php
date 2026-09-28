@@ -306,9 +306,6 @@ final class SyncAuthorizationPolicy
             $incomingProductId = Product::where('business_id', $business->id)
                 ->where('sync_id', $productSyncId)
                 ->value('id');
-            $incomingSaleId = Sale::where('business_id', $business->id)
-                ->where('sync_id', $saleSyncId)
-                ->value('id');
 
             $record = SaleItem::where('business_id', $business->id)->where('sync_id', (string) $item['sync_id'])->first();
             if ($record instanceof SaleItem) {
@@ -318,13 +315,20 @@ final class SyncAuthorizationPolicy
                 }
 
                 // A formed sale item can never be repointed at another sale or
-                // product, not even inside the same outlet.
-                if (($incomingSaleId !== null && (int) $incomingSaleId !== (int) $record->sale_id)
-                    || ($incomingProductId !== null && (int) $incomingProductId !== (int) $record->product_id)) {
+                // product, not even inside the same outlet. The origin sale and
+                // product are compared by their stable sync_id, so a target that
+                // only exists inside this same envelope (not yet persisted) is
+                // caught as well.
+                $recordSaleSyncId = Sale::where('business_id', $business->id)->where('id', $record->sale_id)->value('sync_id');
+                $recordProductSyncId = Product::where('business_id', $business->id)->where('id', $record->product_id)->value('sync_id');
+
+                if (($recordSaleSyncId !== null && (string) $recordSaleSyncId !== $saleSyncId)
+                    || ($recordProductSyncId !== null && (string) $recordProductSyncId !== $productSyncId)) {
                     $violations[] = $this->violation('sale_items', 'upsert', 'sale_item_relation_immutable');
                 }
 
-                // Price, quantity and captured HPP are historical evidence:
+                // Every historical snapshot the sync writer persists (names,
+                // price, quantity, HPP, line cost, unit and kind) is immutable:
                 // a later push may never rewrite what a sale actually recorded.
                 if ($this->saleItemSnapshotChanged($record, $item)) {
                     $violations[] = $this->violation('sale_items', 'upsert', 'sale_item_snapshot_immutable');
@@ -692,22 +696,39 @@ final class SyncAuthorizationPolicy
     }
 
     /**
-     * Whether a cashier push rewrites a formed sale item's historical price,
-     * quantity, line total or captured HPP.
+     * Whether a cashier push rewrites any historical snapshot field a formed
+     * sale item recorded: product name/SKU, price, quantity, line total, HPP,
+     * line cost, unit and kind. Optional fields are only compared when the
+     * payload carries them, matching exactly what the sync writer persists.
      *
      * @param  array<string, mixed>  $item
      */
     private function saleItemSnapshotChanged(SaleItem $record, array $item): bool
     {
+        foreach (['product_name', 'product_sku'] as $field) {
+            if (array_key_exists($field, $item) && (string) $record->getAttribute($field) !== (string) $item[$field]) {
+                return true;
+            }
+        }
+
         foreach (['unit_price', 'quantity', 'line_total'] as $field) {
             if (array_key_exists($field, $item) && ! $this->numericSame($record->getAttribute($field), $item[$field])) {
                 return true;
             }
         }
 
-        if (array_key_exists('cost_snapshot', $item) && $item['cost_snapshot'] !== null
-            && ! $this->numericSame($record->getAttribute('cost_snapshot'), $item['cost_snapshot'])) {
-            return true;
+        foreach (['cost_snapshot', 'line_cost'] as $field) {
+            if (array_key_exists($field, $item) && $item[$field] !== null
+                && ! $this->numericSame($record->getAttribute($field), $item[$field])) {
+                return true;
+            }
+        }
+
+        foreach (['unit', 'kind', 'pricing_unit'] as $field) {
+            if (array_key_exists($field, $item) && $item[$field] !== null && $item[$field] !== ''
+                && (string) $record->getAttribute($field) !== (string) $item[$field]) {
+                return true;
+            }
         }
 
         return false;

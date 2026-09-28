@@ -929,6 +929,136 @@ class CashierSafeSyncTest extends TestCase
         $this->assertSame((int) Sale::where('sync_id', $saleSyncId)->value('id'), (int) $item->sale_id);
     }
 
+    public function test_cashier_cannot_move_an_existing_sale_item_to_a_new_sale_in_the_same_batch(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $newSaleSyncId = (string) Str::uuid();
+        $itemSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, ['sync_id' => $itemSyncId])],
+        ])->assertOk();
+
+        // The target sale only exists inside this same envelope; it is not
+        // persisted yet. The origin sale is still the stored one.
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($newSaleSyncId)],
+            'sale_items' => [$this->saleItemPayload($newSaleSyncId, $product->sync_id, [
+                'sync_id' => $itemSyncId,
+                'base_sync_version' => 1,
+            ])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'sale_item_relation_immutable');
+
+        // The whole envelope is atomic: the new sale is not created.
+        $this->assertDatabaseMissing('sales', ['sync_id' => $newSaleSyncId]);
+        $this->assertSame(
+            (int) Sale::where('sync_id', $saleSyncId)->value('id'),
+            (int) SaleItem::where('sync_id', $itemSyncId)->value('sale_id'),
+        );
+    }
+
+    public function test_cashier_cannot_rewrite_a_sale_item_line_cost(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $itemSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, [
+                'sync_id' => $itemSyncId,
+                'line_cost' => 400,
+            ])],
+        ])->assertOk();
+
+        $this->pushCashier($env, [
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, [
+                'sync_id' => $itemSyncId,
+                'base_sync_version' => 1,
+                'line_cost' => 450,
+            ])],
+        ])
+            ->assertStatus(403)
+            ->assertJsonPath('violations.0.reason', 'sale_item_snapshot_immutable');
+
+        $this->assertSame(400.0, (float) SaleItem::where('sync_id', $itemSyncId)->value('line_cost'));
+    }
+
+    public function test_cashier_cannot_rewrite_sale_item_snapshot_metadata(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $itemSyncId = (string) Str::uuid();
+
+        $this->pushCashier($env, [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, [
+                'sync_id' => $itemSyncId,
+                'unit' => 'pcs',
+                'kind' => 'product',
+                'pricing_unit' => 'pcs',
+            ])],
+        ])->assertOk();
+
+        foreach ([
+            ['product_name' => 'Tampered'],
+            ['product_sku' => 'TAMPERED-01'],
+            ['unit' => 'kg'],
+            ['kind' => 'service'],
+            ['pricing_unit' => 'box'],
+        ] as $tamper) {
+            $this->pushCashier($env, [
+                'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, array_merge([
+                    'sync_id' => $itemSyncId,
+                    'base_sync_version' => 1,
+                ], $tamper))],
+            ])
+                ->assertStatus(403)
+                ->assertJsonPath('violations.0.reason', 'sale_item_snapshot_immutable');
+        }
+
+        $item = SaleItem::where('sync_id', $itemSyncId)->firstOrFail();
+        $this->assertSame('Item', $item->product_name);
+        $this->assertSame('SKU-ITEM', $item->product_sku);
+        $this->assertSame('pcs', $item->unit);
+        $this->assertSame('product', $item->kind);
+        $this->assertSame('pcs', $item->pricing_unit);
+    }
+
+    public function test_cashier_identical_sale_item_retry_is_accepted_exactly_once(): void
+    {
+        $env = $this->makeEnvironment('cashier');
+        $product = $this->makeProduct($env);
+        $saleSyncId = (string) Str::uuid();
+        $changes = [
+            'sales' => [$this->sale($saleSyncId)],
+            'sale_items' => [$this->saleItemPayload($saleSyncId, $product->sync_id, [
+                'line_cost' => 400,
+                'unit' => 'pcs',
+                'kind' => 'product',
+                'pricing_unit' => 'pcs',
+            ])],
+        ];
+
+        $this->pushCashier($env, $changes)->assertOk();
+        // New request id, fully identical mutation: acknowledged and applied once.
+        $this->pushCashier($env, $changes)->assertOk();
+
+        $this->assertSame(1, SaleItem::where('business_id', $env['business']->id)->count());
+        $this->assertSame(1, Sale::where('business_id', $env['business']->id)->count());
+
+        $item = SaleItem::where('sync_id', $changes['sale_items'][0]['sync_id'])->firstOrFail();
+        $this->assertSame(400.0, (float) $item->line_cost);
+        $this->assertSame('pcs', $item->unit);
+    }
+
     public function test_cashier_cannot_reclassify_an_existing_cash_entry(): void
     {
         $env = $this->makeEnvironment('cashier');

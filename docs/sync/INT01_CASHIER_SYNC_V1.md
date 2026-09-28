@@ -135,10 +135,16 @@ acknowledged, and it never re-applies the delta.
 
 ### Sale item identity
 
-An existing sale item's `sale_id` and `product_id` are immutable — including
-inside the same outlet — so a formed item can never be moved to another sale or
-product (`sale_item_relation_immutable`). Its financial snapshot stays
-immutable (`sale_item_snapshot_immutable`).
+An existing sale item's origin sale and product are immutable — including
+inside the same outlet. The incoming `sale_sync_id`/`product_sync_id` are
+compared directly against the origin sale/product `sync_id`, so a target sale
+that exists only inside the same envelope (not yet persisted) is caught as well
+(`sale_item_relation_immutable`).
+
+Every historical snapshot the sync writer persists is also immutable:
+`product_name`, `product_sku`, `unit_price`, `quantity`, `line_total`,
+`cost_snapshot`, `line_cost`, `unit`, `kind` and `pricing_unit`
+(`sale_item_snapshot_immutable`). Only a fully identical retry is acknowledged.
 
 ### Cash ledger
 
