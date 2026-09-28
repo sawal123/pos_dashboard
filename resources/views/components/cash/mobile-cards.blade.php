@@ -2,6 +2,7 @@
     'activeTab' => 'ledgers',
     'ledgers' => [],
     'expenses' => [],
+    'canManageCash' => false,
 ])
 
 @php
@@ -73,10 +74,23 @@
                     @endif
                 </div>
 
-                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                    @if($canManageCash && ($ledger['is_reversible'] ?? false))
+                        <button
+                            type="button"
+                            class="cash-correction-btn flex-1 py-2 px-3 rounded-xl border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                            data-correction-kind="reversal"
+                            data-correction-action="{{ route('cash.ledger.reverse', $ledger['id']) }}"
+                            data-correction-type="{{ $typeLabel }}"
+                            data-correction-amount="{{ $ledger['amount'] }}"
+                            data-correction-reference="{{ $ledger['reference_id'] ?? '-' }}"
+                        >
+                            Koreksi
+                        </button>
+                    @endif
                     <button
                         type="button"
-                        class="view-cash-detail-btn w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        class="view-cash-detail-btn flex-1 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
                         Lihat Detail
                     </button>
@@ -141,10 +155,23 @@
                     @endif
                 </div>
 
-                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-2">
+                    @if($canManageCash && ($expense['is_voidable'] ?? false))
+                        <button
+                            type="button"
+                            class="cash-correction-btn flex-1 py-2 px-3 rounded-xl border border-rose-200 dark:border-rose-900/70 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
+                            data-correction-kind="void"
+                            data-correction-action="{{ route('cash.expenses.void', $expense['id']) }}"
+                            data-correction-type="Pengeluaran"
+                            data-correction-amount="{{ $expense['amount'] }}"
+                            data-correction-reference="{{ $expense['description'] }}"
+                        >
+                            Batalkan
+                        </button>
+                    @endif
                     <button
                         type="button"
-                        class="view-cash-detail-btn w-full py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        class="view-cash-detail-btn flex-1 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                     >
                         Lihat Detail
                     </button>
