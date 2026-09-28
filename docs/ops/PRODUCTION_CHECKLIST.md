@@ -25,7 +25,7 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 | `APP_ENV=production` | FAIL | `APP_ENV=production` |
 | `APP_DEBUG=false` | FAIL | `APP_DEBUG=false` |
 | `APP_KEY is set` | FAIL | `php artisan key:generate` has been run |
-| `APP_URL uses https` | FAIL | `APP_URL=https://…` (bypass with `--allow-http` only for local smoke runs) |
+| `APP_URL uses https` | FAIL | `APP_URL=https://…` — non-HTTPS is always a failure, there is **no** bypass flag |
 | `SESSION_DRIVER is not array` | FAIL | not `array` |
 | `SESSION_SECURE_COOKIE is enabled` | FAIL | `SESSION_SECURE_COOKIE=true` |
 | `SESSION_HTTP_ONLY is enabled` | FAIL | not `false` |

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Console;
 
+use App\Console\Commands\ProductionPreflightCommand;
 use Tests\TestCase;
 
 /**
@@ -44,13 +45,24 @@ class ProductionPreflightTest extends TestCase
             ->assertExitCode(1);
     }
 
-    public function test_it_fails_on_an_http_app_url_unless_explicitly_allowed(): void
+    public function test_it_fails_on_an_http_app_url_and_offers_no_bypass(): void
     {
         $this->hardenedConfig(['app.url' => 'http://pos.example.com']);
 
-        $this->artisan('deploy:preflight')->assertExitCode(1);
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('APP_URL scheme')
+            ->assertExitCode(1);
 
-        $this->artisan('deploy:preflight', ['--allow-http' => true])->assertExitCode(0);
+        // No flag may bypass the HTTPS requirement in a production preflight.
+        $command = new ProductionPreflightCommand;
+        $this->assertFalse($command->getDefinition()->hasOption('allow-http'));
+    }
+
+    public function test_an_https_local_url_only_warns(): void
+    {
+        $this->hardenedConfig(['app.url' => 'https://localhost']);
+
+        $this->artisan('deploy:preflight')->assertExitCode(0);
     }
 
     public function test_it_fails_on_a_sqlite_database(): void

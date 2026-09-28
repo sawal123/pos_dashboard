@@ -99,6 +99,10 @@ correction path, no change to append-only/idempotency behaviour.
   referensi and the consequence, posting to `cash.ledger.reverse` /
   `cash.expenses.void`.
 * Client-side: single submit (button disabled on submit), Escape/backdrop close.
+* Keyboard: focus trap (Tab/Shift+Tab cycle inside the dialog), initial focus on
+  the least destructive control (Batal), and focus restored to the opening
+  button on close. The document keydown handler is re-bound with a
+  remove-then-add guard, so Livewire navigation never stacks duplicate listeners.
 
 ### Server remains the final authority
 
@@ -144,7 +148,9 @@ buttons and no dialog.
   | `DB_CONNECTION=sqlite` | |
   | `SESSION_DRIVER=array` | |
 
-  `--strict` promotes warnings to failures for CI/CD.
+  `--strict` promotes warnings to failures for CI/CD. The `APP_URL` HTTPS check
+  has **no bypass flag** — a production preflight can never pass on a plaintext
+  URL.
 
 * `docs/ops/PRODUCTION_CHECKLIST.md` — deploy checklist (env, HTTPS/session,
   database backup, queue/scheduler, cache/config, file permissions, rollback,
@@ -205,7 +211,7 @@ No new HIGH/BLOCKER defect was found in the integrated dashboard.
 
 | Gate | Result |
 | --- | --- |
-| `php artisan test` (SQLite `:memory:`, QA-ENV-01) | **1119 passed / 5 skipped / 0 failed** (see §9 for skips) |
+| `php artisan test` (SQLite `:memory:`, QA-ENV-01) | **1121 passed / 5 skipped / 0 failed** (see below) |
 | `vendor/bin/phpunit -c phpunit.p38concurrency.xml` | OK — 23 tests / 130 assertions |
 | `vendor/bin/pint --test` | PASS — 246 files |
 | `vendor/bin/phpstan analyse --memory-limit=1G` | No errors |
@@ -246,7 +252,7 @@ No dashboard-side blocker remains for the integrated backend itself.
 
 ## 11. Conclusion
 
-The integrated dashboard backend is solid: **1119 passing tests, 0 failures**,
+The integrated dashboard backend is solid: **1121 passing tests, 0 failures**,
 a green MariaDB concurrency gate including the new cashier double-deduction
 guard, and both Phase A blocker-adjacent dashboard gaps (H1 debug config, M1
 correction UI) closed with regression tests and browser evidence. QA-RELEASE as a

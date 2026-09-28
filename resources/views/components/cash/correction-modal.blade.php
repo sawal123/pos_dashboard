@@ -60,6 +60,7 @@
                         <button
                             type="button"
                             data-cash-modal-close
+                            data-correction-cancel
                             class="inline-flex items-center justify-center h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         >
                             Batal

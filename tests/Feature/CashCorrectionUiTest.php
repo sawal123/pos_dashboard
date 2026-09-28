@@ -131,6 +131,22 @@ class CashCorrectionUiTest extends TestCase
         $response->assertSee('data-correction-label', false);
     }
 
+    public function test_the_dialog_exposes_the_keyboard_accessibility_hooks(): void
+    {
+        [$owner, $business, $outlet] = $this->makeUserWithBusiness();
+        $this->manualLedger($business, $outlet);
+
+        $response = $this->actingAs($owner)->get(route('cash.index', ['tab' => 'ledgers']));
+        $response->assertOk();
+
+        // Modal semantics + the element the client script focuses on open
+        // (the focus trap and focus-restore logic key off these hooks).
+        $response->assertSee('role="dialog"', false);
+        $response->assertSee('aria-modal="true"', false);
+        $response->assertSee('data-correction-cancel', false);
+        $response->assertSee('id="cashCorrectionSubmit"', false);
+    }
+
     public function test_a_foreign_tenants_reversible_row_is_never_rendered(): void
     {
         [$owner, $business, $outlet] = $this->makeUserWithBusiness();

@@ -20,22 +20,19 @@ final class ProductionPreflightCommand extends Command
 {
     /** @var string */
     protected $signature = 'deploy:preflight
-        {--strict : Treat warnings as failures as well}
-        {--allow-http : Allow a non-HTTPS APP_URL (local smoke runs only)}';
+        {--strict : Treat warnings as failures as well}';
 
     /** @var string */
     protected $description = 'Validate resolved configuration before a production release.';
 
     public function handle(): int
     {
-        $allowHttp = (bool) $this->option('allow-http');
-
         /** @var list<array{status: string, name: string, message: string}> $results */
         $results = [
             $this->checkSame('APP_ENV=production', 'production', (string) config('app.env')),
             $this->checkFalse('APP_DEBUG=false', (bool) config('app.debug')),
             $this->checkTrue('APP_KEY is set', is_string(config('app.key')) && config('app.key') !== ''),
-            $this->checkAppUrl($allowHttp),
+            $this->checkAppUrl(),
             $this->checkFalse('SESSION_DRIVER is not array', config('session.driver') === 'array'),
             $this->checkTrue('SESSION_SECURE_COOKIE is enabled', (bool) config('session.secure')),
             $this->checkFalse('SESSION_HTTP_ONLY is enabled', config('session.http_only') === false),
@@ -136,15 +133,18 @@ final class ProductionPreflightCommand extends Command
     }
 
     /**
+     * APP_URL must use HTTPS. There is deliberately no bypass flag: a
+     * production preflight must never pass on a plaintext URL.
+     *
      * @return array{status: string, name: string, message: string}
      */
-    private function checkAppUrl(bool $allowHttp): array
+    private function checkAppUrl(): array
     {
         $url = (string) config('app.url');
         $scheme = parse_url($url, PHP_URL_SCHEME);
         $host = (string) parse_url($url, PHP_URL_HOST);
 
-        if ($scheme !== 'https' && ! $allowHttp) {
+        if ($scheme !== 'https') {
             return [
                 'status' => 'fail',
                 'name' => 'APP_URL scheme',

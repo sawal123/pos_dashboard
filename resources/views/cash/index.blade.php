@@ -197,6 +197,9 @@
             const correctionModal = document.getElementById('cashCorrectionModal');
             const correctionForm = document.getElementById('cashCorrectionForm');
 
+            // Element that opened the correction dialog, so focus returns to it.
+            let lastCorrectionTrigger = null;
+
             function openModal(modal) {
                 if (!modal) return;
                 modal.classList.remove('hidden');
@@ -209,6 +212,58 @@
                 if (!modal) return;
                 modal.classList.add('hidden');
                 document.body.style.overflow = '';
+            }
+
+            // DASH-16 — correction dialog: focus management + focus trap.
+            const correctionFocusableSelector = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+            function correctionFocusables() {
+                return correctionModal
+                    ? Array.from(correctionModal.querySelectorAll(correctionFocusableSelector))
+                    : [];
+            }
+
+            function openCorrectionModal(trigger) {
+                if (!correctionModal) return;
+
+                // Remember the opener so focus can return to it on close.
+                lastCorrectionTrigger = trigger || document.activeElement;
+
+                correctionModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+
+                // Focus the least destructive control first.
+                const cancel = correctionModal.querySelector('[data-correction-cancel]');
+                setTimeout(() => (cancel || correctionFocusables()[0])?.focus({ preventScroll: true }), 50);
+            }
+
+            function closeCorrectionModal() {
+                if (!correctionModal || correctionModal.classList.contains('hidden')) return;
+
+                closeModal(correctionModal);
+
+                const trigger = lastCorrectionTrigger;
+                lastCorrectionTrigger = null;
+                if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+                    trigger.focus({ preventScroll: true });
+                }
+            }
+
+            function trapCorrectionFocus(event) {
+                const focusables = correctionFocusables();
+                if (focusables.length === 0) return;
+
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                const active = document.activeElement;
+
+                if (event.shiftKey && (active === first || !correctionModal.contains(active))) {
+                    event.preventDefault();
+                    last.focus({ preventScroll: true });
+                } else if (!event.shiftKey && (active === last || !correctionModal.contains(active))) {
+                    event.preventDefault();
+                    first.focus({ preventScroll: true });
+                }
             }
 
             function syncShiftOptions(modal) {
@@ -234,12 +289,24 @@
             }
 
             document.querySelectorAll('[data-cash-modal-close]').forEach((btn) => {
-                btn.addEventListener('click', () => closeModal(btn.closest('[data-cash-modal]')));
+                btn.addEventListener('click', () => {
+                    const host = btn.closest('[data-cash-modal]');
+                    if (host && host.id === 'cashCorrectionModal') {
+                        closeCorrectionModal();
+                    } else {
+                        closeModal(host);
+                    }
+                });
             });
 
             document.querySelectorAll('[data-cash-modal]').forEach((modal) => {
                 modal.addEventListener('click', (event) => {
-                    if (event.target === modal) {
+                    if (event.target !== modal) {
+                        return;
+                    }
+                    if (modal.id === 'cashCorrectionModal') {
+                        closeCorrectionModal();
+                    } else {
                         closeModal(modal);
                     }
                 });
@@ -249,13 +316,41 @@
                 });
             });
 
-            document.addEventListener('keydown', (event) => {
+            // Clicking the correction dialog backdrop (anywhere outside the panel)
+            // closes it and returns focus to the opener.
+            if (correctionModal) {
+                const correctionPanel = correctionModal.querySelector('section');
+                correctionModal.addEventListener('click', (event) => {
+                    if (!correctionPanel || !correctionPanel.contains(event.target)) {
+                        closeCorrectionModal();
+                    }
+                });
+            }
+
+            // Escape + Tab focus trap. The document listener is re-bound with a
+            // remove-then-add guard so Livewire navigation can never stack
+            // duplicate document handlers.
+            if (window.__cashKeydownHandler) {
+                document.removeEventListener('keydown', window.__cashKeydownHandler);
+            }
+            window.__cashKeydownHandler = (event) => {
+                if (correctionModal && !correctionModal.classList.contains('hidden')) {
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        closeCorrectionModal();
+                    } else if (event.key === 'Tab') {
+                        trapCorrectionFocus(event);
+                    }
+
+                    return;
+                }
+
                 if (event.key === 'Escape') {
                     closeModal(cashModal);
                     closeModal(expenseModal);
-                    closeModal(correctionModal);
                 }
-            });
+            };
+            document.addEventListener('keydown', window.__cashKeydownHandler);
 
             if (recordCashBtn && !recordCashBtn.disabled) {
                 recordCashBtn.onclick = () => {
@@ -305,7 +400,7 @@
                     if (label) label.textContent = kind === 'void' ? 'Batalkan Pengeluaran' : 'Koreksi Kas';
                 }
 
-                openModal(correctionModal);
+                openCorrectionModal(trigger);
             });
 
             if (correctionForm) {
