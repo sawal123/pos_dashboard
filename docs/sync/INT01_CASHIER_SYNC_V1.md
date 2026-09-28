@@ -47,11 +47,11 @@ not trusted to expand access.
 | `categories` | Deny create/update/delete | Master data remains owner/member only. |
 | `products` | Deny create/update/delete | Includes price, HPP/cost, stock snapshot, SKU, barcode, unit, status. |
 | `customers` | Allow upsert | Tombstone/delete status is denied. Business scoped. |
-| `shifts` | Allow upsert | Existing rows must belong to the device outlet. Closed shifts cannot be reopened by cashier sync. |
-| `sales` | Allow upsert | Existing rows must belong to the device outlet. Customer/shift relations must be same business and shift must be same outlet or present in the same envelope. |
-| `sale_items` | Allow upsert | Parent sale must be in the same envelope or already exist in the device outlet. Product must already exist in the business. |
-| `cash_ledger` | Allow sale payment only | Requires `sale_sync_id`, sale must be own outlet, `type` must be `in`, and amount must match the sale total when known. Manual cash in/out is denied. |
-| `stock_movements` | Allow sale movement only | Requires `movement_type=sale`, `sale_sync_id`, sale must be own outlet, product must be same business, and `quantity_change` must be negative. Adjustments/restocks/corrections are denied. |
+| `shifts` | Allow upsert | Existing rows must belong to the device outlet. A closed shift is immutable and cannot be reopened. Opening cash of an existing shift and closing cash once set can never change. |
+| `sales` | Allow upsert | Existing rows must belong to the device outlet. Customer/shift relations must be same business and shift must be same outlet or present in the same envelope. A formed sale's `subtotal`, `discount_amount`, `tax_amount`, `total_amount` and `gross_profit` are immutable; only payment status and the laundry lifecycle may advance. |
+| `sale_items` | Allow upsert | Parent sale must be in the same envelope or already exist in the device outlet. Product must already exist in the business. Price, quantity, line total and captured HPP of an existing item are immutable. |
+| `cash_ledger` | Allow sale payment only | Requires `sale_sync_id`, sale must be own outlet, `type` must be `in`, the referenced sale must be a **cash** sale (`cash`/`tunai`) with `payment_status=paid`, and the amount must match the sale total. Manual cash in/out is denied. Existing rows accept only a valid identical retry. |
+| `stock_movements` | Allow sale movement only | Requires `movement_type=sale`, `sale_sync_id`, sale must be own outlet, product must be same business, and `quantity_change` must be negative. The cumulative deduction for a `(sale, product)` pair can never exceed the quantity sold by the matching sale items. Adjustments/restocks/corrections are denied. |
 | `expenses` | Deny create/update/delete | DASH-16 financial management remains owner-only. |
 | `deletions` | Deny all | No cashier tombstones in V1. |
 
@@ -99,6 +99,52 @@ If one mutation is forbidden, the whole request is rejected:
 ```
 
 The response status is `403`. No partial success is recorded.
+
+## Integrity Hardening
+
+The preflight enforces these invariants over the whole envelope before any write:
+
+### Stock movements vs sold quantity
+
+For every movement the server computes the quantity actually sold for its
+`(sale_sync_id, product_sync_id)` pair from the sale items already persisted on
+the server **plus** the sale items carried by the same envelope, unioned by
+their stable `sync_id`. A movement is rejected when:
+
+| Condition | Reason |
+| --- | --- |
+| No matching sale item exists at all | `stock_movement_without_sale_item` |
+| Committed + incoming deduction exceeds the sold quantity | `stock_movement_exceeds_sold_quantity` |
+| An existing movement's `sync_id` is repointed to another product/sale | `stock_movement_identity_immutable` |
+
+This blocks a duplicate movement that reuses a fresh `sync_id` to double the
+stock reduction. A legitimate offline oversell is still accepted: the
+deduction may exceed the *remaining* stock, it may only never exceed the
+quantity *sold*. Sale items and movements may arrive in different batches — a
+movement alone is validated against the sale items already stored.
+
+### Cash ledger
+
+A cashier payment must target a sale that is actually settled in cash:
+
+| Condition | Reason |
+| --- | --- |
+| Sale `payment_method` is not `cash`/`tunai` (e.g. QRIS/transfer/card) | `cash_payment_requires_cash_sale` |
+| Sale `payment_status` is not `paid` | `cash_payment_requires_paid_sale` |
+| Existing row has no `sale_sync_id` (manual owner entry) | `cash_ledger_origin_immutable` |
+| Existing row's `sale_sync_id` differs | `cash_ledger_sale_link_immutable` |
+| Existing row's `amount`/`type` differs | `cash_ledger_immutable` |
+
+A manual owner cash row can therefore never be converted into a sale payment,
+an existing settlement can never be repointed at another sale, and an existing
+amount can never be rewritten.
+
+### Historical transactions
+
+Already-formed transactions are protected from arbitrary financial rewrites.
+Sale totals/HPP, sale-item price/quantity/HPP, shift opening/closing cash and
+closed shifts are immutable, while the legitimate `unpaid -> paid` transition
+and the forward-only laundry lifecycle remain allowed.
 
 ## Idempotency And Conflict Behavior
 
