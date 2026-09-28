@@ -11,6 +11,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\StockMovement;
 use App\Models\Subscription;
+use App\Models\SyncRequest;
 use App\Models\User;
 use App\Services\Sync\SyncPushService;
 use Illuminate\Support\Facades\Artisan;
@@ -367,5 +368,87 @@ class SyncConcurrencyMySqlTest extends TestCase
         $loser = $resultA['status'] === 403 ? $resultA : $resultB;
         $this->assertSame('SYNC_OPERATION_NOT_ALLOWED', $loser['body']['code'] ?? null);
         $this->assertSame('stock_movement_exceeds_sold_quantity', $loser['body']['violations'][0]['reason'] ?? null);
+    }
+
+    /**
+     * INT-03 — holds an UNCOMMITTED `sync_requests` row for `$holdMs` inside a
+     * real InnoDB transaction, so a concurrent status read observes the
+     * in-flight window (the row exists but is not yet visible to others).
+     *
+     * @param  array{businessId: int, outletId: int, deviceId: int, userId: int}  $fixture
+     */
+    public static function holdUncommittedSyncRequest(array $fixture, string $requestId, int $holdMs): string
+    {
+        try {
+            DB::transaction(function () use ($fixture, $requestId, $holdMs): void {
+                SyncRequest::create([
+                    'business_id' => $fixture['businessId'],
+                    'device_id' => $fixture['deviceId'],
+                    'request_id' => $requestId,
+                    'processed_at' => now(),
+                ]);
+
+                usleep($holdMs * 1000);
+            });
+
+            return 'committed';
+        } catch (\Throwable $e) {
+            return 'error: '.$e->getMessage();
+        }
+    }
+
+    /**
+     * INT-03 — the read the status endpoint performs, run while another
+     * transaction holds the row uncommitted. Reports whether the row was
+     * visible and how long the (non-locking) read took.
+     *
+     * @param  array{businessId: int, outletId: int, deviceId: int, userId: int}  $fixture
+     * @return array{found: bool, ms: int}|string
+     */
+    public static function readSyncRequestStatus(array $fixture, string $requestId, int $delayMs): array|string
+    {
+        try {
+            usleep($delayMs * 1000);
+
+            $start = microtime(true);
+            $found = SyncRequest::where('business_id', $fixture['businessId'])
+                ->where('device_id', $fixture['deviceId'])
+                ->where('request_id', $requestId)
+                ->exists();
+            $ms = (int) round((microtime(true) - $start) * 1000);
+
+            return ['found' => $found, 'ms' => $ms];
+        } catch (\Throwable $e) {
+            return 'error: '.$e->getMessage();
+        }
+    }
+
+    public function test_status_read_of_an_in_flight_request_does_not_block_and_reports_not_found(): void
+    {
+        $requestId = (string) Str::uuid();
+        $fixture = $this->fixture;
+
+        // A holds the row uncommitted for ~2s; B reads it ~0.5s in, i.e. inside
+        // the in-flight window. A consistent read must not block on the pending
+        // insert, and the request must not be reported as committed yet.
+        [$holdResult, $readResult] = Concurrency::run([
+            fn () => self::holdUncommittedSyncRequest($fixture, $requestId, 2000),
+            fn () => self::readSyncRequestStatus($fixture, $requestId, 500),
+        ]);
+
+        $this->assertSame('committed', $holdResult, 'the holding transaction failed');
+        $this->assertIsArray($readResult, 'the status read failed: '.(is_string($readResult) ? $readResult : ''));
+
+        $this->assertFalse($readResult['found'], 'an in-flight request must not be reported as committed');
+        $this->assertLessThan(1000, $readResult['ms'], 'the status read blocked on the in-flight transaction');
+
+        // Once the writer commits, the same request is reported as committed.
+        $this->assertTrue(
+            SyncRequest::where('business_id', $fixture['businessId'])
+                ->where('device_id', $fixture['deviceId'])
+                ->where('request_id', $requestId)
+                ->exists(),
+            'the committed request must become visible',
+        );
     }
 }

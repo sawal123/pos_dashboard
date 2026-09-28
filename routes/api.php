@@ -18,4 +18,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
+
+    // INT-03 — read-only status of a previously pushed request.
+    Route::get('/sync/requests/{request_id}/status', [SyncController::class, 'requestStatus'])
+        ->name('api.sync.requests.status');
 });
