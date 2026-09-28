@@ -56,7 +56,7 @@ class MobileBusinessTypeContextTest extends TestCase
             'data' => [
                 'user' => ['id', 'name', 'email'],
                 'businesses' => [
-                    '*' => ['id', 'name', 'business_type', 'subscription', 'cloud_access', 'outlets', 'device_context'],
+                    '*' => ['id', 'name', 'role', 'sync_capabilities', 'business_type', 'subscription', 'cloud_access', 'outlets', 'device_context'],
                 ],
             ],
         ]);
@@ -69,7 +69,7 @@ class MobileBusinessTypeContextTest extends TestCase
         $keys = array_keys($businesses[0]);
         sort($keys);
         $this->assertSame(
-            ['business_type', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'subscription'],
+            ['business_type', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'role', 'subscription', 'sync_capabilities'],
             $keys,
         );
         $this->assertNull($businesses[0]['device_context']);
@@ -174,7 +174,7 @@ class MobileBusinessTypeContextTest extends TestCase
     // A business type never grants sync access
     // =========================================================================
 
-    public function test_cashier_sync_stays_denied_regardless_of_business_type(): void
+    public function test_business_type_does_not_expand_cashier_sync_capabilities(): void
     {
         [$user, $token] = $this->userWithMobileToken();
 
@@ -196,16 +196,27 @@ class MobileBusinessTypeContextTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.businesses.0.business_type', 'laundry');
 
-        // ...but `laundry` must not open the sync contract for a cashier.
+        // ...but `laundry` must not open unrestricted master-data sync for a cashier.
         $this->withToken($token)->postJson('/api/sync/push', [
             'business_id' => $business->id,
             'device_identifier' => 'DASH14-CASHIER',
             'request_id' => (string) Str::uuid(),
-            'changes' => [],
-        ])->assertStatus(403);
+            'changes' => [
+                'products' => [
+                    [
+                        'sync_id' => (string) Str::uuid(),
+                        'base_sync_version' => null,
+                        'name' => 'Forbidden',
+                        'sku' => 'FORBIDDEN-01',
+                        'price' => 1000,
+                    ],
+                ],
+            ],
+        ])->assertStatus(403)
+            ->assertJson(['code' => 'SYNC_OPERATION_NOT_ALLOWED']);
 
         $this->withToken($token)
             ->getJson('/api/sync/pull?business_id='.$business->id.'&device_identifier=DASH14-CASHIER')
-            ->assertStatus(403);
+            ->assertOk();
     }
 }

@@ -23,10 +23,14 @@ use Illuminate\Support\Facades\DB;
 
 class SyncPushService
 {
+    public function __construct(
+        private readonly SyncAuthorizationPolicy $authorizationPolicy,
+    ) {}
+
     /**
      * Process a push sync payload from mobile device.
      *
-     * @param  array{user: User, business: Business, device: Device, outlet_id: int}  $context
+     * @param  array{user: User, business: Business, device: Device, outlet_id: int, role: string}  $context
      * @param  array<string, mixed>  $payload
      */
     public function process(array $context, array $payload): JsonResponse
@@ -37,6 +41,15 @@ class SyncPushService
         $requestId = (string) $payload['request_id'];
         /** @var array<string, list<array<string, mixed>>> $changes */
         $changes = $payload['changes'] ?? [];
+
+        $violations = $this->authorizationPolicy->pushViolations($context, $payload);
+        if ($violations !== []) {
+            return response()->json([
+                'message' => 'Sync operation is not allowed for this role.',
+                'code' => 'SYNC_OPERATION_NOT_ALLOWED',
+                'violations' => $violations,
+            ], 403);
+        }
 
         // 1. Idempotency Check
         $existingRequest = SyncRequest::where('business_id', $business->id)

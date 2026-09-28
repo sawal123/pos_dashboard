@@ -16,36 +16,31 @@ use Tests\TestCase;
 /**
  * DASH-10B2 — mobile/API role authorization.
  *
- * Owner and member keep the existing sync contract. Cashier (and any unknown
- * role) is explicitly denied the mobile sync push/pull and device-registration
- * endpoints, because the sync payload accepts every entity/operation type and
- * is not cashier-safe yet. See docs/dashboard/DASH10B2_CASHIER_RBAC.md.
+ * Owner and member keep the existing sync contract. Cashier gets the
+ * cashier-safe sync contract and stays denied from device registration and
+ * unrestricted sync operations. Unknown roles remain denied by default.
  */
 class MobileRoleAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_cashier_cannot_push(): void
+    public function test_cashier_can_push_empty_cashier_safe_envelope(): void
     {
         [$user, $business, $device] = $this->makeSyncBusiness('cashier');
 
         $this->withToken($this->tokenFor($user))
             ->postJson('/api/sync/push', $this->pushPayload($business->id, $device))
-            ->assertStatus(403)
-            ->assertJson([
-                'message' => 'This role is not supported by the mobile sync API yet.',
-                'code' => 'MOBILE_ROLE_NOT_SUPPORTED',
-            ]);
+            ->assertOk()
+            ->assertJsonPath('data.duplicate', false);
     }
 
-    public function test_cashier_cannot_pull(): void
+    public function test_cashier_can_pull(): void
     {
         [$user, $business, $device] = $this->makeSyncBusiness('cashier');
 
         $this->withToken($this->tokenFor($user))
             ->getJson('/api/sync/pull?business_id='.$business->id.'&device_identifier='.$device)
-            ->assertStatus(403)
-            ->assertJson(['code' => 'MOBILE_ROLE_NOT_SUPPORTED']);
+            ->assertOk();
     }
 
     public function test_cashier_cannot_register_a_device(): void
@@ -120,15 +115,19 @@ class MobileRoleAuthorizationTest extends TestCase
             ->postJson('/api/sync/push', $this->pushPayload($business->id, $device))
             ->assertOk();
 
-        // Promote the same membership to cashier.
+        // Change the same membership to cashier.
         $this->setRole($business, $user, 'cashier');
 
-        // The *same* token is now denied: the role lives on the membership row,
-        // never on the token.
+        // The *same* token now follows cashier-safe policy: unrestricted
+        // master-data sync is denied, but a safe customer upsert is accepted.
         $this->withToken($token)
-            ->postJson('/api/sync/push', $this->pushPayload($business->id, $device))
+            ->postJson('/api/sync/push', $this->productPayload($business->id, $device))
             ->assertStatus(403)
-            ->assertJson(['code' => 'MOBILE_ROLE_NOT_SUPPORTED']);
+            ->assertJson(['code' => 'SYNC_OPERATION_NOT_ALLOWED']);
+
+        $this->withToken($token)
+            ->postJson('/api/sync/push', $this->customerPayload($business->id, $device))
+            ->assertOk();
 
         // Demoting back restores access for the same token.
         $this->setRole($business, $user, 'member');
@@ -138,10 +137,9 @@ class MobileRoleAuthorizationTest extends TestCase
             ->assertOk();
     }
 
-    public function test_role_is_denied_before_subscription_is_evaluated(): void
+    public function test_cashier_role_is_evaluated_before_subscription_for_push(): void
     {
-        // Cashier without any subscription still gets the role code, proving the
-        // role gate is evaluated independently of billing state.
+        // Cashier is a supported push role, so billing is the next gate.
         $user = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
         $business->users()->attach($user->id, ['role' => 'cashier']);
@@ -149,7 +147,7 @@ class MobileRoleAuthorizationTest extends TestCase
         $this->withToken($this->tokenFor($user))
             ->postJson('/api/sync/push', $this->pushPayload($business->id, 'POS-NONE'))
             ->assertStatus(403)
-            ->assertJson(['code' => 'MOBILE_ROLE_NOT_SUPPORTED']);
+            ->assertJson(['code' => 'CLOUD_SUBSCRIPTION_REQUIRED']);
     }
 
     public function test_mobile_context_remains_available_to_cashier(): void
@@ -207,6 +205,50 @@ class MobileRoleAuthorizationTest extends TestCase
             'device_identifier' => $deviceIdentifier,
             'request_id' => (string) Str::uuid(),
             'changes' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function customerPayload(int $businessId, string $deviceIdentifier): array
+    {
+        return [
+            'business_id' => $businessId,
+            'device_identifier' => $deviceIdentifier,
+            'request_id' => (string) Str::uuid(),
+            'changes' => [
+                'customers' => [
+                    [
+                        'sync_id' => (string) Str::uuid(),
+                        'base_sync_version' => null,
+                        'name' => 'Safe Customer',
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function productPayload(int $businessId, string $deviceIdentifier): array
+    {
+        return [
+            'business_id' => $businessId,
+            'device_identifier' => $deviceIdentifier,
+            'request_id' => (string) Str::uuid(),
+            'changes' => [
+                'products' => [
+                    [
+                        'sync_id' => (string) Str::uuid(),
+                        'base_sync_version' => null,
+                        'name' => 'Full Sync Product',
+                        'sku' => 'FULL-SYNC-'.Str::upper(Str::random(6)),
+                        'price' => 1000,
+                    ],
+                ],
+            ],
         ];
     }
 

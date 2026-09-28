@@ -66,9 +66,10 @@ final class BusinessPermission
     // DASH-14 — business profile / type setup (owner only).
     public const BUSINESS_SETTINGS_MANAGE = 'business.settings.manage';
 
-    // Mobile/sync API. Cashier is intentionally denied: the sync contract is
-    // not cashier-safe yet (see DASH10B2 doc).
+    // Mobile/sync API.
     public const SYNC_PUSH = 'sync.push';
+
+    public const SYNC_PUSH_CASHIER_SAFE = 'sync.push.cashier-safe';
 
     public const SYNC_PULL = 'sync.pull';
 
@@ -107,6 +108,8 @@ final class BusinessPermission
                 self::SHIFTS_VIEW,
                 self::CUSTOMERS_VIEW,
                 self::LAUNDRY_VIEW,
+                self::SYNC_PUSH_CASHIER_SAFE,
+                self::SYNC_PULL,
             ],
         ];
     }
