@@ -1,15 +1,13 @@
 # QA-RELEASE PHASE B2 — Real Backend Integration
 
 Role: Senior Full-stack QA Automation Engineer
-Date: 2026-09-29
-Backend repo: https://github.com/sawal123/pos_dashboard
-Mobile repo: https://github.com/sawal123/pos-mobile
-Mobile PR under test: #45 (`refs/pull/45/head`)
+Date: 2026-09-29 (final corrections revision)
+Backend repo: https://github.com/sawal123/pos_dashboard — PR #47 (`cmd/qa-b2-live-integration`)
+Mobile repo: https://github.com/sawal123/pos-mobile — PR #45 **MERGED**
 
-> This report is written from **executed** evidence only. Every PASS below was
-> produced by a command whose output is quoted in the evidence sections. The
-> Android emulator deep-sync journey is explicitly marked **NOT EXECUTED** —
-> see §9. No emulator result is inferred from mocks or adjacent artifacts.
+> Every PASS/FAIL below is produced by an executed command whose output is
+> quoted. The Android emulator deep-sync journey remains **NOT EXECUTED** (§10).
+> No mock result is presented as a live result.
 
 ---
 
@@ -17,264 +15,257 @@ Mobile PR under test: #45 (`refs/pull/45/head`)
 
 | Item | Value |
 | --- | --- |
-| Backend base commit (origin/main) | `55ab3d90aac0cc5a68df42a0af603a867bccb6a3` — Merge PR #46 (feat/ui-login) |
-| Backend QA branch | `cmd/qa-b2-live-integration` (branched from `origin/main`) |
-| Mobile commit under test | `d9a4b81dc7b89f32618923986bad19b0cdbfb427` — `feat(sync): reconcile retained push envelopes against request status` (PR #45 head) |
-| Mobile QA worktree | `D:\PROJECT WEB\POS OFFLINE\pos-mobile-qa-b2` (branch `cmd/qa-b2-live-integration`) — **separate** from the Codex worktree |
-| PHP | 8.4.16 (NTS, VC22) |
-| Node / npm | v22.18.0 / 10.9.3 |
-| Database server | MariaDB 12.1.2 (host `127.0.0.1:3306`) |
-| Android tooling | adb 1.0.41, Java 24.0.2, AVD `POS_API_34` (Android 14) |
-| Backend stack | Laravel `^13.17`, Fortify `^1.37.2`, Livewire `^4.1`, Flux `^2.13.1`, Laravel Sanctum |
+| Backend base | `55ab3d9` (origin/main, merge of PR #46) |
+| Backend QA branch | `cmd/qa-b2-live-integration` (PR #47) |
+| **Mobile final commit** | `faf3d63070f2068c8ca9b90f536f368fba23efb7` (PR #45 merge; supersedes `d9a4b81`) |
+| Mobile final fix under test | `f550667 fix(sync): harden request reconciliation for uncertain acceptance` |
+| Mobile QA worktree | `pos-mobile-qa-b2` (branch `cmd/qa-b2-live-integration` @ `faf3d63`) — separate from the Codex worktree |
+| PHP / Node / npm | 8.4.16 / v22.18.0 / 10.9.3 |
+| Database server | MariaDB 12.1.2 (`127.0.0.1:3306`) |
+| Android tooling | adb 1.0.41, Java 24.0.2, AVD `POS_API_34`, AVDs `Medium_Phone_API_36.0`, `Pixel` |
+| Backend stack | Laravel `^13.17`, Fortify `^1.37.2`, Livewire `^4.1`, Flux `^2.13.1`, Sanctum |
 
-### Worktree / repository safety
-
-* Backend worktree `pos_dashboard` and the **Codex worktree**
-  `pos_dashboard-shift` (`codex/int01-cashier-sync-api`) are untouched.
-* The mobile repo's existing worktree (branch
-  `codex/int04-mobile-request-reconciliation`) is the Codex worktree and was
-  **not modified**; testing used the new, separate worktree above.
-* No `git reset --hard`, `git clean`, auto-stash or auto-merge was used.
-* The user's dev database `pos_dashboard` and the pre-existing Herd dev server
-  on `127.0.0.1:8000` were left running and untouched.
-
-### ⚠ Environment hazard discovered (MEDIUM — operational)
-
-This machine exports the QA-ENV-01 variables **at OS level**, so Laravel's
-immutable Dotenv and `$_SERVER` make them win over `.env` **and** over
-`php artisan --env=qa`:
-
-```
-APP_ENV=local  DB_CONNECTION=mysql  DB_DATABASE=pos_dashboard  DB_HOST=127.0.0.1  ...
-```
-
-Consequences seen during this run:
-* `php artisan migrate --env=qa` silently resolved to `pos_dashboard`
-  ("Nothing to migrate" instead of creating tables).
-* Two servers were bound to port 8000 — `127.0.0.1:8000` (a pre-existing Herd
-  dev server) and `0.0.0.0:8000` (the QA server). Linux/Windows route
-  `127.0.0.1` to the more specific `127.0.0.1` listener, so the first QA
-  requests were served by the **dev** server and returned `401`.
-
-Mitigation used for every QA command: a per-process override
-(`scratch/qa-env.ps1`) that pins `APP_ENV=qa` + all `DB_*` values, followed by
-a **fail-closed** assertion that refuses to continue unless the resolved
-database is exactly `pos_qa_b2`. All QA work then ran on `127.0.0.1:18010`.
+Safety: the Codex worktrees (`pos_dashboard-shift`, and the mobile repo's
+`codex/int04-…` checkout) were not modified; no `reset --hard`, `git clean`,
+auto-stash or auto-merge was used; the dev DB `pos_dashboard` and the Herd dev
+server on `127.0.0.1:8000` were left untouched.
 
 ---
 
-## 2. Isolated test database & fixtures
+## 2. Database safety (new in this revision)
 
-| Item | Value |
-| --- | --- |
-| QA database | `pos_qa_b2` (created new; utf8mb4 / utf8mb4_unicode_ci) |
-| Guard | resolves `config('database.connections.mysql.database')`; aborts unless == `pos_qa_b2`; rejects `pos_dashboard*`, `production`, `prod` |
-| Migrations | 30 migrations, all applied (`migrate --force`) |
-| Dedicated concurrency DB | `pos_p38_concurrency_test` (pre-existing, QA-ENV-01 profile `p38_mysql`) |
+### 2.1 Fail-closed guard
 
-Synthetic fixtures — `database/seeders/QaB2FixtureSeeder.php` (new, idempotent):
+Added `App\Support\QaDatabaseGuard` (+ `UnsafeQaDatabaseException`), driven by
+`config/qa.php` (`QA_ALLOWED_DATABASES`, default `pos_qa_b2`).
 
-| Entity | Value |
-| --- | --- |
-| Owner | `owner-a@example.com` (password `password`, verified) |
-| Member | `member-a@example.com` |
-| Cashier | `cashier-a@example.com` |
-| 2nd tenant owner | `owner-b@example.com` |
-| Business A (cloud, type `cafe`) | outlets `A1`, `A2`; devices `QA-OWNER-A-DEV-1` (owner) + `QA-CASHIER-A-DEV-1` (pre-registered by owner) |
-| Business B (cloud, type `grosir`) | outlet `B1`; device `QA-OWNER-B-DEV-1` |
-| Catalog | category `QA Kategori`, product `QA-PROD-1` (stock 100) |
-| E2E business (cloud) | `e2e-owner@example.com` + `OUT-1` — consumed by the automated P37/P38 live specs |
+* The guard validates the **actively connected** database — a live
+  `select database()` on MySQL/MariaDB — not a configured name
+  (`resolveActiveDatabase()`).
+* It aborts when: the environment is `production`/`prod`; the name is empty;
+  the name has a forbidden prefix (`pos_dashboard`, `prod`); or the name is not
+  in the explicit allow-list.
+* It is invoked as the **first statement** of `QaB2FixtureSeeder::run()` and the
+  destructive `P37E2EResetSeeder::run()` (which deletes users, transactions and
+  tokens), so it aborts **before any write**.
+
+### 2.2 Regression tests
+
+`tests/Feature/Qa/QaDatabaseGuardTest.php` — 10 tests, all passing:
+
+```
+PASS  Tests\Feature\Qa\QaDatabaseGuardTest   (10 passed, 11 assertions)
+  ✓ rejects the development database
+  ✓ rejects a development prefixed database
+  ✓ rejects the production database name
+  ✓ rejects an unknown database
+  ✓ rejects the production environment even for an allowed database
+  ✓ accepts an explicitly allow listed database
+  ✓ the allow list can be extended via config
+  ✓ it reads the name of the actually connected database   (sqlite :memory:)
+  ✓ the fixture seeder refuses on a non qa database
+  ✓ the e2e reset seeder refuses on a non qa database
+```
+
+### 2.3 Live fail-closed proof (real MySQL)
+
+Pointed at the **real dev database** `pos_dashboard`, both seeders abort before
+touching a row:
+
+```
+$env:DB_DATABASE='pos_dashboard'; php artisan db:seed --class=QaB2FixtureSeeder --force
+  1  database\seeders\QaB2FixtureSeeder.php:36
+     App\Support\QaDatabaseGuard::assertIsolated()          → exit 1
+$env:DB_DATABASE='pos_dashboard'; php artisan db:seed --class=P37E2EResetSeeder --force
+  1  database\seeders\P37E2EResetSeeder.php:16
+     App\Support\QaDatabaseGuard::assertIsolated()          → exit 1
+```
+
+The same commands succeed on `pos_qa_b2` (allow-listed).
 
 ---
 
-## 3. Test matrix (tiered)
+## 3. Test matrix (tiered, re-executed on the final mobile commit)
 
-Legend: ✅ pass · ⏭ skipped (by design) · ⛔ not executed
+Legend: ✅ pass · ⏭ skipped by design · ❌ fail (finding) · ⛔ not executed
 
-| # | Tier | Suite / probe | Result |
+| # | Tier | Suite | Result |
 | --- | --- | --- | --- |
-| T1 | UNIT/MOCK (backend) | `php artisan test` | ✅ 1137 passed, 6 skipped, 0 failed (4231 assertions) |
-| T2 | UNIT/MOCK (backend) | `vendor/bin/phpunit -c phpunit.p38concurrency.xml` (real MariaDB row locks) | ✅ 24 passed (135 assertions) |
-| T3 | UNIT/MOCK (backend) | `pint --test` / `phpstan analyse` | ✅ 249 files clean / no errors |
-| T4 | UNIT/MOCK (mobile) | `npx vitest run` | ✅ 1277 passed, 3 skipped (2 E2E files skip without env) |
-| T5 | BUILD (mobile) | `npm run build` | ✅ built (index 576 kB) |
-| T6 | LIVE API | live contract probe (`scratch/api-contract-check.mjs`) | ✅ 49/49 |
-| T7 | LIVE API | live role/device/subscription edges (`scratch/b2-edge-cases.mjs`) | ✅ 15/15 |
-| T8 | LIVE API (real mobile services) | `p37-app-service-e2e.spec.js` → live Laravel | ✅ 1 passed |
-| T9 | LIVE API (real mobile services) | `p38-two-device-e2e.spec.js` → live Laravel | ✅ 2 passed (on fresh DB) |
-| T10 | ANDROID EMULATOR | install + launch + render + Cloud Login screen | ⛔ partial (see §9) |
-| T11 | MANUAL DEVICE | physical device journey | ⛔ not executed (no device attached) |
-
-Module × role × tenant coverage exercised live (T6–T9):
-
-| Endpoint | Owner | Member | Cashier | Cross-tenant |
-| --- | --- | --- | --- | --- |
-| `POST /api/auth/login` | ✅ 200 / 401 wrong pw | ✅ 200 | ✅ 200 | — |
-| `GET /api/mobile/context` | ✅ role/cloud/outlets/device_context | ✅ push_mode full | ✅ push_mode `cashier_safe` | ✅ only own business |
-| `POST /api/mobile/devices` | ✅ 200, idempotent | ✅ allowed | ✅ 403 `MOBILE_ROLE_NOT_SUPPORTED` | ✅ 403 `BUSINESS_ACCESS_DENIED` |
-| `POST /api/sync/push` (products/categories) | ✅ 200 | ✅ 200 | ✅ 403 `cashier_entity_not_allowed` | ✅ 403 |
-| `POST /api/sync/push` (sales/items/movements/cash) | ✅ | ✅ | ✅ 200 (allowed subset) | ✅ |
-| `POST /api/sync/push` cash manual | — | — | ✅ 403 `manual_cash_not_allowed` | — |
-| `POST /api/sync/push` stale version | ✅ 409 `SYNC_CONFLICT` | ✅ 409 | ✅ 409 | — |
-| `POST /api/sync/push` inaktif device | ✅ 403 `DEVICE_INACTIVE` | — | — | — |
-| `POST /api/sync/push` no cloud | ✅ 403 `CLOUD_SUBSCRIPTION_REQUIRED` | — | — | — |
-| `GET /api/sync/pull` | ✅ `records/next_cursor/server_sequence/has_more` | ✅ | ✅ | ✅ |
-| `GET /api/sync/requests/{id}/status` | ✅ committed | ✅ | ✅ committed (after role change) | ✅ 403; wrong device → `not_found` |
-| `DELETE /api/auth/logout` | ✅ 200, revoked token → 401 | ✅ | ✅ | — |
+| T1 | UNIT/MOCK (backend) | `php artisan test` | ✅ **1147 passed, 6 skipped, 0 failed** (4242 assertions) |
+| T2 | UNIT/MOCK (backend) | guard regression `QaDatabaseGuardTest` | ✅ 10 passed |
+| T3 | UNIT/MOCK (backend) | `vendor/bin/phpunit -c phpunit.p38concurrency.xml` (real MariaDB row locks) | ✅ 24 passed |
+| T4 | UNIT/MOCK (backend) | `pint --test` / `phpstan analyse` | ✅ 253 files clean / no errors |
+| T5 | UNIT/MOCK (mobile) | `npx vitest run` | ✅ **1288 passed, 5 skipped** (3 E2E files skip without env) |
+| T6 | BUILD (mobile) | `npm run build` | ✅ built |
+| T7 | LIVE API (real mobile services) | `p37-app-service-e2e.spec.js` → live Laravel | ✅ 1 passed |
+| T8 | LIVE API (real mobile services) | `p38-two-device-e2e.spec.js` → live Laravel | ✅ 2 passed |
+| T9 | LIVE API (real mobile services) | **INT-04 live harness** (`b2-live-int04-reconciliation.spec.js`) | ✅ 1 passed + ⏭ 1 expected-fail tripwire (F5) |
+| T10 | ANDROID EMULATOR | install + launch + render + Cloud Login screen | ⛔ NOT EXECUTED (see §10) |
+| T11 | MANUAL DEVICE | physical device journey | ⛔ not executed |
 
 ---
 
 ## 4. Reproduction
 
 ```powershell
-# Backend (from D:\PROJECT WEB\POS OFFLINE\pos_dashboard)
-# 1. OS-level APP_ENV/DB_* override — pin them PER PROCESS before every artisan
-#    command, otherwise Dotenv/`$_SERVER` resolve them to pos_dashboard.
+# Backend — OS-level APP_ENV/DB_* override must be pinned PER PROCESS
 $env:APP_ENV='qa'
 $env:DB_CONNECTION='mysql'; $env:DB_HOST='127.0.0.1'; $env:DB_PORT='3306'
 $env:DB_DATABASE='pos_qa_b2'; $env:DB_USERNAME='root'; $env:DB_PASSWORD=''
-
-# Fail-closed check: abort unless the resolved DB is exactly pos_qa_b2
-php -r "require 'vendor/autoload.php';`$a=require 'bootstrap/app.php';`$a->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();`$d=config('database.connections.mysql.database'); echo `$d.PHP_EOL; exit(`$d==='pos_qa_b2'?0:1);"
+$env:QA_ALLOWED_DATABASES='pos_qa_b2'
 
 php artisan migrate --force
-php artisan db:seed --class=QaB2FixtureSeeder --force
-
-# 2. Serve the QA backend (port 18010 to avoid any dev server on 8000)
+php artisan db:seed --class=P37E2EResetSeeder --force   # guarded, destructive
+php artisan db:seed --class=QaB2FixtureSeeder --force   # guarded fixtures
 php artisan serve --host=0.0.0.0 --port=18010
 
-# 3. Quality gates
 php artisan test
 vendor\bin\phpunit -c phpunit.p38concurrency.xml
 composer lint:check ; composer types:check
 ```
 
-The backend live-API contract (T6) and role/device/subscription edge cases (T7)
-were driven by two local Node harnesses (kept out of the commit) that issue raw
-`fetch` calls to the server above and, for the edge cases, apply reversible
-`UPDATE`s to `pos_qa_b2` via the MariaDB client. The mobile live-API tier (T8/T9)
-is reproducible with the committed specs shown below.
-
 ```bash
-# Mobile (from D:\PROJECT WEB\POS OFFLINE\pos-mobile-qa-b2)
-npm ci --include=dev          # NOTE: global npm omit=dev skips devDeps otherwise
-npx vitest run                # unit/mock tier
+# Mobile (from pos-mobile-qa-b2 @ faf3d63) — NOTE: global npm omit=dev
+npm ci --include=dev
+npx vitest run
 npm run build
 
-# Live API tier — reset+seed the E2E fixture FIRST, then run a spec that uses
-# the REAL mobile services against the live backend.
-# (backend: php artisan db:seed --class=P37E2EResetSeeder --force
-#            php artisan db:seed --class=P37E2ESeeder     --force)
+# Live API tier (fresh DB before each spec):
 P37_E2E_BASE_URL=http://127.0.0.1:18010 P37_E2E_EMAIL=e2e-owner@example.com P37_E2E_PASSWORD=password \
   npx vitest run src/__tests__/p37-app-service-e2e.spec.js
 P38_E2E_BASE_URL=http://127.0.0.1:18010 P38_E2E_EMAIL=e2e-owner@example.com P38_E2E_PASSWORD=password \
   npx vitest run src/__tests__/p38-two-device-e2e.spec.js
+
+# Live INT-04 (real reconciliation):
+B2_E2E_BASE_URL=http://127.0.0.1:18010 B2_E2E_EMAIL=member-a@example.com B2_E2E_PASSWORD=password B2_E2E_DB=pos_qa_b2 \
+  npx vitest run src/__tests__/b2-live-int04-reconciliation.spec.js
 ```
 
-Expected vs actual highlights (all Actual == Expected unless noted):
-
-| Check | Expected | Actual |
-| --- | --- | --- |
-| owner login | 200 + `data.token` | 200, `token_type=Bearer` |
-| wrong password | 401 | 401 `Invalid credentials.` |
-| context role/business_type | `owner` / `cafe` | `owner` / `cafe` |
-| cashier capabilities | push_mode `cashier_safe`, denied `[categories,products,expenses,deletions]` | identical |
-| device register by cashier | 403 `MOBILE_ROLE_NOT_SUPPORTED` | identical |
-| replay same `request_id` | 200 `duplicate=true`, no new row | identical (1 row) |
-| stale `base_sync_version` | 409 `SYNC_CONFLICT` | identical |
-| status unknown id | `not_found` | `not_found` |
-| status other device | `not_found` (device-scoped) | `not_found` |
-| status foreign business | 403 (no existence leak) | 403 `BUSINESS_ACCESS_DENIED` |
+The live INT-04 harness is committed as a reference copy at
+`docs/qa/harness/b2-live-int04-reconciliation.spec.js` (it runs from the mobile
+worktree).
 
 ---
 
-## 5. Database integrity evidence (Phase 7)
+## 5. LIVE INT-04 reconciliation evidence (task item 3)
 
-After the live pushes, `pos_qa_b2` (business A) contained:
+Harness: real `syncPushService` + `syncReconciliationService` + durable outbox +
+identity registry + local operation journal + Pinia, against the real Laravel
+server. The **only** "cut" is the client discarding an already-received server
+response — the exact lost-response situation.
+
+### 5.1 Scenario A — lost response, then member → cashier (PASS)
 
 ```
-sync_requests : 2 rows  ->  request 147863c1… (device 1) and 682147ad… (device 2)
-products      : QA Live Product  stock = 18.000  (20 seeded - 2 sold)  sync_version 2
-sales         : QA-TRX-211d04  total 24000  payment_status paid  payment_method cash
-sale_items    : quantity 2.000  unit_price 12000  line_total 24000  cost_snapshot 5000.00
-stock_movements: sale  quantity_change -2.000  sale_sync_id 211d040d…
-cash_ledger   : in  amount 24000  sale_sync_id 211d040d…
-sync_counters : business 1 -> 9 ; business 2 -> 0 ; business 3 -> 0   (tenant isolation)
-
-exactly-once by natural key:
-  owner_request_rows=1  cashier_request_rows=1  movement_rows=1  cash_rows=1  sale_item_rows=1
+✓ recovers a lost response after a member->cashier role change without duplication
 ```
 
-`sync_sequence` distribution (business 1): categories `1,3` · products `2,9` ·
-sales `5` · sale_items `6` · cash_ledger `7` · stock_movements `8` · counter `9`.
-The product carries a newer sequence (9) because the cashier sale re-versioned
-it when the stock moved — i.e. the stock effect was applied exactly once and
-the sequence is contiguous with no duplicate rows.
+Sequence and assertions (all passed):
 
-**Conclusion:** no duplication, no double stock deduction, no double cash
-entry, historical HPP preserved (`cost_snapshot=5000`), and tenant rows are
-fully isolated.
+1. Real login + `GET /api/mobile/context` → role `member`, device
+   `QA-OWNER-A-DEV-1`.
+2. Push a product (normal) → committed, outbox drained.
+3. Commit an offline cash sale, then push whose response is discarded
+   (`acceptance: 'unknown'`, envelope retained, `requestId` kept).
+4. Server actually committed → `GET /api/sync/requests/{id}/status` = `committed`.
+5. Role changed **member → cashier** (server-side); same token re-reads
+   `role: cashier`, `push_mode: cashier_safe`.
+6. `reconcile()` uses the real status endpoint → `SYNC_RECONCILIATION_COMMITTED`,
+   `acceptance: accepted`, `remaining: 0`; CAS cleanup removed the outbox rows and
+   cleared the envelope.
+7. No duplication.
+
+### 5.2 Scenario B — not_found while in-flight, then committed (PASS)
+
+* A push that never reaches the server (dropped before send) leaves a retained
+  envelope; `reconcile()` → real status → `not_found` → **nothing deleted**,
+  same `request_id` kept (`resolved:false`, `interventionRequired:true`).
+* The same request then reaches the server with the **same** `request_id` → 200;
+  `reconcile()` → `committed` → CAS cleanup, outbox drained, customer stored
+  exactly once.
+
+### 5.3 Database assertions (business A of `pos_qa_b2`)
+
+```
+sync_requests          | 3   (product push, sale push, customer push — each once)
+sales                  | 1
+sale_items             | 1
+cash_ledger            | 1
+stock_movements        | 1     quantity_change -1.000
+stock_movements_linked | 0     (sale_sync_id IS NOT NULL)  ← see F5
+customers              | 1
+products               | 2
+```
+
+Exactly-once holds: recovery after the role change produced **no** extra
+`sync_requests`, `sales`, `cash_ledger` or `stock_movements` rows.
 
 ---
 
 ## 6. Findings
 
-### F1 — Push authorization is evaluated before idempotency (LOW / INFORMATIONAL)
+### F5 — MOBILE, HIGH (release blocker): cashier retail sales cannot sync their stock movement
 
-**Reproduction:** member pushes products with `request_id R` → 200 (committed).
-Role is then changed to `cashier`. Replaying the *same* envelope `R` returns
-**HTTP 403 `SYNC_OPERATION_NOT_ALLOWED`**, not `duplicate=true`.
-
-Observed:
+**Live evidence (no mock):** a cashier completing a normal retail sale with the
+production commit path (`localOperations.commitRetailSale`) is rejected by the
+server:
 
 ```
-replay of R after role change -> HTTP 403 code=SYNC_OPERATION_NOT_ALLOWED
-status endpoint as cashier    -> 200 body=committed
-products with sync_id R       -> 1 row   (server did NOT duplicate)
+CASHIER_PUSH_RESULT {"ok":false,"code":"SYNC_OPERATION_NOT_ALLOWED",
+  "error":{"status":403,"data":{"code":"SYNC_OPERATION_NOT_ALLOWED",
+  "violations":[{"entity":"stock_movements","operation":"upsert",
+                 "reason":"missing_sale_relation"}]}}}
 ```
 
-**Impact:** none on data integrity (proved by the row count and status). A
-client that relied on push idempotency alone would mis-handle this. The
-INT-04 design already answers it: `GET /api/sync/requests/{id}/status` uses
-`sync.pull` (held by every role) so a role change can never hide a committed
-request behind a 403, and the mobile client reconciles via status, keeps the
-envelope, and never rebuilds it. **Safe client behaviour:** on `403` with
-unknown acceptance, call the status endpoint; treat `committed` as accepted and
-clean the outbox by CAS; treat `not_found` as inconclusive and keep the
-envelope. Recommend adding an explicit contract note/test asserting this
-ordering so it is never "fixed" into a duplicate-response regression.
+**Root cause (mobile):**
+* `src/services/database/localOperationService.js` —
+  `applySaleStockIdempotently()` calls
+  `productStore.adjustStock(productId, { quantityChange, type:'sale', referenceId: transaction.id, … })`
+  **without `transactionId`**.
+* `src/services/sync/contractMapper.js` (~L1110–1123) links a stock movement to
+  its sale **only** via `payload.transactionId`; without it, `sale_sync_id` is
+  omitted.
+* The cashier-safe server contract (`SyncPushService::processStockMovements` →
+  `authorizeStockMovements`) requires a sale relation → `missing_sale_relation`.
 
-### F2 — Live E2E specs are not self-isolating (MEDIUM — test infrastructure)
+**Impact:** for the full (owner/member) path the movement is stored with
+`sale_sync_id = NULL` (traceability/audit gap, §5.3); for the **cashier** path
+the whole movement is rejected, so an offline cashier sale with physical stock
+cannot be fully synced (the envelope/outbox is retained — no data loss — but
+sync is blocked). Compare `productStore.recordSaleStock()` (L477–492) which
+**does** pass `transactionId`.
 
-**Reproduction:** against a database that already contains history (e.g. after
-running the P37 spec), `p38-two-device-e2e.spec.js` test 1 fails:
+**Reproduction:** run the committed live harness (§4) — the `it.fails` tripwire
+`B2-2b` fails exactly as above; or query
+`SELECT COUNT(*) FROM stock_movements WHERE business_id=<A> AND sale_sync_id IS NOT NULL`
+→ `0`.
 
-```
-AssertionError: expected [ … ] to have a length of 1 but got 3
-  at src/__tests__/p38-two-device-e2e.spec.js:343
-```
+**Suggested fix (mobile, for Codex — not applied here):**
+`applySaleStockIdempotently` must pass `transactionId: transaction.id` to
+`adjustStock` (mirroring `recordSaleStock`), so `sale_sync_id` is attached.
 
-Cause: the specs assume a freshly seeded business; device A re-pulls and
-inherits earlier transactions. Re-running with
-`P37E2EResetSeeder` + `P37E2ESeeder` first makes both P38 tests pass
-(`2 passed`). **Impact:** false failures / flaky QA signal, not a product bug.
-**Recommendation:** have the E2E runner reset+seed before each spec, or make
-the specs assert deltas rather than absolute lengths.
+### F1 — Push authorization precedes idempotency (LOW / INFORMATIONAL, backend)
 
-### F3 — No fail-closed runtime DB guard outside PHPUnit (MEDIUM — operational)
+A committed request replayed after a role downgrade to cashier returns **403
+`SYNC_OPERATION_NOT_ALLOWED`** rather than `duplicate=true`, because violations
+are evaluated before dedupe. Server never duplicates. The INT-03 status endpoint
+(uses `sync.pull`, held by every role) resolves it as `committed` — the
+documented recovery path followed by scenario A. Recommendation: pin this
+ordering with a contract test so it is never "fixed" into a duplicate response.
 
-`TestDatabaseGuard` protects the PHPUnit suites only. `php artisan
-migrate`/`db:seed`/`serve` have **no** guard, so on this machine they silently
-targeted the dev database until the OS env was overridden by hand (see §1).
-**Recommendation:** add a small guard (artisan command or bootstrap check) that
-fails closed when a non-`testing` APP_ENV points at a database named
-`pos_dashboard*`/`prod*`, mirroring QA-ENV-01; document the port-collision trap
-(never bind a QA server to a port already used by a dev server).
+### F2 — Live E2E specs are not self-isolating (MEDIUM, test infra)
 
-### F4 — Emulator deep-sync journey not executed (release-process finding, INFO)
+`p38-two-device-e2e.spec.js` assumes a fresh business; running it on a DB that
+already holds history fails (`expected [ … ] to have a length of 1 but got 3`).
+`P37E2EResetSeeder` + `P37E2ESeeder` first makes it pass (`2 passed`). Have the
+E2E runner reset+seed before each spec.
 
-See §9. The product code is not implicated; this is a coverage gap that must be
-closed before release per the phase plan.
+### F3 — Runtime DB guard outside PHPUnit (resolved for seeders)
+
+Previously `artisan migrate/db:seed` had no guard. This revision adds the
+fail-closed `QaDatabaseGuard` to the QA seeders/reset (§2). Remaining nicety: a
+runtime guard for `artisan serve`/`migrate` and documentation of the OS-env +
+port-collision trap.
 
 ---
 
@@ -282,54 +273,57 @@ closed before release per the phase plan.
 
 | ID | Blocker | Status |
 | --- | --- | --- |
-| B-1 | Android emulator end-to-end offline→online→recovery journey not executed | **OPEN — required pre-release verification** |
+| B-3 | **F5** — cashier retail sale stock movement rejected live (403 `missing_sale_relation`) | **OPEN (mobile fix required)** |
+| B-1 | Android emulator end-to-end offline→online→recovery journey not executed | OPEN — pre-release verification |
 | B-2 | Physical-device (MANUAL) verification not executed | OPEN |
 
-No functional backend/mobile code defect (severity BLOCKER/HIGH) was found in
-the executed scope.
+No backend (BLOCKER/HIGH) defect found in the executed scope.
 
 ---
 
-## 8. Fix recommendations (technical)
+## 8. Fix recommendations
 
-1. **E2E runner (mobile/QA):** reset + seed the dedicated DB before each live
-   spec; fail the run loudly if the DB is not fresh (F2).
-2. **Backend (ops safety):** add a fail-closed runtime database guard for
-   non-testing environments and document the OS-env + port-collision trap (F3).
-3. **Contract test (backend):** pin the F1 ordering — a `403`-after-commit must
-   remain resolvable via the status endpoint, and a replay must never duplicate.
-4. **Mobile:** keep the reconciliation rule — `not_found` never deletes or
-   rebuilds an envelope; cleanup only via CAS on `committed`.
-
----
-
-## 9. Android emulator result (honest disposition)
-
-**Executed (real emulator, AVD `POS_API_34`, Android 14):**
-
-* `npm run build` (with `VITE_API_BASE_URL=http://10.0.2.2:18010`) → `npx cap sync android` → `gradlew assembleDebug` → **BUILD SUCCESSFUL** (`app-debug.apk`, 13.4 MB).
-* `adb install -r` → **Success**; app launched via `monkey`.
-* App booted: splash → local dashboard rendered ("POS Mobile", Grosir / Toko Kelontong), **no crash** (`adb logcat -b crash` empty).
-* Navigated to **Cloud Login** form (Email / Password / Login Cloud) — reachable and rendered.
-
-**NOT EXECUTED:** the scripted interactive journey (login → offline sale →
-airplane-off → force-stop → relaunch → reconnect → sync/recovery with
-screenshots). Automated driving by blind `adb shell input tap` proved
-unreliable (WebView layout shifts when the soft keyboard opens, so taps landed
-on wrong controls — the login submit was missed twice). This is reported as
-partial, **not** as a pass, and is a release blocker (B-1). The equivalent
-behaviour was instead exercised at the LIVE API tier with the *real* mobile
-sync services (T8/T9) and at the UNIT tier (T4).
+1. **Mobile (B-3 / F5):** pass `transactionId: transaction.id` in
+   `localOperationService.applySaleStockIdempotently` → `adjustStock` so the
+   movement carries `sale_sync_id`; un-skip the `it.fails` tripwire.
+2. **Mobile (F2):** reset+seed the dedicated E2E DB before each live spec.
+3. **Backend (F1):** add a contract test pinning the 403-before-dedupe ordering
+   and the status-endpoint recovery.
+4. **Backend (F3):** extend the fail-closed guard to non-testing `serve`/`migrate`.
 
 ---
 
-## 10. Recommendation & next phase
+## 9. Database integrity summary
 
-* Backend contract, tenant isolation, role re-evaluation, and exactly-once
-  integrity are **verified live** with no data-integrity defect.
-* Close B-1/B-2 with a deterministic, scriptable emulator/device harness
-  (e.g. `adb reverse` + a fixed-density AVD + accessibility-id based UI taps,
-  or an instrumented Espresso/Detox flow) rather than coordinate taps.
-* Address F2/F3 before the next release-QA phase so the signal is trustworthy.
+* Exactly-once by `request_id` and `sync_id` (no duplicate `sync_requests`,
+  `sales`, `cash_ledger`, `stock_movements` across retries/reconciliation).
+* Single stock deduction (`quantity_change -1.000`), historical HPP preserved.
+* Tenant rows isolated per business; sequence counters per business.
+* QA seeders/reset fail closed on any non-QA database (§2).
+
+---
+
+## 10. Android emulator result (honest disposition — unchanged)
+
+**Executed (real emulator, AVD `POS_API_34`):** `npm run build` +
+`npx cap sync android` + `gradlew assembleDebug` → **BUILD SUCCESSFUL**
+(`app-debug.apk`), `adb install` → Success, app launched and rendered the local
+dashboard, no crash, and the **Cloud Login** screen was reached.
+
+**NOT EXECUTED:** the scripted interactive offline→online→recovery journey
+(login → offline sale → airplane-off → force-stop → relaunch → reconnect →
+sync/recovery with screenshots). Automated driving via `adb shell input tap`
+was unreliable (WebView layout shifts when the soft keyboard opens). Reported as
+NOT EXECUTED — it is **not** claimed as a pass. The equivalent behaviour was
+exercised at the LIVE API tier with the real mobile services (§5).
+
+---
+
+## 11. Recommendation & next phase
+
+* Backend contract, tenant isolation, role re-evaluation, exactly-once and the
+  INT-04 lost-response recovery are **verified live**.
+* Close **B-3/F5** (mobile) and **B-1/B-2** before release.
+* Keep the QA-seeder guard and the live harness as the regression base.
 
 Not merged, not deployed.

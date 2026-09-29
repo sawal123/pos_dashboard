@@ -9,6 +9,7 @@ use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Support\QaDatabaseGuard;
 use Illuminate\Database\Seeder;
 
 /**
@@ -30,6 +31,10 @@ class QaB2FixtureSeeder extends Seeder
 {
     public function run(): void
     {
+        // Fail closed before any write: this seeder only runs on an isolated,
+        // explicitly allow-listed QA database.
+        QaDatabaseGuard::assertIsolated();
+
         $businessA = $this->business('QA Bisnis A', 'qa-biz-a', 'cafe');
         $businessB = $this->business('QA Bisnis B', 'qa-biz-b', 'grosir');
         $businessE2e = $this->business('E2E Business', 'e2e-business', 'cafe');
