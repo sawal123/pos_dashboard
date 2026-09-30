@@ -45,7 +45,7 @@ class MobileContextController extends Controller
 
         $deviceIdentifier = (string) $request->query('device_identifier', '');
 
-        /** @var array<int, array{id: int, name: string, business_type: string|null, subscription: array{plan: string, status: string}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
+        /** @var array<int, array{id: int, name: string, business_type: string|null, subscription: array{plan: string, status: string, starts_at: string|null, expires_at: string|null}|null, cloud_access: bool, outlets: list<array{id: int, name: string, code: string, status: string}>, device_context: array{id: int, identifier: string, outlet_id: int, status: string, name: string, platform: string|null}|null}> $businessData */
         $businessData = $businesses->map(function (Business $business) use ($deviceIdentifier, $user): array {
             /** @var Subscription|null $subscription */
             $subscription = $business->subscription;
@@ -98,6 +98,8 @@ class MobileContextController extends Controller
                 'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,
+                    'starts_at' => $subscription->starts_at?->toJSON(),
+                    'expires_at' => $subscription->expires_at?->toJSON(),
                 ] : null,
                 'cloud_access' => $cloudAccess,
                 'outlets' => $outlets,

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\MobileContextController;
 use App\Http\Controllers\Api\MobileDeviceController;
+use App\Http\Controllers\Api\MobileSubscriptionPlansController;
 use App\Http\Controllers\Api\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/mobile/context', [MobileContextController::class, 'context']);
     Route::post('/mobile/devices', [MobileDeviceController::class, 'store']);
+    Route::get('/mobile/subscription/plans', [MobileSubscriptionPlansController::class, 'index']);
 
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
