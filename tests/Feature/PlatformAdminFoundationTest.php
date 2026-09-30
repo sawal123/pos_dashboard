@@ -132,7 +132,7 @@ class PlatformAdminFoundationTest extends TestCase
     }
 
     /**
-     * Keamanan: atribut is_platform_admin tidak boleh lolos dari mass assignment.
+     * Keamanan: atribut is_platform_admin tidak boleh lolos dari mass assignment (create maupun update).
      */
     public function test_is_platform_admin_cannot_be_mass_assigned(): void
     {
@@ -145,21 +145,83 @@ class PlatformAdminFoundationTest extends TestCase
 
         $this->assertFalse($user->fresh()->isPlatformAdmin());
         $this->assertFalse((bool) $user->fresh()->is_platform_admin);
+
+        $user->update([
+            'is_platform_admin' => true,
+        ]);
+
+        $this->assertFalse($user->fresh()->isPlatformAdmin());
+        $this->assertFalse((bool) $user->fresh()->is_platform_admin);
     }
 
     /**
-     * Seeder: UserSeeder menyediakan akun platform admin idempotent dan tidak mengorbankan akun owner existing.
+     * Seeder: UserSeeder menyediakan akun platform admin idempotent di testing/local dan menjaga akun owner existing.
      */
-    public function test_user_seeder_creates_platform_admin_and_preserves_owner(): void
+    public function test_user_seeder_creates_platform_admin_idempotently_in_testing(): void
     {
+        // Dijalankan dua kali untuk menguji idempotensi seeder
+        $this->seed(UserSeeder::class);
         $this->seed(UserSeeder::class);
 
         $platformUser = User::where('email', 'platform@admin.com')->firstOrFail();
         $this->assertTrue($platformUser->isPlatformAdmin());
         $this->assertNotNull($platformUser->email_verified_at);
+        $this->assertSame(1, User::where('email', 'platform@admin.com')->count());
 
         $adminOwner = User::where('email', 'admin@gmail.com')->firstOrFail();
         $this->assertFalse($adminOwner->isPlatformAdmin());
+        $this->assertSame(1, User::where('email', 'admin@gmail.com')->count());
+    }
+
+    /**
+     * Keamanan: UserSeeder tidak boleh membuat akun dummy Platform Admin pada environment production.
+     */
+    public function test_user_seeder_does_not_create_dummy_platform_admin_in_production(): void
+    {
+        $originalEnv = $this->app['env'];
+        $this->app['env'] = 'production';
+
+        try {
+            app(UserSeeder::class)->run();
+
+            $this->assertDatabaseMissing('users', [
+                'email' => 'platform@admin.com',
+            ]);
+            $this->assertDatabaseMissing('users', [
+                'is_platform_admin' => true,
+            ]);
+
+            // Owner demo tetap dibuat di database
+            $this->assertDatabaseHas('users', [
+                'email' => 'admin@gmail.com',
+                'is_platform_admin' => false,
+            ]);
+        } finally {
+            $this->app['env'] = $originalEnv;
+        }
+    }
+
+    /**
+     * Keamanan: artisan db:seed --force pada production tidak membuat akun dummy Platform Admin.
+     */
+    public function test_artisan_db_seed_force_in_production_does_not_create_dummy_platform_admin(): void
+    {
+        $originalEnv = $this->app['env'];
+        $this->app['env'] = 'production';
+
+        try {
+            $this->artisan('db:seed', ['--class' => UserSeeder::class, '--force' => true])
+                ->assertSuccessful();
+
+            $this->assertDatabaseMissing('users', [
+                'email' => 'platform@admin.com',
+            ]);
+            $this->assertDatabaseMissing('users', [
+                'is_platform_admin' => true,
+            ]);
+        } finally {
+            $this->app['env'] = $originalEnv;
+        }
     }
 
     /**
