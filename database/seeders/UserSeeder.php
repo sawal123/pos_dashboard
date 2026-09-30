@@ -25,5 +25,16 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
             ]
         );
+
+        User::updateOrCreate(
+            ['email' => 'platform@admin.com'],
+            [
+                'name' => 'Platform Admin',
+                'email' => 'platform@admin.com',
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+                'is_platform_admin' => true,
+            ]
+        );
     }
 }

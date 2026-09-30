@@ -33,7 +33,18 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            'is_platform_admin' => false,
         ];
+    }
+
+    /**
+     * Indicate that the model is a global platform admin.
+     */
+    public function platformAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_platform_admin' => true,
+        ]);
     }
 
     /**
