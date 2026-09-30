@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureBusinessPermission;
+use App\Http\Middleware\EnsurePremiumAccess;
 use App\Http\Middleware\StartSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // DASH-10B2 — per-route permission guard against the active business.
         $middleware->alias([
             'business.permission' => EnsureBusinessPermission::class,
+            // PREM-D02A — per-route Cloud entitlement guard. RBAC is evaluated
+            // separately; this only answers "is Premium active right now?".
+            'premium.access' => EnsurePremiumAccess::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

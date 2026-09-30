@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\BusinessInvitationMail;
 use App\Models\Business;
 use App\Models\BusinessInvitation;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Dashboard\DashboardBusinessContext;
 use App\Services\Membership\BusinessInvitationService;
@@ -725,6 +726,7 @@ class BusinessInvitationTest extends TestCase
         $owner = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
         $business->users()->attach($owner->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
 
         $this->withSession(['dashboard.current_business_id' => $business->id]);
 

@@ -8,6 +8,7 @@ use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Dashboard\DashboardBusinessContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -130,6 +131,8 @@ class LaundryOrdersPageTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $businessA = Business::factory()->create();
         $businessB = Business::factory()->create();
+        Subscription::factory()->cloud()->create(['business_id' => $businessA->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $businessB->id]);
         $user->businesses()->attach($businessA->id, ['role' => 'owner']);
         $user->businesses()->attach($businessB->id, ['role' => 'owner']);
 
@@ -703,6 +706,7 @@ class LaundryOrdersPageTest extends TestCase
             'email_verified_at' => $verified ? now() : null,
         ]);
         $business = Business::factory()->laundry()->create();
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $user->businesses()->attach($business->id, ['role' => 'owner']);
 
         if ($verified) {
