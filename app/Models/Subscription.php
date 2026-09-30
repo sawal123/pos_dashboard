@@ -23,6 +23,16 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'plan', 'status', 'starts_at', 'expires_at'])]
 class Subscription extends Model
 {
+    public const PLAN_FREE = 'free';
+
+    public const PLAN_CLOUD = 'cloud';
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_EXPIRED = 'expired';
+
+    public const STATUS_INACTIVE = 'inactive';
+
     /** @use HasFactory<SubscriptionFactory> */
     use HasFactory;
 
@@ -32,8 +42,8 @@ class Subscription extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'plan' => 'free',
-        'status' => 'active',
+        'plan' => self::PLAN_FREE,
+        'status' => self::STATUS_ACTIVE,
     ];
 
     /**
@@ -64,7 +74,7 @@ class Subscription extends Model
      */
     public function isFree(): bool
     {
-        return $this->plan === 'free';
+        return $this->plan === self::PLAN_FREE;
     }
 
     /**
@@ -72,7 +82,7 @@ class Subscription extends Model
      */
     public function isCloud(): bool
     {
-        return $this->plan === 'cloud';
+        return $this->plan === self::PLAN_CLOUD;
     }
 
     /**
@@ -80,7 +90,7 @@ class Subscription extends Model
      */
     public function isExpired(): bool
     {
-        if ($this->status === 'expired') {
+        if ($this->status === self::STATUS_EXPIRED) {
             return true;
         }
 
@@ -100,7 +110,7 @@ class Subscription extends Model
             return false;
         }
 
-        if ($this->status !== 'active') {
+        if ($this->status !== self::STATUS_ACTIVE) {
             return false;
         }
 
@@ -109,5 +119,18 @@ class Subscription extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Canonical plan codes currently modelled by the subscriptions table.
+     *
+     * @return list<string>
+     */
+    public static function canonicalPlanCodes(): array
+    {
+        return [
+            self::PLAN_FREE,
+            self::PLAN_CLOUD,
+        ];
     }
 }
