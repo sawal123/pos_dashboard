@@ -25,5 +25,21 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
             ]
         );
+
+        // ADMIN-01: Akun dummy Platform Admin hanya dibuat pada environment
+        // non-production (local/testing). Production tidak boleh memiliki akun
+        // Platform Admin otomatis dengan credential default.
+        if (app()->environment(['local', 'testing'])) {
+            User::updateOrCreate(
+                ['email' => 'platform@admin.com'],
+                [
+                    'name' => 'Platform Admin',
+                    'email' => 'platform@admin.com',
+                    'email_verified_at' => now(),
+                    'password' => Hash::make('password'),
+                    'is_platform_admin' => true,
+                ]
+            );
+        }
     }
 }

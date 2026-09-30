@@ -20,6 +20,7 @@ use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
+use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
 use Illuminate\Support\Facades\Route;
@@ -222,5 +223,16 @@ Route::post('invitations/{token}/accept', [InvitationAcceptanceController::class
     ->middleware(['auth', 'verified', 'throttle:member-invitation-accept'])
     ->where('token', '[A-Za-z0-9]+')
     ->name('invitations.accept');
+
+// ADMIN-01 — Platform Admin foundation.
+// Completely decoupled from business context (ShareDashboardBusinessContext).
+// Deny-by-default via EnsurePlatformAdmin (platform.admin).
+Route::prefix('platform')
+    ->middleware(['auth', 'verified', 'platform.admin'])
+    ->name('platform.')
+    ->group(function () {
+        Route::get('/', [PlatformDashboardController::class, 'index'])->name('dashboard');
+        Route::get('dashboard', [PlatformDashboardController::class, 'index'])->name('dashboard.alias');
+    });
 
 require __DIR__.'/settings.php';

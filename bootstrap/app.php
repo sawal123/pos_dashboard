@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureBusinessPermission;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\StartSession;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // DASH-10B2 — per-route permission guard against the active business.
         $middleware->alias([
             'business.permission' => EnsureBusinessPermission::class,
+            'platform.admin' => EnsurePlatformAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
