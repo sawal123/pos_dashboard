@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Business;
 use App\Models\BusinessInvitation;
 use App\Models\MembershipAuditLog;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -108,6 +109,7 @@ class CashierRbacTest extends TestCase
         $ownedBusiness = Business::factory()->create();
         $user->businesses()->attach($cashierBusiness->id, ['role' => 'cashier']);
         $user->businesses()->attach($ownedBusiness->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $ownedBusiness->id]);
 
         // Cashier in the active business → reporting denied.
         $this->actingAs($user)
@@ -236,6 +238,7 @@ class CashierRbacTest extends TestCase
         $owner = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
         $business->users()->attach($owner->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $this->withSession(['dashboard.current_business_id' => $business->id]);
 
         return [$owner, $business];
@@ -245,6 +248,7 @@ class CashierRbacTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $business->users()->attach($user->id, ['role' => $role]);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
 
         $this->actingAs($user)->withSession(['dashboard.current_business_id' => $business->id]);
 

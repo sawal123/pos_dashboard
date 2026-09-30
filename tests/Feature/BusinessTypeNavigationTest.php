@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Services\Dashboard\DashboardBusinessContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +33,7 @@ class BusinessTypeNavigationTest extends TestCase
         }
 
         $user->businesses()->attach($business->id, ['role' => $role]);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
 
         return [$user, $business];
     }

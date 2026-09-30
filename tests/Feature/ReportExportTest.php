@@ -528,7 +528,7 @@ class ReportExportTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
-        Subscription::factory()->create(['business_id' => $business->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $business->users()->attach($user->id, ['role' => 'owner']);
 
         $this->withSession(['dashboard.current_business_id' => $business->id]);

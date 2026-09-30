@@ -83,8 +83,8 @@ class CustomersPageTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $businessA = Business::factory()->create();
         $businessB = Business::factory()->create();
-        Subscription::factory()->create(['business_id' => $businessA->id]);
-        Subscription::factory()->create(['business_id' => $businessB->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $businessA->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $businessB->id]);
         $user->businesses()->attach($businessA->id, ['role' => 'owner']);
         $user->businesses()->attach($businessB->id, ['role' => 'owner']);
 
@@ -509,7 +509,7 @@ class CustomersPageTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
-        Subscription::factory()->create(['business_id' => $business->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $user->businesses()->attach($business->id, ['role' => 'owner']);
 
         $this->withSession(['dashboard.current_business_id' => $business->id]);

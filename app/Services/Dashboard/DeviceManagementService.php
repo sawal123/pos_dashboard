@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Models\Business;
 use App\Models\Device;
+use App\Services\Subscription\CloudDeviceLimit;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
 
@@ -20,11 +21,18 @@ use Illuminate\Validation\ValidationException;
  * change which outlet's data the device pulls and would invalidate the
  * historical outlet scope of its sync/sales history, so DASH-17 does not allow
  * it (see docs/dashboard/DASH17_DEVICE_MANAGEMENT.md).
+ *
+ * PREM-D02A: the cloud device limit is enforced here as well as in the mobile
+ * API, so the dashboard cannot be used to bypass it.
  */
 class DeviceManagementService
 {
     /** @var list<string> */
-    public const STATUSES = ['active', 'inactive'];
+    public const STATUSES = Device::STATUSES;
+
+    public function __construct(
+        private readonly CloudDeviceLimit $deviceLimit,
+    ) {}
 
     /**
      * Register (or resolve) a device by identifier.
@@ -51,6 +59,8 @@ class DeviceManagementService
         if ($existing !== null) {
             return $this->resolveExisting($existing, $outletId);
         }
+
+        $this->guardDeviceLimit($business);
 
         try {
             $device = Device::create([
@@ -121,6 +131,25 @@ class DeviceManagementService
         }
 
         return ['device' => $device, 'created' => false];
+    }
+
+    /**
+     * PREM-D02A — enforce the cloud device limit for NEW registrations only.
+     *
+     * Re-submitting an existing identifier is an idempotent resolve and never
+     * consumes a new slot, so it is not blocked here.
+     *
+     * @throws ValidationException
+     */
+    private function guardDeviceLimit(Business $business): void
+    {
+        if (! $this->deviceLimit->isReached($business)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'identifier' => 'Batas perangkat Cloud tercapai (maksimal '.$this->deviceLimit->limit().' perangkat aktif). Nonaktifkan perangkat yang tidak dipakai terlebih dahulu.',
+        ]);
     }
 
     private function nullableText(mixed $value): ?string
