@@ -11,6 +11,7 @@ use App\Models\Outlet;
 use App\Models\User;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Subscription\CloudDeviceLimit;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class MobileDeviceController extends Controller
 {
     public function __construct(
         private readonly BusinessAuthorizer $authorizer,
+        private readonly CloudDeviceLimit $deviceLimit,
     ) {}
 
     /**
@@ -102,7 +104,20 @@ class MobileDeviceController extends Controller
             return $this->resolveExisting($device, $outlet);
         }
 
-        // ── 7. Create — guard against unique race via catch ───────────────
+        // ── 7. Cloud device limit (PREM-D02A) ─────────────────────────────
+        // Only a NEW device consumes a slot; resolving an existing device above
+        // is idempotent and is never blocked. The limit is counted server-side
+        // from active devices only, so the mobile UI is never trusted.
+        if ($this->deviceLimit->isReached($business)) {
+            return response()->json([
+                'message' => 'Batas perangkat Cloud tercapai (maksimal '.$this->deviceLimit->limit().' perangkat aktif). Nonaktifkan perangkat yang tidak dipakai terlebih dahulu.',
+                'code' => 'CLOUD_DEVICE_LIMIT_REACHED',
+                'device_limit' => $this->deviceLimit->limit(),
+                'active_devices' => $this->deviceLimit->activeCount($business),
+            ], 403);
+        }
+
+        // ── 8. Create — guard against unique race via catch ───────────────
         try {
             $device = Device::create([
                 'business_id' => $business->id,

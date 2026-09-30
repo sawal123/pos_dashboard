@@ -1,6 +1,15 @@
 <x-layouts::app :title="__('Dashboard')">
     <main id="mainContent" data-dashboard-page="true" class="p-4 md:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
 
+        {{-- PREM-D02A — entitlement feedback. A denied Premium module redirects
+             here, so the reason is never silent and the path to renewal is clear. --}}
+        @if(session('status'))
+            <div class="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-start gap-3" role="status">
+                <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5"></i>
+                <p class="text-sm text-amber-800 dark:text-amber-200">{{ session('status') }}</p>
+            </div>
+        @endif
+
         {{-- ==================== DASHBOARD HEADER ==================== --}}
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
             <div>

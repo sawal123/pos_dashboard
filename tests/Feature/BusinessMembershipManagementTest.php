@@ -245,6 +245,7 @@ class BusinessMembershipManagementTest extends TestCase
         ]);
         $business = Business::factory()->create();
         $business->users()->attach($owner->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
 
         if (! $unverifiedOwner) {
             $this->withSession(['dashboard.current_business_id' => $business->id]);

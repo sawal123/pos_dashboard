@@ -115,6 +115,7 @@ class DeviceManagementTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $businessA = Business::factory()->create();
+        Subscription::factory()->cloud()->create(['business_id' => $businessA->id]);
         $businessB = Business::factory()->create();
         $user->businesses()->attach($businessA->id, ['role' => 'owner']);
         $user->businesses()->attach($businessB->id, ['role' => 'owner']);

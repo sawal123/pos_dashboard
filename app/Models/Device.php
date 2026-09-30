@@ -26,13 +26,29 @@ use Illuminate\Support\Carbon;
 #[Fillable(['business_id', 'outlet_id', 'name', 'identifier', 'platform', 'status', 'registered_at', 'last_seen_at', 'notes'])]
 class Device extends Model
 {
+    /** Devices that may register with, and use, the cloud API. */
+    public const STATUS_ACTIVE = 'active';
+
+    /**
+     * Devices that keep their row, identifier and history but are rejected by
+     * the mobile API, sync and (PREM-D02A) the cloud device limit.
+     */
+    public const STATUS_INACTIVE = 'inactive';
+
+    /**
+     * The complete device lifecycle. Devices are never deleted.
+     *
+     * @var list<string>
+     */
+    public const STATUSES = [self::STATUS_ACTIVE, self::STATUS_INACTIVE];
+
     /**
      * The model's default attribute values.
      *
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'status' => 'active',
+        'status' => self::STATUS_ACTIVE,
     ];
 
     /**

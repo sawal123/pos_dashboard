@@ -382,6 +382,7 @@ class DashboardBusinessContextTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create(['name' => 'Multi Route Cafe']);
         $user->businesses()->attach($business->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
 
         $this->actingAs($user);
 
