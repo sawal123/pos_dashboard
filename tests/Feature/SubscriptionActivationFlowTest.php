@@ -382,7 +382,77 @@ final class SubscriptionActivationFlowTest extends TestCase
     }
 
     /**
-     * 10. Payment snapshot is preserved when catalog pricing changes later.
+     * 10. Two distinct paid payments for the same business initially without subscription accumulate two periods.
+     */
+    public function test_two_distinct_paid_payments_accumulate_from_initial_null_subscription(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-01 10:00:00', 'Asia/Jakarta'));
+
+        try {
+            $business = Business::factory()->create();
+            // Ensure no subscription row exists initially
+            Subscription::query()->where('business_id', $business->id)->delete();
+            $this->assertNull($business->fresh()->subscription);
+
+            $paymentA = SubscriptionPayment::factory()->create([
+                'business_id' => $business->id,
+                'plan' => Subscription::PLAN_CLOUD,
+                'billing_period' => 'monthly',
+                'status' => SubscriptionPayment::STATUS_PAID,
+                'paid_at' => now(),
+                'activated_at' => null,
+            ]);
+
+            $paymentB = SubscriptionPayment::factory()->create([
+                'business_id' => $business->id,
+                'plan' => Subscription::PLAN_CLOUD,
+                'billing_period' => 'monthly',
+                'status' => SubscriptionPayment::STATUS_PAID,
+                'paid_at' => now(),
+                'activated_at' => null,
+            ]);
+
+            /** @var PremiumSubscriptionActivator $activator */
+            $activator = $this->app->make(PremiumSubscriptionActivator::class);
+
+            // 1. Process payment A
+            $activator->activatePaidPayment($paymentA);
+
+            $paymentAFresh = $paymentA->fresh();
+            $subscriptionAfterA = $business->fresh()->subscription;
+
+            $this->assertNotNull($paymentAFresh->activated_at);
+            $this->assertSame('2026-10-01 10:00:00', $paymentAFresh->activated_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+            $this->assertSame('2026-11-01 10:00:00', $paymentAFresh->expires_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+
+            $this->assertNotNull($subscriptionAfterA);
+            $this->assertSame(Subscription::PLAN_CLOUD, $subscriptionAfterA->plan);
+            $this->assertSame(Subscription::STATUS_ACTIVE, $subscriptionAfterA->status);
+            $this->assertSame('2026-10-01 10:00:00', $subscriptionAfterA->starts_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+            $this->assertSame('2026-11-01 10:00:00', $subscriptionAfterA->expires_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+
+            // 2. Process payment B
+            $activator->activatePaidPayment($paymentB);
+
+            $paymentBFresh = $paymentB->fresh();
+            $subscriptionAfterB = $business->fresh()->subscription;
+
+            $this->assertNotNull($paymentBFresh->activated_at);
+            $this->assertSame('2026-10-01 10:00:00', $paymentBFresh->activated_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+            // Payment B expires_at reflects the extended subscription expiry (initial + 2 months)
+            $this->assertSame('2026-12-01 10:00:00', $paymentBFresh->expires_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+
+            // Final subscription expiry accumulated both periods (initial base + 2 calendar months)
+            $this->assertSame('2026-10-01 10:00:00', $subscriptionAfterB->starts_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+            $this->assertSame('2026-12-01 10:00:00', $subscriptionAfterB->expires_at->timezone('Asia/Jakarta')->format('Y-m-d H:i:s'));
+            $this->assertTrue($business->fresh()->hasCloudAccess());
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    /**
+     * 11. Payment snapshot is preserved when catalog pricing changes later.
      */
     public function test_payment_snapshot_preserved_regardless_of_future_catalog_changes(): void
     {

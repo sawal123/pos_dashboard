@@ -2,6 +2,7 @@
 
 namespace App\Services\Subscription;
 
+use App\Models\Business;
 use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +32,13 @@ final class PremiumSubscriptionActivator
 
             $now = now();
 
+            // 2. Lock parent Business row as stable serialization lock across all activations for this business
+            Business::query()
+                ->whereKey($lockedPayment->business_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            // 3. Lock Subscription row if one already exists
             /** @var Subscription|null $subscription */
             $subscription = Subscription::query()
                 ->where('business_id', $lockedPayment->business_id)
