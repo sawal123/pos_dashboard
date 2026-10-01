@@ -338,6 +338,63 @@ class PlatformPremiumPricingTest extends TestCase
                 'is_active' => '1',
             ])
             ->assertNotFound();
+
+        // The out-of-scope row is untouched.
+        $this->assertSame(1000, $foreignPrice->fresh()->price_minor);
+    }
+
+    public function test_non_idr_cloud_monthly_price_cannot_be_mutated(): void
+    {
+        $plan = $this->canonicalPlan();
+        $price = $this->price($plan, 'monthly', 49000, currency: 'USD');
+
+        $this->actingAs($this->admin())
+            ->patch(route('platform.subscription-plans.prices.update', [$plan, $price]), [
+                'price_minor' => 59000,
+                'is_active' => '0',
+            ])
+            ->assertNotFound();
+
+        // Rejected, never silently converted to IDR.
+        $price->refresh();
+        $this->assertSame('USD', $price->currency);
+        $this->assertSame(49000, $price->price_minor);
+        $this->assertTrue($price->is_active);
+    }
+
+    public function test_non_idr_cloud_yearly_price_cannot_be_mutated(): void
+    {
+        $plan = $this->canonicalPlan();
+        $price = $this->price($plan, 'yearly', 490000, currency: 'USD');
+
+        $this->actingAs($this->admin())
+            ->patch(route('platform.subscription-plans.prices.update', [$plan, $price]), [
+                'price_minor' => 590000,
+                'is_active' => '0',
+            ])
+            ->assertNotFound();
+
+        $price->refresh();
+        $this->assertSame('USD', $price->currency);
+        $this->assertSame(490000, $price->price_minor);
+        $this->assertTrue($price->is_active);
+    }
+
+    public function test_unsupported_period_price_cannot_be_mutated(): void
+    {
+        $plan = $this->canonicalPlan();
+        $price = $this->price($plan, 'weekly', 15000);
+
+        $this->actingAs($this->admin())
+            ->patch(route('platform.subscription-plans.prices.update', [$plan, $price]), [
+                'price_minor' => 999,
+                'is_active' => '1',
+            ])
+            ->assertNotFound();
+
+        $price->refresh();
+        $this->assertSame('weekly', $price->billing_period);
+        $this->assertSame(15000, $price->price_minor);
     }
 
     // ============================================================
@@ -571,12 +628,12 @@ class PlatformPremiumPricingTest extends TestCase
         ]);
     }
 
-    private function price(SubscriptionPlan $plan, string $period, int $priceMinor, bool $active = true): SubscriptionPlanPrice
+    private function price(SubscriptionPlan $plan, string $period, int $priceMinor, bool $active = true, string $currency = 'IDR'): SubscriptionPlanPrice
     {
         return SubscriptionPlanPrice::factory()->create([
             'subscription_plan_id' => $plan->id,
             'billing_period' => $period,
-            'currency' => 'IDR',
+            'currency' => $currency,
             'price_minor' => $priceMinor,
             'is_active' => $active,
         ]);

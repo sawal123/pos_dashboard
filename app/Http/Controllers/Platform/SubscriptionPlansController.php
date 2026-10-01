@@ -11,6 +11,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 /**
  * ADMIN-06 — Platform Admin Premium plan & pricing management.
@@ -125,11 +126,17 @@ class SubscriptionPlansController extends Controller
             'currency' => ['prohibited'],
         ]);
 
-        $service->updatePrice(
-            $price,
-            (int) $validated['price_minor'],
-            (bool) $validated['is_active'],
-        );
+        try {
+            $service->updatePrice(
+                $price,
+                (int) $validated['price_minor'],
+                (bool) $validated['is_active'],
+            );
+        } catch (InvalidArgumentException) {
+            // Not a manageable ADMIN-06 price row (canonical plan / supported
+            // period / IDR currency). Treat it as not found instead of mutating.
+            abort(404);
+        }
 
         return redirect()
             ->route('platform.subscription-plans.show', $plan)

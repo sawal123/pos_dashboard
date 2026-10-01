@@ -104,6 +104,10 @@ regression test untuk ini.
 
 - Otorisasi server-side (middleware platform admin) di semua route.
 - Field kanonik immutable: `code`, `billing_period`, `currency`.
+- Baris harga yang tidak *manageable* (bukan plan `cloud`, billing period tidak
+  didukung policy, atau currency non-`IDR`) ditolak `404` — **tidak pernah**
+  dikonversi otomatis. Invariant ini diverifikasi di service
+  (`SubscriptionPlanAdministrationService::updatePrice()`), bukan hanya di UI.
 - Mass assignment dibatasi: service hanya `forceFill` field yang diizinkan.
 - Service domain (`SubscriptionPlanAdministrationService`) memvalidasi invariant
   dan memakai `DB::transaction`.
