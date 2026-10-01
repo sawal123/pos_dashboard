@@ -37,6 +37,7 @@ class MobileSubscriptionCheckoutController extends Controller
             'idempotency_key' => ['nullable', 'string', 'max:120'],
             'amount' => ['prohibited'],
             'currency' => ['prohibited'],
+            'price_minor' => ['prohibited'],
         ]);
 
         /** @var User $user */

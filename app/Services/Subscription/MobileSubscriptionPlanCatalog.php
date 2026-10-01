@@ -3,25 +3,24 @@
 namespace App\Services\Subscription;
 
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
- * PREM-D01 / PREM-D02A — read-only mobile plan catalog.
+ * PREM-D01 / PREM-D02A / PREM-D02C — read-only mobile plan catalog.
  *
- * Product policy comes from {@see PremiumPolicy} (`config/premium.php`); pricing
- * comes from the pricing configuration and is **undecided**. While no official
- * price is configured the catalog stays empty, exactly as the PREM-D01 contract
- * promises, and no price is ever invented from a mockup.
+ * Plan metadata and prices are now database-owned (PREM-D02C):
  *
- * PREM-D02A additions (additive only — no breaking change):
- *  - `purchasable` states whether a plan may actually be bought. It is false
- *    whenever the plan has no officially priced billing period or the backend has
- *    no checkout capability.
- *  - supported billing periods come from the product policy instead of a
- *    hardcoded list.
+ *  - only canonical plan codes are exposed;
+ *  - only billing periods the product policy supports are returned;
+ *  - a plan is offered only once it owns at least one active, priced period, so
+ *    an unpriced deployment keeps the PREM-D01 promise of an empty catalog;
+ *  - a disabled plan is still surfaced, but as `available = false` with no
+ *    prices and `purchasable = false`.
  *
- * `checkout_available` is true only when PREM-D02B has both official pricing
- * and backend Midtrans configuration. Missing pricing or credentials fail
- * closed.
+ * `checkout_available` remains true only when the canonical Cloud plan has both
+ * monthly and yearly prices and Midtrans is configured. Missing data fails
+ * closed; no price is ever invented.
  */
 class MobileSubscriptionPlanCatalog
 {
@@ -32,24 +31,31 @@ class MobileSubscriptionPlanCatalog
     ) {}
 
     /**
-     * @return list<array<string, mixed>>
+     * @return list<array{code: string, name: string, billing_periods: list<array{period: string, currency: string, price_minor: int}>, currency: string|null, benefits: list<string>, available: bool, purchasable: bool}>
      */
     public function plans(): array
     {
-        $configuredPlans = $this->configuredPricingPlans();
-
         $plans = [];
 
-        foreach ($configuredPlans as $configuredPlan) {
-            if (! is_array($configuredPlan)) {
+        foreach ($this->canonicalPlans() as $plan) {
+            if (! $this->pricing->hasActivePrice($plan->code)) {
                 continue;
             }
 
-            $plan = $this->normalizePlan($configuredPlan);
+            $available = $plan->is_active;
+            $periods = $available ? $this->pricing->periodsFor($plan->code) : [];
 
-            if ($plan !== null) {
-                $plans[] = $plan;
-            }
+            $plans[] = [
+                'code' => $plan->code,
+                'name' => $plan->name,
+                'billing_periods' => $periods,
+                'currency' => $periods === [] ? null : $periods[0]['currency'],
+                'benefits' => $this->policy->benefits(),
+                'available' => $available,
+                // A plan is purchasable only when it is available, exposes at
+                // least one priced period and checkout is fully configured.
+                'purchasable' => $available && $periods !== [] && $this->checkoutAvailable(),
+            ];
         }
 
         return $plans;
@@ -61,125 +67,13 @@ class MobileSubscriptionPlanCatalog
     }
 
     /**
-     * Official pricing entries.
-     *
-     * Canonical location is `premium.pricing.mobile_plans`. The legacy top-level
-     * `premium.mobile_plans` key is still honoured as a fallback so the PREM-D01
-     * contract and its regression tests keep working unchanged.
-     *
-     * @return array<mixed>
+     * @return Collection<int, SubscriptionPlan>
      */
-    private function configuredPricingPlans(): array
+    private function canonicalPlans(): Collection
     {
-        return $this->pricing->mobilePlans();
-    }
-
-    /**
-     * @param  array<string, mixed>  $plan
-     * @return array<string, mixed>|null
-     */
-    private function normalizePlan(array $plan): ?array
-    {
-        $code = $plan['code'] ?? null;
-        $name = $plan['name'] ?? null;
-
-        if (! is_string($code) || ! in_array($code, Subscription::canonicalPlanCodes(), true)) {
-            return null;
-        }
-
-        if (! is_string($name) || $name === '') {
-            return null;
-        }
-
-        $billingPeriods = $this->billingPeriods($plan['billing_periods'] ?? []);
-        $available = (bool) ($plan['available'] ?? true);
-
-        return [
-            'code' => $code,
-            'name' => $name,
-            'billing_periods' => $billingPeriods,
-            'currency' => $this->currency($plan['billing_periods'] ?? []),
-            'benefits' => $this->benefits($plan['benefits'] ?? []),
-            'available' => $available,
-            // A plan is only purchasable with an official price on a
-            // checkout-capable contract. No price → nothing to buy.
-            'purchasable' => $available && $billingPeriods !== [] && $this->checkoutAvailable(),
-        ];
-    }
-
-    /**
-     * Only periods the product policy declares supported, and only when the
-     * backend owns an official price for that period.
-     *
-     * @return list<array{period: string, currency: string, price_minor: int}>
-     */
-    private function billingPeriods(mixed $periods): array
-    {
-        if (! is_array($periods)) {
-            return [];
-        }
-
-        $normalizedPeriods = [];
-
-        foreach ($periods as $period) {
-            if (! is_array($period)) {
-                continue;
-            }
-
-            $periodCode = $period['period'] ?? null;
-            $currency = $period['currency'] ?? null;
-            $priceMinor = $period['price_minor'] ?? null;
-
-            if (! is_string($periodCode) || ! $this->policy->supportsBillingPeriod($periodCode)) {
-                continue;
-            }
-
-            if (! is_string($currency) || $currency === '') {
-                continue;
-            }
-
-            if (! is_int($priceMinor) || $priceMinor < 0) {
-                continue;
-            }
-
-            $normalizedPeriods[] = [
-                'period' => $periodCode,
-                'currency' => $currency,
-                'price_minor' => $priceMinor,
-            ];
-        }
-
-        return $normalizedPeriods;
-    }
-
-    private function currency(mixed $periods): ?string
-    {
-        $billingPeriods = $this->billingPeriods($periods);
-
-        if ($billingPeriods === []) {
-            return null;
-        }
-
-        return $billingPeriods[0]['currency'];
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function benefits(mixed $benefits): array
-    {
-        if (! is_array($benefits)) {
-            return [];
-        }
-
-        $normalizedBenefits = [];
-
-        foreach ($benefits as $benefit) {
-            if (is_string($benefit) && $benefit !== '') {
-                $normalizedBenefits[] = $benefit;
-            }
-        }
-
-        return $normalizedBenefits;
+        return SubscriptionPlan::query()
+            ->whereIn('code', Subscription::canonicalPlanCodes())
+            ->orderBy('id')
+            ->get();
     }
 }
