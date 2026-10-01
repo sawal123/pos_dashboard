@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnsurePremiumAccess;
 use App\Models\Business;
 use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Services\Dashboard\DeviceManagementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 /**
@@ -690,6 +693,171 @@ class DeviceManagementTest extends TestCase
         $response->assertSee('diizinkan mengakses API');
         $response->assertSee('bukan berarti perangkat sedang online');
         $response->assertSee('Akses API Terakhir');
+    }
+
+    public function test_34_dashboard_free_business_cannot_register_new_device(): void
+    {
+        [$business] = $this->actingAsRole('owner', cloud: false);
+        Subscription::factory()->free()->create(['business_id' => $business->id]);
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        // 1. Direct service enforcement
+        $service = app(DeviceManagementService::class);
+        try {
+            $service->register($business, [
+                'name' => 'Free POS',
+                'identifier' => 'FREE-DEV-01',
+                'outlet_id' => $outlet->id,
+            ]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('identifier', $e->errors());
+            $this->assertStringContainsString('Langganan Cloud aktif diperlukan', $e->errors()['identifier'][0]);
+        }
+
+        // 2. HTTP controller enforcement (bypassing route middleware to test controller/service integration)
+        $this->withoutMiddleware(EnsurePremiumAccess::class)
+            ->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'name' => 'Free POS',
+                'identifier' => 'FREE-DEV-01',
+                'outlet_id' => $outlet->id,
+            ])
+            ->assertSessionHasErrors(['identifier' => 'Langganan Cloud aktif diperlukan untuk mendaftarkan perangkat baru.']);
+
+        $this->assertDatabaseMissing('devices', ['identifier' => 'FREE-DEV-01']);
+    }
+
+    public function test_35_dashboard_expired_cloud_cannot_register_new_device(): void
+    {
+        [$business] = $this->actingAsRole('owner', cloud: false);
+        Subscription::factory()->cloud()->expired()->create(['business_id' => $business->id]);
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        // 1. Direct service enforcement
+        $service = app(DeviceManagementService::class);
+        try {
+            $service->register($business, [
+                'name' => 'Expired Cloud POS',
+                'identifier' => 'EXPIRED-DEV-01',
+                'outlet_id' => $outlet->id,
+            ]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('identifier', $e->errors());
+            $this->assertStringContainsString('Langganan Cloud aktif diperlukan', $e->errors()['identifier'][0]);
+        }
+
+        // 2. HTTP controller enforcement
+        $this->withoutMiddleware(EnsurePremiumAccess::class)
+            ->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'name' => 'Expired Cloud POS',
+                'identifier' => 'EXPIRED-DEV-01',
+                'outlet_id' => $outlet->id,
+            ])
+            ->assertSessionHasErrors(['identifier' => 'Langganan Cloud aktif diperlukan untuk mendaftarkan perangkat baru.']);
+
+        $this->assertDatabaseMissing('devices', ['identifier' => 'EXPIRED-DEV-01']);
+    }
+
+    public function test_36_dashboard_inactive_cloud_cannot_register_new_device(): void
+    {
+        [$business] = $this->actingAsRole('owner', cloud: false);
+        Subscription::factory()->cloud()->create([
+            'business_id' => $business->id,
+            'status' => 'inactive',
+        ]);
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        // 1. Direct service enforcement
+        $service = app(DeviceManagementService::class);
+        try {
+            $service->register($business, [
+                'name' => 'Inactive Cloud POS',
+                'identifier' => 'INACTIVE-DEV-01',
+                'outlet_id' => $outlet->id,
+            ]);
+            $this->fail('Expected ValidationException was not thrown.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('identifier', $e->errors());
+            $this->assertStringContainsString('Langganan Cloud aktif diperlukan', $e->errors()['identifier'][0]);
+        }
+
+        // 2. HTTP controller enforcement
+        $this->withoutMiddleware(EnsurePremiumAccess::class)
+            ->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'name' => 'Inactive Cloud POS',
+                'identifier' => 'INACTIVE-DEV-01',
+                'outlet_id' => $outlet->id,
+            ])
+            ->assertSessionHasErrors(['identifier' => 'Langganan Cloud aktif diperlukan untuk mendaftarkan perangkat baru.']);
+
+        $this->assertDatabaseMissing('devices', ['identifier' => 'INACTIVE-DEV-01']);
+    }
+
+    public function test_37_dashboard_active_cloud_can_register_new_device(): void
+    {
+        [$business] = $this->actingAsRole('owner', cloud: true);
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'name' => 'Active Cloud POS',
+                'identifier' => 'ACTIVE-DEV-01',
+                'outlet_id' => $outlet->id,
+                'platform' => 'android',
+            ])
+            ->assertRedirect(route('devices.index'))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseHas('devices', [
+            'business_id' => $business->id,
+            'identifier' => 'ACTIVE-DEV-01',
+            'status' => 'active',
+        ]);
+    }
+
+    public function test_38_existing_identifier_remains_idempotent_even_if_cloud_expired(): void
+    {
+        [$business] = $this->actingAsRole('owner', cloud: false);
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $existingDevice = $this->createDevice([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'identifier' => 'HISTORIC-DEV-01',
+            'name' => 'Original Name',
+            'status' => 'active',
+        ]);
+
+        Subscription::factory()->cloud()->expired()->create(['business_id' => $business->id]);
+
+        // 1. Direct service invocation returns existing device without throwing
+        $service = app(DeviceManagementService::class);
+        $result = $service->register($business, [
+            'name' => 'Re-submitting Same Device',
+            'identifier' => 'HISTORIC-DEV-01',
+            'outlet_id' => $outlet->id,
+        ]);
+
+        $this->assertFalse($result['created']);
+        $this->assertSame($existingDevice->id, $result['device']->id);
+
+        // 2. HTTP controller invocation
+        $this->withoutMiddleware(EnsurePremiumAccess::class)
+            ->from(route('devices.index'))
+            ->post(route('devices.store'), [
+                'name' => 'Re-submitting Same Device',
+                'identifier' => 'HISTORIC-DEV-01',
+                'outlet_id' => $outlet->id,
+            ])
+            ->assertRedirect(route('devices.index'))
+            ->assertSessionHas('status');
+
+        $this->assertDatabaseCount('devices', 1);
+        $this->assertSame('Original Name', $existingDevice->fresh()->name);
     }
 
     // ============================================================
