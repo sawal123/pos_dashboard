@@ -20,6 +20,7 @@ use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
+use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
@@ -256,6 +257,11 @@ Route::prefix('platform')
     ->group(function () {
         Route::get('/', [PlatformDashboardController::class, 'index'])->name('dashboard');
         Route::get('dashboard', [PlatformDashboardController::class, 'index'])->name('dashboard.alias');
+
+        // ADMIN-03 — Business / Merchant Management
+        Route::get('businesses', [PlatformBusinessesController::class, 'index'])->name('businesses.index');
+        Route::get('businesses/{business}', [PlatformBusinessesController::class, 'show'])->name('businesses.show');
+        Route::patch('businesses/{business}/status', [PlatformBusinessesController::class, 'updateStatus'])->name('businesses.status.update');
     });
 
 require __DIR__.'/settings.php';
