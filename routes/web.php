@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Subscription\PremiumPolicy;
@@ -262,6 +263,10 @@ Route::prefix('platform')
         Route::get('businesses', [PlatformBusinessesController::class, 'index'])->name('businesses.index');
         Route::get('businesses/{business}', [PlatformBusinessesController::class, 'show'])->name('businesses.show');
         Route::patch('businesses/{business}/status', [PlatformBusinessesController::class, 'updateStatus'])->name('businesses.status.update');
+
+        // ADMIN-04 — Platform User Management
+        Route::get('users', [PlatformUsersController::class, 'index'])->name('users.index');
+        Route::get('users/{user}', [PlatformUsersController::class, 'show'])->name('users.show');
     });
 
 require __DIR__.'/settings.php';
