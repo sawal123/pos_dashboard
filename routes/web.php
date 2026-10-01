@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
@@ -286,6 +287,10 @@ Route::prefix('platform')
         Route::patch('subscription-plans/{plan}/prices/{price}', [PlatformSubscriptionPlansController::class, 'updatePrice'])
             ->scopeBindings()
             ->name('subscription-plans.prices.update');
+
+        // ADMIN-06 — Midtrans Payment Management (Operator Console)
+        Route::get('payments', [PlatformPaymentsController::class, 'index'])->name('payments.index');
+        Route::get('payments/{payment}', [PlatformPaymentsController::class, 'show'])->name('payments.show');
     });
 
 require __DIR__.'/settings.php';
