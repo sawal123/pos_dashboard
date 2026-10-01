@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\Subscription;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,11 +47,17 @@ class BusinessesController extends Controller
         }
 
         // Filter by subscription plan (free/cloud)
+        // Businesses without a subscription record default to Free tier semantics in UI.
         $plan = $request->input('plan');
-        if (in_array($plan, ['free', 'cloud'], true)) {
-            $query->whereHas('subscription', function ($subQuery) use ($plan) {
-                $subQuery->where('plan', $plan);
+        if ($plan === Subscription::PLAN_FREE) {
+            $query->where(function ($q) {
+                $q->whereDoesntHave('subscription')
+                    ->orWhereHas('subscription', fn ($subQuery) => $subQuery->where('plan', Subscription::PLAN_FREE)
+                    );
             });
+        } elseif ($plan === Subscription::PLAN_CLOUD) {
+            $query->whereHas('subscription', fn ($subQuery) => $subQuery->where('plan', Subscription::PLAN_CLOUD)
+            );
         }
 
         $businesses = $query

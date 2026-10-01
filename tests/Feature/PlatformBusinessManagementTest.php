@@ -167,27 +167,45 @@ class PlatformBusinessManagementTest extends TestCase
     }
 
     /**
-     * Filter plan (free / cloud).
+     * Filter plan (free / cloud), menyelaraskan semantik UI: business tanpa subscription dianggap Free tier.
      */
     public function test_plan_filter_filters_businesses(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
-        $cloudBiz = Business::factory()->create(['name' => 'Bisnis Cloud VIP']);
-        Subscription::factory()->cloud()->create(['business_id' => $cloudBiz->id]);
+        // Business A: subscription free
+        $bizA = Business::factory()->create(['name' => 'Bisnis A Free Subscription']);
+        Subscription::factory()->free()->create(['business_id' => $bizA->id]);
 
-        $freeBiz = Business::factory()->create(['name' => 'Bisnis Free Basic']);
-        Subscription::factory()->free()->create(['business_id' => $freeBiz->id]);
+        // Business B: subscription cloud
+        $bizB = Business::factory()->create(['name' => 'Bisnis B Cloud Subscription']);
+        Subscription::factory()->cloud()->create(['business_id' => $bizB->id]);
 
-        $responseCloud = $this->actingAs($platformAdmin)->get('/platform/businesses?plan=cloud');
-        $responseCloud->assertOk();
-        $responseCloud->assertSee('Bisnis Cloud VIP');
-        $responseCloud->assertDontSee('Bisnis Free Basic');
+        // Business C: tidak memiliki subscription sama sekali
+        $bizC = Business::factory()->create(['name' => 'Bisnis C Tanpa Subscription']);
 
+        // 1. Filter plan=free: harus menampilkan Business A dan Business C, tidak menampilkan Business B
         $responseFree = $this->actingAs($platformAdmin)->get('/platform/businesses?plan=free');
         $responseFree->assertOk();
-        $responseFree->assertDontSee('Bisnis Cloud VIP');
-        $responseFree->assertSee('Bisnis Free Basic');
+        $responseFree->assertSee('Bisnis A Free Subscription');
+        $responseFree->assertSee('Bisnis C Tanpa Subscription');
+        $responseFree->assertDontSee('Bisnis B Cloud Subscription');
+
+        // 2. Filter plan=cloud: hanya menampilkan Business B
+        $responseCloud = $this->actingAs($platformAdmin)->get('/platform/businesses?plan=cloud');
+        $responseCloud->assertOk();
+        $responseCloud->assertSee('Bisnis B Cloud Subscription');
+        $responseCloud->assertDontSee('Bisnis A Free Subscription');
+        $responseCloud->assertDontSee('Bisnis C Tanpa Subscription');
+
+        // 3. Verifikasi bisnis tanpa subscription ditampilkan sebagai 'Free Tier' pada list dan detail
+        $responseList = $this->actingAs($platformAdmin)->get('/platform/businesses');
+        $responseList->assertOk();
+        $responseList->assertSee('Free Tier');
+
+        $responseDetail = $this->actingAs($platformAdmin)->get("/platform/businesses/{$bizC->id}");
+        $responseDetail->assertOk();
+        $responseDetail->assertSee('Free');
     }
 
     /**
