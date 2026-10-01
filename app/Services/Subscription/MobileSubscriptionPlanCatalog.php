@@ -19,14 +19,16 @@ use App\Models\Subscription;
  *  - supported billing periods come from the product policy instead of a
  *    hardcoded list.
  *
- * `checkout_available` deliberately stays `false`: there is no Midtrans
- * integration yet (that is PREM-D02B), so the mobile client must never conclude
- * that a checkout exists.
+ * `checkout_available` is true only when PREM-D02B has both official pricing
+ * and backend Midtrans configuration. Missing pricing or credentials fail
+ * closed.
  */
 class MobileSubscriptionPlanCatalog
 {
     public function __construct(
         private readonly PremiumPolicy $policy,
+        private readonly SubscriptionCheckoutService $checkout,
+        private readonly PremiumPricing $pricing,
     ) {}
 
     /**
@@ -53,13 +55,9 @@ class MobileSubscriptionPlanCatalog
         return $plans;
     }
 
-    /**
-     * Checkout is unavailable until PREM-D02B ships a verified Midtrans contract
-     * and Product records official prices.
-     */
     public function checkoutAvailable(): bool
     {
-        return false;
+        return $this->checkout->isCheckoutConfigured();
     }
 
     /**
@@ -73,15 +71,7 @@ class MobileSubscriptionPlanCatalog
      */
     private function configuredPricingPlans(): array
     {
-        $configured = config('premium.pricing.mobile_plans');
-
-        if (is_array($configured) && $configured !== []) {
-            return $configured;
-        }
-
-        $legacy = config('premium.mobile_plans');
-
-        return is_array($legacy) ? $legacy : [];
+        return $this->pricing->mobilePlans();
     }
 
     /**

@@ -36,6 +36,7 @@ use Illuminate\Support\Carbon;
  * @property-read SyncCounter|null $syncCounter
  * @property-read Collection<int, SyncRequest> $syncRequests
  * @property-read Subscription|null $subscription
+ * @property-read Collection<int, SubscriptionPayment> $subscriptionPayments
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
@@ -257,6 +258,16 @@ class Business extends Model
     public function subscription(): HasOne
     {
         return $this->hasOne(Subscription::class);
+    }
+
+    /**
+     * The subscription payment attempts associated with the business.
+     *
+     * @return HasMany<SubscriptionPayment, $this>
+     */
+    public function subscriptionPayments(): HasMany
+    {
+        return $this->hasMany(SubscriptionPayment::class);
     }
 
     /**
