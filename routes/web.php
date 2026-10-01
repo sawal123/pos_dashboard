@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
@@ -276,6 +277,15 @@ Route::prefix('platform')
         Route::post('subscriptions/{subscription}/renew', [PlatformSubscriptionsController::class, 'renew'])->name('subscriptions.renew');
         Route::patch('subscriptions/{subscription}/downgrade', [PlatformSubscriptionsController::class, 'downgrade'])->name('subscriptions.downgrade');
         Route::patch('subscriptions/{subscription}/inactivate', [PlatformSubscriptionsController::class, 'inactivate'])->name('subscriptions.inactivate');
+
+        // ADMIN-06 — Premium Plan & Pricing Management (canonical Cloud only).
+        Route::get('subscription-plans', [PlatformSubscriptionPlansController::class, 'index'])->name('subscription-plans.index');
+        Route::get('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'show'])->name('subscription-plans.show');
+        Route::patch('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'update'])->name('subscription-plans.update');
+        Route::post('subscription-plans/{plan}/prices', [PlatformSubscriptionPlansController::class, 'storePrice'])->name('subscription-plans.prices.store');
+        Route::patch('subscription-plans/{plan}/prices/{price}', [PlatformSubscriptionPlansController::class, 'updatePrice'])
+            ->scopeBindings()
+            ->name('subscription-plans.prices.update');
     });
 
 require __DIR__.'/settings.php';

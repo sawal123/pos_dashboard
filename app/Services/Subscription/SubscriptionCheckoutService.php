@@ -19,10 +19,52 @@ final class SubscriptionCheckoutService
 
     public function isCheckoutConfigured(): bool
     {
-        return $this->pricing->isConfigured()
-            && $this->midtrans->isConfigured()
-            && $this->pricing->priceFor($this->policy->planCode(), 'monthly') !== null
-            && $this->pricing->priceFor($this->policy->planCode(), 'yearly') !== null;
+        return $this->readiness()['ready'];
+    }
+
+    /**
+     * ADMIN-06 — factual checkout readiness for the canonical Premium plan.
+     *
+     * Single source of truth for "is checkout ready?": the same rule that gates
+     * `checkout_available`. The reasons are descriptive only and never include
+     * credentials.
+     *
+     * @return array{ready: bool, reasons: list<string>}
+     */
+    public function readiness(): array
+    {
+        $reasons = [];
+        $planCode = $this->policy->planCode();
+
+        if (! $this->pricing->planExists($planCode)) {
+            $reasons[] = 'Paket Cloud belum tersedia.';
+        } elseif (! $this->pricing->planIsActive($planCode)) {
+            $reasons[] = 'Paket Cloud sedang nonaktif.';
+        } else {
+            foreach ($this->policy->billingPeriods() as $period) {
+                if ($this->pricing->priceFor($planCode, $period) === null) {
+                    $reasons[] = $this->periodLabel($period).' belum tersedia atau nonaktif.';
+                }
+            }
+        }
+
+        if (! $this->midtrans->isConfigured()) {
+            $reasons[] = 'Midtrans belum dikonfigurasi.';
+        }
+
+        return [
+            'ready' => $reasons === [],
+            'reasons' => $reasons,
+        ];
+    }
+
+    private function periodLabel(string $period): string
+    {
+        return match ($period) {
+            'monthly' => 'Harga Bulanan',
+            'yearly' => 'Harga Tahunan',
+            default => 'Harga '.$period,
+        };
     }
 
     public function createCheckout(Business $business, User $user, string $plan, string $period, ?string $idempotencyKey = null): SubscriptionPayment
