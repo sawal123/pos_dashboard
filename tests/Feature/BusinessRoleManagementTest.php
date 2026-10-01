@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Business;
 use App\Models\MembershipAuditLog;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -247,6 +248,7 @@ class BusinessRoleManagementTest extends TestCase
         $owner = User::factory()->create(['email_verified_at' => now()]);
         $business = Business::factory()->create();
         $business->users()->attach($owner->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
         $this->withSession(['dashboard.current_business_id' => $business->id]);
 
         return [$owner, $business];
