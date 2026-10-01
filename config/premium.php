@@ -7,8 +7,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | Product decisions that are already final. This section is policy only: it
-    | never carries a price. Official prices live in the `pricing` section below
-    | and remain undecided (BLOCKER).
+    | never carries a price. Official prices are database-owned since PREM-D02C
+    | (`subscription_plans` / `subscription_plan_prices`) and read by
+    | App\Services\Subscription\PremiumPricing.
     |
     | - Canonical paid plan  : `cloud`
     | - Billing periods      : `monthly`, `yearly`
@@ -25,6 +26,17 @@ return [
         'payment_provider' => 'midtrans',
         'renewal_mode' => 'manual',
         'device_limit' => 5,
+
+        /*
+        | Descriptive product copy for the paid plan (presentation only). This is
+        | not pricing: it never carries an amount, and it is surfaced by
+        | PremiumPolicy::benefits(). Amounts live in the database (PREM-D02C).
+        */
+        'benefits' => [
+            'Web dashboard',
+            'Cloud sync',
+            'Cloud devices',
+        ],
 
         /*
         | A paid Cloud subscription activated through checkout must carry an
@@ -58,48 +70,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Pricing configuration (PREM-D02A — UNDECIDED, BLOCKER)
+    | Pricing — database-owned since PREM-D02C
     |--------------------------------------------------------------------------
     |
-    | No official price exists. Do not invent one, and never copy numbers from a
-    | mockup. While pricing is unconfigured the mobile plan catalog stays empty
-    | and `checkout_available` stays false.
+    | There is deliberately no pricing key here. Official prices live in the
+    | database (`subscription_plans` / `subscription_plan_prices`), are managed
+    | by a Platform Admin, and are read only by
+    | App\Services\Subscription\PremiumPricing. ENV is no longer a price source.
     |
-    | Expected plan shape once official data exists: canonical `code`, display
-    | `name`, and official periods with `period` (`monthly`/`yearly`), `currency`
-    | and integer `price_minor`.
-    |
-    | `pricing.mobile_plans` is the canonical location. The legacy top-level
-    | `mobile_plans` key is still honoured as a fallback so the PREM-D01 contract
-    | keeps working (no breaking change).
+    | While a plan has no active price the mobile catalog stays empty and
+    | `checkout_available` stays false (fail closed).
     */
-    'pricing' => [
-        'configured' => env('PREMIUM_PRICING_CONFIGURED', false),
-        'mobile_plans' => [
-            [
-                'code' => 'cloud',
-                'name' => 'Cloud',
-                'billing_periods' => array_values(array_filter([
-                    blank(env('PREMIUM_CLOUD_MONTHLY_PRICE_MINOR')) ? null : [
-                        'period' => 'monthly',
-                        'currency' => 'IDR',
-                        'price_minor' => (int) env('PREMIUM_CLOUD_MONTHLY_PRICE_MINOR'),
-                    ],
-                    blank(env('PREMIUM_CLOUD_YEARLY_PRICE_MINOR')) ? null : [
-                        'period' => 'yearly',
-                        'currency' => 'IDR',
-                        'price_minor' => (int) env('PREMIUM_CLOUD_YEARLY_PRICE_MINOR'),
-                    ],
-                ])),
-                'benefits' => [
-                    'Web dashboard',
-                    'Cloud sync',
-                    'Cloud devices',
-                ],
-                'available' => true,
-            ],
-        ],
-    ],
 
     /*
     |--------------------------------------------------------------------------

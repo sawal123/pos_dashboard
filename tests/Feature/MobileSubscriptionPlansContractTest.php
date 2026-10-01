@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\Business;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPlanPrice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -25,6 +27,24 @@ class MobileSubscriptionPlansContractTest extends TestCase
     private function attach(User $user, Business $business, string $role = 'owner'): void
     {
         $user->businesses()->attach($business->id, ['role' => $role]);
+    }
+
+    /**
+     * Seed the canonical cloud plan with a single active monthly price.
+     */
+    private function seedCloudMonthly(int $priceMinor): void
+    {
+        $plan = SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_CLOUD,
+            'name' => 'Cloud',
+        ]);
+
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $plan->id,
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'price_minor' => $priceMinor,
+        ]);
     }
 
     public function test_subscription_plans_require_authentication(): void
@@ -69,24 +89,33 @@ class MobileSubscriptionPlansContractTest extends TestCase
 
     public function test_configured_catalog_exposes_canonical_plan_code_and_official_periods_only(): void
     {
-        config()->set('premium.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 12345],
-                    ['period' => 'weekly', 'currency' => 'IDR', 'price_minor' => 999],
-                ],
-                'benefits' => ['Sync cloud'],
-                'available' => true,
-            ],
-            [
-                'code' => 'premium',
-                'name' => 'Hidden Mapping Must Not Leak',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 1],
-                ],
-            ],
+        $cloud = SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_CLOUD,
+            'name' => 'Cloud',
+        ]);
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $cloud->id,
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'price_minor' => 12345,
+        ]);
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $cloud->id,
+            'billing_period' => 'weekly',
+            'currency' => 'IDR',
+            'price_minor' => 999,
+        ]);
+
+        // A non-canonical code must never leak, even with a valid price row.
+        $nonCanonical = SubscriptionPlan::factory()->create([
+            'code' => 'premium',
+            'name' => 'Hidden Mapping Must Not Leak',
+        ]);
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $nonCanonical->id,
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'price_minor' => 1,
         ]);
 
         [$user, $token] = $this->userWithToken();
@@ -108,15 +137,7 @@ class MobileSubscriptionPlansContractTest extends TestCase
 
     public function test_subscription_plans_are_scoped_to_authorized_business_membership(): void
     {
-        config()->set('premium.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 12345],
-                ],
-            ],
-        ]);
+        $this->seedCloudMonthly(12345);
 
         [$user, $token] = $this->userWithToken();
         $ownedBusiness = Business::factory()->create();
@@ -135,15 +156,7 @@ class MobileSubscriptionPlansContractTest extends TestCase
 
     public function test_subscription_plans_are_read_only(): void
     {
-        config()->set('premium.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 12345],
-                ],
-            ],
-        ]);
+        $this->seedCloudMonthly(12345);
 
         [$user, $token] = $this->userWithToken();
         $business = Business::factory()->create();

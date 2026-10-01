@@ -9,7 +9,8 @@ use App\Models\Subscription;
  * PREM-D02A — the single authoritative Premium policy.
  *
  * Product policy (what Premium *is*) is read from `config/premium.php`; pricing
- * is deliberately kept out of this class because no official price exists.
+ * is database-owned (PREM-D02C) and deliberately kept out of this class —
+ * {@see PremiumPricing} is the only price reader.
  *
  * Entitlement is never decided here either: every decision defers to
  * {@see Business::hasCloudAccess()} (and therefore
@@ -78,6 +79,33 @@ final class PremiumPolicy
     public function supportsBillingPeriod(string $period): bool
     {
         return in_array($period, $this->billingPeriods(), true);
+    }
+
+    /**
+     * Descriptive product copy for the paid plan.
+     *
+     * Presentation only — this never carries an amount. Prices live in the
+     * database (PREM-D02C), not here.
+     *
+     * @return list<string>
+     */
+    public function benefits(): array
+    {
+        $benefits = config('premium.plan.benefits');
+
+        if (! is_array($benefits)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($benefits as $benefit) {
+            if (is_string($benefit) && $benefit !== '') {
+                $normalized[] = $benefit;
+            }
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     /**

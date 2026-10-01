@@ -81,6 +81,12 @@ No server key, card number, CVV, or sensitive payment credential is persisted.
 
 ## Pricing Configuration
 
+> **Superseded by PREM-D02C.** Prices are now database-owned
+> (`subscription_plans` / `subscription_plan_prices`) and read by
+> `App\Services\Subscription\PremiumPricing`. The `PREMIUM_*` price env keys
+> below no longer exist — see `docs/premium/PREM_D02C_DATABASE_PRICING.md`. The
+> block is kept for historical context only.
+
 No official price is committed. Checkout fails closed until these are configured:
 
 ```env

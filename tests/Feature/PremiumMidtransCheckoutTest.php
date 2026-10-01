@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Business;
 use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
+use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPlanPrice;
 use App\Models\User;
 use App\Services\Subscription\Midtrans\MidtransGateway;
 use App\Services\Subscription\Midtrans\MidtransNotificationResult;
@@ -313,17 +315,23 @@ class PremiumMidtransCheckoutTest extends TestCase
 
     private function configurePricing(): void
     {
-        config()->set('premium.pricing.configured', true);
-        config()->set('premium.pricing.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 123456],
-                    ['period' => 'yearly', 'currency' => 'IDR', 'price_minor' => 1234560],
-                ],
-                'available' => true,
-            ],
+        $plan = SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_CLOUD,
+            'name' => 'Cloud',
+        ]);
+
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $plan->id,
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'price_minor' => 123456,
+        ]);
+
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $plan->id,
+            'billing_period' => 'yearly',
+            'currency' => 'IDR',
+            'price_minor' => 1234560,
         ]);
     }
 

@@ -7,6 +7,8 @@ use App\Models\Business;
 use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPlanPrice;
 use App\Models\User;
 use App\Services\Subscription\CloudDeviceLimit;
 use App\Services\Subscription\PremiumPolicy;
@@ -23,8 +25,9 @@ use Tests\TestCase;
  *  - provider Midtrans, MANUAL renewal (never auto-renewal)
  *  - device limit 5 active cloud devices per business
  *  - expired/free/inactive keeps local POS and loses every cloud capability
- *  - pricing undecided → empty catalog, `checkout_available` false, nothing
- *    purchasable, and no price is ever invented
+ *  - pricing is database-owned (PREM-D02C) → an unpriced plan keeps the catalog
+ *    empty, `checkout_available` false and nothing purchasable; no price is
+ *    ever invented
  *
  * Every entitlement decision must be enforced server-side; nothing here relies
  * on the mobile UI.
@@ -219,17 +222,9 @@ class PremiumBillingPolicyTest extends TestCase
 
     public function test_configured_priced_plan_is_never_purchasable_without_checkout(): void
     {
-        config()->set('premium.pricing.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 50000],
-                    ['period' => 'yearly', 'currency' => 'IDR', 'price_minor' => 500000],
-                ],
-                'benefits' => ['Sinkronisasi cloud'],
-                'available' => true,
-            ],
+        $this->seedPlanPrices([
+            'monthly' => 50000,
+            'yearly' => 500000,
         ]);
 
         $business = $this->businessWithCloud();
@@ -246,8 +241,10 @@ class PremiumBillingPolicyTest extends TestCase
         $this->assertFalse($response->json('data.plans.0.purchasable'));
     }
 
-    public function test_legacy_mobile_plans_key_is_still_honoured(): void
+    public function test_config_pricing_is_no_longer_a_price_source(): void
     {
+        // PREM-D02C: config/ENV is no longer a pricing source. A legacy
+        // `premium.mobile_plans` block must not invent a catalog or a price.
         config()->set('premium.mobile_plans', [
             [
                 'code' => Subscription::PLAN_CLOUD,
@@ -263,22 +260,15 @@ class PremiumBillingPolicyTest extends TestCase
         $this->withToken($this->tokenFor($this->ownerOf($business)))
             ->getJson('/api/mobile/subscription/plans?business_id='.$business->id)
             ->assertOk()
-            ->assertJsonPath('data.plans.0.code', Subscription::PLAN_CLOUD)
-            ->assertJsonPath('data.plans.0.billing_periods.0.price_minor', 12345)
+            ->assertJsonPath('data.plans', [])
             ->assertJsonPath('data.checkout_available', false);
     }
 
     public function test_unsupported_billing_period_is_dropped_from_the_catalog(): void
     {
-        config()->set('premium.pricing.mobile_plans', [
-            [
-                'code' => Subscription::PLAN_CLOUD,
-                'name' => 'Cloud',
-                'billing_periods' => [
-                    ['period' => 'monthly', 'currency' => 'IDR', 'price_minor' => 50000],
-                    ['period' => 'weekly', 'currency' => 'IDR', 'price_minor' => 15000],
-                ],
-            ],
+        $this->seedPlanPrices([
+            'monthly' => 50000,
+            'weekly' => 15000,
         ]);
 
         $business = $this->businessWithCloud();
@@ -606,6 +596,28 @@ class PremiumBillingPolicyTest extends TestCase
     // ============================================================
     // Helpers
     // ============================================================
+
+    /**
+     * Seed the canonical cloud plan with a period => price_minor map.
+     *
+     * @param  array<string, int>  $prices
+     */
+    private function seedPlanPrices(array $prices): void
+    {
+        $plan = SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_CLOUD,
+            'name' => 'Cloud',
+        ]);
+
+        foreach ($prices as $period => $priceMinor) {
+            SubscriptionPlanPrice::factory()->create([
+                'subscription_plan_id' => $plan->id,
+                'billing_period' => $period,
+                'currency' => 'IDR',
+                'price_minor' => $priceMinor,
+            ]);
+        }
+    }
 
     private function assertNoCapability(Business $business): void
     {
