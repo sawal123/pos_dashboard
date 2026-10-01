@@ -121,6 +121,22 @@ final class PremiumPricing
         return false;
     }
 
+    /**
+     * Whether a plan row with this code exists at all (active or not).
+     */
+    public function planExists(string $plan): bool
+    {
+        return $this->planId($plan, activeOnly: false) !== null;
+    }
+
+    /**
+     * Whether an active plan row with this code exists.
+     */
+    public function planIsActive(string $plan): bool
+    {
+        return $this->planId($plan, activeOnly: true) !== null;
+    }
+
     private function activePrice(string $plan, string $period): ?SubscriptionPlanPrice
     {
         $planId = $this->planId($plan);
