@@ -74,7 +74,44 @@ return [
     | keeps working (no breaking change).
     */
     'pricing' => [
-        'configured' => false,
-        'mobile_plans' => [],
+        'configured' => env('PREMIUM_PRICING_CONFIGURED', false),
+        'mobile_plans' => [
+            [
+                'code' => 'cloud',
+                'name' => 'Cloud',
+                'billing_periods' => array_values(array_filter([
+                    blank(env('PREMIUM_CLOUD_MONTHLY_PRICE_MINOR')) ? null : [
+                        'period' => 'monthly',
+                        'currency' => 'IDR',
+                        'price_minor' => (int) env('PREMIUM_CLOUD_MONTHLY_PRICE_MINOR'),
+                    ],
+                    blank(env('PREMIUM_CLOUD_YEARLY_PRICE_MINOR')) ? null : [
+                        'period' => 'yearly',
+                        'currency' => 'IDR',
+                        'price_minor' => (int) env('PREMIUM_CLOUD_YEARLY_PRICE_MINOR'),
+                    ],
+                ])),
+                'benefits' => [
+                    'Web dashboard',
+                    'Cloud sync',
+                    'Cloud devices',
+                ],
+                'available' => true,
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Midtrans checkout configuration
+    |--------------------------------------------------------------------------
+    |
+    | Server key is backend-only. It must never be sent to mobile clients,
+    | rendered in Blade, logged, or persisted to the database.
+    */
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'client_key' => env('MIDTRANS_CLIENT_KEY'),
+        'is_production' => env('MIDTRANS_IS_PRODUCTION', false),
     ],
 ];

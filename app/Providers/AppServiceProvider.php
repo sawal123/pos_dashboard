@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Subscription\Midtrans\MidtransGateway;
+use App\Services\Subscription\Midtrans\OfficialMidtransGateway;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -18,7 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(MidtransGateway::class, OfficialMidtransGateway::class);
     }
 
     /**
@@ -45,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         };
 
         foreach ([
+            'subscription-checkout',
             'member-invitations',
             'member-invitation-resend',
             'member-invitation-revoke',
