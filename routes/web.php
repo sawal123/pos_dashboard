@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
@@ -267,6 +268,14 @@ Route::prefix('platform')
         // ADMIN-04 — Platform User Management
         Route::get('users', [PlatformUsersController::class, 'index'])->name('users.index');
         Route::get('users/{user}', [PlatformUsersController::class, 'show'])->name('users.show');
+
+        // ADMIN-05 — Subscription & Plan Management
+        Route::get('subscriptions', [PlatformSubscriptionsController::class, 'index'])->name('subscriptions.index');
+        Route::get('subscriptions/{subscription}', [PlatformSubscriptionsController::class, 'show'])->name('subscriptions.show');
+        Route::patch('subscriptions/{subscription}/activate', [PlatformSubscriptionsController::class, 'activate'])->name('subscriptions.activate');
+        Route::post('subscriptions/{subscription}/renew', [PlatformSubscriptionsController::class, 'renew'])->name('subscriptions.renew');
+        Route::patch('subscriptions/{subscription}/downgrade', [PlatformSubscriptionsController::class, 'downgrade'])->name('subscriptions.downgrade');
+        Route::patch('subscriptions/{subscription}/inactivate', [PlatformSubscriptionsController::class, 'inactivate'])->name('subscriptions.inactivate');
     });
 
 require __DIR__.'/settings.php';
