@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\Device;
 use App\Services\Subscription\CloudDeviceLimit;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -48,45 +49,54 @@ class DeviceManagementService
      */
     public function register(Business $business, array $data): array
     {
-        $identifier = trim((string) ($data['identifier'] ?? ''));
-        $outletId = (int) ($data['outlet_id'] ?? 0);
-
-        $existing = Device::query()
-            ->where('business_id', $business->id)
-            ->where('identifier', $identifier)
-            ->first();
-
-        if ($existing !== null) {
-            return $this->resolveExisting($existing, $outletId);
-        }
-
-        $this->guardDeviceLimit($business);
-
-        try {
-            $device = Device::create([
-                'business_id' => $business->id,
-                'outlet_id' => $outletId,
-                'name' => trim((string) ($data['name'] ?? '')),
-                'identifier' => $identifier,
-                'platform' => $this->nullableText($data['platform'] ?? null),
-                'status' => 'active',
-                'registered_at' => now(),
-                'last_seen_at' => null,
-                'notes' => $this->nullableText($data['notes'] ?? null),
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // A concurrent request won the INSERT race — resolve the winner's
-            // row instead of surfacing a 500. Safe because we never mutate the
-            // existing row here.
-            $device = Device::query()
-                ->where('business_id', $business->id)
-                ->where('identifier', $identifier)
+        return DB::transaction(function () use ($business, $data): array {
+            /** @var Business $lockedBusiness */
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            return $this->resolveExisting($device, $outletId);
-        }
+            $identifier = trim((string) ($data['identifier'] ?? ''));
+            $outletId = (int) ($data['outlet_id'] ?? 0);
 
-        return ['device' => $device, 'created' => true];
+            $existing = Device::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->where('identifier', $identifier)
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                return $this->resolveExisting($existing, $outletId);
+            }
+
+            $this->guardDeviceLimit($lockedBusiness);
+
+            try {
+                $device = Device::create([
+                    'business_id' => $lockedBusiness->id,
+                    'outlet_id' => $outletId,
+                    'name' => trim((string) ($data['name'] ?? '')),
+                    'identifier' => $identifier,
+                    'platform' => $this->nullableText($data['platform'] ?? null),
+                    'status' => 'active',
+                    'registered_at' => now(),
+                    'last_seen_at' => null,
+                    'notes' => $this->nullableText($data['notes'] ?? null),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // A concurrent request won the INSERT race — resolve the winner's
+                // row instead of surfacing a 500. Safe because we never mutate the
+                // existing row here.
+                $device = Device::query()
+                    ->where('business_id', $lockedBusiness->id)
+                    ->where('identifier', $identifier)
+                    ->firstOrFail();
+
+                return $this->resolveExisting($device, $outletId);
+            }
+
+            return ['device' => $device, 'created' => true];
+        });
     }
 
     /**

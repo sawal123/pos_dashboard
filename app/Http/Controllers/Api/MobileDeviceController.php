@@ -15,6 +15,7 @@ use App\Services\Subscription\CloudDeviceLimit;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class MobileDeviceController extends Controller
 {
@@ -27,13 +28,13 @@ class MobileDeviceController extends Controller
      * Register or resolve a mobile device for a business/outlet.
      *
      * Idempotent per (business_id, identifier) pair — existing devices are
-     * resolved and their last_seen_at is updated.  Inactive devices are
+     * resolved and their last_seen_at is updated. Inactive devices are
      * rejected so the caller must re-activate them server-side.
      *
-     * Race condition safety: if two concurrent requests race past the initial
-     * SELECT and both attempt INSERT, the unique constraint will fire on the
-     * second writer.  We catch UniqueConstraintViolationException and fall
-     * through to re-fetch the winner's row, returning a normal response.
+     * Race condition safety: the parent Business row is locked inside a DB
+     * transaction to serialize new registrations against the cloud device limit.
+     * In the rare event of a concurrent race past the lock, the unique
+     * constraint catch re-fetches the winner's row.
      */
     public function store(Request $request): JsonResponse
     {
@@ -77,15 +78,7 @@ class MobileDeviceController extends Controller
             ], 403);
         }
 
-        // ── 4. Cloud access enforcement ───────────────────────────────────
-        if (! $business->hasCloudAccess()) {
-            return response()->json([
-                'message' => 'Cloud subscription is required.',
-                'code' => 'CLOUD_SUBSCRIPTION_REQUIRED',
-            ], 403);
-        }
-
-        // ── 5. Outlet must belong to the same business ────────────────────
+        // ── 4. Outlet must belong to the same business ────────────────────
         $outlet = Outlet::find((int) $validated['outlet_id']);
 
         if (! $outlet || $outlet->business_id !== $business->id) {
@@ -95,50 +88,69 @@ class MobileDeviceController extends Controller
             ], 403);
         }
 
-        // ── 6. Idempotent device resolution ───────────────────────────────
-        $device = Device::where('business_id', $business->id)
-            ->where('identifier', $validated['device_identifier'])
-            ->first();
-
-        if ($device) {
-            return $this->resolveExisting($device, $outlet);
-        }
-
-        // ── 7. Cloud device limit (PREM-D02A) ─────────────────────────────
-        // Only a NEW device consumes a slot; resolving an existing device above
-        // is idempotent and is never blocked. The limit is counted server-side
-        // from active devices only, so the mobile UI is never trusted.
-        if ($this->deviceLimit->isReached($business)) {
-            return response()->json([
-                'message' => 'Batas perangkat Cloud tercapai (maksimal '.$this->deviceLimit->limit().' perangkat aktif). Nonaktifkan perangkat yang tidak dipakai terlebih dahulu.',
-                'code' => 'CLOUD_DEVICE_LIMIT_REACHED',
-                'device_limit' => $this->deviceLimit->limit(),
-                'active_devices' => $this->deviceLimit->activeCount($business),
-            ], 403);
-        }
-
-        // ── 8. Create — guard against unique race via catch ───────────────
-        try {
-            $device = Device::create([
-                'business_id' => $business->id,
-                'outlet_id' => $outlet->id,
-                'name' => $validated['name'],
-                'identifier' => $validated['device_identifier'],
-                'platform' => $validated['platform'] ?? null,
-                'status' => 'active',
-                'registered_at' => now(),
-                'last_seen_at' => now(),
-            ]);
-        } catch (UniqueConstraintViolationException) {
-            // Concurrent request won the INSERT race — resolve the winner.
-            $device = Device::where('business_id', $business->id)
-                ->where('identifier', $validated['device_identifier'])
+        return DB::transaction(function () use ($business, $outlet, $validated): JsonResponse {
+            /** @var Business $lockedBusiness */
+            $lockedBusiness = Business::query()
+                ->whereKey($business->id)
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            return $this->resolveExisting($device, $outlet);
-        }
+            // ── 5. Cloud access enforcement ───────────────────────────────────
+            if (! $lockedBusiness->hasCloudAccess()) {
+                return response()->json([
+                    'message' => 'Cloud subscription is required.',
+                    'code' => 'CLOUD_SUBSCRIPTION_REQUIRED',
+                ], 403);
+            }
 
-        return $this->deviceResponse($device);
+            // ── 6. Idempotent device resolution ───────────────────────────────
+            $device = Device::query()
+                ->where('business_id', $lockedBusiness->id)
+                ->where('identifier', $validated['device_identifier'])
+                ->lockForUpdate()
+                ->first();
+
+            if ($device) {
+                return $this->resolveExisting($device, $outlet);
+            }
+
+            // ── 7. Cloud device limit (PREM-D02A) ─────────────────────────────
+            // Only a NEW device consumes a slot; resolving an existing device above
+            // is idempotent and is never blocked. The limit is counted server-side
+            // from active devices only, so the mobile UI is never trusted.
+            if ($this->deviceLimit->isReached($lockedBusiness)) {
+                return response()->json([
+                    'message' => 'Batas perangkat Cloud tercapai (maksimal '.$this->deviceLimit->limit().' perangkat aktif). Nonaktifkan perangkat yang tidak dipakai terlebih dahulu.',
+                    'code' => 'CLOUD_DEVICE_LIMIT_REACHED',
+                    'device_limit' => $this->deviceLimit->limit(),
+                    'active_devices' => $this->deviceLimit->activeCount($lockedBusiness),
+                ], 403);
+            }
+
+            // ── 8. Create — guard against unique race via catch ───────────────
+            try {
+                $device = Device::create([
+                    'business_id' => $lockedBusiness->id,
+                    'outlet_id' => $outlet->id,
+                    'name' => $validated['name'],
+                    'identifier' => $validated['device_identifier'],
+                    'platform' => $validated['platform'] ?? null,
+                    'status' => 'active',
+                    'registered_at' => now(),
+                    'last_seen_at' => now(),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // Concurrent request won the INSERT race — resolve the winner.
+                $device = Device::query()
+                    ->where('business_id', $lockedBusiness->id)
+                    ->where('identifier', $validated['device_identifier'])
+                    ->firstOrFail();
+
+                return $this->resolveExisting($device, $outlet);
+            }
+
+            return $this->deviceResponse($device);
+        });
     }
 
     /**

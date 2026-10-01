@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController;
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
@@ -291,6 +292,12 @@ Route::prefix('platform')
         // ADMIN-06 — Midtrans Payment Management (Operator Console)
         Route::get('payments', [PlatformPaymentsController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [PlatformPaymentsController::class, 'show'])->name('payments.show');
+
+        // ADMIN-08 — Devices Management (Platform Device Inventory & Quota)
+        Route::get('devices', [PlatformDevicesController::class, 'index'])->name('devices.index');
+        Route::get('devices/{device}', [PlatformDevicesController::class, 'show'])->name('devices.show');
+        Route::patch('devices/{device}/deactivate', [PlatformDevicesController::class, 'deactivate'])->name('devices.deactivate');
+        Route::patch('devices/{device}/activate', [PlatformDevicesController::class, 'activate'])->name('devices.activate');
     });
 
 require __DIR__.'/settings.php';

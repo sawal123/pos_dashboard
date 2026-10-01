@@ -156,6 +156,24 @@
                                 @endif
                             </a>
                         </li>
+                        @php
+                            $isDevices = request()->routeIs('platform.devices.*');
+                        @endphp
+                        <li>
+                            <a
+                                href="{{ route('platform.devices.index') }}"
+                                class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isDevices ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
+                                data-tooltip-right="Perangkat"
+                            >
+                                <span class="shrink-0 flex items-center justify-center w-5 h-5 {{ $isDevices ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400 dark:text-slate-500' }}">
+                                    <i data-lucide="smartphone" class="w-4 h-4"></i>
+                                </span>
+                                <span class="sidebar-item-label truncate flex-1 tracking-tight">Perangkat</span>
+                                @if($isDevices)
+                                    <span class="sidebar-active-indicator w-1.5 h-4 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0"></span>
+                                @endif
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
