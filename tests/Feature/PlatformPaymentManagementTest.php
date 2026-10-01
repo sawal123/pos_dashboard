@@ -322,9 +322,9 @@ class PlatformPaymentManagementTest extends TestCase
     }
 
     /**
-     * G. Reconciliation Diagnostic Tests (Healthy vs Mismatch)
+     * G. Reconciliation Diagnostic Tests (Historical Integrity decoupled from Current Entitlement)
      */
-    public function test_reconciliation_diagnostic_healthy_condition(): void
+    public function test_historical_paid_activated_and_expired_is_considered_consistent(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
@@ -332,52 +332,56 @@ class PlatformPaymentManagementTest extends TestCase
         Subscription::factory()->create([
             'business_id' => $business->id,
             'plan' => Subscription::PLAN_CLOUD,
-            'status' => Subscription::STATUS_ACTIVE,
-            'expires_at' => now()->addMonth(),
+            'status' => Subscription::STATUS_EXPIRED,
+            'expires_at' => now()->subMonth(),
         ]);
 
         $payment = SubscriptionPayment::factory()->create([
             'business_id' => $business->id,
             'status' => SubscriptionPayment::STATUS_PAID,
-            'paid_at' => now()->subDay(),
-            'activated_at' => now()->subDay(),
+            'paid_at' => now()->subMonths(2),
+            'activated_at' => now()->subMonths(2),
+            'expires_at' => now()->subMonth(),
         ]);
 
         $response = $this->actingAs($platformAdmin)->get("/platform/payments/{$payment->id}");
 
         $response->assertOk();
         $response->assertSee('Konsisten');
-        $response->assertSee('Granted (Aktif)');
+        $response->assertDontSee('Perlu Pemeriksaan');
+        $response->assertSee('Aktivasi pembayaran tercatat dan masa entitlement dari transaksi ini telah berakhir.');
+        $response->assertSee('Denied');
     }
 
-    public function test_reconciliation_diagnostic_mismatch_when_subscription_is_not_active_cloud(): void
+    public function test_historical_paid_activated_with_current_free_plan_is_not_mismatch(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
         $business = Business::factory()->create();
-        // Business has free plan (entitlement denied)
         Subscription::factory()->create([
             'business_id' => $business->id,
             'plan' => Subscription::PLAN_FREE,
             'status' => Subscription::STATUS_ACTIVE,
         ]);
 
-        // Payment is marked paid
         $payment = SubscriptionPayment::factory()->create([
             'business_id' => $business->id,
             'status' => SubscriptionPayment::STATUS_PAID,
-            'paid_at' => now()->subDay(),
-            'activated_at' => now()->subDay(),
+            'paid_at' => now()->subDays(10),
+            'activated_at' => now()->subDays(10),
+            'expires_at' => now()->addDays(20),
         ]);
 
         $response = $this->actingAs($platformAdmin)->get("/platform/payments/{$payment->id}");
 
         $response->assertOk();
-        $response->assertSee('Perlu Pemeriksaan');
-        $response->assertSee('Denied (Tidak Aktif)');
+        $response->assertSee('Konsisten');
+        $response->assertDontSee('Perlu Pemeriksaan');
+        $response->assertSee('Free');
+        $response->assertSee('Denied');
     }
 
-    public function test_reconciliation_diagnostic_mismatch_when_activated_at_is_null_for_paid(): void
+    public function test_reconciliation_diagnostic_mismatch_when_paid_and_activated_at_is_null(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
@@ -400,6 +404,54 @@ class PlatformPaymentManagementTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Perlu Pemeriksaan');
+        $response->assertSee('Pembayaran berhasil tetapi aktivasi subscription tidak tercatat.');
+    }
+
+    public function test_reconciliation_diagnostic_mismatch_when_non_paid_and_activated_at_is_not_null(): void
+    {
+        $platformAdmin = User::factory()->platformAdmin()->create();
+
+        $business = Business::factory()->create();
+
+        $payment = SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_FAILED,
+            'paid_at' => null,
+            'activated_at' => now()->subDay(), // Mismatch: failed but has activation timestamp
+        ]);
+
+        $response = $this->actingAs($platformAdmin)->get("/platform/payments/{$payment->id}");
+
+        $response->assertOk();
+        $response->assertSee('Perlu Pemeriksaan');
+        $response->assertSee('Subscription activation tercatat meskipun status pembayaran bukan berhasil');
+    }
+
+    public function test_pending_renewal_payment_while_business_has_active_cloud_is_normal(): void
+    {
+        $platformAdmin = User::factory()->platformAdmin()->create();
+
+        $business = Business::factory()->create();
+        Subscription::factory()->create([
+            'business_id' => $business->id,
+            'plan' => Subscription::PLAN_CLOUD,
+            'status' => Subscription::STATUS_ACTIVE,
+            'expires_at' => now()->addMonth(),
+        ]);
+
+        $payment = SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PENDING,
+            'paid_at' => null,
+            'activated_at' => null,
+        ]);
+
+        $response = $this->actingAs($platformAdmin)->get("/platform/payments/{$payment->id}");
+
+        $response->assertOk();
+        $response->assertSee('Sesuai Status');
+        $response->assertDontSee('Perlu Pemeriksaan');
+        $response->assertSee('Granted');
     }
 
     /**

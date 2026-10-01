@@ -70,7 +70,7 @@
             </div>
         </div>
 
-        {{-- Diagnostic Rekonsiliasi Card --}}
+        {{-- Diagnostic Integritas Pembayaran & Aktivasi (Historical) --}}
         <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                 <div class="flex items-center gap-2">
@@ -78,7 +78,7 @@
                         <i data-lucide="{{ $diagnostic['icon'] }}" class="w-4 h-4"></i>
                     </span>
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">
-                        Diagnostik Rekonsiliasi Entitlement
+                        Diagnostik Integritas Pembayaran &amp; Aktivasi
                     </h2>
                 </div>
                 <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $diagnostic['badge_class'] }}">
@@ -87,13 +87,20 @@
                 </span>
             </div>
 
-            <div class="mt-4">
+            <div class="mt-4 space-y-3">
                 <p class="text-xs text-slate-600 dark:text-slate-300">
                     {{ $diagnostic['summary'] }}
                 </p>
 
+                @if(!empty($diagnostic['info_notice']))
+                    <div class="p-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-start gap-2">
+                        <i data-lucide="info" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5"></i>
+                        <span class="text-xs text-indigo-900 dark:text-indigo-200">{{ $diagnostic['info_notice'] }}</span>
+                    </div>
+                @endif
+
                 @if(!empty($diagnostic['reasons']))
-                    <div class="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60">
+                    <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60">
                         <p class="text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
                             <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
                             Penyebab inkonsistensi terdeteksi:
@@ -106,8 +113,8 @@
                     </div>
                 @endif
 
-                {{-- Consistency Details Grid --}}
-                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+                {{-- Historical Consistency Grid --}}
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
                     <div>
                         <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Status Pembayaran</span>
                         <span class="font-bold text-slate-800 dark:text-slate-200">
@@ -115,35 +122,98 @@
                         </span>
                     </div>
                     <div>
-                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Langganan Saat Ini</span>
-                        <span class="font-bold text-slate-800 dark:text-slate-200">
-                            @if($subscription)
-                                {{ ucfirst($subscription->plan) }} &bull; {{ ucfirst($subscription->status) }}
-                            @else
-                                <span class="text-slate-400 italic">Belum terdaftar</span>
-                            @endif
-                        </span>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Entitlement Akses Cloud</span>
-                        @if($hasCloudAccess)
-                            <span class="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
-                                <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
-                                Granted (Aktif)
-                            </span>
-                        @else
-                            <span class="inline-flex items-center gap-1 font-bold text-rose-500 dark:text-rose-400">
-                                <i data-lucide="shield-x" class="w-3.5 h-3.5"></i>
-                                Denied (Tidak Aktif)
-                            </span>
-                        @endif
-                    </div>
-                    <div>
-                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Waktu Aktivasi</span>
+                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Waktu Aktivasi Transaksi</span>
                         <span class="font-bold text-slate-800 dark:text-slate-200">
                             {{ $payment->activated_at ? $payment->activated_at->format('d M Y H:i:s') : 'Belum tercatat (-)' }}
                         </span>
                     </div>
+                    <div>
+                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Masa Berlaku Transaksi</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">
+                            {{ $payment->expires_at ? $payment->expires_at->format('d M Y H:i:s') : '-' }}
+                        </span>
+                    </div>
+                    <div>
+                        <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Integritas Historis</span>
+                        <span class="font-bold text-slate-800 dark:text-slate-200">
+                            {{ $diagnostic['label'] }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Panel Status Langganan Saat Ini (Current Subscription & Entitlement) --}}
+        <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-2">
+                    <span class="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                        <i data-lucide="shield-check" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">
+                            Status Langganan Bisnis Saat Ini (Current Subscription)
+                        </h2>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500">
+                            Status hak akses saat ini dievaluasi secara independen dari riwayat transaksi pembayaran.
+                        </p>
+                    </div>
+                </div>
+                <div>
+                    @if($hasCloudAccess)
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border-emerald-200/60 dark:border-emerald-800/60">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                            Granted (Aktif)
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border-rose-200/60 dark:border-rose-800/60">
+                            <i data-lucide="shield-x" class="w-3.5 h-3.5"></i>
+                            Denied (Tidak Aktif)
+                        </span>
+                    @endif
+                </div>
+            </div>
+
+            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                <div>
+                    <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Current Plan</span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200">
+                        @if($subscription)
+                            {{ ucfirst($subscription->plan) }}
+                        @else
+                            <span class="text-slate-500">Free Tier</span>
+                        @endif
+                    </span>
+                </div>
+                <div>
+                    <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Current Status</span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200">
+                        @if($subscription)
+                            {{ ucfirst($subscription->status) }}
+                        @else
+                            <span class="text-slate-400 italic">Belum terdaftar</span>
+                        @endif
+                    </span>
+                </div>
+                <div>
+                    <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Current Entitlement</span>
+                    @if($hasCloudAccess)
+                        <span class="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400">
+                            <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                            Granted
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1 font-bold text-rose-500 dark:text-rose-400">
+                            <i data-lucide="shield-x" class="w-3.5 h-3.5"></i>
+                            Denied
+                        </span>
+                    @endif
+                </div>
+                <div>
+                    <span class="text-slate-400 dark:text-slate-500 block text-[11px]">Current Expires At</span>
+                    <span class="font-bold text-slate-800 dark:text-slate-200">
+                        {{ $subscription?->expires_at ? $subscription->expires_at->format('d M Y H:i:s') : '-' }}
+                    </span>
                 </div>
             </div>
         </div>

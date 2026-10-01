@@ -118,39 +118,44 @@ class PaymentsController extends Controller
         $subscription = $business->subscription;
         $hasCloudAccess = $business->hasCloudAccess();
 
-        // Reconciliation diagnostic computation (purely deterministic and read-only)
+        // Historical payment activation diagnostic (decoupled from current subscription state)
         if ($payment->status === SubscriptionPayment::STATUS_PAID) {
-            if ($hasCloudAccess && $payment->activated_at !== null) {
+            if ($payment->activated_at !== null) {
+                $isExpiredPeriod = $payment->expires_at !== null && $payment->expires_at->isPast();
+
+                if ($isExpiredPeriod) {
+                    $summary = 'Aktivasi pembayaran tercatat dan masa entitlement dari transaksi ini telah berakhir.';
+                    $infoNotice = 'Aktivasi pembayaran tercatat dan masa entitlement dari transaksi ini telah berakhir.';
+                } else {
+                    $summary = 'Pembayaran berstatus berhasil dan waktu aktivasi langganan tercatat.';
+                    $infoNotice = (! $hasCloudAccess || ($subscription && $subscription->plan !== $payment->plan))
+                        ? 'Status subscription saat ini berbeda dari snapshot transaksi.'
+                        : null;
+                }
+
                 $diagnostic = [
                     'status' => 'healthy',
                     'label' => 'Konsisten',
                     'badge_class' => 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60',
                     'dot_class' => 'bg-emerald-500',
                     'icon' => 'check-circle-2',
-                    'summary' => 'Pembayaran berstatus berhasil, langganan Cloud aktif, dan hak akses entitlement telah diberikan.',
+                    'summary' => $summary,
+                    'info_notice' => $infoNotice,
                     'reasons' => [],
                     'is_consistent' => true,
                 ];
             } else {
-                $reasons = [];
-                if ($subscription === null) {
-                    $reasons[] = 'Data langganan bisnis tidak ditemukan (belum memiliki record subscription).';
-                } elseif (! $hasCloudAccess) {
-                    $reasons[] = "Langganan bisnis saat ini berstatus '{$subscription->status}' dengan paket '{$subscription->plan}', sehingga entitlement Cloud tidak aktif.";
-                }
-
-                if ($payment->activated_at === null) {
-                    $reasons[] = 'Waktu aktivasi langganan (activated_at) belum tercatat pada transaksi pembayaran.';
-                }
-
                 $diagnostic = [
                     'status' => 'mismatch',
                     'label' => 'Perlu Pemeriksaan',
                     'badge_class' => 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60',
                     'dot_class' => 'bg-amber-500',
                     'icon' => 'alert-triangle',
-                    'summary' => 'Pembayaran berstatus berhasil tetapi hak akses Cloud tidak aktif atau waktu aktivasi belum tercatat.',
-                    'reasons' => $reasons,
+                    'summary' => 'Pembayaran berhasil tetapi aktivasi subscription tidak tercatat.',
+                    'info_notice' => null,
+                    'reasons' => [
+                        'Pembayaran berhasil tetapi aktivasi subscription tidak tercatat.',
+                    ],
                     'is_consistent' => false,
                 ];
             }
@@ -162,8 +167,11 @@ class PaymentsController extends Controller
                     'badge_class' => 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60',
                     'dot_class' => 'bg-rose-500',
                     'icon' => 'alert-circle',
-                    'summary' => "Pembayaran berstatus '{$payment->status}' namun memiliki catatan waktu aktivasi langganan.",
-                    'reasons' => ['Status pembayaran bukan paid tetapi kolom activated_at tidak kosong.'],
+                    'summary' => 'Subscription activation tercatat meskipun status pembayaran bukan berhasil (paid).',
+                    'info_notice' => null,
+                    'reasons' => [
+                        "Subscription activation tercatat meskipun status pembayaran bukan berhasil ({$payment->status}).",
+                    ],
                     'is_consistent' => false,
                 ];
             } else {
@@ -173,7 +181,8 @@ class PaymentsController extends Controller
                     'badge_class' => 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700',
                     'dot_class' => 'bg-slate-400',
                     'icon' => 'info',
-                    'summary' => 'Pembayaran belum atau tidak berhasil, dan entitlement Cloud tidak aktif.',
+                    'summary' => 'Pembayaran belum atau tidak berhasil, dan tidak ada aktivasi yang terjadi dari transaksi ini.',
+                    'info_notice' => null,
                     'reasons' => [],
                     'is_consistent' => true,
                 ];
