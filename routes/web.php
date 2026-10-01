@@ -22,6 +22,7 @@ use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
+use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
@@ -276,6 +277,10 @@ Route::prefix('platform')
         Route::post('subscriptions/{subscription}/renew', [PlatformSubscriptionsController::class, 'renew'])->name('subscriptions.renew');
         Route::patch('subscriptions/{subscription}/downgrade', [PlatformSubscriptionsController::class, 'downgrade'])->name('subscriptions.downgrade');
         Route::patch('subscriptions/{subscription}/inactivate', [PlatformSubscriptionsController::class, 'inactivate'])->name('subscriptions.inactivate');
+
+        // ADMIN-06 — Midtrans Payment Management (Operator Console)
+        Route::get('payments', [PlatformPaymentsController::class, 'index'])->name('payments.index');
+        Route::get('payments/{payment}', [PlatformPaymentsController::class, 'show'])->name('payments.show');
     });
 
 require __DIR__.'/settings.php';
