@@ -83,15 +83,28 @@
                         {{ number_format($users['total']) }}
                     </div>
                 </div>
-                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span class="flex items-center gap-1.5" title="Akun bisnis customer-facing">
-                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-                        Bisnis: <strong class="text-slate-800 dark:text-slate-200 font-semibold" data-testid="platform-merchant-users">{{ number_format($users['merchants']) }}</strong>
-                    </span>
-                    <span class="flex items-center gap-1.5" title="Operator Platform Admin">
-                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-                        Admin: <strong class="text-slate-800 dark:text-slate-200 font-semibold" data-testid="platform-admin-users">{{ number_format($users['platform_admins']) }}</strong>
-                    </span>
+                <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5" title="User terhubung ke minimal satu bisnis">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            User Bisnis:
+                        </span>
+                        <strong class="text-slate-800 dark:text-slate-200 font-semibold" data-testid="platform-business-users">{{ number_format($users['business_users']) }}</strong>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5" title="Operator Platform Admin">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            Platform Admin:
+                        </span>
+                        <strong class="text-slate-800 dark:text-slate-200 font-semibold" data-testid="platform-admin-users">{{ number_format($users['platform_admins']) }}</strong>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="flex items-center gap-1.5" title="Pengguna terdaftar tanpa relasi bisnis">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            Belum Terhubung:
+                        </span>
+                        <strong class="text-slate-800 dark:text-slate-200 font-semibold" data-testid="platform-unconnected-users">{{ number_format($users['unconnected']) }}</strong>
+                    </div>
                 </div>
             </div>
 
@@ -402,8 +415,8 @@
                                 </p>
                             </div>
                             <div class="flex items-center gap-3 shrink-0">
-                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold {{ $u->is_platform_admin ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/60' : 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60' }}">
-                                    {{ $u->is_platform_admin ? 'Platform Admin' : 'User Bisnis' }}
+                                <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold {{ $u->is_platform_admin ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/60' : ($u->businesses_exists ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60' : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60') }}">
+                                    {{ $u->is_platform_admin ? 'Platform Admin' : ($u->businesses_exists ? 'User Bisnis' : 'Belum Terhubung') }}
                                 </span>
                                 <span class="text-[11px] text-slate-400 dark:text-slate-500">
                                     {{ $u->created_at ? $u->created_at->diffForHumans() : '-' }}

@@ -29,8 +29,9 @@ class PlatformOverviewQuery
             ],
             'users' => [
                 'total' => User::query()->count(),
-                'merchants' => User::query()->where('is_platform_admin', false)->count(),
+                'business_users' => User::query()->where('is_platform_admin', false)->whereHas('businesses')->count(),
                 'platform_admins' => User::query()->where('is_platform_admin', true)->count(),
+                'unconnected' => User::query()->where('is_platform_admin', false)->whereDoesntHave('businesses')->count(),
                 'recent_30d' => User::query()->where('created_at', '>=', $since30Days)->count(),
             ],
             'subscriptions' => [
@@ -58,8 +59,17 @@ class PlatformOverviewQuery
                 'last_processed_at' => SyncRequest::query()->max('processed_at'),
             ],
             'recentActivity' => [
-                'businesses' => Business::query()->latest('id')->limit(5)->get(['id', 'name', 'slug', 'status', 'created_at']),
-                'users' => User::query()->latest('id')->limit(5)->get(['id', 'name', 'email', 'is_platform_admin', 'created_at']),
+                'businesses' => Business::query()
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->limit(5)
+                    ->get(['id', 'name', 'slug', 'status', 'created_at']),
+                'users' => User::query()
+                    ->withExists('businesses')
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id')
+                    ->limit(5)
+                    ->get(['id', 'name', 'email', 'is_platform_admin', 'created_at']),
             ],
         ];
     }

@@ -53,29 +53,38 @@ class PlatformOverviewDashboardTest extends TestCase
     }
 
     /**
-     * B. Total user dihitung secara benar dengan pemisahan eksplisit antara akun bisnis dan operator admin.
+     * B. Total user dihitung secara benar dengan pemisahan eksplisit: User Bisnis, Platform Admin, dan Belum Terhubung.
      */
     public function test_platform_admin_can_view_user_metrics_with_unambiguous_breakdown(): void
     {
-        // 2 platform admin
+        // 2 Platform Admin (1 acting admin + 1 extra admin)
         $adminA = User::factory()->platformAdmin()->create(['created_at' => now()]);
         User::factory()->platformAdmin()->create(['created_at' => now()]);
 
-        // 3 customer / business users (2 baru, 1 lama)
+        // 3 user yang memiliki membership business
+        $business = Business::factory()->create();
+        $businessUser1 = User::factory()->create(['is_platform_admin' => false, 'created_at' => now()]);
+        $businessUser2 = User::factory()->create(['is_platform_admin' => false, 'created_at' => now()]);
+        $businessUser3 = User::factory()->create(['is_platform_admin' => false, 'created_at' => now()->subDays(45)]);
+
+        $business->users()->attach($businessUser1->id, ['role' => Business::ROLE_OWNER]);
+        $business->users()->attach($businessUser2->id, ['role' => Business::ROLE_CASHIER]);
+        $business->users()->attach($businessUser3->id, ['role' => Business::ROLE_MEMBER]);
+
+        // 1 regular user tanpa business
         User::factory()->create(['is_platform_admin' => false, 'created_at' => now()]);
-        User::factory()->create(['is_platform_admin' => false, 'created_at' => now()]);
-        User::factory()->create(['is_platform_admin' => false, 'created_at' => now()->subDays(45)]);
 
         $response = $this->actingAs($adminA)->get('/platform');
 
         $response->assertOk();
         $content = $response->getContent();
 
-        // Total 5 users, 3 user bisnis, 2 platform admin, 4 baru dalam 30 hari terakhir
-        $this->assertMatchesRegularExpression('/data-testid="platform-total-users">\s*5\s*<\/div>/', $content);
-        $this->assertMatchesRegularExpression('/data-testid="platform-merchant-users">\s*3\s*<\/strong>/', $content);
+        // Total Pengguna = 6, User Bisnis = 3, Platform Admin = 2, Belum Terhubung = 1
+        $this->assertMatchesRegularExpression('/data-testid="platform-total-users">\s*6\s*<\/div>/', $content);
+        $this->assertMatchesRegularExpression('/data-testid="platform-business-users">\s*3\s*<\/strong>/', $content);
         $this->assertMatchesRegularExpression('/data-testid="platform-admin-users">\s*2\s*<\/strong>/', $content);
-        $this->assertMatchesRegularExpression('/data-testid="platform-recent-users">\s*\+4\s*\(30h\)\s*<\/span>/', $content);
+        $this->assertMatchesRegularExpression('/data-testid="platform-unconnected-users">\s*1\s*<\/strong>/', $content);
+        $this->assertMatchesRegularExpression('/data-testid="platform-recent-users">\s*\+5\s*\(30h\)\s*<\/span>/', $content);
     }
 
     /**
@@ -265,6 +274,56 @@ class PlatformOverviewDashboardTest extends TestCase
         $response->assertSee('Apotek Sehat Bersama');
         $response->assertSee('Budi Santoso');
         $response->assertSee('budi@merchant.com');
+    }
+
+    /**
+     * Aktivitas terbaru diurutkan berdasarkan created_at terbaru, bukan bergantung pada ID.
+     */
+    public function test_recent_activity_orders_records_by_created_at_descending_regardless_of_id(): void
+    {
+        $platformAdmin = User::factory()->platformAdmin()->create();
+
+        // Buat record: older dibuat lebih dahulu (created_at lama), newer dibuat belakangan (created_at baru)
+        $olderBusiness = Business::factory()->create([
+            'name' => 'Bisnis Lebih Lama',
+            'slug' => 'bisnis-lama',
+            'created_at' => now()->subDays(10),
+        ]);
+
+        $newerBusiness = Business::factory()->create([
+            'name' => 'Bisnis Lebih Baru',
+            'slug' => 'bisnis-baru',
+            'created_at' => now(),
+        ]);
+
+        $olderUser = User::factory()->create([
+            'name' => 'User Lebih Lama',
+            'email' => 'lama@example.com',
+            'created_at' => now()->subDays(15),
+        ]);
+
+        $newerUser = User::factory()->create([
+            'name' => 'User Lebih Baru',
+            'email' => 'baru@example.com',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($platformAdmin)->get('/platform');
+        $response->assertOk();
+        $content = $response->getContent();
+
+        // Pastikan record yang lebih baru muncul SEBELUM record yang lebih lama di HTML
+        $posNewerBiz = strpos($content, 'Bisnis Lebih Baru');
+        $posOlderBiz = strpos($content, 'Bisnis Lebih Lama');
+        $this->assertNotFalse($posNewerBiz);
+        $this->assertNotFalse($posOlderBiz);
+        $this->assertLessThan($posOlderBiz, $posNewerBiz, 'Bisnis dengan created_at lebih baru harus muncul sebelum bisnis yang lebih lama.');
+
+        $posNewerUser = strpos($content, 'User Lebih Baru');
+        $posOlderUser = strpos($content, 'User Lebih Lama');
+        $this->assertNotFalse($posNewerUser);
+        $this->assertNotFalse($posOlderUser);
+        $this->assertLessThan($posOlderUser, $posNewerUser, 'User dengan created_at lebih baru harus muncul sebelum user yang lebih lama.');
     }
 
     /**
