@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\DB;
 
 final class PremiumSubscriptionActivator
 {
+    public function __construct(
+        private readonly SubscriptionPeriodCalculator $calculator = new SubscriptionPeriodCalculator,
+    ) {}
+
     public function activatePaidPayment(SubscriptionPayment $payment): void
     {
         DB::transaction(function () use ($payment): void {
@@ -47,23 +51,22 @@ final class PremiumSubscriptionActivator
                 $startsAt = $subscription->starts_at ?? $now;
             }
 
-            $expiresAt = match ($lockedPayment->billing_period) {
-                'monthly' => $base->copy()->addMonthNoOverflow(),
-                'yearly' => $base->copy()->addYearNoOverflow(),
-                default => throw new \UnexpectedValueException('Unsupported billing period.'),
-            };
+            $expiresAt = $this->calculator->calculateExpiry($base, $lockedPayment->billing_period);
 
             Subscription::query()->updateOrCreate(
                 ['business_id' => $lockedPayment->business_id],
                 [
-                    'plan' => Subscription::PLAN_CLOUD,
+                    'plan' => $lockedPayment->plan ?: Subscription::PLAN_CLOUD,
                     'status' => Subscription::STATUS_ACTIVE,
                     'starts_at' => $startsAt,
                     'expires_at' => $expiresAt,
                 ],
             );
 
-            $lockedPayment->forceFill(['activated_at' => $now])->save();
+            $lockedPayment->forceFill([
+                'activated_at' => $now,
+                'expires_at' => $expiresAt,
+            ])->save();
         });
     }
 }
