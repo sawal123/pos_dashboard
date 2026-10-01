@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 use App\Models\Business;
 use App\Models\Subscription;
 use App\Services\Subscription\PremiumPolicy;
+use App\Services\Subscription\SubscriptionPeriodCalculator;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
 use InvalidArgumentException;
@@ -13,6 +14,7 @@ class SubscriptionAdministrationService
 {
     public function __construct(
         private readonly PremiumPolicy $policy,
+        private readonly SubscriptionPeriodCalculator $calculator = new SubscriptionPeriodCalculator,
     ) {}
 
     /**
@@ -128,13 +130,7 @@ class SubscriptionAdministrationService
      */
     private function calculateExpiry(\DateTimeInterface|CarbonInterface $base, string $billingPeriod): Carbon
     {
-        $carbon = Carbon::parse($base);
-
-        return match ($billingPeriod) {
-            'monthly' => $carbon->addMonthNoOverflow(),
-            'yearly' => $carbon->addYearNoOverflow(),
-            default => throw new InvalidArgumentException("Unsupported billing period: {$billingPeriod}"),
-        };
+        return $this->calculator->calculateExpiry($base, $billingPeriod);
     }
 
     /**

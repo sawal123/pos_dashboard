@@ -41,23 +41,23 @@ final class MidtransWebhookService
 
             $newStatus = $this->mapper->toInternalStatus($notification->transactionStatus, $notification->fraudStatus);
 
-            $payment->forceFill([
-                'provider_transaction_id' => $notification->transactionId,
-                'provider_payment_type' => $notification->paymentType,
-                'provider_transaction_status' => $notification->transactionStatus,
-                'provider_fraud_status' => $notification->fraudStatus,
-                'provider_payload' => $notification->payload,
-            ]);
-
             if ($newStatus !== null && $this->canTransition($payment->status, $newStatus)) {
+                $payment->forceFill([
+                    'provider_transaction_id' => $notification->transactionId,
+                    'provider_payment_type' => $notification->paymentType,
+                    'provider_transaction_status' => $notification->transactionStatus,
+                    'provider_fraud_status' => $notification->fraudStatus,
+                    'provider_payload' => $notification->payload,
+                ]);
+
                 $payment->status = $newStatus;
 
                 if ($newStatus === SubscriptionPayment::STATUS_PAID && $payment->paid_at === null) {
                     $payment->paid_at = Carbon::now();
                 }
-            }
 
-            $payment->save();
+                $payment->save();
+            }
 
             return $payment;
         });
