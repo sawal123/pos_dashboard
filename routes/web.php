@@ -25,6 +25,7 @@ use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformClo
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController;
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
+use App\Http\Controllers\Platform\RevenueReportsController as PlatformRevenueReportsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
@@ -311,6 +312,9 @@ Route::prefix('platform')
 
         // ADMIN-11 — Transactions & Usage Analytics (Global Operational Observability)
         Route::get('analytics', [PlatformUsageAnalyticsController::class, 'index'])->name('analytics.index');
+
+        // ADMIN-12 — Revenue & Billing Reports (Platform SaaS Subscription Billing)
+        Route::get('revenue', [PlatformRevenueReportsController::class, 'index'])->name('revenue.index');
     });
 
 require __DIR__.'/settings.php';
