@@ -95,7 +95,7 @@
                     <span>Ditemukan Pembayaran Lebih Dari Satu Mata Uang</span>
                 </div>
                 <p>
-                    Data revenue periode ini memiliki lebih dari 1 mata uang. Sistem tidak melakukan konversi kurs (FX) otomatis untuk menjaga akurasi akuntansi historis.
+                    Data revenue periode ini memiliki lebih dari 1 mata uang. Sistem mengisolasi agregasi per mata uang dan tidak melakukan konversi kurs (FX) otomatis untuk menjaga integritas data historis.
                 </p>
                 <div class="flex flex-wrap gap-2 pt-1">
                     @foreach($summary['currency_breakdown'] as $currRow)
@@ -109,10 +109,12 @@
 
         {{-- Primary Revenue KPI Cards --}}
         <div class="grid grid-cols-2 lg:grid-cols-6 gap-3.5">
-            {{-- Revenue Subscription Paid (Total Paid Revenue) --}}
+            {{-- Revenue Subscription Paid (Total Paid Revenue IDR) --}}
             <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs col-span-2 sm:col-span-2">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Revenue Subscription Paid</span>
+                    <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                        Revenue Subscription Paid {{ $summary['is_multi_currency'] ? '(IDR)' : '' }}
+                    </span>
                     <span class="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400">
                         <i data-lucide="banknote" class="w-3.5 h-3.5"></i>
                     </span>
@@ -121,7 +123,7 @@
                     {{ $summary['formatted_paid_revenue'] }}
                 </div>
                 <div class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
-                    Pendapatan Pembayaran Berhasil
+                    Pendapatan Pembayaran Berhasil {{ $summary['is_multi_currency'] ? '(Mata Uang IDR)' : '' }}
                 </div>
             </div>
 
@@ -235,9 +237,19 @@
                         </p>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs font-bold text-slate-900 dark:text-white">
-                            {{ $trend['formatted_total_amount'] }}
-                        </span>
+                        @if($trend['is_multi_currency'])
+                            <div class="flex flex-col items-end gap-0.5">
+                                @foreach($trend['formatted_currency_totals'] as $currCode => $formattedVal)
+                                    <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                                        {{ $currCode }}: {{ $formattedVal }}
+                                    </span>
+                                @endforeach
+                            </div>
+                        @else
+                            <span class="text-xs font-bold text-slate-900 dark:text-white">
+                                {{ $trend['formatted_total_amount'] }}
+                            </span>
+                        @endif
                         <span class="block text-[10px] text-slate-400 dark:text-slate-500">
                             {{ number_format($trend['total_count'], 0, ',', '.') }} pembayaran
                         </span>
@@ -250,8 +262,8 @@
                         <div class="h-44 flex items-end gap-1 sm:gap-1.5 overflow-x-auto pb-2" role="img" aria-label="Grafik Tren Revenue Harian">
                             @foreach($trend['intervals'] as $item)
                                 @php
-                                    $heightPercent = $trend['max_amount'] > 0
-                                        ? max(4, (int) round(($item['amount'] / $trend['max_amount']) * 100))
+                                    $heightPercent = $trend['max_count'] > 0
+                                        ? max(4, (int) round(($item['count'] / $trend['max_count']) * 100))
                                         : 4;
                                 @endphp
                                 <div class="flex-1 min-w-[14px] sm:min-w-[20px] flex flex-col items-center justify-end h-full group relative">
@@ -259,15 +271,21 @@
                                     <div class="absolute bottom-full mb-1.5 hidden group-hover:flex flex-col items-center z-20 pointer-events-none">
                                         <div class="bg-slate-900 dark:bg-slate-800 text-white text-[10px] rounded-lg px-2 py-1 shadow-lg whitespace-nowrap text-center">
                                             <p class="font-bold">{{ $item['label'] }}</p>
-                                            <p class="text-emerald-400 font-mono">{{ $item['formatted_amount'] }}</p>
-                                            <p class="text-slate-300">{{ $item['count'] }} pembayaran</p>
+                                            @if(count($item['currencies']) > 0)
+                                                @foreach($item['currencies'] as $cItem)
+                                                    <p class="text-emerald-400 font-mono">{{ $cItem['formatted'] }} ({{ $cItem['count'] }} payment)</p>
+                                                @endforeach
+                                            @else
+                                                <p class="text-slate-400">0 pembayaran</p>
+                                            @endif
+                                            <p class="text-slate-300">{{ $item['count'] }} total pembayaran</p>
                                         </div>
                                         <div class="w-1.5 h-1.5 bg-slate-900 dark:bg-slate-800 rotate-45 -mt-0.5"></div>
                                     </div>
 
                                     {{-- Bar --}}
                                     <div
-                                        class="w-full rounded-t-md transition-all duration-300 {{ $item['amount'] > 0 ? 'bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400' : 'bg-slate-100 dark:bg-slate-800' }}"
+                                        class="w-full rounded-t-md transition-all duration-300 {{ $item['count'] > 0 ? 'bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400' : 'bg-slate-100 dark:bg-slate-800' }}"
                                         style="height: {{ $heightPercent }}%;"
                                     ></div>
 
@@ -298,29 +316,59 @@
                     </h3>
                     <div class="space-y-3">
                         {{-- Bulanan --}}
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                            <div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                            <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Bulanan (Monthly)</span>
-                                <span class="block text-[11px] text-slate-400 dark:text-slate-500">
+                                <span class="text-[11px] text-slate-400 dark:text-slate-500">
                                     {{ $billing_period_breakdown['monthly']['count'] }} pembayaran
                                 </span>
                             </div>
-                            <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
-                                {{ $billing_period_breakdown['monthly']['formatted'] }}
-                            </span>
+                            @if(count($billing_period_breakdown['monthly']['currencies']) > 1)
+                                <div class="mt-2 space-y-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                                    @foreach($billing_period_breakdown['monthly']['currencies'] as $currItem)
+                                        <div class="flex items-center justify-between text-[11px]">
+                                            <span class="font-semibold text-slate-600 dark:text-slate-400">{{ $currItem['currency'] }}:</span>
+                                            <span class="font-mono font-bold text-slate-900 dark:text-white">
+                                                {{ $currItem['formatted'] }} ({{ $currItem['count'] }} pembayaran)
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="mt-1 text-right">
+                                    <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                                        {{ $billing_period_breakdown['monthly']['formatted'] }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
 
                         {{-- Tahunan --}}
-                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                            <div>
+                        <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                            <div class="flex items-center justify-between">
                                 <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Tahunan (Yearly)</span>
-                                <span class="block text-[11px] text-slate-400 dark:text-slate-500">
+                                <span class="text-[11px] text-slate-400 dark:text-slate-500">
                                     {{ $billing_period_breakdown['yearly']['count'] }} pembayaran
                                 </span>
                             </div>
-                            <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
-                                {{ $billing_period_breakdown['yearly']['formatted'] }}
-                            </span>
+                            @if(count($billing_period_breakdown['yearly']['currencies']) > 1)
+                                <div class="mt-2 space-y-1 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                                    @foreach($billing_period_breakdown['yearly']['currencies'] as $currItem)
+                                        <div class="flex items-center justify-between text-[11px]">
+                                            <span class="font-semibold text-slate-600 dark:text-slate-400">{{ $currItem['currency'] }}:</span>
+                                            <span class="font-mono font-bold text-slate-900 dark:text-white">
+                                                {{ $currItem['formatted'] }} ({{ $currItem['count'] }} pembayaran)
+                                            </span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <div class="mt-1 text-right">
+                                    <span class="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                                        {{ $billing_period_breakdown['yearly']['formatted'] }}
+                                    </span>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -380,16 +428,16 @@
             </div>
         </div>
 
-        {{-- Top Paying Businesses Table --}}
+        {{-- Top Paying Businesses Table (IDR Revenue Only) --}}
         <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <i data-lucide="building-2" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
-                        Top 10 Bisnis Penghasil Revenue
+                        Top 10 Bisnis Penghasil Revenue (IDR)
                     </h2>
                     <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Berdasarkan total nominal pembayaran berstatus paid pada periode {{ $current_filters['period_label'] }}.
+                        Berdasarkan pembayaran berstatus paid dalam mata uang IDR pada periode {{ $current_filters['period_label'] }}. Pembayaran mata uang lain dirinci pada panel mata uang.
                     </p>
                 </div>
             </div>
@@ -404,7 +452,7 @@
                                 <th class="py-2.5 px-3 text-center">Status Cloud Saat Ini</th>
                                 <th class="py-2.5 px-3 text-right">Pembayaran Berhasil</th>
                                 <th class="py-2.5 px-3 text-center">Paket (Bln / Thn)</th>
-                                <th class="py-2.5 px-3 text-right">Revenue Paid</th>
+                                <th class="py-2.5 px-3 text-right">Revenue Paid (IDR)</th>
                                 <th class="py-2.5 px-3 text-right">Terakhir Terbayar</th>
                             </tr>
                         </thead>
@@ -539,6 +587,12 @@
                     </p>
                 </div>
                 <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
+                    <h3 class="font-bold text-slate-800 dark:text-slate-200">Keamanan Mata Uang (Currency Safety)</h3>
+                    <p class="text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
+                        Sistem tidak pernah menjumlah nominal lintas mata uang tanpa kurs konversi. Ranking bisnis dan grafik harian difokuskan pada IDR, dengan rincian mata uang lain disajikan terpisah.
+                    </p>
+                </div>
+                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
                     <h3 class="font-bold text-slate-800 dark:text-slate-200">Status Payment Dibuat (created_at)</h3>
                     <p class="text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
                         Distribusi status percobaan pembayaran (pending, failed, expired, cancelled) dihitung berdasarkan created_at karena database server tidak menyimpan timestamp transisi status khusus.
@@ -554,12 +608,6 @@
                     <h3 class="font-bold text-slate-800 dark:text-slate-200">Aktivasi Manual Platform Admin</h3>
                     <p class="text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
                         Aktivasi manual Platform Admin tidak termasuk klasifikasi payment activation.
-                    </p>
-                </div>
-                <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1">
-                    <h3 class="font-bold text-slate-800 dark:text-slate-200">Pemisahan Snapshot Terkini</h3>
-                    <p class="text-slate-600 dark:text-slate-400 leading-relaxed text-[11px]">
-                        Panel kondisi langganan saat ini mencerminkan status real-time seluruh merchant saat ini, independen dari rentang tanggal filter pembayaran historis.
                     </p>
                 </div>
             </div>

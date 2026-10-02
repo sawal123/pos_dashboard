@@ -555,6 +555,171 @@ class PlatformRevenueReportsTest extends TestCase
         $this->assertSame(50, $data['summary']['currency_breakdown']['USD']['amount']);
     }
 
+    public function test_billing_breakdown_multi_currency_never_sums_cross_currency(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-02 12:00:00'));
+
+        $business = Business::factory()->create();
+
+        // Monthly: IDR 150000 + USD 50
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'billing_period' => 'monthly',
+            'amount' => 150000,
+            'currency' => 'IDR',
+            'paid_at' => now()->subDays(2),
+        ]);
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'billing_period' => 'monthly',
+            'amount' => 50,
+            'currency' => 'USD',
+            'paid_at' => now()->subDays(2),
+        ]);
+
+        $data = app(PlatformRevenueReportsData::class)->get(['date' => '30days']);
+
+        $monthlyBreakdown = $data['billing_period_breakdown']['monthly'];
+        $this->assertSame(2, $monthlyBreakdown['count']);
+
+        // Assert strictly grouped canonical structure exists
+        $this->assertArrayHasKey('IDR', $monthlyBreakdown['currencies']);
+        $this->assertArrayHasKey('USD', $monthlyBreakdown['currencies']);
+        $this->assertSame(150000, $monthlyBreakdown['currencies']['IDR']['amount']);
+        $this->assertSame(50, $monthlyBreakdown['currencies']['USD']['amount']);
+
+        // Assert NO combined cross-currency arithmetic (e.g. 150050)
+        $this->assertNotSame(150050, $monthlyBreakdown['amount']);
+        $this->assertSame(150000, $monthlyBreakdown['idr_amount']);
+        $this->assertSame(150000, $data['summary']['monthly_revenue_idr']);
+        $this->assertNotSame(150050, $data['summary']['monthly_revenue']);
+    }
+
+    public function test_daily_trend_multi_currency_separates_currency_totals(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-02 12:00:00'));
+
+        $business = Business::factory()->create();
+        $targetDate = Carbon::parse('2026-10-01 10:00:00');
+
+        // Same day: IDR 150000 + USD 50
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 150000,
+            'currency' => 'IDR',
+            'paid_at' => $targetDate,
+        ]);
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 50,
+            'currency' => 'USD',
+            'paid_at' => $targetDate,
+        ]);
+
+        $data = app(PlatformRevenueReportsData::class)->get([
+            'date' => 'custom',
+            'start_date' => '2026-10-01',
+            'end_date' => '2026-10-02',
+        ]);
+
+        $trend = $data['trend'];
+        $this->assertTrue($trend['is_multi_currency']);
+
+        // Currency totals must be separate map, NOT 150050
+        $this->assertSame(['IDR' => 150000, 'USD' => 50], $trend['currency_totals']);
+        $this->assertNotSame(150050, $trend['total_amount']);
+
+        // Check the interval on 2026-10-01
+        $dayInterval = $trend['intervals'][0];
+        $this->assertSame('2026-10-01', $dayInterval['date']);
+        $this->assertSame(2, $dayInterval['count']);
+        $this->assertArrayHasKey('IDR', $dayInterval['currencies']);
+        $this->assertArrayHasKey('USD', $dayInterval['currencies']);
+        $this->assertSame(150000, $dayInterval['currencies']['IDR']['amount']);
+        $this->assertSame(50, $dayInterval['currencies']['USD']['amount']);
+        $this->assertNotSame(150050, $dayInterval['amount']);
+    }
+
+    public function test_top_businesses_multi_currency_excludes_non_idr_from_idr_ranking(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-02 12:00:00'));
+
+        $platformAdmin = User::factory()->platformAdmin()->create();
+
+        $businessA = Business::factory()->create(['name' => 'Bisnis Lokal IDR']);
+        $businessB = Business::factory()->create(['name' => 'Bisnis Global USD']);
+
+        // Business A has IDR 100.000
+        SubscriptionPayment::factory()->create([
+            'business_id' => $businessA->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 100000,
+            'currency' => 'IDR',
+            'paid_at' => now()->subDays(2),
+        ]);
+
+        // Business B has USD 1.000 (nominally smaller number 1000 than 100000, but completely different currency)
+        SubscriptionPayment::factory()->create([
+            'business_id' => $businessB->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 1000,
+            'currency' => 'USD',
+            'paid_at' => now()->subDays(1),
+        ]);
+
+        $data = app(PlatformRevenueReportsData::class)->get(['date' => '30days']);
+
+        // Business B (USD) must NOT enter IDR top ranking
+        $topList = $data['top_businesses'];
+        $this->assertCount(1, $topList);
+        $this->assertSame('Bisnis Lokal IDR', $topList[0]['business_name']);
+        $this->assertSame('IDR', $topList[0]['currency']);
+        $this->assertSame(100000, $topList[0]['paid_revenue']);
+
+        $response = $this->actingAs($platformAdmin)->get('/platform/revenue?date=30days');
+        $response->assertOk();
+        $response->assertSee('Bisnis Lokal IDR');
+        $response->assertDontSee('Bisnis Global USD');
+    }
+
+    public function test_ui_response_never_renders_combined_cross_currency_sum(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-10-02 12:00:00'));
+
+        $platformAdmin = User::factory()->platformAdmin()->create();
+        $business = Business::factory()->create();
+
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 150000,
+            'currency' => 'IDR',
+            'paid_at' => now()->subDays(2),
+        ]);
+        SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'amount' => 50,
+            'currency' => 'USD',
+            'paid_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($platformAdmin)->get('/platform/revenue?date=30days');
+
+        $response->assertOk();
+        // Assert that misleading cross-currency sums are never displayed
+        $response->assertDontSee('150.050');
+        $response->assertDontSee('Rp 150.050');
+        // Assert currency breakdown is visible
+        $response->assertSee('Ditemukan Pembayaran Lebih Dari Satu Mata Uang');
+        $response->assertSee('IDR: Rp 150.000');
+        $response->assertSee('USD: USD 50');
+    }
+
     // ============================================================
     // 12. Top Paying Businesses Test (Section 75)
     // ============================================================

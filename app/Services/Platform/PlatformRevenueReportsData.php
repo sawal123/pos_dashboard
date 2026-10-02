@@ -78,7 +78,7 @@ class PlatformRevenueReportsData
             ];
         }
 
-        // 3. Billing Period Breakdown (Monthly vs Yearly)
+        // 3. Billing Period Breakdown (Monthly vs Yearly, strictly grouped by billing_period and currency)
         $billingPeriodBreakdown = $this->buildBillingPeriodBreakdown($paidRevenueQuery);
 
         // 4. Payment Attempt Status (Created within period)
@@ -102,10 +102,10 @@ class PlatformRevenueReportsData
                 ->count(),
         ];
 
-        // 7. Revenue Trend (Daily Zero-Filled)
+        // 7. Revenue Trend (Daily Zero-Filled, strictly currency-aware)
         $trend = $this->buildDailyTrend($paidRevenueQuery, $startDate, $endDate);
 
-        // 8. Top Paying Businesses (Top 10)
+        // 8. Top Paying Businesses (Top 10 IDR Revenue)
         $topBusinesses = $this->buildTopBusinesses($startDate, $endDate);
 
         // 9. Current Subscription State (Landscape Snapshot)
@@ -122,10 +122,14 @@ class PlatformRevenueReportsData
                 'first_activations' => $activationStats['first_activations'],
                 'subsequent_activations' => $activationStats['subsequent_activations'],
                 'monthly_revenue' => $billingPeriodBreakdown['monthly']['amount'],
+                'monthly_revenue_idr' => $billingPeriodBreakdown['monthly']['idr_amount'],
                 'formatted_monthly_revenue' => $billingPeriodBreakdown['monthly']['formatted'],
+                'formatted_monthly_revenue_idr' => $billingPeriodBreakdown['monthly']['formatted_idr_amount'],
                 'monthly_count' => $billingPeriodBreakdown['monthly']['count'],
                 'yearly_revenue' => $billingPeriodBreakdown['yearly']['amount'],
+                'yearly_revenue_idr' => $billingPeriodBreakdown['yearly']['idr_amount'],
                 'formatted_yearly_revenue' => $billingPeriodBreakdown['yearly']['formatted'],
+                'formatted_yearly_revenue_idr' => $billingPeriodBreakdown['yearly']['formatted_idr_amount'],
                 'yearly_count' => $billingPeriodBreakdown['yearly']['count'],
             ],
             'billing_period_breakdown' => $billingPeriodBreakdown,
@@ -217,37 +221,78 @@ class PlatformRevenueReportsData
     }
 
     /**
-     * Build monthly vs yearly breakdown from historical paid payment snapshots.
+     * Build monthly vs yearly breakdown from historical paid payment snapshots,
+     * strictly grouped by billing_period and currency to prevent cross-currency summation.
      *
      * @param  Builder<SubscriptionPayment>  $paidRevenueQuery
-     * @return array<string, array{count: int, amount: int, formatted: string}>
+     * @return array{
+     *     monthly: array{count: int, idr_amount: int, formatted_idr_amount: string, amount: int, formatted: string, currencies: array<string, array{currency: string, count: int, amount: int, formatted: string}>},
+     *     yearly: array{count: int, idr_amount: int, formatted_idr_amount: string, amount: int, formatted: string, currencies: array<string, array{currency: string, count: int, amount: int, formatted: string}>}
+     * }
      */
     private function buildBillingPeriodBreakdown(Builder $paidRevenueQuery): array
     {
         $rows = (clone $paidRevenueQuery)
-            ->selectRaw('billing_period, COUNT(id) as count, SUM(amount) as amount')
-            ->groupBy('billing_period')
-            ->get()
-            ->keyBy('billing_period');
+            ->selectRaw('billing_period, currency, COUNT(id) as count, SUM(amount) as amount')
+            ->groupBy(['billing_period', 'currency'])
+            ->get();
 
-        $monthlyCount = isset($rows['monthly']) ? (int) $rows['monthly']->getAttribute('count') : 0;
-        $monthlyAmount = isset($rows['monthly']) ? (int) $rows['monthly']->getAttribute('amount') : 0;
-
-        $yearlyCount = isset($rows['yearly']) ? (int) $rows['yearly']->getAttribute('count') : 0;
-        $yearlyAmount = isset($rows['yearly']) ? (int) $rows['yearly']->getAttribute('amount') : 0;
-
-        return [
+        $breakdown = [
             'monthly' => [
-                'count' => $monthlyCount,
-                'amount' => $monthlyAmount,
-                'formatted' => $this->formatMoney($monthlyAmount, 'IDR'),
+                'count' => 0,
+                'idr_amount' => 0,
+                'formatted_idr_amount' => $this->formatMoney(0, 'IDR'),
+                'amount' => 0,
+                'formatted' => $this->formatMoney(0, 'IDR'),
+                'currencies' => [],
             ],
             'yearly' => [
-                'count' => $yearlyCount,
-                'amount' => $yearlyAmount,
-                'formatted' => $this->formatMoney($yearlyAmount, 'IDR'),
+                'count' => 0,
+                'idr_amount' => 0,
+                'formatted_idr_amount' => $this->formatMoney(0, 'IDR'),
+                'amount' => 0,
+                'formatted' => $this->formatMoney(0, 'IDR'),
+                'currencies' => [],
             ],
         ];
+
+        foreach ($rows as $row) {
+            $period = (string) $row->getAttribute('billing_period');
+            $curr = (string) $row->getAttribute('currency');
+            $cnt = (int) $row->getAttribute('count');
+            $amt = (int) $row->getAttribute('amount');
+
+            if (! isset($breakdown[$period])) {
+                continue;
+            }
+
+            $breakdown[$period]['count'] += $cnt;
+            $breakdown[$period]['currencies'][$curr] = [
+                'currency' => $curr,
+                'count' => $cnt,
+                'amount' => $amt,
+                'formatted' => $this->formatMoney($amt, $curr),
+            ];
+
+            if ($curr === 'IDR') {
+                $breakdown[$period]['idr_amount'] = $amt;
+                $breakdown[$period]['formatted_idr_amount'] = $this->formatMoney($amt, 'IDR');
+                $breakdown[$period]['amount'] = $amt;
+                $breakdown[$period]['formatted'] = $this->formatMoney($amt, 'IDR');
+            }
+        }
+
+        // If IDR is absent but exactly one non-IDR currency exists, populate amount for display
+        foreach (['monthly', 'yearly'] as $period) {
+            if ($breakdown[$period]['idr_amount'] === 0 && count($breakdown[$period]['currencies']) === 1) {
+                foreach ($breakdown[$period]['currencies'] as $singleCurrency) {
+                    $breakdown[$period]['amount'] = $singleCurrency['amount'];
+                    $breakdown[$period]['formatted'] = $singleCurrency['formatted'];
+                }
+            }
+        }
+
+        return $breakdown;
     }
 
     /**
@@ -336,7 +381,8 @@ class PlatformRevenueReportsData
     }
 
     /**
-     * Build zero-filled daily paid revenue trend.
+     * Build zero-filled daily paid revenue trend, strictly grouped by DATE(paid_at) and currency.
+     * Prevents cross-currency summation.
      *
      * @param  Builder<SubscriptionPayment>  $paidRevenueQuery
      * @return array<string, mixed>
@@ -344,50 +390,90 @@ class PlatformRevenueReportsData
     private function buildDailyTrend(Builder $paidRevenueQuery, Carbon $startDate, Carbon $endDate): array
     {
         $rawRows = (clone $paidRevenueQuery)
-            ->selectRaw('DATE(paid_at) as date_raw, COUNT(id) as paid_count, SUM(amount) as paid_amount')
-            ->groupByRaw('DATE(paid_at)')
-            ->get()
-            ->keyBy('date_raw');
+            ->selectRaw('DATE(paid_at) as date_raw, currency, COUNT(id) as paid_count, SUM(amount) as paid_amount')
+            ->groupByRaw('DATE(paid_at), currency')
+            ->get();
 
+        $byDateAndCurrency = [];
+        $currencyTotals = [];
+        $totalPaidCount = 0;
+
+        foreach ($rawRows as $row) {
+            $d = (string) $row->getAttribute('date_raw');
+            $curr = (string) $row->getAttribute('currency');
+            $cnt = (int) $row->getAttribute('paid_count');
+            $amt = (int) $row->getAttribute('paid_amount');
+
+            $byDateAndCurrency[$d][$curr] = [
+                'currency' => $curr,
+                'count' => $cnt,
+                'amount' => $amt,
+                'formatted' => $this->formatMoney($amt, $curr),
+            ];
+
+            $currencyTotals[$curr] = ($currencyTotals[$curr] ?? 0) + $amt;
+            $totalPaidCount += $cnt;
+        }
+
+        $formattedCurrencyTotals = [];
+        foreach ($currencyTotals as $curr => $amt) {
+            $formattedCurrencyTotals[$curr] = $this->formatMoney($amt, $curr);
+        }
+
+        $isMultiCurrency = count($currencyTotals) > 1;
         $intervals = [];
         $cursor = $startDate->copy()->startOfDay();
         $targetEnd = $endDate->copy()->startOfDay();
 
         while ($cursor->lte($targetEnd)) {
             $dateRaw = $cursor->format('Y-m-d');
-            $row = $rawRows[$dateRaw] ?? null;
-            $paidCount = $row !== null ? (int) $row->getAttribute('paid_count') : 0;
-            $paidAmount = $row !== null ? (int) $row->getAttribute('paid_amount') : 0;
+            $currenciesOnDate = $byDateAndCurrency[$dateRaw] ?? [];
+
+            $dayCount = 0;
+            $dayIdrAmount = 0;
+            foreach ($currenciesOnDate as $curr => $cData) {
+                $dayCount += (int) $cData['count'];
+                if ($curr === 'IDR') {
+                    $dayIdrAmount = (int) $cData['amount'];
+                }
+            }
 
             $intervals[] = [
                 'date' => $dateRaw,
                 'label' => $this->formatDateLabel($cursor),
                 'short_label' => $cursor->format('d M'),
-                'count' => $paidCount,
-                'amount' => $paidAmount,
-                'formatted_amount' => $this->formatMoney($paidAmount, 'IDR'),
+                'count' => $dayCount,
+                'idr_amount' => $dayIdrAmount,
+                'formatted_idr_amount' => $this->formatMoney($dayIdrAmount, 'IDR'),
+                'currencies' => $currenciesOnDate,
+                // IDR-safe amount (0 if not IDR) to prevent accidental cross-currency sums
+                'amount' => $dayIdrAmount,
+                'formatted_amount' => $this->formatMoney($dayIdrAmount, 'IDR'),
             ];
 
             $cursor->addDay();
         }
 
         $maxCount = max(array_merge([1], array_column($intervals, 'count')));
-        $maxAmount = max(array_merge([1], array_column($intervals, 'amount')));
-        $totalPaidCount = array_sum(array_column($intervals, 'count'));
-        $totalPaidAmount = array_sum(array_column($intervals, 'amount'));
+        $maxIdrAmount = max(array_merge([1], array_column($intervals, 'idr_amount')));
 
         return [
             'intervals' => $intervals,
             'max_count' => $maxCount,
-            'max_amount' => $maxAmount,
+            'max_amount' => $maxIdrAmount,
+            'max_idr_amount' => $maxIdrAmount,
             'total_count' => $totalPaidCount,
-            'total_amount' => $totalPaidAmount,
-            'formatted_total_amount' => $this->formatMoney($totalPaidAmount, 'IDR'),
+            'currency_totals' => $currencyTotals,
+            'formatted_currency_totals' => $formattedCurrencyTotals,
+            'is_multi_currency' => $isMultiCurrency,
+            'total_amount' => $currencyTotals['IDR'] ?? 0,
+            'formatted_total_amount' => isset($currencyTotals['IDR']) ? $this->formatMoney($currencyTotals['IDR'], 'IDR') : 'Rp 0',
         ];
     }
 
     /**
-     * Build top 10 paying businesses within the selected period.
+     * Build top 10 paying businesses within the selected period strictly for IDR currency.
+     * Prevents cross-currency sorting without foreign exchange conversion.
      *
      * @return list<array<string, mixed>>
      */
@@ -395,6 +481,7 @@ class PlatformRevenueReportsData
     {
         $topStats = SubscriptionPayment::query()
             ->where('status', SubscriptionPayment::STATUS_PAID)
+            ->where('currency', 'IDR')
             ->whereBetween('paid_at', [
                 $startDate->toDateTimeString(),
                 $endDate->toDateTimeString(),
@@ -436,6 +523,7 @@ class PlatformRevenueReportsData
                 'business_id' => $businessId,
                 'business_name' => $businessName,
                 'business_slug' => $businessSlug,
+                'currency' => 'IDR',
                 'paid_count' => $paidCount,
                 'paid_revenue' => $paidRevenue,
                 'formatted_revenue' => $this->formatMoney($paidRevenue, 'IDR'),
@@ -533,6 +621,10 @@ class PlatformRevenueReportsData
             [
                 'title' => 'Snapshot Nilai Historis Checkout',
                 'description' => 'Revenue historis menggunakan nilai amount yang tersimpan pada baris pembayaran saat checkout, bukan harga katalog langganan saat ini.',
+            ],
+            [
+                'title' => 'Keamanan Multi-Mata Uang (Currency Safety)',
+                'description' => 'Sistem tidak pernah menjumlah nominal lintas mata uang tanpa kurs konversi. Ranking bisnis utama dan grafik harian difokuskan pada IDR, dengan rincian mata uang lain disajikan terpisah.',
             ],
             [
                 'title' => 'Status Payment Dibuat (created_at)',
