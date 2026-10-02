@@ -21,6 +21,7 @@ use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
+use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformCloudBackupMonitoringController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController;
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
@@ -303,6 +304,9 @@ Route::prefix('platform')
         // ADMIN-09 — Sync Monitoring (Global Platform Sync Observability)
         Route::get('sync', [PlatformSyncMonitoringController::class, 'index'])->name('sync.index');
         Route::get('sync/{syncRequest}', [PlatformSyncMonitoringController::class, 'show'])->name('sync.show');
+
+        // ADMIN-10 — Cloud Backup Monitoring (Readiness & Observability)
+        Route::get('backups', [PlatformCloudBackupMonitoringController::class, 'index'])->name('backups.index');
     });
 
 require __DIR__.'/settings.php';

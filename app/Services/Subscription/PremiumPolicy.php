@@ -175,6 +175,25 @@ final class PremiumPolicy
     }
 
     /**
+     * Check if a declared capability has an available backend implementation on the server.
+     * Unknown or explicitly disabled capabilities evaluate to false (fail closed).
+     */
+    public function isCapabilityAvailable(string $capability): bool
+    {
+        if (! in_array($capability, $this->capabilities(), true)) {
+            return false;
+        }
+
+        $availability = config('premium.capability_availability');
+
+        if (! is_array($availability)) {
+            return false;
+        }
+
+        return ($availability[$capability] ?? false) === true;
+    }
+
+    /**
      * Whether the business currently holds an active Cloud entitlement.
      */
     public function hasCloudEntitlement(?Business $business): bool
@@ -183,12 +202,13 @@ final class PremiumPolicy
     }
 
     /**
-     * Deny-by-default capability check. An unknown capability, or a business
-     * without an active Cloud entitlement, is always denied.
+     * Deny-by-default capability check. An unknown capability, an unavailable
+     * capability (backend not implemented), or a business without an active
+     * Cloud entitlement, is always denied (fail closed).
      */
     public function allows(?Business $business, string $capability): bool
     {
-        if (! in_array($capability, $this->capabilities(), true)) {
+        if (! $this->isCapabilityAvailable($capability)) {
             return false;
         }
 
