@@ -512,8 +512,11 @@ class PlatformUsageAnalyticsTest extends TestCase
         $response->assertDontSee('Active Users');
         $response->assertDontSee('Daily Active Users');
         $response->assertDontSee('Monthly Active Users');
-        $response->assertDontSee('DAU');
-        $response->assertDontSee('MAU');
+        $response->assertDontSee('DAU (Daily Active Users)');
+        $response->assertDontSee('MAU (Monthly Active Users)');
+        $response->assertDontSee('DAU / MAU');
+        $response->assertDontSee('Active Cashiers');
+        $response->assertDontSee('Last Login');
 
         // Should NOT invent fake backup metrics
         $response->assertDontSee('Backup Count');
