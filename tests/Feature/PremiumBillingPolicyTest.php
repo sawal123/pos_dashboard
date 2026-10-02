@@ -100,16 +100,29 @@ class PremiumBillingPolicyTest extends TestCase
     // 2. Entitlement (active / free / expired / inactive)
     // ============================================================
 
-    public function test_active_cloud_subscription_grants_every_capability(): void
+    public function test_active_cloud_subscription_grants_only_available_capabilities_and_denies_unavailable(): void
     {
         $business = $this->businessWithCloud();
-
         $policy = app(PremiumPolicy::class);
 
         $this->assertTrue($policy->hasCloudEntitlement($business));
-        foreach ($policy->capabilities() as $capability) {
-            $this->assertTrue($policy->allows($business, $capability), "denied: {$capability}");
-        }
+
+        // Active Cloud grants available capabilities
+        $this->assertTrue($policy->allows($business, PremiumPolicy::CAPABILITY_WEB_DASHBOARD));
+        $this->assertTrue($policy->allows($business, PremiumPolicy::CAPABILITY_CLOUD_SYNC));
+        $this->assertTrue($policy->allows($business, PremiumPolicy::CAPABILITY_CLOUD_DEVICES));
+
+        // Declared but unavailable capabilities fail closed (false)
+        $this->assertFalse($policy->allows($business, PremiumPolicy::CAPABILITY_CLOUD_BACKUP));
+        $this->assertFalse($policy->allows($business, PremiumPolicy::CAPABILITY_CLOUD_RESTORE));
+
+        // Direct capability availability check source of truth
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_WEB_DASHBOARD));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_SYNC));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_DEVICES));
+        $this->assertFalse($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_BACKUP));
+        $this->assertFalse($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_RESTORE));
+        $this->assertFalse($policy->isCapabilityAvailable('unknown_capability'));
     }
 
     public function test_free_subscription_grants_no_capability(): void

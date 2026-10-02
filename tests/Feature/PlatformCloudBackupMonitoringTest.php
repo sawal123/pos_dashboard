@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\SyncCounter;
 use App\Models\SyncRequest;
 use App\Models\User;
+use App\Services\Platform\PlatformCloudBackupMonitoringData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -71,7 +72,7 @@ class PlatformCloudBackupMonitoringTest extends TestCase
     // 2. Capability Declaration & Backend Status Tests
     // ============================================================
 
-    public function test_page_displays_declared_capabilities(): void
+    public function test_page_displays_declared_and_availability_readiness_status(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
@@ -83,6 +84,19 @@ class PlatformCloudBackupMonitoringTest extends TestCase
         $response->assertSee('Cloud Restore');
         $response->assertSee('cloud_restore');
         $response->assertSee('Terdaftar (Declared)');
+
+        // Requirements: Declared: YA and Available: TIDAK
+        $response->assertSee('Declared:');
+        $response->assertSee('Available:');
+        $response->assertSee('YA');
+        $response->assertSee('TIDAK');
+
+        // Test service/policy canonical values directly
+        $monitoringData = app(PlatformCloudBackupMonitoringData::class)->get();
+        $this->assertTrue($monitoringData['capabilities']['cloud_backup']['declared']);
+        $this->assertFalse($monitoringData['capabilities']['cloud_backup']['backend_available']);
+        $this->assertTrue($monitoringData['capabilities']['cloud_restore']['declared']);
+        $this->assertFalse($monitoringData['capabilities']['cloud_restore']['backend_available']);
     }
 
     public function test_page_explicitly_discloses_backend_is_not_implemented(): void
@@ -137,19 +151,28 @@ class PlatformCloudBackupMonitoringTest extends TestCase
         $response->assertSee('Bebas Surrogate Metric');
     }
 
-    public function test_page_displays_future_telemetry_requirements(): void
+    public function test_page_displays_softened_future_observability_requirements(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
         $response = $this->actingAs($platformAdmin)->get('/platform/backups');
 
         $response->assertOk();
-        $response->assertSee('backup_id');
-        $response->assertSee('business_id');
-        $response->assertSee('device_id');
-        $response->assertSee('size_bytes');
-        $response->assertSee('storage_reference');
-        $response->assertSee('checksum');
+        $response->assertSee('Kebutuhan Observabilitas Saat Backend Dibangun');
+        $response->assertSee('backup identifier');
+        $response->assertSee('business reference');
+        $response->assertSee('source device reference');
+        $response->assertSee('execution status');
+        $response->assertSee('started timestamp');
+        $response->assertSee('completed timestamp');
+        $response->assertSee('size metadata');
+        $response->assertSee('storage reference (jika applicable)');
+        $response->assertSee('integrity metadata (jika applicable)');
+        $response->assertSee('restore event reference');
+
+        // Ensure rigid premature backend assumptions are removed
+        $response->assertDontSee('SHA-256');
+        $response->assertDontSee('terkompresi');
     }
 
     // ============================================================

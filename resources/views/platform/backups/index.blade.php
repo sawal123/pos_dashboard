@@ -124,10 +124,17 @@
                 <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
                     {{ $capabilities['cloud_backup']['description'] }}
                 </p>
-                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-slate-400">Status Implementasi:</span>
-                    <span class="font-bold text-amber-600 dark:text-amber-400">
-                        Belum Diimplementasikan
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-3">
+                        <span class="text-slate-600 dark:text-slate-400">
+                            Declared: <strong class="{{ $capabilities['cloud_backup']['declared'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400' }}">{{ $capabilities['cloud_backup']['declared'] ? 'YA' : 'TIDAK' }}</strong>
+                        </span>
+                        <span class="text-slate-600 dark:text-slate-400">
+                            Available: <strong class="{{ $capabilities['cloud_backup']['backend_available'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">{{ $capabilities['cloud_backup']['backend_available'] ? 'YA' : 'TIDAK' }}</strong>
+                        </span>
+                    </div>
+                    <span class="font-bold {{ $capabilities['cloud_backup']['backend_available'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">
+                        {{ $capabilities['cloud_backup']['status_label'] }}
                     </span>
                 </div>
             </div>
@@ -156,10 +163,17 @@
                 <p class="text-xs text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
                     {{ $capabilities['cloud_restore']['description'] }}
                 </p>
-                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
-                    <span class="text-slate-500 dark:text-slate-400">Status Implementasi:</span>
-                    <span class="font-bold text-amber-600 dark:text-amber-400">
-                        Belum Diimplementasikan
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div class="flex items-center gap-3">
+                        <span class="text-slate-600 dark:text-slate-400">
+                            Declared: <strong class="{{ $capabilities['cloud_restore']['declared'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400' }}">{{ $capabilities['cloud_restore']['declared'] ? 'YA' : 'TIDAK' }}</strong>
+                        </span>
+                        <span class="text-slate-600 dark:text-slate-400">
+                            Available: <strong class="{{ $capabilities['cloud_restore']['backend_available'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">{{ $capabilities['cloud_restore']['backend_available'] ? 'YA' : 'TIDAK' }}</strong>
+                        </span>
+                    </div>
+                    <span class="font-bold {{ $capabilities['cloud_restore']['backend_available'] ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400' }}">
+                        {{ $capabilities['cloud_restore']['status_label'] }}
                     </span>
                 </div>
             </div>
@@ -256,19 +270,19 @@
             </div>
         </div>
 
-        {{-- Future Telemetry & Observability Requirements Card --}}
+        {{-- Observability Requirements When Backend is Built --}}
         <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
             <div>
                 <h3 class="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <i data-lucide="layers" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
-                    Data Telemetri yang Dibutuhkan untuk Observabilitas Mendatang
+                    Kebutuhan Observabilitas Saat Backend Dibangun
                 </h3>
                 <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Ketika backend Cloud Backup dibangun, skema telemetri berikut harus disediakan agar monitoring aktif penuh:
+                    Ketika backend Cloud Backup dibangun, kebutuhan telemetri dan metadata konseptual berikut harus dipenuhi untuk monitoring operasional:
                 </p>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                @foreach($future_telemetry_contract as $item)
+                @foreach(($future_observability_requirements ?? $future_telemetry_contract) as $item)
                     <div class="p-3 rounded-xl bg-slate-50/75 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-800 text-xs">
                         <div class="flex items-center justify-between gap-1 mb-1">
                             <span class="font-mono font-bold text-indigo-600 dark:text-indigo-400 text-[11px]">

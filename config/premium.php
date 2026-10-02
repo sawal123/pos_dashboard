@@ -53,12 +53,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | All-or-nothing: every capability is denied unless the business holds an
-    | active Cloud entitlement. Declaring a capability here grants nothing by
-    | itself — PremiumPolicy::allows() still requires `Business::hasCloudAccess()`.
+    | active Cloud entitlement AND the capability has an active backend implementation.
+    | Declaring a capability here grants nothing by itself — PremiumPolicy::allows()
+    | requires both `capability_availability` to be true and `Business::hasCloudAccess()`.
     |
     | `cloud_backup` and `cloud_restore` are declared product capabilities with no
-    | backend implementation yet, so they stay denied for everyone until the
-    | feature exists.
+    | backend implementation yet (`capability_availability` is false), so they stay
+    | denied for everyone (fail closed) until the feature exists.
     */
     'capabilities' => [
         'web_dashboard',
@@ -66,6 +67,23 @@ return [
         'cloud_restore',
         'cloud_sync',
         'cloud_devices',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Capability implementation availability (fail-closed backend readiness)
+    |--------------------------------------------------------------------------
+    |
+    | Authoritative source of truth for whether a declared product capability has
+    | an available backend implementation on the server. Capabilities set to false
+    | remain denied even for businesses with active Cloud subscriptions.
+    */
+    'capability_availability' => [
+        'web_dashboard' => true,
+        'cloud_sync' => true,
+        'cloud_devices' => true,
+        'cloud_backup' => false,
+        'cloud_restore' => false,
     ],
 
     /*

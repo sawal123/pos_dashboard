@@ -21,27 +21,83 @@ class PlatformCloudBackupMonitoringData
         $isBackupDeclared = in_array(PremiumPolicy::CAPABILITY_CLOUD_BACKUP, $declaredCapabilities, true);
         $isRestoreDeclared = in_array(PremiumPolicy::CAPABILITY_CLOUD_RESTORE, $declaredCapabilities, true);
 
+        $isBackupAvailable = $this->premiumPolicy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_BACKUP);
+        $isRestoreAvailable = $this->premiumPolicy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_RESTORE);
+
+        $futureObservabilityRequirements = [
+            [
+                'field' => 'backup identifier',
+                'type' => 'Identifier Unik',
+                'description' => 'Pengenal unik transaksi pencadangan (idempotency reference).',
+            ],
+            [
+                'field' => 'business reference',
+                'type' => 'Relasi Bisnis',
+                'description' => 'Referensi entitas bisnis pemilik data cadangan.',
+            ],
+            [
+                'field' => 'source device reference',
+                'type' => 'Relasi Perangkat',
+                'description' => 'Referensi perangkat POS sumber snapshot data.',
+            ],
+            [
+                'field' => 'execution status',
+                'type' => 'Status Eksekusi',
+                'description' => 'Status tahapan siklus hidup proses pencadangan.',
+            ],
+            [
+                'field' => 'started timestamp',
+                'type' => 'Waktu Mulai',
+                'description' => 'Waktu inisiasi pengiriman berkas cadangan oleh perangkat.',
+            ],
+            [
+                'field' => 'completed timestamp',
+                'type' => 'Waktu Selesai',
+                'description' => 'Waktu verifikasi dan penyelesaian penyimpanan cadangan.',
+            ],
+            [
+                'field' => 'size metadata',
+                'type' => 'Metadata Ukuran',
+                'description' => 'Informasi kuantitatif ukuran data atau berkas pencadangan.',
+            ],
+            [
+                'field' => 'storage reference (jika applicable)',
+                'type' => 'Referensi Storage',
+                'description' => 'Lokasi atau pengenal penyimpanan data cadangan di cloud (opsional sesuai arsitektur storage).',
+            ],
+            [
+                'field' => 'integrity metadata (jika applicable)',
+                'type' => 'Metadata Integritas',
+                'description' => 'Informasi verifikasi keabsahan dan integritas berkas cadangan (opsional sesuai mekanisme verifikasi).',
+            ],
+            [
+                'field' => 'restore event reference',
+                'type' => 'Relasi Pemulihan',
+                'description' => 'Tautan ke riwayat atau kejadian pemulihan data yang menggunakan cadangan ini.',
+            ],
+        ];
+
         return [
             'capabilities' => [
                 'cloud_backup' => [
                     'name' => 'Cloud Backup',
                     'code' => PremiumPolicy::CAPABILITY_CLOUD_BACKUP,
                     'declared' => $isBackupDeclared,
-                    'backend_available' => false,
-                    'status_label' => 'Capability Terdaftar, Backend Belum Tersedia',
+                    'backend_available' => $isBackupAvailable,
+                    'status_label' => $isBackupAvailable ? 'Tersedia' : 'Capability Terdaftar, Backend Belum Tersedia',
                     'description' => 'Pencadangan snapshot data operasional merchant ke storage cloud terpusat.',
                 ],
                 'cloud_restore' => [
                     'name' => 'Cloud Restore',
                     'code' => PremiumPolicy::CAPABILITY_CLOUD_RESTORE,
                     'declared' => $isRestoreDeclared,
-                    'backend_available' => false,
-                    'status_label' => 'Capability Terdaftar, Backend Belum Tersedia',
+                    'backend_available' => $isRestoreAvailable,
+                    'status_label' => $isRestoreAvailable ? 'Tersedia' : 'Capability Terdaftar, Backend Belum Tersedia',
                     'description' => 'Pemulihan data bisnis dari arsip snapshot cloud ke perangkat kasir.',
                 ],
             ],
             'readiness_summary' => [
-                'backend_status' => 'Belum Diimplementasikan',
+                'backend_status' => $isBackupAvailable && $isRestoreAvailable ? 'Tersedia' : 'Belum Diimplementasikan',
                 'backup_history' => 'Tidak Tersedia',
                 'restore_history' => 'Tidak Tersedia',
                 'storage_usage' => 'Tidak Tersedia',
@@ -104,17 +160,8 @@ class PlatformCloudBackupMonitoringData
                     'notes' => 'Belum ada scheduler atau worker queue untuk backup berkala.',
                 ],
             ],
-            'future_telemetry_contract' => [
-                ['field' => 'backup_id', 'type' => 'UUID', 'description' => 'Pengenal unik transaksi pencadangan (idempotency token).'],
-                ['field' => 'business_id', 'type' => 'Foreign Key', 'description' => 'Relasi pemilik data bisnis yang dicadangkan.'],
-                ['field' => 'device_id', 'type' => 'Foreign Key', 'description' => 'Perangkat POS Mobile asal snapshot data.'],
-                ['field' => 'status', 'type' => 'Enum / String', 'description' => 'Status eksekusi (in_progress, completed, failed).'],
-                ['field' => 'started_at', 'type' => 'Timestamp', 'description' => 'Waktu inisiasi upload snapshot oleh perangkat.'],
-                ['field' => 'completed_at', 'type' => 'Timestamp', 'description' => 'Waktu verifikasi dan commit ke cloud storage.'],
-                ['field' => 'size_bytes', 'type' => 'BigInteger', 'description' => 'Ukuran file arsip snapshot terkompresi.'],
-                ['field' => 'storage_reference', 'type' => 'String', 'description' => 'Kunci referensi objek di cloud object storage provider.'],
-                ['field' => 'checksum', 'type' => 'String', 'description' => 'Hash SHA-256 untuk verifikasi integritas data arsip.'],
-            ],
+            'future_observability_requirements' => $futureObservabilityRequirements,
+            'future_telemetry_contract' => $futureObservabilityRequirements,
         ];
     }
 }
