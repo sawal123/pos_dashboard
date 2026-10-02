@@ -53,8 +53,9 @@ return [
     |--------------------------------------------------------------------------
     |
     | All-or-nothing: every capability is denied unless the business holds an
-    | active Cloud entitlement. Declaring a capability here grants nothing by
-    | itself — PremiumPolicy::allows() still requires `Business::hasCloudAccess()`.
+    | active Cloud entitlement AND the capability has an active backend implementation.
+    | Declaring a capability here grants nothing by itself — PremiumPolicy::allows()
+    | requires both `capability_availability` to be true and `Business::hasCloudAccess()`.
     |
     | `cloud_backup` and `cloud_restore` are enforced by the PREM-D03 private
     | backup API: `cloud_backup` gates upload/list/detail, `cloud_restore` gates
@@ -66,6 +67,27 @@ return [
         'cloud_restore',
         'cloud_sync',
         'cloud_devices',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Capability implementation availability (fail-closed backend readiness)
+    |--------------------------------------------------------------------------
+    |
+    | Authoritative source of truth for whether a declared product capability has
+    | an available backend implementation on the server. Capabilities set to false
+    | remain denied even for businesses with active Cloud subscriptions.
+    |
+    | `cloud_backup` / `cloud_restore` are enabled because PREM-D03 ships the
+    | private backup API (upload/list/detail/download). Device restore execution
+    | itself still lives on the mobile client (PREM-M06).
+    */
+    'capability_availability' => [
+        'web_dashboard' => true,
+        'cloud_sync' => true,
+        'cloud_devices' => true,
+        'cloud_backup' => true,
+        'cloud_restore' => true,
     ],
 
     /*

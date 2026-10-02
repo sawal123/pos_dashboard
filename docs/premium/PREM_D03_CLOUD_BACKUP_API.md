@@ -150,6 +150,14 @@ Both are declared in `config/premium.php` and enforced through
 `PremiumPolicy::allows()`; both still require an active Cloud entitlement. No
 second permission system was introduced.
 
+Since ADMIN-10, `PremiumPolicy::allows()` also requires the capability to have a
+live backend (`config('premium.capability_availability')`, fail-closed for any
+unknown/unset entry). PREM-D03 is that backend, so the merged configuration sets
+`cloud_backup => true` and `cloud_restore => true`. The platform readiness page
+(`/platform/backups`) reflects this: the backup API and `cloud_backups` schema
+rows are now available, while restore *execution*, storage telemetry and
+scheduling remain explicitly marked as not implemented.
+
 ### Cross-tenant behavior
 
 Resource-specific endpoints return `404` (`BACKUP_NOT_FOUND`) for a snapshot that

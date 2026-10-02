@@ -100,16 +100,29 @@ class PremiumBillingPolicyTest extends TestCase
     // 2. Entitlement (active / free / expired / inactive)
     // ============================================================
 
-    public function test_active_cloud_subscription_grants_every_capability(): void
+    public function test_active_cloud_subscription_grants_every_available_capability(): void
     {
         $business = $this->businessWithCloud();
-
         $policy = app(PremiumPolicy::class);
 
         $this->assertTrue($policy->hasCloudEntitlement($business));
+
+        // Active Cloud grants every capability whose backend has shipped.
         foreach ($policy->capabilities() as $capability) {
             $this->assertTrue($policy->allows($business, $capability), "denied: {$capability}");
         }
+
+        // PREM-D03 shipped the private cloud backup/restore backend, so both
+        // capabilities are now available (and therefore granted).
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_WEB_DASHBOARD));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_SYNC));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_DEVICES));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_BACKUP));
+        $this->assertTrue($policy->isCapabilityAvailable(PremiumPolicy::CAPABILITY_CLOUD_RESTORE));
+
+        // Undeclared/unknown capabilities stay fail-closed.
+        $this->assertFalse($policy->allows($business, 'unknown_capability'));
+        $this->assertFalse($policy->isCapabilityAvailable('unknown_capability'));
     }
 
     public function test_free_subscription_grants_no_capability(): void
