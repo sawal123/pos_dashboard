@@ -56,9 +56,9 @@ return [
     | active Cloud entitlement. Declaring a capability here grants nothing by
     | itself — PremiumPolicy::allows() still requires `Business::hasCloudAccess()`.
     |
-    | `cloud_backup` and `cloud_restore` are declared product capabilities with no
-    | backend implementation yet, so they stay denied for everyone until the
-    | feature exists.
+    | `cloud_backup` and `cloud_restore` are enforced by the PREM-D03 private
+    | backup API: `cloud_backup` gates upload/list/detail, `cloud_restore` gates
+    | the authorized download. Both still require `Business::hasCloudAccess()`.
     */
     'capabilities' => [
         'web_dashboard',
@@ -66,6 +66,28 @@ return [
         'cloud_restore',
         'cloud_sync',
         'cloud_devices',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cloud backup snapshot storage (PREM-D03)
+    |--------------------------------------------------------------------------
+    |
+    | - disk      : a PRIVATE filesystem disk (default `cloud_backups`, never
+    |               `public`). Override per deployment with CLOUD_BACKUP_DISK.
+    | - max_bytes : hard application limit per backup (25 MB), enforced in the
+    |               application layer — server/PHP upload limits must be >= this
+    |               when the transport is multipart.
+    | - retention : maximum READY backups kept per business. Retention runs only
+    |               after a new backup is successfully persisted as READY.
+    |
+    | The server stores opaque, immutable snapshots; it never restores them into
+    | the POS. Restore stays on the device (PREM-M06).
+    */
+    'backup' => [
+        'disk' => env('CLOUD_BACKUP_DISK', 'cloud_backups'),
+        'max_bytes' => 25 * 1024 * 1024,
+        'retention' => 10,
     ],
 
     /*

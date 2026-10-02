@@ -75,6 +75,12 @@ final class BusinessPermission
 
     public const MOBILE_DEVICES_MANAGE = 'mobile.devices.manage';
 
+    // PREM-D03 — private Cloud backup API. `cloud.backup` gates upload/list/
+    // detail; `cloud.restore` gates the authorized snapshot download.
+    public const CLOUD_BACKUP = 'cloud.backup';
+
+    public const CLOUD_RESTORE = 'cloud.restore';
+
     /**
      * Role => permission list. Any role not listed here has zero permissions.
      *
@@ -98,6 +104,8 @@ final class BusinessPermission
                 self::SYNC_PUSH,
                 self::SYNC_PULL,
                 self::MOBILE_DEVICES_MANAGE,
+                self::CLOUD_BACKUP,
+                self::CLOUD_RESTORE,
             ],
             Business::ROLE_CASHIER => [
                 self::DASHBOARD_VIEW,
