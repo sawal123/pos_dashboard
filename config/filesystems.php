@@ -38,6 +38,21 @@ return [
             'report' => false,
         ],
 
+        /*
+         * PREM-D03 — private disk for Cloud backup snapshots.
+         *
+         * This disk must NEVER be `public`: snapshots contain private business
+         * data and are only ever served through the authorized download
+         * endpoint. `serve` is disabled so no temporary URL is ever generated.
+         */
+        'cloud_backups' => [
+            'driver' => 'local',
+            'root' => storage_path('app/private/cloud-backups'),
+            'serve' => false,
+            'throw' => true,
+            'report' => false,
+        ],
+
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),

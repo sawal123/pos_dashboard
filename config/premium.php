@@ -57,9 +57,9 @@ return [
     | Declaring a capability here grants nothing by itself — PremiumPolicy::allows()
     | requires both `capability_availability` to be true and `Business::hasCloudAccess()`.
     |
-    | `cloud_backup` and `cloud_restore` are declared product capabilities with no
-    | backend implementation yet (`capability_availability` is false), so they stay
-    | denied for everyone (fail closed) until the feature exists.
+    | `cloud_backup` and `cloud_restore` are enforced by the PREM-D03 private
+    | backup API: `cloud_backup` gates upload/list/detail, `cloud_restore` gates
+    | the authorized download. Both still require `Business::hasCloudAccess()`.
     */
     'capabilities' => [
         'web_dashboard',
@@ -77,13 +77,39 @@ return [
     | Authoritative source of truth for whether a declared product capability has
     | an available backend implementation on the server. Capabilities set to false
     | remain denied even for businesses with active Cloud subscriptions.
+    |
+    | `cloud_backup` / `cloud_restore` are enabled because PREM-D03 ships the
+    | private backup API (upload/list/detail/download). Device restore execution
+    | itself still lives on the mobile client (PREM-M06).
     */
     'capability_availability' => [
         'web_dashboard' => true,
         'cloud_sync' => true,
         'cloud_devices' => true,
-        'cloud_backup' => false,
-        'cloud_restore' => false,
+        'cloud_backup' => true,
+        'cloud_restore' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cloud backup snapshot storage (PREM-D03)
+    |--------------------------------------------------------------------------
+    |
+    | - disk      : a PRIVATE filesystem disk (default `cloud_backups`, never
+    |               `public`). Override per deployment with CLOUD_BACKUP_DISK.
+    | - max_bytes : hard application limit per backup (25 MB), enforced in the
+    |               application layer — server/PHP upload limits must be >= this
+    |               when the transport is multipart.
+    | - retention : maximum READY backups kept per business. Retention runs only
+    |               after a new backup is successfully persisted as READY.
+    |
+    | The server stores opaque, immutable snapshots; it never restores them into
+    | the POS. Restore stays on the device (PREM-M06).
+    */
+    'backup' => [
+        'disk' => env('CLOUD_BACKUP_DISK', 'cloud_backups'),
+        'max_bytes' => 25 * 1024 * 1024,
+        'retention' => 10,
     ],
 
     /*

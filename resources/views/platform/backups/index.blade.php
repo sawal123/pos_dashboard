@@ -13,7 +13,7 @@
             </div>
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/80 dark:border-amber-800/80 shadow-xs text-xs font-bold text-amber-700 dark:text-amber-400 shrink-0">
                 <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                <span>Status Backend: <strong>Belum Tersedia</strong></span>
+                <span>Status Backend: <strong>{{ $readiness_summary['backend_status'] }}</strong></span>
             </div>
         </div>
 
@@ -31,7 +31,7 @@
                     {{ $readiness_summary['backend_status'] }}
                 </div>
                 <div class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                    Belum ada API route &amp; worker service
+                    API route tersedia; worker/queue belum ada
                 </div>
             </div>
 
@@ -47,7 +47,7 @@
                     {{ $readiness_summary['backup_history'] }}
                 </div>
                 <div class="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                    Tidak ada tabel database penyimpanan
+                    Tabel tersedia; telemetri riwayat belum dibangun
                 </div>
             </div>
 
@@ -90,7 +90,7 @@
             <div class="space-y-1.5">
                 <span class="font-bold text-sm block">Kondisi Kesiapan Fitur (Observabilitas Jujur):</span>
                 <p class="text-indigo-900/90 dark:text-indigo-300 text-xs leading-relaxed">
-                    Kapabilitas <strong>Cloud Backup</strong> dan <strong>Cloud Restore</strong> adalah fitur produk resmi yang telah dideklarasikan dalam kebijakan produk (<code class="font-mono text-[11px] bg-indigo-100/80 dark:bg-indigo-900/50 px-1 py-0.5 rounded">config/premium.php</code> &amp; <code class="font-mono text-[11px] bg-indigo-100/80 dark:bg-indigo-900/50 px-1 py-0.5 rounded">PremiumPolicy</code>). Namun, <strong>backend engine belum diimplementasikan</strong> di sisi server.
+                    Kapabilitas <strong>Cloud Backup</strong> dan <strong>Cloud Restore</strong> adalah fitur produk resmi yang telah dideklarasikan dalam kebijakan produk (<code class="font-mono text-[11px] bg-indigo-100/80 dark:bg-indigo-900/50 px-1 py-0.5 rounded">config/premium.php</code> &amp; <code class="font-mono text-[11px] bg-indigo-100/80 dark:bg-indigo-900/50 px-1 py-0.5 rounded">PremiumPolicy</code>). Backend <strong>Cloud Backup</strong> (unggah, daftar, detail, unduh snapshot privat) <strong>sudah tersedia</strong> di server; eksekusi restore tetap di perangkat mobile (PREM-M06) dan telemetri operasional belum dibangun.
                 </p>
                 <p class="text-indigo-800/80 dark:text-indigo-300/80 text-[11px] leading-relaxed">
                     Halaman ini berfungsi sebagai observabilitas kesiapan (readiness monitoring) yang akurat. Tidak ada data fiktif atau metrik nol semu yang dimanipulasi. Seluruh aksi operasional pencadangan bersifat read-only.
@@ -265,7 +265,7 @@
                     Langganan <strong>Cloud</strong> adalah prasyarat produk agar bisnis berhak menggunakan kapabilitas Cloud Backup dan Restore di masa depan.
                 </p>
                 <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-[11px] text-slate-600 dark:text-slate-400">
-                    <strong>Penting:</strong> Hak langganan aktif tidak secara otomatis mengaktifkan fitur pencadangan selama backend implementasi di server belum selesai dibangun dan dirilis.
+                    <strong>Penting:</strong> Cloud Backup aktif untuk bisnis dengan langganan Cloud yang sah; eksekusi restore penuh dan telemetri operasional masih dalam pengembangan.
                 </div>
             </div>
         </div>

@@ -37,7 +37,7 @@ class PlatformCloudBackupMonitoringTest extends TestCase
         $response->assertOk();
         $response->assertSee('Monitoring Backup Cloud');
         $response->assertSee('Status Backend:');
-        $response->assertSee('Belum Tersedia');
+        $response->assertSee('Tersedia');
     }
 
     public function test_business_owner_is_forbidden_from_backup_monitoring(): void
@@ -85,21 +85,20 @@ class PlatformCloudBackupMonitoringTest extends TestCase
         $response->assertSee('cloud_restore');
         $response->assertSee('Terdaftar (Declared)');
 
-        // Requirements: Declared: YA and Available: TIDAK
+        // PREM-D03 shipped the backend, so Declared: YA and Available: YA.
         $response->assertSee('Declared:');
         $response->assertSee('Available:');
         $response->assertSee('YA');
-        $response->assertSee('TIDAK');
 
-        // Test service/policy canonical values directly
+        // Test service/policy canonical values directly.
         $monitoringData = app(PlatformCloudBackupMonitoringData::class)->get();
         $this->assertTrue($monitoringData['capabilities']['cloud_backup']['declared']);
-        $this->assertFalse($monitoringData['capabilities']['cloud_backup']['backend_available']);
+        $this->assertTrue($monitoringData['capabilities']['cloud_backup']['backend_available']);
         $this->assertTrue($monitoringData['capabilities']['cloud_restore']['declared']);
-        $this->assertFalse($monitoringData['capabilities']['cloud_restore']['backend_available']);
+        $this->assertTrue($monitoringData['capabilities']['cloud_restore']['backend_available']);
     }
 
-    public function test_page_explicitly_discloses_backend_is_not_implemented(): void
+    public function test_page_discloses_the_remaining_readiness_gaps(): void
     {
         $platformAdmin = User::factory()->platformAdmin()->create();
 
@@ -107,10 +106,15 @@ class PlatformCloudBackupMonitoringTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Status Backend:');
-        $response->assertSee('Belum Tersedia');
+        $response->assertSee('Tersedia');
+
+        // PREM-D03 shipped backup/restore, so the API + schema rows are ready...
+        $response->assertSee('Backend API Endpoint (/api/mobile/backups)');
+        $response->assertSee('Model & Tabel Database Riwayat Backup');
+
+        // ...while restore execution, telemetry and scheduling remain pending.
         $response->assertSee('Belum Diimplementasikan');
-        $response->assertSee('backend engine belum diimplementasikan');
-        $response->assertSee('Tidak ada tabel database penyimpanan');
+        $response->assertSee('Belum ada model Eloquent CloudRestore');
         $response->assertSee('Belum ada integrasi object storage');
     }
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CloudBackupController;
 use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\MobileContextController;
 use App\Http\Controllers\Api\MobileDeviceController;
@@ -27,6 +28,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:subscription-checkout');
     Route::get('/mobile/subscription/payments', [MobileSubscriptionPaymentsController::class, 'index']);
     Route::get('/mobile/subscription/payments/{payment}', [MobileSubscriptionPaymentsController::class, 'show']);
+
+    // PREM-D03 — private cloud backup snapshots (upload/list/detail/download).
+    Route::post('/mobile/backups', [CloudBackupController::class, 'store']);
+    Route::get('/mobile/backups', [CloudBackupController::class, 'index']);
+    Route::get('/mobile/backups/{backup}', [CloudBackupController::class, 'show']);
+    Route::get('/mobile/backups/{backup}/download', [CloudBackupController::class, 'download']);
 
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
