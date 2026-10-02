@@ -26,6 +26,7 @@ use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
+use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
@@ -298,6 +299,10 @@ Route::prefix('platform')
         Route::get('devices/{device}', [PlatformDevicesController::class, 'show'])->name('devices.show');
         Route::patch('devices/{device}/deactivate', [PlatformDevicesController::class, 'deactivate'])->name('devices.deactivate');
         Route::patch('devices/{device}/activate', [PlatformDevicesController::class, 'activate'])->name('devices.activate');
+
+        // ADMIN-09 — Sync Monitoring (Global Platform Sync Observability)
+        Route::get('sync', [PlatformSyncMonitoringController::class, 'index'])->name('sync.index');
+        Route::get('sync/{syncRequest}', [PlatformSyncMonitoringController::class, 'show'])->name('sync.show');
     });
 
 require __DIR__.'/settings.php';
