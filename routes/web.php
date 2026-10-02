@@ -28,6 +28,7 @@ use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsControll
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
+use App\Http\Controllers\Platform\UsageAnalyticsController as PlatformUsageAnalyticsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Services\Authorization\BusinessPermission;
@@ -307,6 +308,9 @@ Route::prefix('platform')
 
         // ADMIN-10 — Cloud Backup Monitoring (Readiness & Observability)
         Route::get('backups', [PlatformCloudBackupMonitoringController::class, 'index'])->name('backups.index');
+
+        // ADMIN-11 — Transactions & Usage Analytics (Global Operational Observability)
+        Route::get('analytics', [PlatformUsageAnalyticsController::class, 'index'])->name('analytics.index');
     });
 
 require __DIR__.'/settings.php';
