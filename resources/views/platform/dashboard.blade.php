@@ -172,6 +172,105 @@
 
         </div>
 
+        {{-- Section: Operational Alerts (ADMIN-14) --}}
+        <div class="space-y-3.5" data-testid="platform-operational-alerts-section">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center font-bold">
+                        <i data-lucide="bell" class="w-4 h-4"></i>
+                    </span>
+                    <div>
+                        <h2 class="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span>Alert Operasional</span>
+                            @if(($alertsSummary['total'] ?? 0) > 0)
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-100 text-rose-700 dark:bg-rose-950/80 dark:text-rose-300">
+                                    {{ $alertsSummary['total'] }}
+                                </span>
+                            @endif
+                        </h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            Deteksi anomali server real-time (Kritis: {{ $alertsSummary['critical'] ?? 0 }}, Peringatan: {{ $alertsSummary['warning'] ?? 0 }})
+                        </p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a
+                        href="{{ route('platform.alerts.index') }}"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs"
+                    >
+                        <span>Lihat Semua Alert</span>
+                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                    </a>
+                </div>
+            </div>
+
+            @if(empty($topAlerts))
+                <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="shield-check" class="w-5 h-5"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-900 dark:text-white">
+                            Tidak ada alert operasional aktif
+                        </p>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                            Semua langganan, pembayaran, kuota perangkat, dan cadangan database dalam kondisi normal.
+                        </p>
+                    </div>
+                </div>
+            @else
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                    @foreach($topAlerts as $alert)
+                        @php
+                            $severity = (string) $alert['severity'];
+                            $isCritical = $severity === \App\Support\PlatformOperationalAlertType::SEVERITY_CRITICAL;
+                            $cardBorder = $isCritical
+                                ? 'border-rose-200 dark:border-rose-900/60 bg-rose-50/20 dark:bg-rose-950/10'
+                                : 'border-amber-200 dark:border-amber-900/60 bg-amber-50/20 dark:bg-amber-950/10';
+                            $badgeClasses = \App\Support\PlatformOperationalAlertType::severityBadgeClasses($severity);
+                            $badgeLabel = \App\Support\PlatformOperationalAlertType::severityLabel($severity);
+                        @endphp
+                        <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border {{ $cardBorder }} shadow-xs flex flex-col justify-between space-y-3">
+                            <div class="space-y-1.5">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase {{ $badgeClasses }}">
+                                        @if($isCritical)
+                                            <i data-lucide="alert-triangle" class="w-3 h-3"></i>
+                                        @else
+                                            <i data-lucide="alert-circle" class="w-3 h-3"></i>
+                                        @endif
+                                        <span>{{ $badgeLabel }}</span>
+                                    </span>
+                                    <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate max-w-[120px]">
+                                        {{ $alert['business_name'] }}
+                                    </span>
+                                </div>
+                                <h4 class="text-xs font-bold text-slate-900 dark:text-white leading-snug">
+                                    {{ $alert['title'] }}
+                                </h4>
+                                <p class="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed">
+                                    {{ $alert['description'] }}
+                                </p>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                <span class="text-[10px] text-slate-400 dark:text-slate-500">
+                                    {{ $alert['occurred_at'] ? \Illuminate\Support\Carbon::parse($alert['occurred_at'])->diffForHumans() : 'Kondisi saat ini' }}
+                                </span>
+                                <a
+                                    href="{{ $alert['action_url'] }}"
+                                    class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1"
+                                >
+                                    <span>Detail</span>
+                                    <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                                </a>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
         {{-- Section 2: Ringkasan Platform & Operasional --}}
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
 
@@ -298,7 +397,7 @@
                 </div>
             </div>
 
-            {{-- Panel 3: Billing / Revenue Status --}}
+            {{-- Panel 3: Billing & Revenue Monitoring --}}
             <div class="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between">
                 <div>
                     <div class="flex items-center justify-between mb-4">
@@ -310,27 +409,42 @@
                                 Billing & Revenue
                             </h3>
                         </div>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-800/60 uppercase">
-                            Belum Tersedia
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60 uppercase">
+                            Aktif
                         </span>
                     </div>
 
-                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-700 text-center space-y-2">
-                        <div class="w-9 h-9 mx-auto rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
-                            <i data-lucide="lock" class="w-4 h-4"></i>
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 text-left space-y-2.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Gateway Pembayaran:</span>
+                            <span class="font-bold text-slate-800 dark:text-slate-200">Midtrans (Snap)</span>
                         </div>
-                        <h4 class="text-xs font-bold text-slate-800 dark:text-slate-200">
-                            Modul Billing Dalam Rencana
-                        </h4>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
-                            Integrasi Midtrans gateway dan laporan agregasi pendapatan akan diimplementasikan pada task <strong>ADMIN-06</strong> dan <strong>ADMIN-12</strong>.
-                        </p>
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-500 dark:text-slate-400">Laporan Agregasi:</span>
+                            <span class="font-bold text-emerald-600 dark:text-emerald-400">Tersedia</span>
+                        </div>
+                        <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between gap-2">
+                            <a
+                                href="{{ route('platform.revenue.index') }}"
+                                class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1"
+                            >
+                                <span>Laporan Revenue</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </a>
+                            <a
+                                href="{{ route('platform.payments.index') }}"
+                                class="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 inline-flex items-center gap-1"
+                            >
+                                <span>Riwayat Pembayaran</span>
+                                <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                            </a>
+                        </div>
                     </div>
                 </div>
 
                 <div class="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
-                    <i data-lucide="info" class="w-3.5 h-3.5 shrink-0"></i>
-                    <span>Tidak menampilkan angka fiktif / dummy</span>
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 shrink-0 text-emerald-500"></i>
+                    <span>Tersinkronisasi dengan status canonical subscription payments</span>
                 </div>
             </div>
 
