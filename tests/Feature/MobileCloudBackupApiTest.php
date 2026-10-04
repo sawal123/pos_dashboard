@@ -30,6 +30,8 @@ class MobileCloudBackupApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const CORS_ORIGIN = 'https://pos-mobile.test';
+
     private ?string $lastMobileToken = null;
 
     protected function setUp(): void
@@ -582,6 +584,118 @@ class MobileCloudBackupApiTest extends TestCase
             ->assertJson(['code' => 'CLOUD_SUBSCRIPTION_REQUIRED']);
     }
 
+    // =========================================================================
+    // PREM-D03C — CORS exposure of the download integrity headers
+    // =========================================================================
+
+    public function test_download_cors_preflight_is_answered_for_api_paths(): void
+    {
+        $response = $this->withHeaders([
+            'Origin' => self::CORS_ORIGIN,
+            'Access-Control-Request-Method' => 'GET',
+            'Access-Control-Request-Headers' => 'Authorization',
+        ])->options('/api/mobile/backups/00000000-0000-4000-8000-000000000000/download?business_id=1');
+
+        $response->assertNoContent();
+        $response->assertHeader('Access-Control-Allow-Origin', '*');
+        $response->assertHeader('Access-Control-Allow-Methods', 'GET');
+        $response->assertHeader('Access-Control-Allow-Headers', 'Authorization');
+        // The credentials policy must stay unchanged (supports_credentials = false).
+        $this->assertFalse($response->headers->has('Access-Control-Allow-Credentials'));
+    }
+
+    public function test_download_exposes_integrity_headers_to_browser_clients(): void
+    {
+        $env = $this->makeEnvironment();
+        $snapshot = $this->snapshot();
+        $uuid = $this->upload($env)->json('data.uuid');
+
+        $response = $this->actingAsMobile($env)
+            ->withHeaders(['Origin' => self::CORS_ORIGIN])
+            ->getJson('/api/mobile/backups/'.$uuid.'/download?business_id='.$env['business']->id)
+            ->assertOk();
+
+        $response->assertHeader('Access-Control-Allow-Origin', '*');
+
+        // Exactly the two integrity headers are exposed — nothing else.
+        $this->assertSame(
+            ['x-checksum-sha256', 'x-backup-schema-version'],
+            $this->corsExposedHeaders($response),
+        );
+
+        // The pre-existing download headers are still sent unchanged.
+        $response->assertHeader('X-Checksum-Sha256', $snapshot['checksum_sha256']);
+        $response->assertHeader('X-Backup-Schema-Version', '1');
+
+        // Credentials remain disabled: CORS exposure never enables cookies/tokens.
+        $this->assertFalse($response->headers->has('Access-Control-Allow-Credentials'));
+    }
+
+    public function test_download_cors_exposure_does_not_leak_internal_state(): void
+    {
+        $env = $this->makeEnvironment();
+        $uuid = $this->upload($env)->json('data.uuid');
+        $backup = CloudBackup::firstOrFail();
+
+        $response = $this->actingAsMobile($env)
+            ->withHeaders(['Origin' => self::CORS_ORIGIN])
+            ->getJson('/api/mobile/backups/'.$uuid.'/download?business_id='.$env['business']->id)
+            ->assertOk();
+
+        $exposed = implode(',', $this->corsExposedHeaders($response));
+
+        foreach (['authorization', 'bearer', 'token', 'storage_path', 'cloud-backups'] as $needle) {
+            $this->assertStringNotContainsStringIgnoringCase($needle, $exposed);
+        }
+
+        $this->assertStringNotContainsString($backup->storage_path, (string) $response->getContent());
+        $this->assertStringNotContainsString(
+            $backup->storage_path,
+            (string) $response->headers->get('Access-Control-Expose-Headers'),
+        );
+    }
+
+    public function test_unauthorized_download_stays_unauthorized_with_a_cors_origin(): void
+    {
+        $env = $this->makeEnvironment();
+        $uuid = $this->upload($env)->json('data.uuid');
+
+        // Drop the upload's token + resolved guard so the next request is anonymous.
+        $this->flushHeaders();
+        Auth::forgetGuards();
+
+        $this->withHeaders(['Origin' => self::CORS_ORIGIN])
+            ->getJson('/api/mobile/backups/'.$uuid.'/download?business_id='.$env['business']->id)
+            ->assertStatus(401);
+    }
+
+    public function test_cross_tenant_download_stays_404_with_a_cors_origin(): void
+    {
+        $envA = $this->makeEnvironment();
+        $envB = $this->makeEnvironment();
+        $uuid = $this->upload($envB)->json('data.uuid');
+
+        $this->actingAsMobile($envA)
+            ->withHeaders(['Origin' => self::CORS_ORIGIN])
+            ->getJson('/api/mobile/backups/'.$uuid.'/download?business_id='.$envA['business']->id)
+            ->assertStatus(404)
+            ->assertJson(['code' => 'BACKUP_NOT_FOUND']);
+    }
+
+    public function test_free_subscription_download_stays_forbidden_with_a_cors_origin(): void
+    {
+        $env = $this->makeEnvironment();
+        $uuid = $this->upload($env)->json('data.uuid');
+
+        $env['business']->subscription()->update(['plan' => 'free', 'status' => 'active']);
+
+        $this->actingAsMobile($env)
+            ->withHeaders(['Origin' => self::CORS_ORIGIN])
+            ->getJson('/api/mobile/backups/'.$uuid.'/download?business_id='.$env['business']->id)
+            ->assertStatus(403)
+            ->assertJson(['code' => 'CLOUD_SUBSCRIPTION_REQUIRED']);
+    }
+
     public function test_cashier_role_is_denied_on_the_backup_api(): void
     {
         $env = $this->makeEnvironment(role: 'cashier');
@@ -704,5 +818,21 @@ class MobileCloudBackupApiTest extends TestCase
         $this->lastMobileToken = $env['token'];
 
         return $this->withToken($env['token']);
+    }
+
+    /**
+     * Parse `Access-Control-Expose-Headers` into a lower-cased, trimmed list so
+     * assertions are case-insensitive as browsers treat them.
+     *
+     * @return list<string>
+     */
+    private function corsExposedHeaders(TestResponse $response): array
+    {
+        $raw = (string) $response->headers->get('Access-Control-Expose-Headers', '');
+
+        return array_values(array_filter(array_map(
+            static fn (string $header): string => strtolower(trim($header)),
+            explode(',', $raw),
+        )));
     }
 }
