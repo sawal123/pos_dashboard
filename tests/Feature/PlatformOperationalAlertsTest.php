@@ -205,6 +205,7 @@ class PlatformOperationalAlertsTest extends TestCase
         $payment = SubscriptionPayment::factory()->create([
             'business_id' => $business->id,
             'status' => SubscriptionPayment::STATUS_PAID,
+            'currency' => 'IDR',
             'amount' => 150000,
             'provider_order_id' => 'ORDER-12345',
             'paid_at' => now()->subHour(),
@@ -217,16 +218,49 @@ class PlatformOperationalAlertsTest extends TestCase
         $response->assertSee('Pembayaran Berhasil Belum Mengaktifkan Langganan');
         $response->assertSee('ORDER-12345');
         $response->assertSee('Resto Sedap');
+        $response->assertSee('Rp 150.000');
         $response->assertSee('Kritis');
 
         $alerts = app(PlatformOperationalAlerts::class)->get()['alerts'];
         $this->assertSame(PlatformOperationalAlertType::TYPE_PAYMENT_PAID_NOT_ACTIVATED, $alerts[0]['type']);
         $this->assertSame(PlatformOperationalAlertType::SEVERITY_CRITICAL, $alerts[0]['severity']);
+        $this->assertStringContainsString('Rp 150.000', $alerts[0]['description']);
         $this->assertSame(route('platform.payments.show', $payment->id), $alerts[0]['action_url']);
     }
 
     /**
-     * 7. Resolved Payment: once activated_at is set, alert automatically disappears.
+     * 7. Payment Paid Not Activated with Non-IDR Currency: Preserves currency snapshot without hardcoded Rp or FX conversion.
+     */
+    public function test_payment_paid_not_activated_alert_with_non_idr_currency(): void
+    {
+        $admin = User::factory()->platformAdmin()->create();
+        $business = Business::factory()->create(['name' => 'Global Coffee']);
+
+        $payment = SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_PAID,
+            'currency' => 'USD',
+            'amount' => 50,
+            'provider_order_id' => 'ORDER-USD-50',
+            'paid_at' => now()->subHour(),
+            'activated_at' => null,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/platform/alerts');
+
+        $response->assertOk();
+        $response->assertSee('Pembayaran Berhasil Belum Mengaktifkan Langganan');
+        $response->assertSee('ORDER-USD-50');
+        $response->assertSee('USD 50');
+        $response->assertDontSee('Rp 50');
+
+        $alerts = app(PlatformOperationalAlerts::class)->get()['alerts'];
+        $this->assertStringContainsString('USD 50', $alerts[0]['description']);
+        $this->assertStringNotContainsString('Rp 50', $alerts[0]['description']);
+    }
+
+    /**
+     * 8. Resolved Payment: once activated_at is set, alert automatically disappears.
      */
     public function test_payment_alert_disappears_when_resolved(): void
     {
@@ -251,7 +285,7 @@ class PlatformOperationalAlertsTest extends TestCase
     }
 
     /**
-     * 8. Non-Paid Payment with Activated At: status refunded/failed, activated_at not null -> payment.non_paid_activated (critical).
+     * 9. Non-Paid Payment with Activated At: status refunded/failed, activated_at not null -> payment.non_paid_activated (critical).
      */
     public function test_non_paid_activated_mismatch_alert(): void
     {
@@ -261,6 +295,7 @@ class PlatformOperationalAlertsTest extends TestCase
         $payment = SubscriptionPayment::factory()->create([
             'business_id' => $business->id,
             'status' => SubscriptionPayment::STATUS_REFUNDED,
+            'currency' => 'IDR',
             'amount' => 200000,
             'provider_order_id' => 'ORDER-REFUNDED-99',
             'activated_at' => now()->subDays(2),
@@ -271,11 +306,44 @@ class PlatformOperationalAlertsTest extends TestCase
         $response->assertOk();
         $response->assertSee('Aktivasi Subscription Tidak Sesuai Status Pembayaran');
         $response->assertSee('ORDER-REFUNDED-99');
+        $response->assertSee('Rp 200.000');
         $response->assertSee('Kritis');
 
         $alerts = app(PlatformOperationalAlerts::class)->get()['alerts'];
         $this->assertSame(PlatformOperationalAlertType::TYPE_PAYMENT_NON_PAID_ACTIVATED, $alerts[0]['type']);
         $this->assertSame(PlatformOperationalAlertType::SEVERITY_CRITICAL, $alerts[0]['severity']);
+        $this->assertStringContainsString('Rp 200.000', $alerts[0]['description']);
+    }
+
+    /**
+     * 10. Non-Paid Payment with Activated At with Non-IDR Currency: Preserves currency snapshot.
+     */
+    public function test_non_paid_activated_mismatch_alert_with_non_idr_currency(): void
+    {
+        $admin = User::factory()->platformAdmin()->create();
+        $business = Business::factory()->create(['name' => 'Singapore Express']);
+
+        $payment = SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+            'status' => SubscriptionPayment::STATUS_REFUNDED,
+            'currency' => 'SGD',
+            'amount' => 25,
+            'provider_order_id' => 'ORDER-SGD-25',
+            'activated_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->actingAs($admin)->get('/platform/alerts');
+
+        $response->assertOk();
+        $response->assertSee('Aktivasi Subscription Tidak Sesuai Status Pembayaran');
+        $response->assertSee('ORDER-SGD-25');
+        $response->assertSee('SGD 25');
+        $response->assertDontSee('Rp 25');
+
+        $alerts = app(PlatformOperationalAlerts::class)->get()['alerts'];
+        $this->assertSame(PlatformOperationalAlertType::TYPE_PAYMENT_NON_PAID_ACTIVATED, $alerts[0]['type']);
+        $this->assertStringContainsString('SGD 25', $alerts[0]['description']);
+        $this->assertStringNotContainsString('Rp 25', $alerts[0]['description']);
     }
 
     /**

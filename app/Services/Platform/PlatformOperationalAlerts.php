@@ -214,7 +214,7 @@ class PlatformOperationalAlerts
 
         foreach ($payments as $payment) {
             $businessName = $payment->business->name;
-            $formattedAmount = 'Rp '.number_format((float) $payment->amount, 0, ',', '.');
+            $formattedAmount = $this->formatMoney((int) $payment->amount, (string) $payment->currency);
 
             if ($payment->status === SubscriptionPayment::STATUS_PAID && $payment->activated_at === null) {
                 // Critical: Paid but not activated
@@ -252,6 +252,20 @@ class PlatformOperationalAlerts
                 ];
             }
         }
+    }
+
+    /**
+     * Format monetary amount according to payment currency snapshot without FX conversion.
+     */
+    private function formatMoney(int $amount, string $currency): string
+    {
+        $normalizedCurrency = strtoupper(trim($currency));
+
+        if ($normalizedCurrency === 'IDR' || $normalizedCurrency === '') {
+            return 'Rp '.number_format($amount, 0, ',', '.');
+        }
+
+        return $normalizedCurrency.' '.number_format($amount, 0, ',', '.');
     }
 
     /**
