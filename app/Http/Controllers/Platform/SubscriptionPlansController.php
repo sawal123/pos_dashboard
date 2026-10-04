@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Models\SubscriptionPlan;
 use App\Models\SubscriptionPlanPrice;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
 use App\Services\Platform\SubscriptionPlanAdministrationService;
 use App\Services\Subscription\PremiumPolicy;
+use App\Support\PlatformAuditAction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use InvalidArgumentException;
 
@@ -53,6 +57,7 @@ class SubscriptionPlansController extends Controller
         SubscriptionPlan $plan,
         SubscriptionPlanAdministrationService $service,
         PremiumPolicy $policy,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
         $this->ensureCanonical($plan, $policy);
 
@@ -69,12 +74,44 @@ class SubscriptionPlansController extends Controller
             ? $validated['description']
             : null;
 
-        $service->updatePlan(
-            $plan,
-            (string) $validated['name'],
-            $description,
-            (bool) $validated['is_active'],
-        );
+        DB::transaction(function () use ($request, $plan, $service, $validated, $description, $auditLogger): void {
+            $before = [
+                'name' => $plan->name,
+                'description' => $plan->description,
+                'is_active' => (bool) $plan->is_active,
+            ];
+
+            $service->updatePlan(
+                $plan,
+                (string) $validated['name'],
+                $description,
+                (bool) $validated['is_active'],
+            );
+            $plan->refresh();
+
+            $after = [
+                'name' => $plan->name,
+                'description' => $plan->description,
+                'is_active' => (bool) $plan->is_active,
+            ];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_PLAN_UPDATED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION_PLAN,
+                targetId: $plan->id,
+                targetLabel: $plan->name,
+                businessId: null,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'code' => $plan->code,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscription-plans.show', $plan)
@@ -86,6 +123,7 @@ class SubscriptionPlansController extends Controller
         SubscriptionPlan $plan,
         SubscriptionPlanAdministrationService $service,
         PremiumPolicy $policy,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
         $this->ensureCanonical($plan, $policy);
 
@@ -97,12 +135,59 @@ class SubscriptionPlansController extends Controller
             'currency' => ['prohibited'],
         ]);
 
-        $service->createPrice(
-            $plan,
-            (string) $validated['billing_period'],
-            (int) $validated['price_minor'],
-            (bool) $validated['is_active'],
-        );
+        $billingPeriod = (string) $validated['billing_period'];
+        $priceMinor = (int) $validated['price_minor'];
+        $isActive = (bool) $validated['is_active'];
+
+        DB::transaction(function () use ($request, $plan, $service, $billingPeriod, $priceMinor, $isActive, $auditLogger): void {
+            /** @var SubscriptionPlanPrice|null $existingPrice */
+            $existingPrice = SubscriptionPlanPrice::query()
+                ->where('subscription_plan_id', $plan->id)
+                ->where('billing_period', $billingPeriod)
+                ->where('currency', SubscriptionPlanAdministrationService::CURRENCY)
+                ->first();
+
+            $isCreated = $existingPrice === null;
+            $before = $isCreated ? null : [
+                'price_minor' => (int) $existingPrice->price_minor,
+                'is_active' => (bool) $existingPrice->is_active,
+            ];
+
+            $price = $service->createPrice(
+                $plan,
+                $billingPeriod,
+                $priceMinor,
+                $isActive,
+            );
+
+            $after = [
+                'price_minor' => (int) $price->price_minor,
+                'is_active' => (bool) $price->is_active,
+            ];
+
+            $action = $isCreated
+                ? PlatformAuditAction::SUBSCRIPTION_PRICE_CREATED
+                : PlatformAuditAction::SUBSCRIPTION_PRICE_UPDATED;
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: $action,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION_PLAN_PRICE,
+                targetId: $price->id,
+                targetLabel: "{$plan->name} ({$billingPeriod})",
+                businessId: null,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'billing_period' => $billingPeriod,
+                    'currency' => SubscriptionPlanAdministrationService::CURRENCY,
+                    'plan_code' => $plan->code,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscription-plans.show', $plan)
@@ -115,6 +200,7 @@ class SubscriptionPlansController extends Controller
         SubscriptionPlanPrice $price,
         SubscriptionPlanAdministrationService $service,
         PremiumPolicy $policy,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
         $this->ensureCanonical($plan, $policy);
 
@@ -126,12 +212,47 @@ class SubscriptionPlansController extends Controller
             'currency' => ['prohibited'],
         ]);
 
+        $priceMinor = (int) $validated['price_minor'];
+        $isActive = (bool) $validated['is_active'];
+
         try {
-            $service->updatePrice(
-                $price,
-                (int) $validated['price_minor'],
-                (bool) $validated['is_active'],
-            );
+            DB::transaction(function () use ($request, $plan, $price, $service, $priceMinor, $isActive, $auditLogger): void {
+                $before = [
+                    'price_minor' => (int) $price->price_minor,
+                    'is_active' => (bool) $price->is_active,
+                ];
+
+                $service->updatePrice(
+                    $price,
+                    $priceMinor,
+                    $isActive,
+                );
+                $price->refresh();
+
+                $after = [
+                    'price_minor' => (int) $price->price_minor,
+                    'is_active' => (bool) $price->is_active,
+                ];
+
+                /** @var User $actor */
+                $actor = $request->user();
+
+                $auditLogger->record(
+                    actor: $actor,
+                    action: PlatformAuditAction::SUBSCRIPTION_PRICE_UPDATED,
+                    targetType: PlatformAuditAction::TARGET_SUBSCRIPTION_PLAN_PRICE,
+                    targetId: $price->id,
+                    targetLabel: "{$plan->name} ({$price->billing_period})",
+                    businessId: null,
+                    before: $before,
+                    after: $after,
+                    metadata: [
+                        'billing_period' => $price->billing_period,
+                        'currency' => $price->currency,
+                        'plan_code' => $plan->code,
+                    ],
+                );
+            });
         } catch (InvalidArgumentException) {
             // Not a manageable ADMIN-06 price row (canonical plan / supported
             // period / IDR currency). Treat it as not found instead of mutating.

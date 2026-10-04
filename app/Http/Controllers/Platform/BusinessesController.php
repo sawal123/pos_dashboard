@@ -5,9 +5,13 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Subscription;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
+use App\Support\PlatformAuditAction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BusinessesController extends Controller
 {
@@ -108,14 +112,46 @@ class BusinessesController extends Controller
     /**
      * Update the business status (suspend/reactivate).
      */
-    public function updateStatus(Request $request, Business $business): RedirectResponse
-    {
+    public function updateStatus(
+        Request $request,
+        Business $business,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
         $validated = $request->validate([
             'status' => ['required', 'string', 'in:active,inactive'],
         ]);
 
+        $beforeStatus = $business->status;
         $newStatus = $validated['status'];
-        $business->update(['status' => $newStatus]);
+
+        if ($beforeStatus === $newStatus) {
+            return redirect()
+                ->back()
+                ->with('status', "Status bisnis '{$business->name}' sudah dalam status {$newStatus}.");
+        }
+
+        DB::transaction(function () use ($business, $request, $beforeStatus, $newStatus, $auditLogger): void {
+            $business->update(['status' => $newStatus]);
+
+            $action = $newStatus === 'inactive'
+                ? PlatformAuditAction::BUSINESS_SUSPENDED
+                : PlatformAuditAction::BUSINESS_REACTIVATED;
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: $action,
+                targetType: PlatformAuditAction::TARGET_BUSINESS,
+                targetId: $business->id,
+                targetLabel: $business->name,
+                businessId: $business->id,
+                before: ['status' => $beforeStatus],
+                after: ['status' => $newStatus],
+                metadata: [],
+            );
+        });
 
         $label = $newStatus === 'active' ? 'diaktifkan kembali' : 'dinonaktifkan (suspend)';
 

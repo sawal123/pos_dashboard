@@ -20,6 +20,7 @@ use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
+use App\Http\Controllers\Platform\AuditLogsController as PlatformAuditLogsController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformCloudBackupMonitoringController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
@@ -315,6 +316,10 @@ Route::prefix('platform')
 
         // ADMIN-12 — Revenue & Billing Reports (Platform SaaS Subscription Billing)
         Route::get('revenue', [PlatformRevenueReportsController::class, 'index'])->name('revenue.index');
+
+        // ADMIN-13 — Platform Audit Log (Append-Only Administrative Audit Trail)
+        Route::get('audit-logs', [PlatformAuditLogsController::class, 'index'])->name('audit-logs.index');
+        Route::get('audit-logs/{auditLog}', [PlatformAuditLogsController::class, 'show'])->name('audit-logs.show');
     });
 
 require __DIR__.'/settings.php';

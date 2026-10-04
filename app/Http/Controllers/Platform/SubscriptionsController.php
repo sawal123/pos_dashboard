@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
 use App\Services\Platform\SubscriptionAdministrationService;
 use App\Services\Subscription\CloudDeviceLimit;
 use App\Services\Subscription\PremiumPolicy;
+use App\Support\PlatformAuditAction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class SubscriptionsController extends Controller
@@ -127,13 +131,49 @@ class SubscriptionsController extends Controller
         Request $request,
         Subscription $subscription,
         SubscriptionAdministrationService $service,
-        PremiumPolicy $policy
+        PremiumPolicy $policy,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
         $validated = $request->validate([
             'billing_period' => ['required', 'string', Rule::in($policy->billingPeriods())],
         ]);
 
-        $service->activateCloud($subscription, $validated['billing_period']);
+        DB::transaction(function () use ($request, $subscription, $service, $validated, $auditLogger): void {
+            $before = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            $service->activateCloud($subscription, $validated['billing_period']);
+            $subscription->refresh();
+
+            $after = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_CLOUD_ACTIVATED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+                targetId: $subscription->id,
+                targetLabel: $subscription->business->name,
+                businessId: $subscription->business_id,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'billing_period' => $validated['billing_period'],
+                    'administrative_override' => true,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscriptions.show', $subscription)
@@ -147,13 +187,49 @@ class SubscriptionsController extends Controller
         Request $request,
         Subscription $subscription,
         SubscriptionAdministrationService $service,
-        PremiumPolicy $policy
+        PremiumPolicy $policy,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
         $validated = $request->validate([
             'billing_period' => ['required', 'string', Rule::in($policy->billingPeriods())],
         ]);
 
-        $service->renewCloud($subscription, $validated['billing_period']);
+        DB::transaction(function () use ($request, $subscription, $service, $validated, $auditLogger): void {
+            $before = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            $service->renewCloud($subscription, $validated['billing_period']);
+            $subscription->refresh();
+
+            $after = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_CLOUD_RENEWED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+                targetId: $subscription->id,
+                targetLabel: $subscription->business->name,
+                businessId: $subscription->business_id,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'billing_period' => $validated['billing_period'],
+                    'administrative_override' => true,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscriptions.show', $subscription)
@@ -164,10 +240,46 @@ class SubscriptionsController extends Controller
      * Administratively downgrade subscription to Free tier.
      */
     public function downgrade(
+        Request $request,
         Subscription $subscription,
-        SubscriptionAdministrationService $service
+        SubscriptionAdministrationService $service,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
-        $service->downgradeToFree($subscription);
+        DB::transaction(function () use ($request, $subscription, $service, $auditLogger): void {
+            $before = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            $service->downgradeToFree($subscription);
+            $subscription->refresh();
+
+            $after = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_DOWNGRADED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+                targetId: $subscription->id,
+                targetLabel: $subscription->business->name,
+                businessId: $subscription->business_id,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'administrative_override' => true,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscriptions.show', $subscription)
@@ -178,10 +290,46 @@ class SubscriptionsController extends Controller
      * Administratively set subscription to Inactive.
      */
     public function inactivate(
+        Request $request,
         Subscription $subscription,
-        SubscriptionAdministrationService $service
+        SubscriptionAdministrationService $service,
+        PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
-        $service->setInactive($subscription);
+        DB::transaction(function () use ($request, $subscription, $service, $auditLogger): void {
+            $before = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            $service->setInactive($subscription);
+            $subscription->refresh();
+
+            $after = [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_INACTIVATED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+                targetId: $subscription->id,
+                targetLabel: $subscription->business->name,
+                businessId: $subscription->business_id,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'administrative_override' => true,
+                ],
+            );
+        });
 
         return redirect()
             ->route('platform.subscriptions.show', $subscription)

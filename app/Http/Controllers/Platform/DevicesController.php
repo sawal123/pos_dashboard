@@ -6,7 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Device;
 use App\Models\Subscription;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
 use App\Services\Subscription\CloudDeviceLimit;
+use App\Support\PlatformAuditAction;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,13 +144,34 @@ class DevicesController extends Controller
      * Keeps history, data, business, and outlet untouched. Reduces active quota count.
      * Does not require business to have active Cloud subscription.
      */
-    public function deactivate(Device $device): RedirectResponse
+    public function deactivate(Request $request, Device $device, PlatformAuditLogger $auditLogger): RedirectResponse
     {
         if ($device->status === Device::STATUS_INACTIVE) {
             return back()->with('info', 'Perangkat sudah dalam status nonaktif.');
         }
 
-        $device->update(['status' => Device::STATUS_INACTIVE]);
+        DB::transaction(function () use ($request, $device, $auditLogger): void {
+            $before = ['status' => $device->status];
+            $device->update(['status' => Device::STATUS_INACTIVE]);
+            $after = ['status' => Device::STATUS_INACTIVE];
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::DEVICE_DEACTIVATED,
+                targetType: PlatformAuditAction::TARGET_DEVICE,
+                targetId: $device->id,
+                targetLabel: $device->name,
+                businessId: $device->business_id,
+                before: $before,
+                after: $after,
+                metadata: [
+                    'device_identifier' => $device->identifier,
+                ],
+            );
+        });
 
         return back()->with('success', 'Perangkat "'.$device->name.'" berhasil dinonaktifkan dari akses Cloud.');
     }
@@ -157,7 +181,7 @@ class DevicesController extends Controller
      * Requires business to hold active Cloud entitlement AND have remaining quota slots.
      * Serialized via parent Business row lock.
      */
-    public function activate(Device $device): RedirectResponse
+    public function activate(Request $request, Device $device, PlatformAuditLogger $auditLogger): RedirectResponse
     {
         if ($device->status === Device::STATUS_ACTIVE) {
             return back()->with('info', 'Perangkat sudah dalam status aktif.');
@@ -170,7 +194,7 @@ class DevicesController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($device): void {
+            DB::transaction(function () use ($request, $device, $auditLogger): void {
                 /** @var Business $lockedBusiness */
                 $lockedBusiness = Business::query()
                     ->whereKey($device->business_id)
@@ -185,7 +209,26 @@ class DevicesController extends Controller
                     throw new \RuntimeException('Batas perangkat Cloud tercapai (maksimal '.$this->deviceLimit->limit().' perangkat aktif). Nonaktifkan perangkat lain terlebih dahulu.');
                 }
 
+                $before = ['status' => $device->status];
                 $device->update(['status' => Device::STATUS_ACTIVE]);
+                $after = ['status' => Device::STATUS_ACTIVE];
+
+                /** @var User $actor */
+                $actor = $request->user();
+
+                $auditLogger->record(
+                    actor: $actor,
+                    action: PlatformAuditAction::DEVICE_REACTIVATED,
+                    targetType: PlatformAuditAction::TARGET_DEVICE,
+                    targetId: $device->id,
+                    targetLabel: $device->name,
+                    businessId: $device->business_id,
+                    before: $before,
+                    after: $after,
+                    metadata: [
+                        'device_identifier' => $device->identifier,
+                    ],
+                );
             });
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
