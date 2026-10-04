@@ -121,6 +121,25 @@ Streams the exact stored bytes (`Content-Type: application/octet-stream`) with:
 The filesystem path is never revealed. Missing private file → `404`
 `BACKUP_FILE_MISSING`.
 
+#### Browser / WebView visibility (CORS)
+
+POS Mobile fetches through the WebView (no `CapacitorHttp`), so JavaScript can
+only read response headers the backend explicitly exposes. The download
+integrity headers are exposed through the central Laravel CORS configuration
+(`config/cors.php` → `exposed_headers`), which yields:
+
+```http
+Access-Control-Expose-Headers: X-Checksum-Sha256, X-Backup-Schema-Version
+```
+
+Both names are matched case-insensitively by browsers. The exposure is limited
+to those two headers and does **not** relax the authorization stack: an
+unauthenticated (`401`), cross-tenant (`404 BACKUP_NOT_FOUND`) or unentitled
+(`403 CLOUD_SUBSCRIPTION_REQUIRED`) request is still rejected, and the integrity
+headers are only present on the authorized download response. No credential,
+token, storage path or other secret is exposed, and the existing allowed-origins
+(`*`) / `supports_credentials` (`false`) policy is unchanged.
+
 ## Authorization stack
 
 Every endpoint runs the same server-side gate
