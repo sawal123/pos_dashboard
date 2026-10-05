@@ -60,6 +60,11 @@ class AppServiceProvider extends ServiceProvider
                 static fn (Request $request) => Limit::perMinute(10)->by($byActor($request)),
             );
         }
+
+        RateLimiter::for(
+            'platform-admin-mutations',
+            static fn (Request $request) => Limit::perMinute(30)->by($byActor($request)),
+        );
     }
 
     /**
