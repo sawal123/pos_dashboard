@@ -17,8 +17,11 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
 
-            $table->unique(['subscription_plan_id', 'billing_period', 'currency']);
-            $table->index(['subscription_plan_id', 'is_active']);
+            $table->unique(
+                ['subscription_plan_id', 'billing_period', 'currency'],
+                'sub_plan_prices_plan_period_currency_unique'
+            );
+            $table->index(['subscription_plan_id', 'is_active'], 'sub_plan_prices_plan_active_index');
         });
     }
 
