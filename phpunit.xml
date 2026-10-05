@@ -59,5 +59,6 @@
         <server name="TELESCOPE_ENABLED" value="false"/>
         <server name="NIGHTWATCH_ENABLED" value="false"/>
         <server name="QA_TEST_DB_PROFILE" value="sqlite_memory"/>
+        <ini name="memory_limit" value="1G"/>
     </php>
 </phpunit>
