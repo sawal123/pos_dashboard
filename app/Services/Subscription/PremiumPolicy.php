@@ -4,6 +4,7 @@ namespace App\Services\Subscription;
 
 use App\Models\Business;
 use App\Models\Subscription;
+use App\Services\Platform\PlatformSettings;
 
 /**
  * PREM-D02A — the single authoritative Premium policy.
@@ -41,6 +42,15 @@ final class PremiumPolicy
     public const PAYMENT_PROVIDER_MIDTRANS = 'midtrans';
 
     public const RENEWAL_MODE_MANUAL = 'manual';
+
+    public function __construct(
+        private readonly ?PlatformSettings $platformSettings = null,
+    ) {}
+
+    protected function settings(): PlatformSettings
+    {
+        return $this->platformSettings ?? app(PlatformSettings::class);
+    }
 
     /**
      * Canonical paid plan code.
@@ -110,13 +120,20 @@ final class PremiumPolicy
 
     /**
      * Maximum number of counted cloud devices per active Cloud business.
+     * Reads from PlatformSettings with config fallback.
      * Returns 0 when the limit is not configured (treated as "no limit").
      */
     public function deviceLimit(): int
     {
-        $limit = config('premium.plan.device_limit');
+        try {
+            $limit = $this->settings()->deviceLimit();
 
-        return is_int($limit) && $limit > 0 ? $limit : 0;
+            return $limit > 0 ? $limit : 0;
+        } catch (\Throwable) {
+            $limit = config('premium.plan.device_limit');
+
+            return is_int($limit) && $limit > 0 ? $limit : 0;
+        }
     }
 
     public function paymentProvider(): string
@@ -175,7 +192,9 @@ final class PremiumPolicy
     }
 
     /**
-     * Check if a declared capability has an available backend implementation on the server.
+     * Check if a declared capability has an available backend implementation on the server
+     * and is not disabled by runtime kill-switches.
+     * Backend config availability is a HARD CEILING: runtime flags cannot enable an unavailable backend.
      * Unknown or explicitly disabled capabilities evaluate to false (fail closed).
      */
     public function isCapabilityAvailable(string $capability): bool
@@ -190,7 +209,17 @@ final class PremiumPolicy
             return false;
         }
 
-        return ($availability[$capability] ?? false) === true;
+        $backendReady = ($availability[$capability] ?? false) === true;
+
+        if (! $backendReady) {
+            return false;
+        }
+
+        try {
+            return $this->settings()->isFeatureRuntimeEnabled($capability);
+        } catch (\Throwable) {
+            return true;
+        }
     }
 
     /**

@@ -28,6 +28,7 @@ use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController
 use App\Http\Controllers\Platform\OperationalAlertsController as PlatformOperationalAlertsController;
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\RevenueReportsController as PlatformRevenueReportsController;
+use App\Http\Controllers\Platform\SettingsController as PlatformSettingsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
 use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptionsController;
 use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
@@ -324,6 +325,10 @@ Route::prefix('platform')
 
         // ADMIN-14 — Notifications & Operational Alerts (Derived Read-Only Alerts)
         Route::get('alerts', [PlatformOperationalAlertsController::class, 'index'])->name('alerts.index');
+
+        // ADMIN-15 — Platform Settings (Global Whitelisted Runtime Settings)
+        Route::get('settings', [PlatformSettingsController::class, 'index'])->name('settings.index');
+        Route::patch('settings/{setting}', [PlatformSettingsController::class, 'update'])->name('settings.update');
     });
 
 require __DIR__.'/settings.php';

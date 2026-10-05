@@ -21,8 +21,33 @@ class PlatformOperationalAlerts
     public const BACKUP_STALE_DAYS = 7;
 
     public function __construct(
-        protected CloudDeviceLimit $deviceLimit
+        protected CloudDeviceLimit $deviceLimit,
+        protected ?PlatformSettings $settings = null,
     ) {}
+
+    /**
+     * Effective subscription expiry alert window in days.
+     */
+    public function expiryWindowDays(): int
+    {
+        try {
+            return ($this->settings ?? app(PlatformSettings::class))->subscriptionExpiryDays();
+        } catch (\Throwable) {
+            return self::EXPIRY_WINDOW_DAYS;
+        }
+    }
+
+    /**
+     * Effective backup stale alert threshold in days.
+     */
+    public function backupStaleDays(): int
+    {
+        try {
+            return ($this->settings ?? app(PlatformSettings::class))->backupStaleDays();
+        } catch (\Throwable) {
+            return self::BACKUP_STALE_DAYS;
+        }
+    }
 
     /**
      * Compute the full set of operational alerts derived strictly from canonical database state.
@@ -150,7 +175,8 @@ class PlatformOperationalAlerts
             ->with(['business:id,name,slug'])
             ->get();
 
-        $expiryWindow = $now->copy()->addDays(self::EXPIRY_WINDOW_DAYS);
+        $expiryDays = $this->expiryWindowDays();
+        $expiryWindow = $now->copy()->addDays($expiryDays);
 
         foreach ($subscriptions as $sub) {
             $businessName = $sub->business ? $sub->business->name : "Bisnis #{$sub->business_id}";
@@ -352,7 +378,8 @@ class PlatformOperationalAlerts
             ->pluck('latest_created_at', 'business_id')
             ->all();
 
-        $staleThreshold = $now->copy()->subDays(self::BACKUP_STALE_DAYS);
+        $staleDays = $this->backupStaleDays();
+        $staleThreshold = $now->copy()->subDays($staleDays);
 
         foreach ($cloudBusinessIds as $bizId) {
             $biz = $cloudBusinesses->get($bizId);
@@ -386,8 +413,8 @@ class PlatformOperationalAlerts
                         'key' => PlatformOperationalAlertType::TYPE_BACKUP_STALE.":{$biz->id}",
                         'type' => PlatformOperationalAlertType::TYPE_BACKUP_STALE,
                         'severity' => PlatformOperationalAlertType::SEVERITY_WARNING,
-                        'title' => 'Backup Cloud Terakhir > 7 Hari',
-                        'description' => "Cadangan database Cloud terakhir untuk bisnis '{$biz->name}' dibuat pada {$latestDate->format('d M Y, H:i')} ({$latestDate->diffForHumans()}). Tidak ada backup baru yang tercatat selama lebih dari 7 hari.",
+                        'title' => "Backup Cloud Terakhir > {$staleDays} Hari",
+                        'description' => "Cadangan database Cloud terakhir untuk bisnis '{$biz->name}' dibuat pada {$latestDate->format('d M Y, H:i')} ({$latestDate->diffForHumans()}). Tidak ada backup baru yang tercatat selama lebih dari {$staleDays} hari.",
                         'business_id' => $biz->id,
                         'business_name' => $biz->name,
                         'target_type' => 'backup',
@@ -408,6 +435,9 @@ class PlatformOperationalAlerts
      */
     public function definitions(): array
     {
+        $expiryDays = $this->expiryWindowDays();
+        $staleDays = $this->backupStaleDays();
+
         return [
             [
                 'type' => PlatformOperationalAlertType::TYPE_SUBSCRIPTION_EXPIRED,
@@ -434,8 +464,8 @@ class PlatformOperationalAlerts
                 'type' => PlatformOperationalAlertType::TYPE_SUBSCRIPTION_EXPIRING_SOON,
                 'title' => 'Langganan Cloud Segera Berakhir',
                 'severity' => PlatformOperationalAlertType::SEVERITY_WARNING,
-                'source' => 'subscriptions (plan=cloud, status=active, expires_at > now() and <= now() + 7 hari)',
-                'condition' => 'Masa aktif langganan Cloud tersisa 7 hari atau kurang.',
+                'source' => "subscriptions (plan=cloud, status=active, expires_at > now() and <= now() + {$expiryDays} hari)",
+                'condition' => "Masa aktif langganan Cloud tersisa {$expiryDays} hari atau kurang.",
             ],
             [
                 'type' => PlatformOperationalAlertType::TYPE_DEVICE_LIMIT_REACHED,
@@ -453,10 +483,10 @@ class PlatformOperationalAlerts
             ],
             [
                 'type' => PlatformOperationalAlertType::TYPE_BACKUP_STALE,
-                'title' => 'Backup Cloud Terakhir > 7 Hari',
+                'title' => "Backup Cloud Terakhir > {$staleDays} Hari",
                 'severity' => PlatformOperationalAlertType::SEVERITY_WARNING,
-                'source' => 'cloud_backups (latest ready created_at < now() - 7 hari)',
-                'condition' => 'Tidak ada backup Cloud berstatus READY yang berhasil dibuat selama lebih dari 7 hari.',
+                'source' => "cloud_backups (latest ready created_at < now() - {$staleDays} hari)",
+                'condition' => "Tidak ada backup Cloud berstatus READY yang berhasil dibuat selama lebih dari {$staleDays} hari.",
             ],
             [
                 'type' => PlatformOperationalAlertType::TYPE_DEVICE_LIMIT_NEAR,

@@ -31,6 +31,9 @@ class PlatformAuditAction
 
     public const DEVICE_REACTIVATED = 'device.reactivated';
 
+    // Platform setting actions
+    public const PLATFORM_SETTING_UPDATED = 'platform_setting.updated';
+
     // Target types
     public const TARGET_BUSINESS = 'business';
 
@@ -41,6 +44,8 @@ class PlatformAuditAction
     public const TARGET_SUBSCRIPTION_PLAN = 'subscription_plan';
 
     public const TARGET_SUBSCRIPTION_PLAN_PRICE = 'subscription_plan_price';
+
+    public const TARGET_PLATFORM_SETTING = 'platform_setting';
 
     /**
      * Map machine action string to human Indonesian label.
@@ -59,6 +64,7 @@ class PlatformAuditAction
             self::SUBSCRIPTION_PRICE_UPDATED => 'Harga Paket Diperbarui',
             self::DEVICE_DEACTIVATED => 'Perangkat Dinonaktifkan',
             self::DEVICE_REACTIVATED => 'Perangkat Diaktifkan Kembali',
+            self::PLATFORM_SETTING_UPDATED => 'Pengaturan Platform Diperbarui',
             default => $action,
         };
     }
@@ -82,6 +88,7 @@ class PlatformAuditAction
             self::SUBSCRIPTION_PRICE_UPDATED => self::label(self::SUBSCRIPTION_PRICE_UPDATED),
             self::DEVICE_DEACTIVATED => self::label(self::DEVICE_DEACTIVATED),
             self::DEVICE_REACTIVATED => self::label(self::DEVICE_REACTIVATED),
+            self::PLATFORM_SETTING_UPDATED => self::label(self::PLATFORM_SETTING_UPDATED),
         ];
     }
 
@@ -96,6 +103,7 @@ class PlatformAuditAction
             self::TARGET_DEVICE => 'Perangkat',
             self::TARGET_SUBSCRIPTION_PLAN => 'Paket Langganan',
             self::TARGET_SUBSCRIPTION_PLAN_PRICE => 'Harga Paket',
+            self::TARGET_PLATFORM_SETTING => 'Pengaturan Platform',
             default => ucfirst(str_replace('_', ' ', $type)),
         };
     }
@@ -113,6 +121,7 @@ class PlatformAuditAction
             self::TARGET_DEVICE => self::targetTypeLabel(self::TARGET_DEVICE),
             self::TARGET_SUBSCRIPTION_PLAN => self::targetTypeLabel(self::TARGET_SUBSCRIPTION_PLAN),
             self::TARGET_SUBSCRIPTION_PLAN_PRICE => self::targetTypeLabel(self::TARGET_SUBSCRIPTION_PLAN_PRICE),
+            self::TARGET_PLATFORM_SETTING => self::targetTypeLabel(self::TARGET_PLATFORM_SETTING),
         ];
     }
 
@@ -134,7 +143,8 @@ class PlatformAuditAction
             self::DEVICE_DEACTIVATED => 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-800',
 
             self::SUBSCRIPTION_PLAN_UPDATED,
-            self::SUBSCRIPTION_PRICE_UPDATED => 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
+            self::SUBSCRIPTION_PRICE_UPDATED,
+            self::PLATFORM_SETTING_UPDATED => 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
 
             default => 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
         };
