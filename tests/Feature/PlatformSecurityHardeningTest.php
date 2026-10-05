@@ -394,7 +394,7 @@ class PlatformSecurityHardeningTest extends TestCase
             'status' => SubscriptionPayment::STATUS_PAID,
             'provider_order_id' => 'ORDER-SECRET-TEST-1',
             'idempotency_key' => 'IDEMP-SECRET-TEST-1',
-            'snap_token' => 'TOPSECRET_SNAP_TOKEN_123',
+            'snap_token' => 'SNAPTOKEN_UNIQUE_9Z8Y7X',
             'provider_payload' => [
                 'transaction_status' => 'settlement',
                 'signature_key' => 'TOPSECRET_SIGNATURE_KEY_123',
@@ -410,10 +410,13 @@ class PlatformSecurityHardeningTest extends TestCase
         $responseSettings->assertDontSee('TOPSECRET_SERVER_KEY_123');
         $responseSettings->assertDontSee('TOPSECRET_CLIENT_KEY_123');
 
-        // 2. Payment detail does not leak raw snap token or signature
+        // 2. Payment detail does not leak raw snap token, partial suffix, or signature
         $responsePayment = $this->actingAs($admin)->get("/platform/payments/{$payment->id}");
         $responsePayment->assertOk();
-        $responsePayment->assertDontSee('TOPSECRET_SNAP_TOKEN_123');
+        $responsePayment->assertSee('Snap Token');
+        $responsePayment->assertSee('Tersedia');
+        $responsePayment->assertDontSee('SNAPTOKEN_UNIQUE_9Z8Y7X');
+        $responsePayment->assertDontSee('9Z8Y7X');
         $responsePayment->assertDontSee('TOPSECRET_SIGNATURE_KEY_123');
         $responsePayment->assertDontSee('TOPSECRET_SERVER_KEY_123');
 

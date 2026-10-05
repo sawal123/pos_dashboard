@@ -273,7 +273,7 @@
                         <dd class="font-medium text-slate-800 dark:text-slate-200 mt-0.5 flex items-center gap-1.5">
                             @if($payment->snap_token)
                                 <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-500"></i>
-                                <span>Tersedia (••••{{ substr($payment->snap_token, -4) }})</span>
+                                <span>Tersedia</span>
                             @else
                                 <span class="text-slate-400">-</span>
                             @endif

@@ -133,7 +133,7 @@ Diterapkan oleh middleware `PlatformSecurityHeaders` pada seluruh response `/pla
 
 2. **Tampilan UI Platform**:
    - Kredensial Midtrans (`server_key`, `client_key`) hanya dirender sebagai status boolean konfigurasi (Terkonfigurasi / Belum).
-   - Detail pembayaran hanya menampilkan 4 digit terakhir snap token bertopeng (`••••1234`), tanpa raw payload kredensial atau signature.
+   - Detail pembayaran hanya menampilkan status ketersediaan Snap token; tidak ada bagian token yang dirender. Raw payload kredensial, signature, maupun server key tidak pernah diekspos.
    - Detail user tidak mengekspos hash kata sandi, remember token, secret 2FA, recovery codes, maupun material WebAuthn.
    - Halaman backup hanya memonitor kesiapan dan status kesehatan operasional, tanpa mengekspos path internal file storage.
 
