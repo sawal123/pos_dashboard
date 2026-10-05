@@ -25,6 +25,7 @@ use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesCont
 use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformCloudBackupMonitoringController;
 use App\Http\Controllers\Platform\DashboardController as PlatformDashboardController;
 use App\Http\Controllers\Platform\DevicesController as PlatformDevicesController;
+use App\Http\Controllers\Platform\OperationalAlertsController as PlatformOperationalAlertsController;
 use App\Http\Controllers\Platform\PaymentsController as PlatformPaymentsController;
 use App\Http\Controllers\Platform\RevenueReportsController as PlatformRevenueReportsController;
 use App\Http\Controllers\Platform\SubscriptionPlansController as PlatformSubscriptionPlansController;
@@ -320,6 +321,9 @@ Route::prefix('platform')
         // ADMIN-13 — Platform Audit Log (Append-Only Administrative Audit Trail)
         Route::get('audit-logs', [PlatformAuditLogsController::class, 'index'])->name('audit-logs.index');
         Route::get('audit-logs/{auditLog}', [PlatformAuditLogsController::class, 'show'])->name('audit-logs.show');
+
+        // ADMIN-14 — Notifications & Operational Alerts (Derived Read-Only Alerts)
+        Route::get('alerts', [PlatformOperationalAlertsController::class, 'index'])->name('alerts.index');
     });
 
 require __DIR__.'/settings.php';
