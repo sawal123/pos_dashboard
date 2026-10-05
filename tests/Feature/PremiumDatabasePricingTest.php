@@ -17,6 +17,7 @@ use Database\Seeders\SubscriptionPlanSeeder;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 /**
@@ -105,10 +106,21 @@ class PremiumDatabasePricingTest extends TestCase
         $plan = SubscriptionPlan::factory()->create();
 
         $this->seedPrice($plan, 'monthly', 49000);
+        $this->seedPrice($plan, 'yearly', 490000);
 
-        $this->expectException(QueryException::class);
+        $this->assertTrue(Schema::hasIndex(
+            'subscription_plan_prices',
+            ['subscription_plan_id', 'billing_period', 'currency'],
+            'unique',
+        ));
+        $this->assertSame(2, SubscriptionPlanPrice::count());
 
-        $this->seedPrice($plan, 'monthly', 59000);
+        try {
+            $this->seedPrice($plan, 'monthly', 59000);
+            $this->fail('Duplicate plan period/currency price was not rejected.');
+        } catch (QueryException) {
+            $this->assertSame(2, SubscriptionPlanPrice::count());
+        }
     }
 
     // ============================================================
