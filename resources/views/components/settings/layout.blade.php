@@ -13,6 +13,12 @@
         <flux:heading>{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
+        @if (session('status'))
+            <div class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm font-medium text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+                {{ session('status') }}
+            </div>
+        @endif
+
         <div class="mt-5 w-full max-w-lg">
             {{ $slot }}
         </div>

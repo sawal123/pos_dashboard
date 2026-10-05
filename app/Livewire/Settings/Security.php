@@ -112,6 +112,12 @@ class Security extends Component
             'password' => $validated['password'],
         ]);
 
+        try {
+            Auth::logoutOtherDevices($validated['password']);
+        } catch (\Throwable) {
+            // Ignore when session store is array/mock or unsupported
+        }
+
         $this->reset('current_password', 'password', 'password_confirmation');
 
         Flux::toast(variant: 'success', text: __('Password updated.'));

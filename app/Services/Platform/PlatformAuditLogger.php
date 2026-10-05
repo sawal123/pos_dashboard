@@ -33,6 +33,8 @@ class PlatformAuditLogger
         'cookie',
         'csrf',
         'app_key',
+        'api_key',
+        'private_key',
         'credential',
     ];
 

@@ -260,11 +260,12 @@ Route::post('invitations/{token}/accept', [InvitationAcceptanceController::class
     ->where('token', '[A-Za-z0-9]+')
     ->name('invitations.accept');
 
-// ADMIN-01 — Platform Admin foundation.
+// ADMIN-01 & ADMIN-16 — Platform Admin foundation and Security Hardening.
 // Completely decoupled from business context (ShareDashboardBusinessContext).
-// Deny-by-default via EnsurePlatformAdmin (platform.admin).
+// Deny-by-default via EnsurePlatformAdmin (platform.admin) and EnsurePlatformAdminTwoFactor (platform.admin.2fa).
+// Security and cache-control headers applied via PlatformSecurityHeaders (platform.security.headers).
 Route::prefix('platform')
-    ->middleware(['auth', 'verified', 'platform.admin'])
+    ->middleware(['auth', 'verified', 'platform.admin', 'platform.admin.2fa', 'platform.security.headers'])
     ->name('platform.')
     ->group(function () {
         Route::get('/', [PlatformDashboardController::class, 'index'])->name('dashboard');
@@ -273,7 +274,9 @@ Route::prefix('platform')
         // ADMIN-03 — Business / Merchant Management
         Route::get('businesses', [PlatformBusinessesController::class, 'index'])->name('businesses.index');
         Route::get('businesses/{business}', [PlatformBusinessesController::class, 'show'])->name('businesses.show');
-        Route::patch('businesses/{business}/status', [PlatformBusinessesController::class, 'updateStatus'])->name('businesses.status.update');
+        Route::patch('businesses/{business}/status', [PlatformBusinessesController::class, 'updateStatus'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('businesses.status.update');
 
         // ADMIN-04 — Platform User Management
         Route::get('users', [PlatformUsersController::class, 'index'])->name('users.index');
@@ -282,18 +285,31 @@ Route::prefix('platform')
         // ADMIN-05 — Subscription & Plan Management
         Route::get('subscriptions', [PlatformSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::get('subscriptions/{subscription}', [PlatformSubscriptionsController::class, 'show'])->name('subscriptions.show');
-        Route::patch('subscriptions/{subscription}/activate', [PlatformSubscriptionsController::class, 'activate'])->name('subscriptions.activate');
-        Route::post('subscriptions/{subscription}/renew', [PlatformSubscriptionsController::class, 'renew'])->name('subscriptions.renew');
-        Route::patch('subscriptions/{subscription}/downgrade', [PlatformSubscriptionsController::class, 'downgrade'])->name('subscriptions.downgrade');
-        Route::patch('subscriptions/{subscription}/inactivate', [PlatformSubscriptionsController::class, 'inactivate'])->name('subscriptions.inactivate');
+        Route::patch('subscriptions/{subscription}/activate', [PlatformSubscriptionsController::class, 'activate'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.activate');
+        Route::post('subscriptions/{subscription}/renew', [PlatformSubscriptionsController::class, 'renew'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.renew');
+        Route::patch('subscriptions/{subscription}/downgrade', [PlatformSubscriptionsController::class, 'downgrade'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.downgrade');
+        Route::patch('subscriptions/{subscription}/inactivate', [PlatformSubscriptionsController::class, 'inactivate'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.inactivate');
 
         // ADMIN-06 — Premium Plan & Pricing Management (canonical Cloud only).
         Route::get('subscription-plans', [PlatformSubscriptionPlansController::class, 'index'])->name('subscription-plans.index');
         Route::get('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'show'])->name('subscription-plans.show');
-        Route::patch('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'update'])->name('subscription-plans.update');
-        Route::post('subscription-plans/{plan}/prices', [PlatformSubscriptionPlansController::class, 'storePrice'])->name('subscription-plans.prices.store');
+        Route::patch('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscription-plans.update');
+        Route::post('subscription-plans/{plan}/prices', [PlatformSubscriptionPlansController::class, 'storePrice'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscription-plans.prices.store');
         Route::patch('subscription-plans/{plan}/prices/{price}', [PlatformSubscriptionPlansController::class, 'updatePrice'])
             ->scopeBindings()
+            ->middleware('throttle:platform-admin-mutations')
             ->name('subscription-plans.prices.update');
 
         // ADMIN-06 — Midtrans Payment Management (Operator Console)
@@ -303,8 +319,12 @@ Route::prefix('platform')
         // ADMIN-08 — Devices Management (Platform Device Inventory & Quota)
         Route::get('devices', [PlatformDevicesController::class, 'index'])->name('devices.index');
         Route::get('devices/{device}', [PlatformDevicesController::class, 'show'])->name('devices.show');
-        Route::patch('devices/{device}/deactivate', [PlatformDevicesController::class, 'deactivate'])->name('devices.deactivate');
-        Route::patch('devices/{device}/activate', [PlatformDevicesController::class, 'activate'])->name('devices.activate');
+        Route::patch('devices/{device}/deactivate', [PlatformDevicesController::class, 'deactivate'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('devices.deactivate');
+        Route::patch('devices/{device}/activate', [PlatformDevicesController::class, 'activate'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('devices.activate');
 
         // ADMIN-09 — Sync Monitoring (Global Platform Sync Observability)
         Route::get('sync', [PlatformSyncMonitoringController::class, 'index'])->name('sync.index');
@@ -328,7 +348,9 @@ Route::prefix('platform')
 
         // ADMIN-15 — Platform Settings (Global Whitelisted Runtime Settings)
         Route::get('settings', [PlatformSettingsController::class, 'index'])->name('settings.index');
-        Route::patch('settings/{setting}', [PlatformSettingsController::class, 'update'])->name('settings.update');
+        Route::patch('settings/{setting}', [PlatformSettingsController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('settings.update');
     });
 
 require __DIR__.'/settings.php';
