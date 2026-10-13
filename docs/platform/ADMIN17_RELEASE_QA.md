@@ -55,7 +55,7 @@ All `/platform/*` routes strictly inherit:
 6. `platform.security.headers` (`PlatformSecurityHeaders` — adds `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and `Cache-Control: no-store, private`)
 
 ### Mutation Routes Rate Limiting
-All state-modifying endpoints strictly enforce `throttle:platform-admin-mutations` (60 requests/minute per authenticated admin):
+All state-modifying endpoints strictly enforce `throttle:platform-admin-mutations` (30 requests/minute per authenticated Platform Admin):
 - `PATCH /platform/businesses/{business}/status` (`platform.businesses.status.update`)
 - `PATCH /platform/subscriptions/{subscription}/activate` (`platform.subscriptions.activate`)
 - `POST /platform/subscriptions/{subscription}/renew` (`platform.subscriptions.renew`)
@@ -115,6 +115,14 @@ Secrets & Sensitive Material Concealment:
 - Payments show: `snap_token` rendered strictly as status-only (`Tersedia`), zero raw characters, prefix, suffix, or fingerprints exposed.
 - Audit logs: Recursive secret sanitizer strips sensitive keys before writing to database.
 
+### Cloud Backup Storage & Limits (PREM-D03)
+
+Canonical, config-verified release facts (guarded by `PlatformReleaseQaTest`):
+
+- **Cloud Backup size limit**: **25 MB** hard application limit (`premium.backup.max_bytes` = `25 * 1024 * 1024`). `CloudBackupService` falls back to the same 25 MB when the config key is absent.
+- **Cloud Backup storage**: private **non-public** filesystem disk (`cloud_backups`; root `storage_path('app/private/cloud-backups')`, `serve => false`). Snapshots are reachable only through the authorized, business-scoped download endpoint.
+- **Encryption**: **no application-level encryption-at-rest is claimed.** The guarantee is *private non-public storage enforced*; application-layer encryption is not implemented.
+
 ---
 
 ## 6. Concurrency Validation Gate (Real MySQL)
@@ -167,10 +175,10 @@ All quality gates passed with zero regressions:
 
 1. **Full Pest Test Suite (SQLite in-memory)**:
    - Command: `php -d memory_limit=1G ./vendor/bin/pest`
-   - Total Tests: **1,635**
-   - Passed: **1,627**
+   - Total Tests: **1,637**
+   - Passed: **1,629**
    - Skipped: **8** (Explicitly designated MySQL-only concurrency tests that require isolated MySQL and are executed in `phpunit.p38concurrency.xml`)
-   - Assertions: **6,664**
+   - Assertions: **6,670**
    - Duration: 93.4s
 2. **Full Concurrency Suite (Dedicated MySQL QA DB)**:
    - Command: `php vendor/bin/phpunit -c phpunit.p38concurrency.xml`
@@ -214,7 +222,7 @@ All quality gates passed with zero regressions:
    SESSION_HTTP_ONLY=true
    SESSION_SAME_SITE=lax
    QUEUE_CONNECTION=database
-   CLOUD_BACKUP_DISK=private
+   CLOUD_BACKUP_DISK=cloud_backups
    ```
 3. [ ] **Runtime Requirements**: Ensure server is running PHP 8.4 with extensions: `pdo_mysql`, `dom`, `mbstring`, `xmlreader`, `zip`, `bcmath`.
 4. [ ] **Preflight Check**:
@@ -289,4 +297,4 @@ The following items are outside the scope of ADMIN-01 through ADMIN-16 and do no
 FINAL DECISION: PASS — Platform Admin ready for production deployment checklist
 ================================================================================
 ```
-All criteria from ADMIN-01 through ADMIN-16 have been audited, real MySQL locking concurrency is mathematically and empirically validated, zero regressions were found in 1,635 tests, and production preflight fail-closed semantics are confirmed.
+All criteria from ADMIN-01 through ADMIN-16 have been audited, real MySQL locking concurrency is mathematically and empirically validated, zero regressions were found in 1,637 tests, and production preflight fail-closed semantics are confirmed.

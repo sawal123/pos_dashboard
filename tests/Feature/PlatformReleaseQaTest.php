@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class PlatformReleaseQaTest extends TestCase
@@ -161,5 +163,28 @@ class PlatformReleaseQaTest extends TestCase
         $this->actingAs($this->platformAdmin)
             ->put(route('platform.audit-logs.index'))
             ->assertStatus(405);
+    }
+
+    public function test_release_doc_canonical_cloud_backup_values_match_configuration(): void
+    {
+        $this->assertSame(25 * 1024 * 1024, config('premium.backup.max_bytes'));
+        $this->assertSame('cloud_backups', config('premium.backup.disk'));
+
+        $this->assertFalse(config('filesystems.disks.cloud_backups.serve'));
+        $this->assertStringStartsWith(
+            storage_path('app/private'),
+            (string) config('filesystems.disks.cloud_backups.root'),
+        );
+    }
+
+    public function test_release_doc_canonical_platform_mutation_rate_limit_is_30_per_minute(): void
+    {
+        $limiter = RateLimiter::limiter('platform-admin-mutations');
+
+        $this->assertNotNull($limiter);
+
+        $limit = $limiter(Request::create('/platform', 'PATCH'));
+
+        $this->assertSame(30, $limit->maxAttempts);
     }
 }
