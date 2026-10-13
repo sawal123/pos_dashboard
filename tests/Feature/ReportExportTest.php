@@ -281,12 +281,48 @@ class ReportExportTest extends TestCase
         $html = view('reports.pdf', ['document' => $document])->render();
 
         $this->assertStringContainsString('Laporan Penjualan', $html);
-        $this->assertStringContainsString($business->name, $html);
+        // The template echoes the business name through escaped Blade syntax,
+        // so a Faker name containing `'`, `&`, `<` ... must be compared against
+        // its HTML-encoded form (PREM-M07).
+        $this->assertStringContainsString(e($business->name), $html);
         $this->assertStringContainsString('Ringkasan', $html);
         $this->assertStringContainsString('Tren Penjualan', $html);
         $this->assertStringContainsString('Breakdown Metode Pembayaran', $html);
         $this->assertStringContainsString('Breakdown Kategori Pengeluaran', $html);
         $this->assertStringContainsString('Rp 310.000', $html);
+    }
+
+    public function test_29_pdf_template_escapes_html_sensitive_business_name(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $this->createSale(['business_id' => $business->id, 'total_amount' => 310000]);
+
+        // PREM-M07: BusinessFactory draws fake()->company(), which intermittently
+        // yields apostrophes ("O'Keefe LLC"), and reports/pdf.blade.php escapes
+        // the value. That contract is pinned here to deterministic names instead
+        // of being left to whatever Faker happens to draw.
+        $hostileNames = [
+            "Sawal's Cafe & Store" => 'Sawal&#039;s Cafe &amp; Store',
+            '<b>bold</b> "quote"' => '&lt;b&gt;bold&lt;/b&gt; &quot;quote&quot;',
+        ];
+
+        foreach ($hostileNames as $raw => $escaped) {
+            $business->update(['name' => $raw]);
+
+            $document = app(ReportExportService::class)
+                ->buildDocument($business, ReportFilters::fromArray([]), 100);
+            $html = view('reports.pdf', ['document' => $document])->render();
+
+            $this->assertSame(e($raw), $escaped, 'Fixture must mirror Blade escaping.');
+            $this->assertStringContainsString($escaped, $html);
+            $this->assertStringNotContainsString($raw, $html, 'Raw business name must never reach the HTML.');
+        }
+
+        // The production export path tolerates a hostile name end to end.
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('reports.export.pdf'))
+            ->assertOk();
     }
 
     // ============================================================
