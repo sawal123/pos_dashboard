@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Fortify\Features;
 use Livewire\Livewire;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class SecurityTest extends TestCase
@@ -128,5 +129,87 @@ class SecurityTest extends TestCase
             ->call('updatePassword');
 
         $response->assertHasErrors(['current_password']);
+    }
+
+    public function test_security_settings_page_renders_flux_runtime_scripts_and_appearance(): void
+    {
+        $admin = User::factory()->platformAdmin()->withoutTwoFactor()->create();
+
+        $response = $this->actingAs($admin)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('security.edit'));
+
+        $response->assertOk();
+        $response->assertSee('/flux/flux', false);
+        $response->assertSee('applyAppearance', false);
+        $response->assertSee('data-flux-modal', false);
+    }
+
+    public function test_platform_admin_can_complete_full_2fa_setup_flow_and_access_platform(): void
+    {
+        $admin = User::factory()->platformAdmin()->withoutTwoFactor()->create();
+
+        // 1. Initial attempt to access /platform redirects to security.edit
+        $this->actingAs($admin)
+            ->get('/platform')
+            ->assertRedirect(route('security.edit'));
+
+        $this->actingAs($admin);
+
+        // 2. Enable 2FA generates QR code and modal state
+        $component = Livewire::test(Security::class)
+            ->call('enable');
+
+        $component->assertSet('showModal', true);
+        $this->assertNotEmpty($component->get('qrCodeSvg'));
+        $this->assertNotEmpty($component->get('manualSetupKey'));
+        $this->assertNotNull($admin->fresh()->two_factor_secret);
+        $this->assertNull($admin->fresh()->two_factor_confirmed_at);
+
+        // 3. Move to verification step
+        $component->call('showVerificationIfNecessary')
+            ->assertSet('showVerificationStep', true);
+
+        // 4. Generate valid TOTP from user's secret
+        $google2fa = app(Google2FA::class);
+        $validOtp = $google2fa->getCurrentOtp(decrypt($admin->fresh()->two_factor_secret));
+
+        // 5. Confirm with valid code
+        $component->set('code', $validOtp)
+            ->call('confirmTwoFactor')
+            ->assertHasNoErrors()
+            ->assertSet('twoFactorEnabled', true)
+            ->assertSet('showModal', false);
+
+        // 6. DB shows confirmed
+        $admin->refresh();
+        $this->assertNotNull($admin->two_factor_confirmed_at);
+        $this->assertNotNull($admin->two_factor_recovery_codes);
+
+        // 7. Platform Admin can now reach /platform without redirect
+        $this->actingAs($admin)
+            ->get('/platform')
+            ->assertOk();
+    }
+
+    public function test_2fa_confirmation_fails_with_invalid_code(): void
+    {
+        $admin = User::factory()->platformAdmin()->withoutTwoFactor()->create();
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(Security::class)
+            ->call('enable')
+            ->call('showVerificationIfNecessary')
+            ->set('code', '000000')
+            ->call('confirmTwoFactor');
+
+        $component->assertHasErrors(['code']);
+        $this->assertNull($admin->fresh()->two_factor_confirmed_at);
+
+        // Platform access remains blocked
+        $this->actingAs($admin)
+            ->get('/platform')
+            ->assertRedirect(route('security.edit'));
     }
 }
