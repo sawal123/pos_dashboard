@@ -49,6 +49,101 @@
 {{-- Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
+{{-- Sidebar Collapsed Floating Tooltip --}}
+<script>
+    (function() {
+        let tooltipEl = null;
+
+        function getOrCreateTooltip() {
+            if (!tooltipEl) {
+                tooltipEl = document.getElementById('sidebarFloatingTooltip');
+                if (!tooltipEl) {
+                    tooltipEl = document.createElement('div');
+                    tooltipEl.id = 'sidebarFloatingTooltip';
+                    tooltipEl.className = 'fixed z-[9999] pointer-events-none px-2.5 py-1.5 rounded-xl text-xs font-semibold text-white bg-slate-900/95 dark:bg-slate-800/95 border border-slate-700/80 shadow-2xl backdrop-blur-sm opacity-0 transition-all duration-150 whitespace-nowrap scale-95';
+                    document.body.appendChild(tooltipEl);
+                }
+            }
+            return tooltipEl;
+        }
+
+        function showSidebarTooltip(target) {
+            if (window.innerWidth < 768) return;
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+            // Only show floating tooltip when sidebar is collapsed
+            if (!isCollapsed) return;
+
+            const text = target.getAttribute('data-tooltip-right');
+            if (!text) return;
+
+            const el = getOrCreateTooltip();
+            const rect = target.getBoundingClientRect();
+            el.textContent = text;
+            el.style.left = `${rect.right + 12}px`;
+            el.style.top = `${rect.top + rect.height / 2}px`;
+            el.style.transform = 'translateY(-50%)';
+            el.classList.remove('opacity-0', 'scale-95');
+            el.classList.add('opacity-100', 'scale-100');
+        }
+
+        function hideSidebarTooltip() {
+            if (tooltipEl) {
+                tooltipEl.classList.remove('opacity-100', 'scale-100');
+                tooltipEl.classList.add('opacity-0', 'scale-95');
+            }
+        }
+
+        function initSidebarTooltipListeners() {
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar || sidebar.dataset.tooltipBound === 'true') return;
+            sidebar.dataset.tooltipBound = 'true';
+
+            sidebar.addEventListener('mouseover', (e) => {
+                const item = e.target.closest('[data-tooltip-right]');
+                if (item && sidebar.contains(item)) {
+                    showSidebarTooltip(item);
+                }
+            });
+
+            sidebar.addEventListener('mouseout', (e) => {
+                const item = e.target.closest('[data-tooltip-right]');
+                if (item && sidebar.contains(item)) {
+                    hideSidebarTooltip();
+                }
+            });
+
+            sidebar.addEventListener('focusin', (e) => {
+                const item = e.target.closest('[data-tooltip-right]');
+                if (item && sidebar.contains(item)) {
+                    showSidebarTooltip(item);
+                }
+            });
+
+            sidebar.addEventListener('focusout', (e) => {
+                const item = e.target.closest('[data-tooltip-right]');
+                if (item && sidebar.contains(item)) {
+                    hideSidebarTooltip();
+                }
+            });
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initSidebarTooltipListeners);
+        } else {
+            initSidebarTooltipListeners();
+        }
+
+        document.addEventListener('livewire:navigated', () => {
+            hideSidebarTooltip();
+            initSidebarTooltipListeners();
+        });
+        window.addEventListener('scroll', hideSidebarTooltip, true);
+        window.addEventListener('resize', hideSidebarTooltip);
+    })();
+</script>
+
 {{-- NexaPOS Custom CSS --}}
 <style>
     * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
@@ -58,7 +153,7 @@
     .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
     /* Tooltip Base */
-    [data-tooltip], [data-tooltip-bottom], [data-tooltip-right] { position: relative; }
+    [data-tooltip], [data-tooltip-bottom] { position: relative; }
     
     /* Default: Top Tooltip */
     [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
@@ -103,34 +198,10 @@
         content: attr(data-tooltip-bottom);
     }
 
-    /* Right Tooltip */
-    [data-tooltip-right]:hover::after,
-    [data-tooltip-right]:focus-visible::after {
-        content: attr(data-tooltip-right);
-        position: absolute;
-        top: 50%;
-        left: calc(100% + 8px);
-        bottom: auto;
-        transform: translateY(-50%);
-        padding: 0.4rem 0.7rem;
-        background: #0f172a;
-        color: #fff;
-        border-radius: 0.5rem;
-        font-size: 0.7rem;
-        font-weight: 500;
-        white-space: nowrap;
-        z-index: 200;
-        pointer-events: none;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-        animation: tooltipFadeInRight 0.15s ease-out forwards;
-    }
-
     .dark [data-tooltip]:hover::after,
     .dark [data-tooltip]:focus-visible::after,
     .dark [data-tooltip-bottom]:hover::after,
-    .dark [data-tooltip-bottom]:focus-visible::after,
-    .dark [data-tooltip-right]:hover::after,
-    .dark [data-tooltip-right]:focus-visible::after {
+    .dark [data-tooltip-bottom]:focus-visible::after {
         background: #1e293b;
         border: 1px solid #334155;
     }
@@ -142,10 +213,6 @@
     @keyframes tooltipFadeInBottom {
         from { opacity: 0; transform: translate(-50%, -4px); }
         to { opacity: 1; transform: translate(-50%, 0); }
-    }
-    @keyframes tooltipFadeInRight {
-        from { opacity: 0; transform: translate(-4px, -50%); }
-        to { opacity: 1; transform: translate(0, -50%); }
     }
 
     .modal-backdrop { transition: opacity 0.25s ease; }

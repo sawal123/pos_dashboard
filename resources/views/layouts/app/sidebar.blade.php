@@ -206,45 +206,7 @@
                     }
                 }
             });
-
-            // ========== FLOATING TOOLTIP FOR COLLAPSED SIDEBAR ==========
-            let floatingTooltip = document.getElementById('sidebarFloatingTooltip');
-            if (!floatingTooltip) {
-                floatingTooltip = document.createElement('div');
-                floatingTooltip.id = 'sidebarFloatingTooltip';
-                floatingTooltip.className = 'fixed z-[100] pointer-events-none px-2.5 py-1.5 rounded-lg text-xs font-medium text-white bg-slate-900 dark:bg-slate-800 border border-slate-700/80 shadow-xl opacity-0 transition-opacity duration-150 whitespace-nowrap';
-                document.body.appendChild(floatingTooltip);
-            }
-
-            function showFloatingTooltip(el) {
-                if (window.innerWidth < 768) return;
-                const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
-                // Only show floating tooltip when sidebar is collapsed (or for collapse button itself)
-                if (!isCollapsed && el.id !== 'collapseSidebarBtn') return;
-                const text = el.getAttribute('data-tooltip-right');
-                if (!text) return;
-                const rect = el.getBoundingClientRect();
-                floatingTooltip.textContent = text;
-                floatingTooltip.style.left = `${rect.right + 12}px`;
-                floatingTooltip.style.top = `${rect.top + rect.height / 2}px`;
-                floatingTooltip.style.transform = 'translateY(-50%)';
-                floatingTooltip.classList.remove('opacity-0');
-                floatingTooltip.classList.add('opacity-100');
-            }
-
-            function hideFloatingTooltip() {
-                if (floatingTooltip) {
-                    floatingTooltip.classList.remove('opacity-100');
-                    floatingTooltip.classList.add('opacity-0');
-                }
-            }
-
-            document.querySelectorAll('#sidebar [data-tooltip-right]').forEach(el => {
-                el.addEventListener('mouseenter', () => showFloatingTooltip(el));
-                el.addEventListener('mouseleave', hideFloatingTooltip);
-                el.addEventListener('focus', () => showFloatingTooltip(el));
-                el.addEventListener('blur', hideFloatingTooltip);
-            });
+            // Floating tooltip is now managed globally in head.blade.php
 
             // ========== SIDEBAR ROADMAP ITEM PLACEHOLDER ==========
             document.querySelectorAll('.sidebar-item').forEach(item => {
