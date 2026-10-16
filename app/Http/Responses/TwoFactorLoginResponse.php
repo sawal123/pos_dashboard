@@ -2,6 +2,7 @@
 
 namespace App\Http\Responses;
 
+use App\Services\Auth\TwoFactorDeviceService;
 use Illuminate\Http\Request;
 use Laravel\Fortify\Contracts\TwoFactorLoginResponse as TwoFactorLoginResponseContract;
 use Laravel\Fortify\Fortify;
@@ -24,13 +25,20 @@ class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
                 ? route('platform.dashboard')
                 : $intended;
 
-            return $request->wantsJson()
+            $response = $request->wantsJson()
                 ? response()->noContent()
                 : redirect()->to($target);
+        } else {
+            $response = $request->wantsJson()
+                ? response()->noContent()
+                : redirect()->intended(Fortify::redirects('login'));
         }
 
-        return $request->wantsJson()
-            ? response()->noContent()
-            : redirect()->intended(Fortify::redirects('login'));
+        if ($user && $request->boolean('remember_device', true)) {
+            $deviceCookie = app(TwoFactorDeviceService::class)->createDeviceCookie($user);
+            $response->withCookie($deviceCookie);
+        }
+
+        return $response;
     }
 }

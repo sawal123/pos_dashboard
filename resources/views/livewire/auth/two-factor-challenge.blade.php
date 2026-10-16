@@ -2,6 +2,7 @@
     <div
         class="space-y-6"
         x-data="{
+            submitting: false,
             showRecovery: @js($errors->has('recovery_code')),
             digits: ['', '', '', '', '', ''],
             get fullCode() {
@@ -122,7 +123,7 @@
         @endif
 
         {{-- ==================== FORM ==================== --}}
-        <form method="POST" action="{{ route('two-factor.login.store') }}" class="space-y-5" x-ref="twoFactorForm">
+        <form method="POST" action="{{ route('two-factor.login.store') }}" class="space-y-5" x-ref="twoFactorForm" @submit="submitting = true">
             @csrf
 
             {{-- OTP 6 DIGITS MODE --}}
@@ -187,14 +188,43 @@
                 </p>
             </div>
 
+            {{-- REMEMBER DEVICE CHECKBOX --}}
+            <label class="flex items-center gap-2 cursor-pointer select-none py-1">
+                <input
+                    type="checkbox"
+                    name="remember_device"
+                    value="1"
+                    checked
+                    class="custom-checkbox"
+                >
+                <span class="text-xs text-slate-600 dark:text-slate-300">
+                    {{ __('Ingat perangkat ini (jangan minta 2FA lagi di browser ini)') }}
+                </span>
+            </label>
+
             {{-- SUBMIT BUTTON --}}
             <button
                 type="submit"
                 data-test="confirm-two-factor-button"
-                class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold shadow-sm shadow-indigo-600/20 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 cursor-pointer"
+                :disabled="submitting"
+                class="w-full inline-flex items-center justify-center gap-2 h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-semibold shadow-sm shadow-indigo-600/20 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             >
-                <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                <span>{{ __('Lanjutkan Masuk') }}</span>
+                {{-- Spin Loader --}}
+                <svg
+                    x-show="submitting"
+                    x-cloak
+                    class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                >
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+
+                <i data-lucide="arrow-right" class="w-4 h-4" x-show="!submitting"></i>
+                <span x-show="!submitting">{{ __('Lanjutkan Masuk') }}</span>
+                <span x-show="submitting" x-cloak>{{ __('Memverifikasi...') }}</span>
             </button>
 
             {{-- TOGGLE MODE --}}
