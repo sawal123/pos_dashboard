@@ -36,7 +36,7 @@
     {{-- Dropdown Panel --}}
     <div
         id="profileDropdown"
-        class="dropdown-panel dropdown-hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-slate-950/60 overflow-hidden z-50 py-1"
+        class="dropdown-panel dropdown-hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-slate-950/60 overflow-hidden z-50 py-1"
         role="menu"
         aria-orientation="vertical"
         aria-labelledby="profileDropdownBtn"

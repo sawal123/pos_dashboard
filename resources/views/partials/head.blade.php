@@ -57,9 +57,96 @@
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     .dark ::-webkit-scrollbar-thumb { background: #475569; }
 
-    [data-tooltip] { position: relative; }
-    [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after { content: attr(data-tooltip); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); padding: 0.4rem 0.7rem; background: #0f172a; color: #fff; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 500; white-space: nowrap; z-index: 200; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.25); }
-    .dark [data-tooltip]:hover::after, .dark [data-tooltip]:focus-visible::after { background: #1e293b; border: 1px solid #334155; }
+    /* Tooltip Base */
+    [data-tooltip], [data-tooltip-bottom], [data-tooltip-right] { position: relative; }
+    
+    /* Default: Top Tooltip */
+    [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.4rem 0.7rem;
+        background: #0f172a;
+        color: #fff;
+        border-radius: 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        white-space: nowrap;
+        z-index: 200;
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        animation: tooltipFadeInTop 0.15s ease-out forwards;
+    }
+
+    /* Bottom Tooltips (Header, Navbar, Topbar, or explicit bottom placement) */
+    header [data-tooltip]:hover::after,
+    header [data-tooltip]:focus-visible::after,
+    #navbar [data-tooltip]:hover::after,
+    #navbar [data-tooltip]:focus-visible::after,
+    .topbar [data-tooltip]:hover::after,
+    .topbar [data-tooltip]:focus-visible::after,
+    [data-tooltip-placement="bottom"]:hover::after,
+    [data-tooltip-placement="bottom"]:focus-visible::after,
+    [data-tooltip-bottom]:hover::after,
+    [data-tooltip-bottom]:focus-visible::after {
+        content: attr(data-tooltip);
+        top: calc(100% + 8px);
+        bottom: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        animation: tooltipFadeInBottom 0.15s ease-out forwards;
+    }
+    [data-tooltip-bottom]:hover::after,
+    [data-tooltip-bottom]:focus-visible::after {
+        content: attr(data-tooltip-bottom);
+    }
+
+    /* Right Tooltip */
+    [data-tooltip-right]:hover::after,
+    [data-tooltip-right]:focus-visible::after {
+        content: attr(data-tooltip-right);
+        position: absolute;
+        top: 50%;
+        left: calc(100% + 8px);
+        bottom: auto;
+        transform: translateY(-50%);
+        padding: 0.4rem 0.7rem;
+        background: #0f172a;
+        color: #fff;
+        border-radius: 0.5rem;
+        font-size: 0.7rem;
+        font-weight: 500;
+        white-space: nowrap;
+        z-index: 200;
+        pointer-events: none;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        animation: tooltipFadeInRight 0.15s ease-out forwards;
+    }
+
+    .dark [data-tooltip]:hover::after,
+    .dark [data-tooltip]:focus-visible::after,
+    .dark [data-tooltip-bottom]:hover::after,
+    .dark [data-tooltip-bottom]:focus-visible::after,
+    .dark [data-tooltip-right]:hover::after,
+    .dark [data-tooltip-right]:focus-visible::after {
+        background: #1e293b;
+        border: 1px solid #334155;
+    }
+
+    @keyframes tooltipFadeInTop {
+        from { opacity: 0; transform: translate(-50%, 4px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    @keyframes tooltipFadeInBottom {
+        from { opacity: 0; transform: translate(-50%, -4px); }
+        to { opacity: 1; transform: translate(-50%, 0); }
+    }
+    @keyframes tooltipFadeInRight {
+        from { opacity: 0; transform: translate(-4px, -50%); }
+        to { opacity: 1; transform: translate(0, -50%); }
+    }
 
     .modal-backdrop { transition: opacity 0.25s ease; }
     .modal-panel { transition: transform 0.25s ease, opacity 0.25s ease; }
