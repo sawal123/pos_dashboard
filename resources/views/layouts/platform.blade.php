@@ -458,174 +458,276 @@
 
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
-            // ========== INITIALIZE LUCIDE ICONS ==========
-            function initIcons() {
-                if (typeof lucide !== 'undefined') {
-                    lucide.createIcons();
-                }
-            }
-            initIcons();
-            document.addEventListener('DOMContentLoaded', initIcons);
-
-            // ========== THEME MANAGEMENT ==========
-            const htmlEl = document.documentElement;
-            const themeToggleBtn = document.getElementById('themeToggleBtn');
-            const moonIcon = document.getElementById('moonIcon');
-            const sunIcon = document.getElementById('sunIcon');
-
-            function applyTheme(theme) {
-                if (theme === 'dark') {
-                    htmlEl.classList.add('dark');
-                    htmlEl.classList.remove('light');
-                    if (moonIcon) moonIcon.style.display = 'inline';
-                    if (sunIcon) sunIcon.style.display = 'none';
-                } else {
-                    htmlEl.classList.remove('dark');
-                    htmlEl.classList.add('light');
-                    if (moonIcon) moonIcon.style.display = 'none';
-                    if (sunIcon) sunIcon.style.display = 'inline';
-                }
-                localStorage.setItem('nexa-theme', theme);
-            }
-
-            function getStoredTheme() {
-                return localStorage.getItem('nexa-theme') || 'light';
-            }
-
-            applyTheme(getStoredTheme());
-
-            if (themeToggleBtn) {
-                themeToggleBtn.addEventListener('click', () => {
-                    const current = htmlEl.classList.contains('dark') ? 'dark' : 'light';
-                    applyTheme(current === 'dark' ? 'light' : 'dark');
-                });
-            }
-
-            // ========== SIDEBAR MANAGEMENT & PERSISTENCE ==========
-            const sidebar = document.getElementById('sidebar');
-            const mobileBackdrop = document.getElementById('mobileBackdrop');
-            const hamburgerBtn = document.getElementById('hamburgerBtn');
-            const closeSidebarBtn = document.getElementById('closeSidebarBtn');
-            const desktopCollapseBtn = document.getElementById('desktopCollapseBtn');
-            const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
-            const collapseIcon = document.getElementById('collapseIcon');
-            const collapseLabel = document.getElementById('collapseLabel');
-            const mainWrapper = document.getElementById('mainWrapper');
-
-            function getStoredSidebarCollapse() {
-                return localStorage.getItem('nexa-sidebar-collapsed') === 'true';
-            }
-
-            function applyDesktopCollapseUI(collapsed) {
-                if (!sidebar || !mainWrapper) return;
-                if (collapsed) {
-                    sidebar.classList.add('sidebar-collapsed', 'w-20');
-                    sidebar.classList.remove('w-72');
-                    mainWrapper.classList.add('md:ml-20');
-                    mainWrapper.classList.remove('md:ml-72');
-                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-right');
-                    if (collapseLabel) collapseLabel.textContent = 'Bentangkan';
-                    if (collapseSidebarBtn) {
-                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Bentangkan Sidebar');
-                        collapseSidebarBtn.setAttribute('aria-expanded', 'false');
-                    }
-                    if (desktopCollapseBtn) {
-                        desktopCollapseBtn.setAttribute('data-tooltip', 'Bentangkan Sidebar');
-                        desktopCollapseBtn.setAttribute('aria-expanded', 'false');
-                    }
-                } else {
-                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
-                    sidebar.classList.add('w-72');
-                    mainWrapper.classList.remove('md:ml-20');
-                    mainWrapper.classList.add('md:ml-72');
-                    if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-left');
-                    if (collapseLabel) collapseLabel.textContent = 'Ciutkan';
-                    if (collapseSidebarBtn) {
-                        collapseSidebarBtn.setAttribute('data-tooltip-right', 'Ciutkan Sidebar');
-                        collapseSidebarBtn.setAttribute('aria-expanded', 'true');
-                    }
-                    if (desktopCollapseBtn) {
-                        desktopCollapseBtn.setAttribute('data-tooltip', 'Ciutkan Sidebar');
-                        desktopCollapseBtn.setAttribute('aria-expanded', 'true');
+            (function() {
+                // ========== INITIALIZE LUCIDE ICONS ==========
+                function initIcons() {
+                    if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
                     }
                 }
-                initIcons();
-            }
+                window.initIcons = initIcons;
 
-            function applySidebarStateForViewport() {
-                if (!sidebar || !mainWrapper) return;
-                if (window.innerWidth < 768) {
-                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
-                    sidebar.classList.add('w-72');
-                    mainWrapper.classList.remove('md:ml-20');
-                    mainWrapper.classList.add('md:ml-72');
-                } else {
-                    const shouldCollapse = getStoredSidebarCollapse();
-                    applyDesktopCollapseUI(shouldCollapse);
-                }
-            }
-
-            function toggleDesktopCollapse() {
-                if (window.innerWidth < 768) return;
-                const willCollapse = !sidebar.classList.contains('sidebar-collapsed');
-                localStorage.setItem('nexa-sidebar-collapsed', willCollapse ? 'true' : 'false');
-                applyDesktopCollapseUI(willCollapse);
-            }
-
-            function openMobileSidebar() {
-                sidebar.classList.remove('sidebar-collapsed', 'w-20');
-                sidebar.classList.add('w-72');
-                sidebar.classList.remove('-translate-x-full');
-                mobileBackdrop.classList.remove('hidden');
-                document.body.style.overflow = 'hidden';
-                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'true');
-            }
-
-            function closeMobileSidebar() {
-                sidebar.classList.add('-translate-x-full');
-                mobileBackdrop.classList.add('hidden');
-                document.body.style.overflow = '';
-                if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'false');
-            }
-
-            if (hamburgerBtn) hamburgerBtn.addEventListener('click', openMobileSidebar);
-            if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeMobileSidebar);
-            if (mobileBackdrop) mobileBackdrop.addEventListener('click', closeMobileSidebar);
-            if (desktopCollapseBtn) desktopCollapseBtn.addEventListener('click', toggleDesktopCollapse);
-            if (collapseSidebarBtn) collapseSidebarBtn.addEventListener('click', toggleDesktopCollapse);
-
-            applySidebarStateForViewport();
-            window.addEventListener('resize', () => {
-                applySidebarStateForViewport();
-                if (window.innerWidth >= 768 && mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
-                    closeMobileSidebar();
-                }
-            });
-
-            // ========== PROFILE DROPDOWN ==========
-            const profileDropdownBtn = document.getElementById('profileDropdownBtn');
-            const profileDropdown = document.getElementById('profileDropdown');
-
-            if (profileDropdownBtn && profileDropdown) {
-                profileDropdownBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const isHidden = profileDropdown.classList.contains('dropdown-hidden');
-                    if (isHidden) {
-                        profileDropdown.classList.remove('dropdown-hidden');
-                        profileDropdownBtn.setAttribute('aria-expanded', 'true');
+                // ========== THEME MANAGEMENT ==========
+                function applyTheme(theme) {
+                    const html = document.documentElement;
+                    const moonIcon = document.getElementById('moonIcon');
+                    const sunIcon = document.getElementById('sunIcon');
+                    if (theme === 'dark') {
+                        html.classList.add('dark');
+                        html.classList.remove('light');
+                        if (moonIcon) moonIcon.style.display = 'inline';
+                        if (sunIcon) sunIcon.style.display = 'none';
                     } else {
-                        profileDropdown.classList.add('dropdown-hidden');
-                        profileDropdownBtn.setAttribute('aria-expanded', 'false');
+                        html.classList.remove('dark');
+                        html.classList.add('light');
+                        if (moonIcon) moonIcon.style.display = 'none';
+                        if (sunIcon) sunIcon.style.display = 'inline';
                     }
-                });
+                    try {
+                        localStorage.setItem('nexa-theme', theme);
+                    } catch (e) {}
+                }
+                window.applyTheme = applyTheme;
 
-                document.addEventListener('click', (e) => {
-                    if (!profileDropdown.contains(e.target) && !profileDropdownBtn.contains(e.target)) {
-                        profileDropdown.classList.add('dropdown-hidden');
-                        profileDropdownBtn.setAttribute('aria-expanded', 'false');
+                function getStoredTheme() {
+                    return localStorage.getItem('nexa-theme') || 'light';
+                }
+                window.getStoredTheme = getStoredTheme;
+
+                // ========== SIDEBAR MANAGEMENT & PERSISTENCE ==========
+                function getStoredSidebarCollapse() {
+                    return localStorage.getItem('nexa-sidebar-collapsed') === 'true';
+                }
+
+                function applyDesktopCollapseUI(collapsed) {
+                    const sidebar = document.getElementById('sidebar');
+                    const mainWrapper = document.getElementById('mainWrapper');
+                    const collapseIcon = document.getElementById('collapseIcon');
+                    const collapseLabel = document.getElementById('collapseLabel');
+                    const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+                    const desktopCollapseBtn = document.getElementById('desktopCollapseBtn');
+
+                    if (!sidebar || !mainWrapper) return;
+                    if (collapsed) {
+                        sidebar.classList.add('sidebar-collapsed', 'w-20');
+                        sidebar.classList.remove('w-72');
+                        mainWrapper.classList.add('md:ml-20');
+                        mainWrapper.classList.remove('md:ml-72');
+                        if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-right');
+                        if (collapseLabel) collapseLabel.textContent = 'Bentangkan';
+                        if (collapseSidebarBtn) {
+                            collapseSidebarBtn.setAttribute('data-tooltip-right', 'Bentangkan Sidebar');
+                            collapseSidebarBtn.setAttribute('aria-expanded', 'false');
+                        }
+                        if (desktopCollapseBtn) {
+                            desktopCollapseBtn.setAttribute('data-tooltip', 'Bentangkan Sidebar');
+                            desktopCollapseBtn.setAttribute('aria-expanded', 'false');
+                        }
+                    } else {
+                        sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                        sidebar.classList.add('w-72');
+                        mainWrapper.classList.remove('md:ml-20');
+                        mainWrapper.classList.add('md:ml-72');
+                        if (collapseIcon) collapseIcon.setAttribute('data-lucide', 'chevrons-left');
+                        if (collapseLabel) collapseLabel.textContent = 'Ciutkan';
+                        if (collapseSidebarBtn) {
+                            collapseSidebarBtn.setAttribute('data-tooltip-right', 'Ciutkan Sidebar');
+                            collapseSidebarBtn.setAttribute('aria-expanded', 'true');
+                        }
+                        if (desktopCollapseBtn) {
+                            desktopCollapseBtn.setAttribute('data-tooltip', 'Ciutkan Sidebar');
+                            desktopCollapseBtn.setAttribute('aria-expanded', 'true');
+                        }
+                    }
+                    initIcons();
+                }
+
+                function applySidebarStateForViewport() {
+                    const sidebar = document.getElementById('sidebar');
+                    const mainWrapper = document.getElementById('mainWrapper');
+                    if (!sidebar || !mainWrapper) return;
+                    if (window.innerWidth < 768) {
+                        sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                        sidebar.classList.add('w-72');
+                        mainWrapper.classList.remove('md:ml-20');
+                        mainWrapper.classList.add('md:ml-72');
+                    } else {
+                        const shouldCollapse = getStoredSidebarCollapse();
+                        applyDesktopCollapseUI(shouldCollapse);
+                    }
+                }
+
+                function toggleDesktopCollapse() {
+                    if (window.innerWidth < 768) return;
+                    const sidebar = document.getElementById('sidebar');
+                    if (!sidebar) return;
+                    const willCollapse = !sidebar.classList.contains('sidebar-collapsed');
+                    try {
+                        localStorage.setItem('nexa-sidebar-collapsed', willCollapse ? 'true' : 'false');
+                    } catch (e) {}
+                    applyDesktopCollapseUI(willCollapse);
+                }
+
+                function openMobileSidebar() {
+                    const sidebar = document.getElementById('sidebar');
+                    const mobileBackdrop = document.getElementById('mobileBackdrop');
+                    const hamburgerBtn = document.getElementById('hamburgerBtn');
+                    if (!sidebar) return;
+                    sidebar.classList.remove('sidebar-collapsed', 'w-20');
+                    sidebar.classList.add('w-72');
+                    sidebar.classList.remove('-translate-x-full');
+                    if (mobileBackdrop) mobileBackdrop.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'true');
+                }
+
+                function closeMobileSidebar() {
+                    const sidebar = document.getElementById('sidebar');
+                    const mobileBackdrop = document.getElementById('mobileBackdrop');
+                    const hamburgerBtn = document.getElementById('hamburgerBtn');
+                    if (!sidebar) return;
+                    sidebar.classList.add('-translate-x-full');
+                    if (mobileBackdrop) mobileBackdrop.classList.add('hidden');
+                    document.body.style.overflow = '';
+                    if (hamburgerBtn) hamburgerBtn.setAttribute('aria-expanded', 'false');
+                }
+
+                // ========== PROFILE DROPDOWN ==========
+                function closeProfileDropdown() {
+                    const dropdown = document.getElementById('profileDropdown');
+                    const btn = document.getElementById('profileDropdownBtn');
+                    if (dropdown && !dropdown.classList.contains('dropdown-hidden')) {
+                        dropdown.classList.add('dropdown-hidden');
+                    }
+                    if (btn) {
+                        btn.setAttribute('aria-expanded', 'false');
+                    }
+                }
+
+                function toggleProfileDropdown() {
+                    const dropdown = document.getElementById('profileDropdown');
+                    const btn = document.getElementById('profileDropdownBtn');
+                    if (!dropdown) return;
+                    const isHidden = dropdown.classList.contains('dropdown-hidden');
+                    if (isHidden) {
+                        dropdown.classList.remove('dropdown-hidden');
+                        if (btn) btn.setAttribute('aria-expanded', 'true');
+                    } else {
+                        dropdown.classList.add('dropdown-hidden');
+                        if (btn) btn.setAttribute('aria-expanded', 'false');
+                    }
+                }
+
+                // ========== GLOBAL EVENT DELEGATION (ATTACHED ONCE) ==========
+                if (!window.__nexaPlatformListenersAttached) {
+                    window.__nexaPlatformListenersAttached = true;
+
+                    document.addEventListener('click', (e) => {
+                        // 1. Theme Toggle Button
+                        const themeBtn = e.target.closest('#themeToggleBtn');
+                        if (themeBtn) {
+                            e.preventDefault();
+                            const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                            applyTheme(current === 'dark' ? 'light' : 'dark');
+                            return;
+                        }
+
+                        // 2. Hamburger Button
+                        const burgerBtn = e.target.closest('#hamburgerBtn');
+                        if (burgerBtn) {
+                            e.preventDefault();
+                            openMobileSidebar();
+                            return;
+                        }
+
+                        // 3. Close Sidebar Button
+                        const closeBtn = e.target.closest('#closeSidebarBtn');
+                        if (closeBtn) {
+                            e.preventDefault();
+                            closeMobileSidebar();
+                            return;
+                        }
+
+                        // 4. Mobile Backdrop
+                        if (e.target.id === 'mobileBackdrop') {
+                            closeMobileSidebar();
+                            return;
+                        }
+
+                        // 5. Desktop Collapse Sidebar Toggle
+                        const collapseBtn = e.target.closest('#desktopCollapseBtn, #collapseSidebarBtn');
+                        if (collapseBtn) {
+                            e.preventDefault();
+                            toggleDesktopCollapse();
+                            return;
+                        }
+
+                        // 6. Profile Dropdown Toggle
+                        const profileBtn = e.target.closest('#profileDropdownBtn');
+                        if (profileBtn) {
+                            e.stopPropagation();
+                            toggleProfileDropdown();
+                            return;
+                        }
+
+                        // 7. Click outside closes profile dropdown
+                        const profileDropdown = document.getElementById('profileDropdown');
+                        if (profileDropdown && !profileDropdown.contains(e.target)) {
+                            closeProfileDropdown();
+                        }
+                    });
+
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            const mobileBackdrop = document.getElementById('mobileBackdrop');
+                            if (mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                                closeMobileSidebar();
+                            }
+                            closeProfileDropdown();
+                        }
+                    });
+
+                    window.addEventListener('resize', () => {
+                        applySidebarStateForViewport();
+                        const mobileBackdrop = document.getElementById('mobileBackdrop');
+                        if (window.innerWidth >= 768 && mobileBackdrop && !mobileBackdrop.classList.contains('hidden')) {
+                            closeMobileSidebar();
+                        }
+                    });
+
+                    // MutationObserver for Lucide Icons
+                    if (typeof MutationObserver !== 'undefined') {
+                        const iconObserver = new MutationObserver(() => {
+                            if (document.querySelector('i[data-lucide]')) {
+                                initIcons();
+                            }
+                        });
+                        iconObserver.observe(document.documentElement, { childList: true, subtree: true });
+                    }
+                }
+
+                // ========== IDEMPOTENT RUN ON EACH PAGE LOAD / NAVIGATION ==========
+                function onPageReady() {
+                    initIcons();
+                    applyTheme(getStoredTheme());
+                    applySidebarStateForViewport();
+                    closeProfileDropdown();
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', onPageReady);
+                } else {
+                    onPageReady();
+                }
+
+                document.addEventListener('livewire:navigated', onPageReady);
+                document.addEventListener('livewire:init', () => {
+                    if (typeof Livewire !== 'undefined') {
+                        Livewire.hook('morph.updated', () => initIcons());
+                        Livewire.hook('commit', () => initIcons());
                     }
                 });
-            }
+            })();
         </script>
     </body>
 </html>
