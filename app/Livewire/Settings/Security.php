@@ -3,9 +3,11 @@
 namespace App\Livewire\Settings;
 
 use App\Concerns\PasswordValidationRules;
+use App\Services\Auth\TwoFactorDeviceService;
 use Exception;
 use Flux\Flux;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Actions\ConfirmTwoFactorAuthentication;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
@@ -238,7 +240,11 @@ class Security extends Component
     {
         $this->validate();
 
-        $confirmTwoFactorAuthentication(auth()->user(), $this->code);
+        $user = auth()->user();
+        $confirmTwoFactorAuthentication($user, $this->code);
+
+        $cookie = app(TwoFactorDeviceService::class)->createDeviceCookie($user->fresh());
+        Cookie::queue($cookie);
 
         $this->closeModal();
 
@@ -260,7 +266,11 @@ class Security extends Component
      */
     public function disable(DisableTwoFactorAuthentication $disableTwoFactorAuthentication): void
     {
-        $disableTwoFactorAuthentication(auth()->user());
+        $user = auth()->user();
+        $disableTwoFactorAuthentication($user);
+
+        $cookie = app(TwoFactorDeviceService::class)->forgetDeviceCookie($user);
+        Cookie::queue($cookie);
 
         $this->twoFactorEnabled = false;
     }

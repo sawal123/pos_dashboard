@@ -345,6 +345,7 @@
                         class="hidden md:flex p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         aria-label="Ciutkan atau bentangkan sidebar"
                         data-tooltip="Ciutkan Sidebar"
+                        data-tooltip-placement="bottom"
                         aria-expanded="true"
                     >
                         <i data-lucide="panel-left" class="w-5 h-5"></i>
@@ -375,6 +376,7 @@
                         class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                         aria-label="Ganti mode tema"
                         data-tooltip="Mode Tampilan"
+                        data-tooltip-placement="bottom"
                     >
                         <i data-lucide="moon" class="w-4 h-4 sm:w-5 sm:h-5 hidden dark:inline" id="moonIcon"></i>
                         <i data-lucide="sun" class="w-4 h-4 sm:w-5 sm:h-5 inline dark:hidden" id="sunIcon"></i>
@@ -413,7 +415,7 @@
                         {{-- Dropdown Menu --}}
                         <div
                             id="profileDropdown"
-                            class="dropdown-panel dropdown-hidden absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-slate-950/60 overflow-hidden z-50 py-1"
+                            class="dropdown-panel dropdown-hidden absolute right-0 top-full mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-2xl shadow-xl shadow-slate-200/40 dark:shadow-slate-950/60 overflow-hidden z-50 py-1"
                             role="menu"
                             aria-orientation="vertical"
                         >

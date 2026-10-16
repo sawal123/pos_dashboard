@@ -78,4 +78,31 @@ class AuthenticationTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_platform_admin_is_redirected_to_platform_dashboard_upon_login(): void
+    {
+        $admin = User::factory()->withoutTwoFactor()->create([
+            'is_platform_admin' => true,
+        ]);
+
+        $response = $this->post(route('login.store'), [
+            'email' => $admin->email,
+            'password' => 'password',
+        ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('platform.dashboard'));
+
+        $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_platform_admin_visiting_tenant_dashboard_is_redirected_to_platform_dashboard(): void
+    {
+        $admin = User::factory()->platformAdmin()->create();
+
+        $response = $this->actingAs($admin)->get(route('dashboard'));
+
+        $response->assertRedirect(route('platform.dashboard'));
+    }
 }

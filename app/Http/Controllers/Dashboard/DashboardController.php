@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Services\Dashboard\DashboardOverviewData;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -14,8 +15,11 @@ class DashboardController extends Controller
         protected DashboardOverviewData $overviewData
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
+        if ($request->user()?->isPlatformAdmin()) {
+            return redirect()->route('platform.dashboard');
+        }
         /** @var Business|null $currentBusiness */
         $currentBusiness = $request->attributes->get('dashboard_business');
         $hasCloudAccess = (bool) $request->attributes->get('dashboard_cloud_access', false);
