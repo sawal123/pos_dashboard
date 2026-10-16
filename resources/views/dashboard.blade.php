@@ -447,12 +447,16 @@
                     }
                 }
             });
+            window.salesChart = window.salesChartInstance;
         }
 
         function cleanupDashboard() {
             if (window.salesChartInstance) {
                 window.salesChartInstance.destroy();
                 window.salesChartInstance = null;
+            }
+            if (window.salesChart && typeof window.salesChart.destroy === 'function') {
+                window.salesChart = null;
             }
             if (window.__dashboardThemeObserver) {
                 window.__dashboardThemeObserver.disconnect();

@@ -46,7 +46,7 @@
             <p class="text-[11px] text-slate-400 dark:text-slate-500">Terminal pengirim batch</p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0 border border-slate-200 dark:border-slate-700 shadow-xs">
-            <i data-lucide="devices" class="w-5 h-5"></i>
+            <i data-lucide="smartphone" class="w-5 h-5"></i>
         </div>
     </div>
 
