@@ -32,9 +32,26 @@
         <script>
             (function() {
                 // ========== INITIALIZE LUCIDE ICONS ==========
+                let isUpdatingIcons = false;
+                let iconDebounceTimer = null;
+
                 function initIcons() {
-                    if (typeof lucide !== 'undefined') {
+                    if (typeof lucide === 'undefined' || isUpdatingIcons) return;
+                    try {
+                        isUpdatingIcons = true;
                         lucide.createIcons();
+                        // Mark any unrecognized <i> icons to prevent infinite observer retries
+                        document.querySelectorAll('i[data-lucide]').forEach((el) => {
+                            if (!el.hasAttribute('data-lucide-rendered')) {
+                                el.setAttribute('data-lucide-rendered', 'failed');
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('Lucide icons error:', e);
+                    } finally {
+                        setTimeout(() => {
+                            isUpdatingIcons = false;
+                        }, 50);
                     }
                 }
                 window.initIcons = initIcons;
@@ -58,7 +75,7 @@
                     try {
                         localStorage.setItem('nexa-theme', theme);
                     } catch (e) {}
-                    if (typeof window.salesChart !== 'undefined' && window.salesChart) {
+                    if (typeof updateChartColors === 'function') {
                         updateChartColors();
                     }
                 }
@@ -307,7 +324,25 @@
                 window.closeAllCustomSelects = closeAllCustomSelects;
 
                 // ========== CHART HELPERS (global) ==========
-                window.salesChart = window.salesChart || null;
+                function getSalesChartInstance() {
+                    if (window.salesChartInstance && typeof window.salesChartInstance.update === 'function') {
+                        return window.salesChartInstance;
+                    }
+                    if (typeof Chart !== 'undefined' && typeof Chart.getChart === 'function') {
+                        const canvas = document.getElementById('salesChart');
+                        if (canvas) {
+                            const chart = Chart.getChart(canvas);
+                            if (chart && typeof chart.update === 'function') {
+                                return chart;
+                            }
+                        }
+                    }
+                    if (window.salesChart && typeof window.salesChart.update === 'function') {
+                        return window.salesChart;
+                    }
+                    return null;
+                }
+                window.getSalesChartInstance = getSalesChartInstance;
 
                 function getChartColors() {
                     const isDark = document.documentElement.classList.contains('dark');
@@ -321,25 +356,32 @@
                 window.getChartColors = getChartColors;
 
                 function updateChartColors() {
-                    if (window.salesChart) {
+                    const chart = getSalesChartInstance();
+                    if (!chart) return;
+
+                    try {
                         const colors = getChartColors();
-                        if (window.salesChart.options && window.salesChart.options.scales) {
-                            if (window.salesChart.options.scales.x && window.salesChart.options.scales.x.ticks) {
-                                window.salesChart.options.scales.x.ticks.color = colors.ticks;
+                        if (chart.options && chart.options.scales) {
+                            if (chart.options.scales.x && chart.options.scales.x.ticks) {
+                                chart.options.scales.x.ticks.color = colors.ticks;
                             }
-                            if (window.salesChart.options.scales.y) {
-                                if (window.salesChart.options.scales.y.ticks) window.salesChart.options.scales.y.ticks.color = colors.ticks;
-                                if (window.salesChart.options.scales.y.grid) window.salesChart.options.scales.y.grid.color = colors.grid;
+                            if (chart.options.scales.y) {
+                                if (chart.options.scales.y.ticks) chart.options.scales.y.ticks.color = colors.ticks;
+                                if (chart.options.scales.y.grid) chart.options.scales.y.grid.color = colors.grid;
                             }
                         }
-                        if (window.salesChart.options && window.salesChart.options.plugins && window.salesChart.options.plugins.tooltip) {
-                            window.salesChart.options.plugins.tooltip.backgroundColor = document.documentElement.classList.contains('dark') ? '#334155' : '#1e293b';
+                        if (chart.options && chart.options.plugins && chart.options.plugins.tooltip) {
+                            chart.options.plugins.tooltip.backgroundColor = document.documentElement.classList.contains('dark') ? '#334155' : '#1e293b';
                         }
-                        if (window.salesChart.data && window.salesChart.data.datasets && window.salesChart.data.datasets[0]) {
-                            window.salesChart.data.datasets[0].borderColor = colors.primary;
-                            window.salesChart.data.datasets[0].pointBackgroundColor = colors.primary;
+                        if (chart.data && chart.data.datasets && chart.data.datasets[0]) {
+                            chart.data.datasets[0].borderColor = colors.primary;
+                            chart.data.datasets[0].pointBackgroundColor = colors.primary;
                         }
-                        window.salesChart.update();
+                        if (typeof chart.update === 'function') {
+                            chart.update();
+                        }
+                    } catch (e) {
+                        console.warn('Could not update chart colors:', e);
                     }
                 }
                 window.updateChartColors = updateChartColors;
@@ -489,8 +531,12 @@
                     // MutationObserver for Lucide Icons
                     if (typeof MutationObserver !== 'undefined') {
                         const iconObserver = new MutationObserver(() => {
-                            if (document.querySelector('i[data-lucide]')) {
-                                initIcons();
+                            if (isUpdatingIcons) return;
+                            if (document.querySelector('i[data-lucide]:not([data-lucide-rendered="failed"])')) {
+                                if (iconDebounceTimer) clearTimeout(iconDebounceTimer);
+                                iconDebounceTimer = setTimeout(() => {
+                                    initIcons();
+                                }, 80);
                             }
                         });
                         iconObserver.observe(document.documentElement, { childList: true, subtree: true });
