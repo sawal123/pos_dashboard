@@ -117,4 +117,26 @@ class TwoFactorChallengeTest extends TestCase
         $response->assertRedirect(route('two-factor.login'));
         $response->assertSessionHasErrors(['code']);
     }
+
+    public function test_platform_admin_can_authenticate_via_2fa_and_is_redirected_to_platform_dashboard(): void
+    {
+        $google2fa = app(Google2FA::class);
+        $secret = $google2fa->generateSecretKey();
+
+        $admin = User::factory()->create([
+            'is_platform_admin' => true,
+            'two_factor_secret' => encrypt($secret),
+            'two_factor_confirmed_at' => now(),
+        ]);
+
+        $validCode = $google2fa->getCurrentOtp($secret);
+
+        $response = $this->withSession(['login.id' => $admin->id])
+            ->post(route('two-factor.login.store'), [
+                'code' => $validCode,
+            ]);
+
+        $this->assertAuthenticatedAs($admin);
+        $response->assertRedirect(route('platform.dashboard'));
+    }
 }
