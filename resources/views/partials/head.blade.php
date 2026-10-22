@@ -1,9 +1,13 @@
+@include('partials.seo', [
+    'title' => filled($title ?? null)
+        ? $title.' - '.config('seo.site_name', config('app.name', 'Laravel'))
+        : config('seo.site_name', config('app.name', 'Laravel')),
+    'description' => config('seo.description'),
+    'indexable' => false,
+])
+
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-<title>
-    {{ filled($title ?? null) ? $title.' - '.config('app.name', 'Laravel') : config('app.name', 'Laravel') }}
-</title>
 
 @fluxAppearance
 

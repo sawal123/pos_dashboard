@@ -20,6 +20,7 @@ use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
+use App\Http\Controllers\SeoController;
 use App\Http\Controllers\Platform\AuditLogsController as PlatformAuditLogsController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformCloudBackupMonitoringController;
@@ -60,6 +61,8 @@ use Illuminate\Support\Facades\Route;
 | owner is never locked out of seeing their status or renewing.
 */
 Route::view('/', 'welcome')->name('home');
+Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
+Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
 
 Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
     // DASH-10B2 — every dashboard route carries an explicit, server-enforced
