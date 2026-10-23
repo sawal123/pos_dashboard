@@ -163,7 +163,7 @@
                         </span>
                     @else
                         @php
-                            $daysLeft = now()->diffInDays($expiresAt, false);
+                            $daysLeft = (int) round(now()->diffInDays($expiresAt, false));
                         @endphp
                         <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">
                             Sisa {{ $daysLeft }} hari ({{ $expiresAt->diffForHumans() }})

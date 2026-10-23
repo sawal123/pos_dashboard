@@ -107,6 +107,28 @@ class PlatformSubscriptionManagementTest extends TestCase
         $response->assertSee('Kafe Delta Inactive');
     }
 
+    public function test_subscriptions_index_rounds_remaining_days_to_a_whole_number(): void
+    {
+        $admin = User::factory()->platformAdmin()->create();
+        $business = Business::factory()->create(['name' => 'Bisnis Sisa Hari Bulat']);
+
+        Subscription::factory()->create([
+            'business_id' => $business->id,
+            'plan' => Subscription::PLAN_CLOUD,
+            'status' => Subscription::STATUS_ACTIVE,
+            'starts_at' => Carbon::parse('2026-10-01 10:00:00'),
+            'expires_at' => Carbon::parse('2026-10-24 00:00:00'),
+        ]);
+
+        Carbon::setTestNow(Carbon::parse('2026-10-01 10:00:00'));
+
+        $response = $this->actingAs($admin)->get('/platform/subscriptions');
+
+        $response->assertOk();
+        $response->assertSee('Sisa 23 hari');
+        $response->assertDontSee('23.583333333333 hari');
+    }
+
     /**
      * C. Search by business name and slug.
      */
