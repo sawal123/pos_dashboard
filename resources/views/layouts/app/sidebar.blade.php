@@ -28,6 +28,9 @@
         {{-- ==================== TOAST CONTAINER ==================== --}}
         <x-ui.toast-container />
 
+        {{-- ==================== GLOBAL CONFIRMATION MODAL ==================== --}}
+        <x-ui.confirmation-modal />
+
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
             (function() {
@@ -472,7 +475,22 @@
                             return;
                         }
 
-                        // 9. Sidebar item roadmap check
+                        // 9. Cloud subscription gate for visible-but-locked menu items.
+                        // The server still enforces the same rule if a URL is opened directly.
+                        const lockedSubscriptionItem = e.target.closest('[data-subscription-locked="true"]');
+                        if (lockedSubscriptionItem) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (window.innerWidth < 768) {
+                                closeMobileSidebar();
+                            }
+                            if (typeof window.openSubscriptionGate === 'function') {
+                                window.openSubscriptionGate();
+                            }
+                            return;
+                        }
+
+                        // 10. Sidebar item roadmap check
                         const sidebarItem = e.target.closest('.sidebar-item');
                         if (sidebarItem) {
                             if (window.innerWidth < 768) {
@@ -487,7 +505,7 @@
                             }
                         }
 
-                        // 10. Toggle switches
+                        // 11. Toggle switches
                         const toggleSwitch = e.target.closest('.toggle-switch');
                         if (toggleSwitch) {
                             toggleSwitch.classList.toggle('active');
@@ -495,7 +513,7 @@
                             return;
                         }
 
-                        // 11. Click outside closes dropdowns
+                        // 12. Click outside closes dropdowns
                         const profileDropdown = document.getElementById('profileDropdown');
                         const notificationDropdown = document.getElementById('notificationDropdown');
                         if (profileDropdown && !profileDropdown.contains(e.target)) {

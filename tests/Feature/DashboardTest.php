@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -59,6 +60,26 @@ class DashboardTest extends TestCase
         $response->assertDontSee(route('laundry-orders.index'), false);
         // The owner is still guided to choose a type instead of being locked out.
         $response->assertSee('Tipe bisnis belum ditentukan');
+    }
+
+    public function test_business_without_active_cloud_subscription_sees_locked_dashboard_offer(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create(['business_type' => 'cafe']);
+        $business->users()->attach($owner->id, ['role' => 'owner']);
+        Subscription::factory()->free()->create(['business_id' => $business->id]);
+
+        $this->actingAs($owner);
+
+        $response = $this->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('dashboard'));
+
+        $response->assertOk()
+            ->assertSee('Akses Cloud belum aktif')
+            ->assertSee('subscriptionGateModal')
+            ->assertSee('Lihat paket &amp; berlangganan', false)
+            ->assertSee('Operasional')
+            ->assertDontSee('Penjualan Hari Ini');
     }
 
     public function test_unverified_users_cannot_visit_the_dashboard(): void

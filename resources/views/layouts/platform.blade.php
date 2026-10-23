@@ -456,6 +456,9 @@
         {{-- ==================== TOAST CONTAINER ==================== --}}
         <x-ui.toast-container />
 
+        {{-- ==================== GLOBAL CONFIRMATION MODAL ==================== --}}
+        <x-ui.confirmation-modal />
+
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
             (function() {

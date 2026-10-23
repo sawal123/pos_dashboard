@@ -410,7 +410,7 @@
                             <form
                                 method="POST"
                                 action="{{ route('platform.subscriptions.downgrade', $subscription) }}"
-                                onsubmit="return confirm('Apakah Anda yakin ingin menurunkan paket langganan ini ke Free? Entitlement Cloud akan segera dicabut. Data bisnis dan perangkat tidak akan dihapus.');"
+                                data-confirm-message="Apakah Anda yakin ingin menurunkan paket langganan ini ke Free? Entitlement Cloud akan segera dicabut. Data bisnis dan perangkat tidak akan dihapus."
                             >
                                 @csrf
                                 @method('PATCH')
@@ -428,7 +428,7 @@
                             <form
                                 method="POST"
                                 action="{{ route('platform.subscriptions.inactivate', $subscription) }}"
-                                onsubmit="return confirm('Apakah Anda yakin ingin mengubah status langganan menjadi Nonaktif? Entitlement Cloud akan segera dicabut.');"
+                                data-confirm-message="Apakah Anda yakin ingin mengubah status langganan menjadi Nonaktif? Entitlement Cloud akan segera dicabut."
                             >
                                 @csrf
                                 @method('PATCH')
