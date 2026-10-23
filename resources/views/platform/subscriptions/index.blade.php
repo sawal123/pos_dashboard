@@ -217,7 +217,7 @@
                                         <span class="text-rose-600 dark:text-rose-400 font-bold">Kadaluarsa</span>
                                     @else
                                         @php
-                                            $daysLeft = now()->diffInDays($expiresAt, false);
+                                            $daysLeft = (int) round(now()->diffInDays($expiresAt, false));
                                         @endphp
                                         @if($daysLeft > 0)
                                             <span class="text-slate-700 dark:text-slate-300 font-semibold">Sisa {{ $daysLeft }} hari</span>
