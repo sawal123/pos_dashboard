@@ -8,6 +8,11 @@
                 <span>{{ session('status') }}</span>
             </div>
         @endif
+        @if(session('error'))
+            <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0"></i><span>{{ session('error') }}</span>
+            </div>
+        @endif
 
         @php
             $isPlatformAdmin = (bool) $user->is_platform_admin;
@@ -281,6 +286,47 @@
                     </p>
                 </div>
             @endif
+        </div>
+
+        {{-- Platform Owner Controls --}}
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div class="xl:col-span-2 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Edit Pengguna</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Perubahan email akan meminta verifikasi ulang.</p>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('platform.users.update', $user) }}" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    @csrf
+                    @method('PATCH')
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Nama
+                        <input name="name" value="{{ $user->name }}" required class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white">
+                    </label>
+                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Email
+                        <input type="email" name="email" value="{{ $user->email }}" required class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white">
+                    </label>
+                    <label class="md:col-span-2 inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        <input type="hidden" name="is_platform_admin" value="0">
+                        <input type="checkbox" name="is_platform_admin" value="1" @checked($user->is_platform_admin) class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        Platform Admin
+                    </label>
+                    <div class="md:col-span-2 flex justify-end">
+                        <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-xs font-bold"><i data-lucide="save" class="w-3.5 h-3.5"></i> Simpan Perubahan</button>
+                    </div>
+                </form>
+            </div>
+            <div class="p-6 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/60 shadow-xs">
+                <h2 class="text-sm font-bold text-rose-800 dark:text-rose-300">Hapus Pengguna</h2>
+                <p class="mt-2 text-[11px] leading-relaxed text-rose-700/90 dark:text-rose-300/80">Pengguna yang masih terhubung ke bisnis tidak dapat dihapus agar owner dan histori bisnis tidak orphan.</p>
+                <form method="POST" action="{{ route('platform.users.destroy', $user) }}" class="mt-4" data-confirm-message="Hapus akun pengguna ini secara permanen?">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="confirmation" value="DELETE">
+                    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Pengguna</button>
+                </form>
+            </div>
         </div>
 
         {{-- Platform Security Policy Notice --}}

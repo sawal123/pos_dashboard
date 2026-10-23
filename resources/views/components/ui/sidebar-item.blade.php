@@ -8,6 +8,7 @@
     'active' => null,
     'disabled' => false,
     'requiresSubscription' => false,
+    'subscription' => 'unknown',
 ])
 
 @php

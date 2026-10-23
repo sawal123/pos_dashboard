@@ -8,8 +8,13 @@ use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\SyncCounter;
 use App\Models\SyncRequest;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
 use App\Services\Platform\PlatformSyncMonitoringData;
+use App\Support\PlatformAuditAction;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
@@ -92,5 +97,78 @@ class SyncMonitoringController extends Controller
             'hasCloudAccess' => $hasCloudAccess,
             'activity' => $activity,
         ]);
+    }
+
+    /**
+     * Correct the monitoring timestamp without changing the immutable
+     * business/device/request identity of a committed sync record.
+     */
+    public function update(
+        Request $request,
+        SyncRequest $syncRequest,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'processed_at' => ['required', 'date'],
+        ]);
+
+        $before = ['processed_at' => $syncRequest->processed_at?->toIso8601String()];
+        $syncRequest->update(['processed_at' => $validated['processed_at']]);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $auditLogger->record(
+            actor: $actor,
+            action: PlatformAuditAction::SYNC_REQUEST_UPDATED,
+            targetType: PlatformAuditAction::TARGET_SYNC_REQUEST,
+            targetId: $syncRequest->id,
+            targetLabel: $syncRequest->request_id,
+            businessId: $syncRequest->business_id,
+            before: $before,
+            after: ['processed_at' => $syncRequest->processed_at?->toIso8601String()],
+        );
+
+        return redirect()->route('platform.sync.show', $syncRequest)
+            ->with('status', 'Waktu proses sync berhasil diperbarui.');
+    }
+
+    /**
+     * Remove a monitoring record only; synchronized business data is retained.
+     */
+    public function destroy(
+        Request $request,
+        SyncRequest $syncRequest,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:DELETE']]);
+
+        $syncId = $syncRequest->id;
+        $requestId = $syncRequest->request_id;
+        $businessId = $syncRequest->business_id;
+        $before = [
+            'request_id' => $syncRequest->request_id,
+            'device_id' => $syncRequest->device_id,
+            'processed_at' => $syncRequest->processed_at?->toIso8601String(),
+        ];
+
+        /** @var User $actor */
+        $actor = $request->user();
+        DB::transaction(function () use ($syncRequest, $auditLogger, $actor, $syncId, $requestId, $businessId, $before): void {
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SYNC_REQUEST_DELETED,
+                targetType: PlatformAuditAction::TARGET_SYNC_REQUEST,
+                targetId: $syncId,
+                targetLabel: $requestId,
+                businessId: $businessId,
+                before: $before,
+                after: null,
+                metadata: ['destructive_action' => true, 'business_data_deleted' => false],
+            );
+            $syncRequest->delete();
+        });
+
+        return redirect()->route('platform.sync.index')
+            ->with('status', "Catatan sync '{$requestId}' berhasil dihapus.");
     }
 }
