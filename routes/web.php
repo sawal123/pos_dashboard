@@ -37,9 +37,12 @@ use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonito
 use App\Http\Controllers\Platform\UsageAnalyticsController as PlatformUsageAnalyticsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
+use App\Models\Subscription;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Subscription\PremiumPolicy;
+use App\Services\Subscription\PremiumPricing;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 /*
 |--------------------------------------------------------------------------
@@ -61,7 +64,18 @@ use Illuminate\Support\Facades\Route;
 | A denied browser request is redirected back to `dashboard`, so an expired
 | owner is never locked out of seeing their status or renewing.
 */
-Route::view('/', 'welcome')->name('home');
+Route::get('/', function (PremiumPricing $pricing) {
+    $prices = collect();
+
+    if (Schema::hasTable('subscription_plans') && Schema::hasTable('subscription_plan_prices')) {
+        $prices = collect($pricing->periodsFor(Subscription::PLAN_CLOUD))->keyBy('period');
+    }
+
+    return view('welcome', [
+        'monthlyPrice' => $prices->get('monthly'),
+        'yearlyPrice' => $prices->get('yearly'),
+    ]);
+})->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
 Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
 
