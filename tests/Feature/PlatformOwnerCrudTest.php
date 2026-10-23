@@ -100,6 +100,31 @@ final class PlatformOwnerCrudTest extends TestCase
         $this->assertDatabaseMissing('subscription_payments', ['id' => $payment->id]);
     }
 
+    public function test_platform_admin_can_mark_an_unpaid_payment_as_paid_and_activate_subscription(): void
+    {
+        $admin = User::factory()->platformAdmin()->create();
+        $payment = SubscriptionPayment::factory()->create([
+            'status' => SubscriptionPayment::STATUS_PENDING,
+            'plan' => Subscription::PLAN_CLOUD,
+            'billing_period' => 'monthly',
+        ]);
+
+        $this->actingAs($admin)->patch(route('platform.payments.status.update', $payment), [
+            'status' => SubscriptionPayment::STATUS_PAID,
+        ])->assertRedirect(route('platform.payments.show', $payment));
+
+        $payment->refresh();
+
+        $this->assertSame(SubscriptionPayment::STATUS_PAID, $payment->status);
+        $this->assertNotNull($payment->paid_at);
+        $this->assertNotNull($payment->activated_at);
+        $this->assertDatabaseHas('subscriptions', [
+            'business_id' => $payment->business_id,
+            'plan' => Subscription::PLAN_CLOUD,
+            'status' => Subscription::STATUS_ACTIVE,
+        ]);
+    }
+
     public function test_platform_admin_can_edit_and_delete_a_device(): void
     {
         $admin = User::factory()->platformAdmin()->create();

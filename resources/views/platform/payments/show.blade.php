@@ -553,13 +553,14 @@
                         Status ini tidak dapat diedit manual karena sudah terverifikasi atau sudah mengaktifkan entitlement.
                     </div>
                 @else
-                    <form method="POST" action="{{ route('platform.payments.status.update', $payment) }}" class="flex flex-col sm:flex-row gap-3 items-end" data-confirm-message="Ubah status payment secara administratif? Perubahan ini akan dicatat pada audit log.">
+                    <form method="POST" action="{{ route('platform.payments.status.update', $payment) }}" class="flex flex-col sm:flex-row gap-3 items-end" data-confirm-message="Ubah status payment secara administratif? Jika memilih Paid, subscription bisnis akan diaktifkan. Perubahan ini akan dicatat pada audit log.">
                         @csrf
                         @method('PATCH')
                         <label class="flex-1 w-full text-xs font-semibold text-slate-600 dark:text-slate-300">Status Baru
                             <select name="status" class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white">
                                 @foreach([
                                     \App\Models\SubscriptionPayment::STATUS_PENDING => 'Menunggu',
+                                    \App\Models\SubscriptionPayment::STATUS_PAID => 'Berhasil (Paid)',
                                     \App\Models\SubscriptionPayment::STATUS_FAILED => 'Gagal',
                                     \App\Models\SubscriptionPayment::STATUS_EXPIRED => 'Kedaluwarsa',
                                     \App\Models\SubscriptionPayment::STATUS_CANCELLED => 'Dibatalkan',

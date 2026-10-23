@@ -7,6 +7,7 @@ use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditLogger;
+use App\Services\Subscription\PremiumSubscriptionActivator;
 use App\Support\PlatformAuditAction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -242,17 +243,19 @@ class PaymentsController extends Controller
     }
 
     /**
-     * Override only a non-paid payment state. Successful payments remain
-     * provider-authoritative and cannot be manually downgraded.
+     * Override an unresolved payment state. Selecting paid performs the same
+     * entitlement activation as a verified provider payment.
      */
     public function updateStatus(
         Request $request,
         SubscriptionPayment $payment,
         PlatformAuditLogger $auditLogger,
+        PremiumSubscriptionActivator $activator,
     ): RedirectResponse {
         $validated = $request->validate([
             'status' => ['required', 'string', Rule::in([
                 SubscriptionPayment::STATUS_PENDING,
+                SubscriptionPayment::STATUS_PAID,
                 SubscriptionPayment::STATUS_FAILED,
                 SubscriptionPayment::STATUS_EXPIRED,
                 SubscriptionPayment::STATUS_CANCELLED,
@@ -273,11 +276,24 @@ class PaymentsController extends Controller
             return back()->with('info', 'Status pembayaran sudah sesuai.');
         }
 
-        $before = ['status' => $payment->status, 'paid_at' => $payment->paid_at?->toIso8601String()];
-        $payment->forceFill([
-            'status' => $newStatus,
-            'paid_at' => null,
-        ])->save();
+        $before = [
+            'status' => $payment->status,
+            'paid_at' => $payment->paid_at?->toIso8601String(),
+            'activated_at' => $payment->activated_at?->toIso8601String(),
+        ];
+
+        DB::transaction(function () use ($payment, $newStatus, $activator): void {
+            $payment->forceFill([
+                'status' => $newStatus,
+                'paid_at' => $newStatus === SubscriptionPayment::STATUS_PAID ? now() : null,
+            ])->save();
+
+            if ($newStatus === SubscriptionPayment::STATUS_PAID) {
+                $activator->activatePaidPayment($payment);
+            }
+        });
+
+        $payment->refresh();
 
         /** @var User $actor */
         $actor = $request->user();
@@ -289,8 +305,15 @@ class PaymentsController extends Controller
             targetLabel: $payment->provider_order_id,
             businessId: $payment->business_id,
             before: $before,
-            after: ['status' => $payment->status, 'paid_at' => null],
-            metadata: ['administrative_override' => true],
+            after: [
+                'status' => $payment->status,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+                'activated_at' => $payment->activated_at?->toIso8601String(),
+            ],
+            metadata: [
+                'administrative_override' => true,
+                'activation_triggered' => $newStatus === SubscriptionPayment::STATUS_PAID,
+            ],
         );
 
         return redirect()->route('platform.payments.show', $payment)
