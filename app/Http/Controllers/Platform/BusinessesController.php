@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Enums\BusinessType;
 use App\Models\Business;
 use App\Models\Subscription;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class BusinessesController extends Controller
 {
@@ -107,6 +109,80 @@ class BusinessesController extends Controller
             'business' => $business,
             'lastSync' => $lastSync,
         ]);
+    }
+
+    /**
+     * Update editable platform-owned business metadata.
+     */
+    public function update(
+        Request $request,
+        Business $business,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => ['required', 'string', 'alpha_dash', 'max:120', Rule::unique('businesses', 'slug')->ignore($business)],
+            'business_type' => ['nullable', 'string', Rule::in(BusinessType::values())],
+            'status' => ['required', 'string', Rule::in(['active', 'inactive'])],
+        ]);
+
+        $before = $business->only(['name', 'slug', 'business_type', 'status']);
+        $business->update($validated);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $auditLogger->record(
+            actor: $actor,
+            action: PlatformAuditAction::BUSINESS_UPDATED,
+            targetType: PlatformAuditAction::TARGET_BUSINESS,
+            targetId: $business->id,
+            targetLabel: $business->name,
+            businessId: $business->id,
+            before: $before,
+            after: $business->only(['name', 'slug', 'business_type', 'status']),
+        );
+
+        return redirect()->route('platform.businesses.show', $business)
+            ->with('status', 'Data bisnis berhasil diperbarui.');
+    }
+
+    /**
+     * Permanently remove a business after an explicit slug confirmation.
+     */
+    public function destroy(
+        Request $request,
+        Business $business,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $request->validate([
+            'confirmation' => ['required', 'string', 'same:slug'],
+            'slug' => ['required', 'string'],
+        ]);
+
+        $businessId = $business->id;
+        $businessName = $business->name;
+        $businessSlug = $business->slug;
+
+        /** @var User $actor */
+        $actor = $request->user();
+        DB::transaction(function () use ($business, $auditLogger, $actor, $businessId, $businessName, $businessSlug): void {
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::BUSINESS_DELETED,
+                targetType: PlatformAuditAction::TARGET_BUSINESS,
+                targetId: $businessId,
+                targetLabel: $businessName,
+                businessId: $businessId,
+                before: ['name' => $businessName, 'slug' => $businessSlug],
+                after: null,
+                metadata: ['destructive_action' => true],
+            );
+
+            $business->delete();
+        });
+
+        return redirect()->route('platform.businesses.index')
+            ->with('status', "Bisnis '{$businessName}' berhasil dihapus permanen.");
     }
 
     /**

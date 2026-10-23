@@ -125,6 +125,106 @@ class SubscriptionsController extends Controller
     }
 
     /**
+     * Update the current subscription entitlement from the platform console.
+     * Payment history remains untouched by this administrative override.
+     */
+    public function update(
+        Request $request,
+        Subscription $subscription,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'plan' => ['required', 'string', Rule::in(Subscription::canonicalPlanCodes())],
+            'status' => ['required', 'string', Rule::in([
+                Subscription::STATUS_ACTIVE,
+                Subscription::STATUS_INACTIVE,
+                Subscription::STATUS_EXPIRED,
+            ])],
+            'starts_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date', 'after_or_equal:starts_at'],
+        ]);
+
+        $before = [
+            'plan' => $subscription->plan,
+            'status' => $subscription->status,
+            'starts_at' => $subscription->starts_at?->toIso8601String(),
+            'expires_at' => $subscription->expires_at?->toIso8601String(),
+        ];
+
+        $subscription->forceFill([
+            'plan' => $validated['plan'],
+            'status' => $validated['plan'] === Subscription::PLAN_FREE
+                ? Subscription::STATUS_ACTIVE
+                : $validated['status'],
+            'starts_at' => $validated['plan'] === Subscription::PLAN_FREE ? null : ($validated['starts_at'] ?? null),
+            'expires_at' => $validated['plan'] === Subscription::PLAN_FREE ? null : ($validated['expires_at'] ?? null),
+        ])->save();
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $auditLogger->record(
+            actor: $actor,
+            action: PlatformAuditAction::SUBSCRIPTION_UPDATED,
+            targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+            targetId: $subscription->id,
+            targetLabel: $subscription->business?->name,
+            businessId: $subscription->business_id,
+            before: $before,
+            after: [
+                'plan' => $subscription->plan,
+                'status' => $subscription->status,
+                'starts_at' => $subscription->starts_at?->toIso8601String(),
+                'expires_at' => $subscription->expires_at?->toIso8601String(),
+            ],
+            metadata: ['administrative_override' => true],
+        );
+
+        return redirect()->route('platform.subscriptions.show', $subscription)
+            ->with('status', 'Data langganan berhasil diperbarui.');
+    }
+
+    /**
+     * Remove the entitlement row while retaining the business and payment history.
+     */
+    public function destroy(
+        Request $request,
+        Subscription $subscription,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:DELETE']]);
+
+        $subscriptionId = $subscription->id;
+        $businessId = $subscription->business_id;
+        $businessName = $subscription->business?->name;
+        $before = [
+            'plan' => $subscription->plan,
+            'status' => $subscription->status,
+            'starts_at' => $subscription->starts_at?->toIso8601String(),
+            'expires_at' => $subscription->expires_at?->toIso8601String(),
+        ];
+
+        /** @var User $actor */
+        $actor = $request->user();
+        DB::transaction(function () use ($subscription, $auditLogger, $actor, $subscriptionId, $businessId, $businessName, $before): void {
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_DELETED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION,
+                targetId: $subscriptionId,
+                targetLabel: $businessName,
+                businessId: $businessId,
+                before: $before,
+                after: null,
+                metadata: ['destructive_action' => true],
+            );
+            $subscription->delete();
+        });
+
+        return redirect()->route('platform.subscriptions.index')
+            ->with('status', 'Data langganan dihapus. Bisnis kembali memakai tier Free default.');
+    }
+
+    /**
      * Administratively activate Cloud plan with official billing duration.
      */
     public function activate(

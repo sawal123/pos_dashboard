@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DevicesController extends Controller
@@ -117,7 +118,7 @@ class DevicesController extends Controller
      */
     public function show(Device $device): View
     {
-        $device->load(['business.subscription', 'outlet']);
+        $device->load(['business.subscription', 'business.outlets', 'outlet']);
 
         $business = $device->business;
         $hasCloudAccess = $business ? $business->hasCloudAccess() : false;
@@ -137,6 +138,91 @@ class DevicesController extends Controller
             'isReached' => $isReached,
             'isCounted' => $isCounted,
         ]);
+    }
+
+    /**
+     * Update editable device metadata. Lifecycle status continues to use the
+     * quota-aware activate/deactivate actions below.
+     */
+    public function update(
+        Request $request,
+        Device $device,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'identifier' => [
+                'required',
+                'string',
+                'max:190',
+                Rule::unique('devices', 'identifier')
+                    ->where(fn ($query) => $query->where('business_id', $device->business_id))
+                    ->ignore($device),
+            ],
+            'platform' => ['nullable', 'string', 'max:80'],
+            'outlet_id' => [
+                'required',
+                'integer',
+                Rule::exists('outlets', 'id')->where(fn ($query) => $query->where('business_id', $device->business_id)),
+            ],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $before = $device->only(['name', 'identifier', 'platform', 'outlet_id', 'notes']);
+        $device->update($validated);
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $auditLogger->record(
+            actor: $actor,
+            action: PlatformAuditAction::DEVICE_UPDATED,
+            targetType: PlatformAuditAction::TARGET_DEVICE,
+            targetId: $device->id,
+            targetLabel: $device->name,
+            businessId: $device->business_id,
+            before: $before,
+            after: $device->only(['name', 'identifier', 'platform', 'outlet_id', 'notes']),
+        );
+
+        return redirect()->route('platform.devices.show', $device)
+            ->with('status', 'Data perangkat berhasil diperbarui.');
+    }
+
+    /**
+     * Delete a device and its committed sync-request records. Sales and other
+     * business history remain untouched.
+     */
+    public function destroy(
+        Request $request,
+        Device $device,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:DELETE']]);
+
+        $deviceId = $device->id;
+        $deviceName = $device->name;
+        $businessId = $device->business_id;
+        $before = ['name' => $device->name, 'identifier' => $device->identifier, 'status' => $device->status];
+
+        /** @var User $actor */
+        $actor = $request->user();
+        DB::transaction(function () use ($device, $auditLogger, $actor, $deviceId, $deviceName, $businessId, $before): void {
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::DEVICE_DELETED,
+                targetType: PlatformAuditAction::TARGET_DEVICE,
+                targetId: $deviceId,
+                targetLabel: $deviceName,
+                businessId: $businessId,
+                before: $before,
+                after: null,
+                metadata: ['destructive_action' => true, 'sync_history_deleted' => true],
+            );
+            $device->delete();
+        });
+
+        return redirect()->route('platform.devices.index')
+            ->with('status', "Perangkat '{$deviceName}' berhasil dihapus.");
     }
 
     /**

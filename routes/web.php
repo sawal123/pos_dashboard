@@ -285,6 +285,12 @@ Route::prefix('platform')
         // ADMIN-03 — Business / Merchant Management
         Route::get('businesses', [PlatformBusinessesController::class, 'index'])->name('businesses.index');
         Route::get('businesses/{business}', [PlatformBusinessesController::class, 'show'])->name('businesses.show');
+        Route::patch('businesses/{business}', [PlatformBusinessesController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('businesses.update');
+        Route::delete('businesses/{business}', [PlatformBusinessesController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('businesses.destroy');
         Route::patch('businesses/{business}/status', [PlatformBusinessesController::class, 'updateStatus'])
             ->middleware('throttle:platform-admin-mutations')
             ->name('businesses.status.update');
@@ -292,10 +298,22 @@ Route::prefix('platform')
         // ADMIN-04 — Platform User Management
         Route::get('users', [PlatformUsersController::class, 'index'])->name('users.index');
         Route::get('users/{user}', [PlatformUsersController::class, 'show'])->name('users.show');
+        Route::patch('users/{user}', [PlatformUsersController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('users.update');
+        Route::delete('users/{user}', [PlatformUsersController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('users.destroy');
 
         // ADMIN-05 — Subscription & Plan Management
         Route::get('subscriptions', [PlatformSubscriptionsController::class, 'index'])->name('subscriptions.index');
         Route::get('subscriptions/{subscription}', [PlatformSubscriptionsController::class, 'show'])->name('subscriptions.show');
+        Route::patch('subscriptions/{subscription}', [PlatformSubscriptionsController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.update');
+        Route::delete('subscriptions/{subscription}', [PlatformSubscriptionsController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscriptions.destroy');
         Route::patch('subscriptions/{subscription}/activate', [PlatformSubscriptionsController::class, 'activate'])
             ->middleware('throttle:platform-admin-mutations')
             ->name('subscriptions.activate');
@@ -326,10 +344,22 @@ Route::prefix('platform')
         // ADMIN-06 — Midtrans Payment Management (Operator Console)
         Route::get('payments', [PlatformPaymentsController::class, 'index'])->name('payments.index');
         Route::get('payments/{payment}', [PlatformPaymentsController::class, 'show'])->name('payments.show');
+        Route::patch('payments/{payment}/status', [PlatformPaymentsController::class, 'updateStatus'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('payments.status.update');
+        Route::delete('payments/{payment}', [PlatformPaymentsController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('payments.destroy');
 
         // ADMIN-08 — Devices Management (Platform Device Inventory & Quota)
         Route::get('devices', [PlatformDevicesController::class, 'index'])->name('devices.index');
         Route::get('devices/{device}', [PlatformDevicesController::class, 'show'])->name('devices.show');
+        Route::patch('devices/{device}', [PlatformDevicesController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('devices.update');
+        Route::delete('devices/{device}', [PlatformDevicesController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('devices.destroy');
         Route::patch('devices/{device}/deactivate', [PlatformDevicesController::class, 'deactivate'])
             ->middleware('throttle:platform-admin-mutations')
             ->name('devices.deactivate');
@@ -340,6 +370,12 @@ Route::prefix('platform')
         // ADMIN-09 — Sync Monitoring (Global Platform Sync Observability)
         Route::get('sync', [PlatformSyncMonitoringController::class, 'index'])->name('sync.index');
         Route::get('sync/{syncRequest}', [PlatformSyncMonitoringController::class, 'show'])->name('sync.show');
+        Route::patch('sync/{syncRequest}', [PlatformSyncMonitoringController::class, 'update'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('sync.update');
+        Route::delete('sync/{syncRequest}', [PlatformSyncMonitoringController::class, 'destroy'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('sync.destroy');
 
         // ADMIN-10 — Cloud Backup Monitoring (Readiness & Observability)
         Route::get('backups', [PlatformCloudBackupMonitoringController::class, 'index'])->name('backups.index');

@@ -5,8 +5,14 @@ namespace App\Http\Controllers\Platform;
 use App\Http\Controllers\Controller;
 use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
+use App\Models\User;
+use App\Services\Platform\PlatformAuditLogger;
+use App\Support\PlatformAuditAction;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PaymentsController extends Controller
 {
@@ -233,5 +239,103 @@ class PaymentsController extends Controller
             'diagnostic' => $diagnostic,
             'safeMetadata' => $safeMetadata,
         ]);
+    }
+
+    /**
+     * Override only a non-paid payment state. Successful payments remain
+     * provider-authoritative and cannot be manually downgraded.
+     */
+    public function updateStatus(
+        Request $request,
+        SubscriptionPayment $payment,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'status' => ['required', 'string', Rule::in([
+                SubscriptionPayment::STATUS_PENDING,
+                SubscriptionPayment::STATUS_FAILED,
+                SubscriptionPayment::STATUS_EXPIRED,
+                SubscriptionPayment::STATUS_CANCELLED,
+                SubscriptionPayment::STATUS_REFUNDED,
+            ])],
+        ]);
+        $newStatus = $validated['status'];
+
+        if (in_array($payment->status, [SubscriptionPayment::STATUS_PAID, SubscriptionPayment::STATUS_REFUNDED], true)) {
+            return back()->with('error', 'Pembayaran berstatus paid/refunded tidak dapat diubah manual karena merupakan histori finansial terverifikasi.');
+        }
+
+        if ($payment->activated_at !== null) {
+            return back()->with('error', 'Pembayaran yang sudah mengaktifkan langganan tidak dapat diubah manual.');
+        }
+
+        if ($payment->status === $newStatus) {
+            return back()->with('info', 'Status pembayaran sudah sesuai.');
+        }
+
+        $before = ['status' => $payment->status, 'paid_at' => $payment->paid_at?->toIso8601String()];
+        $payment->forceFill([
+            'status' => $newStatus,
+            'paid_at' => null,
+        ])->save();
+
+        /** @var User $actor */
+        $actor = $request->user();
+        $auditLogger->record(
+            actor: $actor,
+            action: PlatformAuditAction::PAYMENT_STATUS_OVERRIDDEN,
+            targetType: PlatformAuditAction::TARGET_PAYMENT,
+            targetId: $payment->id,
+            targetLabel: $payment->provider_order_id,
+            businessId: $payment->business_id,
+            before: $before,
+            after: ['status' => $payment->status, 'paid_at' => null],
+            metadata: ['administrative_override' => true],
+        );
+
+        return redirect()->route('platform.payments.show', $payment)
+            ->with('status', 'Status pembayaran berhasil diperbarui.');
+    }
+
+    /**
+     * Delete only unactivated, non-paid payment attempts. Financial history is
+     * retained for paid/refunded payments.
+     */
+    public function destroy(
+        Request $request,
+        SubscriptionPayment $payment,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $request->validate(['confirmation' => ['required', 'in:DELETE']]);
+
+        if (in_array($payment->status, [SubscriptionPayment::STATUS_PAID, SubscriptionPayment::STATUS_REFUNDED], true)
+            || $payment->activated_at !== null) {
+            return back()->with('error', 'Pembayaran paid/refunded atau yang sudah diaktivasi tidak boleh dihapus.');
+        }
+
+        $paymentId = $payment->id;
+        $orderId = $payment->provider_order_id;
+        $businessId = $payment->business_id;
+        $before = ['status' => $payment->status, 'amount' => $payment->amount, 'order_id' => $orderId];
+
+        /** @var User $actor */
+        $actor = $request->user();
+        DB::transaction(function () use ($payment, $auditLogger, $actor, $paymentId, $orderId, $businessId, $before): void {
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::PAYMENT_DELETED,
+                targetType: PlatformAuditAction::TARGET_PAYMENT,
+                targetId: $paymentId,
+                targetLabel: $orderId,
+                businessId: $businessId,
+                before: $before,
+                after: null,
+                metadata: ['destructive_action' => true],
+            );
+            $payment->delete();
+        });
+
+        return redirect()->route('platform.payments.index')
+            ->with('status', "Payment '{$orderId}' berhasil dihapus.");
     }
 }

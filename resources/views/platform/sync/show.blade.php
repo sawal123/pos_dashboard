@@ -1,6 +1,13 @@
 <x-layouts::platform :title="'Detail Sync Request ' . $syncRequest->request_id">
     <div class="space-y-6">
 
+        @if(session('status'))
+            <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2.5 shadow-xs"><i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i><span>{{ session('status') }}</span></div>
+        @endif
+        @if(session('error'))
+            <div class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center gap-2.5 shadow-xs"><i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i><span>{{ session('error') }}</span></div>
+        @endif
+
         {{-- Breadcrumb & Back Action --}}
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div class="flex items-center gap-3">
@@ -272,6 +279,37 @@
 
             </div>
 
+        </div>
+
+        {{-- Platform Owner Controls --}}
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <div class="xl:col-span-2 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-900/60 shadow-xs">
+                <div class="flex items-center gap-2.5 mb-4">
+                    <span class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center"><i data-lucide="pencil" class="w-4 h-4"></i></span>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-900 dark:text-white">Koreksi Waktu Sync</h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Identitas business, device, dan request tetap immutable.</p>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('platform.sync.update', $syncRequest) }}" class="flex flex-col sm:flex-row gap-3 items-end">
+                    @csrf
+                    @method('PATCH')
+                    <label class="flex-1 w-full text-xs font-semibold text-slate-600 dark:text-slate-300">Processed At
+                        <input type="datetime-local" name="processed_at" value="{{ $syncRequest->processed_at?->format('Y-m-d\TH:i') }}" required class="mt-1 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-900 dark:text-white">
+                    </label>
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 text-xs font-bold"><i data-lucide="save" class="w-3.5 h-3.5"></i> Simpan Waktu</button>
+                </form>
+            </div>
+            <div class="p-6 rounded-2xl bg-rose-50/60 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/60 shadow-xs">
+                <h2 class="text-sm font-bold text-rose-800 dark:text-rose-300">Hapus Catatan Sync</h2>
+                <p class="mt-2 text-[11px] leading-relaxed text-rose-700/90 dark:text-rose-300/80">Yang dihapus hanya record monitoring. Data bisnis yang sudah tersinkron tetap ada.</p>
+                <form method="POST" action="{{ route('platform.sync.destroy', $syncRequest) }}" class="mt-4" data-confirm-message="Hapus catatan sync ini? Data bisnis tidak ikut terhapus.">
+                    @csrf
+                    @method('DELETE')
+                    <input type="hidden" name="confirmation" value="DELETE">
+                    <button type="submit" class="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white px-4 py-2 text-xs font-bold"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Catatan</button>
+                </form>
+            </div>
         </div>
 
     </div>
