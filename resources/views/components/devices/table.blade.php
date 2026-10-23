@@ -134,7 +134,7 @@
                                         method="POST"
                                         action="{{ route('devices.status.update', ['deviceId' => $device['id']]) }}"
                                         class="inline"
-                                        onsubmit="return confirm('{{ $statusRaw === 'active' ? 'Nonaktifkan perangkat ini? Perangkat tidak akan bisa sinkronisasi sampai diaktifkan kembali.' : 'Aktifkan kembali perangkat ini?' }}')"
+                                        data-confirm-message="{{ $statusRaw === 'active' ? 'Nonaktifkan perangkat ini? Perangkat tidak akan bisa sinkronisasi sampai diaktifkan kembali.' : 'Aktifkan kembali perangkat ini?' }}"
                                     >
                                         @csrf
                                         @method('PATCH')

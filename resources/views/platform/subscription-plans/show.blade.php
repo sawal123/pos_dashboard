@@ -93,7 +93,8 @@
                 method="POST"
                 action="{{ route('platform.subscription-plans.update', $plan) }}"
                 class="space-y-4"
-                onsubmit="return document.getElementById('plan_is_active').checked || confirm('Nonaktifkan paket {{ addslashes($plan->name) }}? Checkout akan menjadi tidak siap sampai paket diaktifkan kembali.');"
+                data-confirm-if-unchecked="#plan_is_active"
+                data-confirm-message="{{ 'Nonaktifkan paket '.$plan->name.'? Checkout akan menjadi tidak siap sampai paket diaktifkan kembali.' }}"
             >
                 @csrf
                 @method('PATCH')

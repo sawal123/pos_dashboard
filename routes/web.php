@@ -19,6 +19,7 @@ use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
+use App\Http\Controllers\Api\MidtransRedirectController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\SeoController;
 use App\Http\Controllers\Platform\AuditLogsController as PlatformAuditLogsController;
@@ -63,6 +64,13 @@ use Illuminate\Support\Facades\Route;
 Route::view('/', 'welcome')->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
 Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
+
+// Midtrans Snap browser redirects. Payment truth remains the server-to-server
+// webhook at POST /api/webhooks/midtrans.
+Route::get('dashboard/midtrans/finish', [MidtransRedirectController::class, 'finish'])
+    ->name('midtrans.finish');
+Route::get('dashboard/midtrans/failed', [MidtransRedirectController::class, 'failed'])
+    ->name('midtrans.failed');
 
 Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
     // DASH-10B2 — every dashboard route carries an explicit, server-enforced

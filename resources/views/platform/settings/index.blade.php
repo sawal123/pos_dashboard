@@ -373,7 +373,12 @@
                                                 Terkunci Backend
                                             </button>
                                         @else
-                                            <form action="{{ route('platform.settings.update', $item['slug']) }}" method="POST" class="inline-block">
+                                            <form
+                                                action="{{ route('platform.settings.update', $item['slug']) }}"
+                                                method="POST"
+                                                class="inline-block"
+                                                data-confirm-message="Apakah Anda yakin ingin menonaktifkan fitur {{ $item['label'] }}? Akses fitur ini akan segera ditolak untuk semua bisnis."
+                                            >
                                                 @csrf
                                                 @method('PATCH')
                                                 <input type="hidden" name="value" value="{{ $runtimeEnabled ? '0' : '1' }}">
@@ -382,7 +387,6 @@
                                                     <button
                                                         type="submit"
                                                         class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-xs font-bold transition-colors"
-                                                        onclick="return confirm('Apakah Anda yakin ingin menonaktifkan fitur {{ $item['label'] }}? Akses fitur ini akan segera ditolak untuk semua bisnis.')"
                                                     >
                                                         Matikan (Kill-Switch)
                                                     </button>

@@ -46,7 +46,7 @@
                         <form
                             method="POST"
                             action="{{ route('platform.businesses.status.update', $business) }}"
-                            onsubmit="return confirm('Apakah Anda yakin ingin menonaktifkan (suspend) bisnis \'{{ addslashes($business->name) }}\'? Perubahan status merupakan aksi administratif level platform.');"
+                            data-confirm-message="{{ 'Apakah Anda yakin ingin menonaktifkan (suspend) bisnis \''.$business->name.'\'? Perubahan status merupakan aksi administratif level platform.' }}"
                         >
                             @csrf
                             @method('PATCH')
@@ -63,7 +63,7 @@
                         <form
                             method="POST"
                             action="{{ route('platform.businesses.status.update', $business) }}"
-                            onsubmit="return confirm('Apakah Anda yakin ingin mengaktifkan kembali bisnis \'{{ addslashes($business->name) }}\'?');"
+                            data-confirm-message="{{ 'Apakah Anda yakin ingin mengaktifkan kembali bisnis \''.$business->name.'\'?' }}"
                         >
                             @csrf
                             @method('PATCH')

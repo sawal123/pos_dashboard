@@ -75,6 +75,44 @@ final class SubscriptionActivationFlowTest extends TestCase
     }
 
     /**
+     * The browser success redirect reports the server-side payment state and
+     * cannot mark a pending payment as paid by itself.
+     */
+    public function test_midtrans_success_redirect_reports_confirmed_paid_payment(): void
+    {
+        [$business] = $this->createBusinessWithOwner();
+        $payment = SubscriptionPayment::factory()->paid()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $this->getJson('/dashboard/midtrans/finish?order_id='.$payment->provider_order_id)
+            ->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('code', 'PAYMENT_CONFIRMED')
+            ->assertJsonPath('data.payment_id', $payment->id)
+            ->assertJsonPath('data.status', SubscriptionPayment::STATUS_PAID);
+    }
+
+    public function test_midtrans_success_redirect_does_not_trust_browser_status(): void
+    {
+        [$business] = $this->createBusinessWithOwner();
+        $payment = SubscriptionPayment::factory()->create([
+            'business_id' => $business->id,
+        ]);
+
+        $this->getJson('/dashboard/midtrans/finish?order_id='.$payment->provider_order_id.'&transaction_status=settlement')
+            ->assertStatus(202)
+            ->assertJsonPath('success', false)
+            ->assertJsonPath('code', 'PAYMENT_NOT_CONFIRMED')
+            ->assertJsonPath('data.status', SubscriptionPayment::STATUS_PENDING);
+
+        $this->assertSame(
+            SubscriptionPayment::STATUS_PENDING,
+            $payment->fresh()->status,
+        );
+    }
+
+    /**
      * 2. Duplicate settlement webhook is idempotent and does not double-extend duration.
      */
     public function test_duplicate_settlement_webhook_is_idempotent(): void

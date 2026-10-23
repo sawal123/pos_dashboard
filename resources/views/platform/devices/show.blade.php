@@ -286,7 +286,7 @@
                             <form
                                 method="POST"
                                 action="{{ route('platform.devices.deactivate', $device) }}"
-                                onsubmit="return confirm('Perangkat akan dinonaktifkan dari akses Cloud.\n\nData perangkat dan histori penjualan tidak akan dihapus.\n\nLanjutkan penonaktifan?');"
+                                data-confirm-message="Perangkat akan dinonaktifkan dari akses Cloud. Data perangkat dan histori penjualan tidak akan dihapus. Lanjutkan penonaktifan?"
                             >
                                 @csrf
                                 @method('PATCH')
@@ -318,7 +318,7 @@
                                 <form
                                     method="POST"
                                     action="{{ route('platform.devices.activate', $device) }}"
-                                    onsubmit="return confirm('Perangkat akan diaktifkan kembali dan mengonsumsi 1 slot kuota Cloud bisnis.\n\nLanjutkan aktivasi?');"
+                                    data-confirm-message="Perangkat akan diaktifkan kembali dan mengonsumsi 1 slot kuota Cloud bisnis. Lanjutkan aktivasi?"
                                 >
                                     @csrf
                                     @method('PATCH')
