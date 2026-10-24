@@ -279,7 +279,7 @@ class PaymentsController extends Controller
         $before = [
             'status' => $payment->status,
             'paid_at' => $payment->paid_at?->toIso8601String(),
-            'activated_at' => $payment->activated_at?->toIso8601String(),
+            'activated_at' => null,
         ];
 
         DB::transaction(function () use ($payment, $newStatus, $activator): void {
