@@ -158,6 +158,8 @@ class BusinessTypeNavigationTest extends TestCase
         $user = User::factory()->create(['email_verified_at' => now()]);
         $owned = Business::factory()->cafe()->create();
         $cashierBusiness = Business::factory()->laundry()->create();
+        Subscription::factory()->cloud()->create(['business_id' => $owned->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $cashierBusiness->id]);
         $user->businesses()->attach($owned->id, ['role' => 'owner']);
         $user->businesses()->attach($cashierBusiness->id, ['role' => 'cashier']);
 

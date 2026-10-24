@@ -392,8 +392,14 @@ class ProductsPageTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('products.index', ['tab' => 'categories']));
         $response->assertOk();
+        $response->assertViewHas('items', function ($items) use ($category): bool {
+            $item = $items->first();
+
+            return $item['id'] === $category->id && $item['items_count'] === 1;
+        });
+        $response->assertSee('data-name="Makanan Ringan"', false);
         $response->assertSee('1 item');
-        $response->assertDontSee('2 item');
+        $response->assertSee('1 item terdaftar');
     }
 
     // ============================================================
