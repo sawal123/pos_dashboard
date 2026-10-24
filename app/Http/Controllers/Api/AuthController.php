@@ -9,6 +9,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -35,7 +36,7 @@ class AuthController extends Controller
             ]);
 
             // Mark email as verified for mobile registration
-            $user->email_verified_at = now();
+            $user->email_verified_at = Carbon::now();
             $user->save();
 
             $rawBusinessName = ! empty($validated['business_name'])

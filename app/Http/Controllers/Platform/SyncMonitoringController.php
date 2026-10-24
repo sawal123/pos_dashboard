@@ -112,7 +112,7 @@ class SyncMonitoringController extends Controller
             'processed_at' => ['required', 'date'],
         ]);
 
-        $before = ['processed_at' => $syncRequest->processed_at?->toIso8601String()];
+        $before = ['processed_at' => $syncRequest->processed_at->toIso8601String()];
         $syncRequest->update(['processed_at' => $validated['processed_at']]);
 
         /** @var User $actor */
@@ -125,7 +125,7 @@ class SyncMonitoringController extends Controller
             targetLabel: $syncRequest->request_id,
             businessId: $syncRequest->business_id,
             before: $before,
-            after: ['processed_at' => $syncRequest->processed_at?->toIso8601String()],
+            after: ['processed_at' => $syncRequest->processed_at->toIso8601String()],
         );
 
         return redirect()->route('platform.sync.show', $syncRequest)
@@ -148,7 +148,7 @@ class SyncMonitoringController extends Controller
         $before = [
             'request_id' => $syncRequest->request_id,
             'device_id' => $syncRequest->device_id,
-            'processed_at' => $syncRequest->processed_at?->toIso8601String(),
+            'processed_at' => $syncRequest->processed_at->toIso8601String(),
         ];
 
         /** @var User $actor */

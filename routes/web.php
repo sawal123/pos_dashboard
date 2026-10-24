@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\MidtransRedirectController;
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\BusinessInvitationsController;
 use App\Http\Controllers\Dashboard\BusinessMembersController;
@@ -19,9 +20,7 @@ use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
-use App\Http\Controllers\Api\MidtransRedirectController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
-use App\Http\Controllers\SeoController;
 use App\Http\Controllers\Platform\AuditLogsController as PlatformAuditLogsController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
 use App\Http\Controllers\Platform\CloudBackupMonitoringController as PlatformCloudBackupMonitoringController;
@@ -36,6 +35,7 @@ use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptio
 use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
 use App\Http\Controllers\Platform\UsageAnalyticsController as PlatformUsageAnalyticsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
+use App\Http\Controllers\SeoController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
 use App\Services\Authorization\BusinessPermission;
