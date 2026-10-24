@@ -8,9 +8,11 @@ use App\Services\Auth\EmailOtpService;
 use App\Services\Auth\OtpException;
 use Illuminate\Contracts\Mail\Factory as MailFactory;
 use Illuminate\Contracts\Mail\Mailer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -20,7 +22,9 @@ use Tests\TestCase;
 
 class EmailOtpInfrastructureTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
+
+    private ?string $isolatedOtpDatabase = null;
 
     protected function setUp(): void
     {
@@ -38,7 +42,17 @@ class EmailOtpInfrastructureTest extends TestCase
     {
         Carbon::setTestNow();
 
+        $isolatedOtpDatabase = $this->isolatedOtpDatabase;
+        if ($this->isolatedOtpDatabase !== null) {
+            DB::purge((string) config('database.default'));
+            DB::purge('auth_otp_test');
+        }
+
         parent::tearDown();
+
+        if ($isolatedOtpDatabase !== null) {
+            @unlink($isolatedOtpDatabase);
+        }
     }
 
     public function test_issue_sends_a_mail_and_persists_only_a_keyed_digest(): void
@@ -51,9 +65,9 @@ class EmailOtpInfrastructureTest extends TestCase
 
         $this->assertTrue($result->created);
         $this->assertSame('email_verification', $result->purpose);
-        $this->assertSame(1, AuthOtpChallenge::query()->count());
+        $this->assertSame(1, $this->challengeQuery()->count());
 
-        $challenge = AuthOtpChallenge::query()->findOrFail($result->challengeId);
+        $challenge = $this->challengeQuery()->findOrFail($result->challengeId);
         $this->assertSame('sari@example.com', $challenge->email);
         $this->assertNotSame($code, $challenge->otp_digest);
         $this->assertSame(64, strlen($challenge->otp_digest));
@@ -77,7 +91,7 @@ class EmailOtpInfrastructureTest extends TestCase
         $this->assertTrue($first->created);
         $this->assertFalse($second->created);
         $this->assertSame($first->challengeId, $second->challengeId);
-        $this->assertSame(1, AuthOtpChallenge::query()->count());
+        $this->assertSame(1, $this->challengeQuery()->count());
         Mail::assertSentCount(1);
     }
 
@@ -94,7 +108,7 @@ class EmailOtpInfrastructureTest extends TestCase
         $this->assertDatabaseHas('auth_otp_challenges', [
             'id' => $result->challengeId,
         ]);
-        $this->assertNotNull(AuthOtpChallenge::query()->findOrFail($result->challengeId)->consumed_at);
+        $this->assertNotNull($this->challengeQuery()->findOrFail($result->challengeId)->consumed_at);
 
         $this->expectOtp('OTP_ALREADY_USED', fn () => $service->verify(
             $result->challengeId,
@@ -120,7 +134,7 @@ class EmailOtpInfrastructureTest extends TestCase
                 '192.0.2.13',
             ));
 
-            $this->assertSame($attempt, AuthOtpChallenge::query()->findOrFail($result->challengeId)->failed_attempts);
+            $this->assertSame($attempt, $this->challengeQuery()->findOrFail($result->challengeId)->failed_attempts);
         }
 
         $this->expectOtp('OTP_MAX_ATTEMPTS', fn () => $service->verify(
@@ -131,7 +145,7 @@ class EmailOtpInfrastructureTest extends TestCase
             '192.0.2.13',
         ));
 
-        $challenge = AuthOtpChallenge::query()->findOrFail($result->challengeId);
+        $challenge = $this->challengeQuery()->findOrFail($result->challengeId);
         $this->assertSame(5, $challenge->failed_attempts);
         $this->assertNotNull($challenge->locked_at);
         $this->expectOtp('OTP_MAX_ATTEMPTS', fn () => $service->verify(
@@ -216,10 +230,10 @@ class EmailOtpInfrastructureTest extends TestCase
             ipAddress: '192.0.2.20',
         ));
 
-        $active = AuthOtpChallenge::query()->findOrFail($first->challengeId);
+        $active = $this->challengeQuery()->findOrFail($first->challengeId);
         $this->assertNotNull($active->active_key);
         $this->assertNull($active->replaced_at);
-        $this->assertSame(1, AuthOtpChallenge::query()->count());
+        $this->assertSame(1, $this->challengeQuery()->count());
     }
 
     public function test_subject_and_purpose_mismatch_do_not_mutate_challenge(): void
@@ -237,7 +251,7 @@ class EmailOtpInfrastructureTest extends TestCase
             '192.0.2.16',
         ));
 
-        $challenge = AuthOtpChallenge::query()->findOrFail($result->challengeId);
+        $challenge = $this->challengeQuery()->findOrFail($result->challengeId);
         $this->assertSame(0, $challenge->failed_attempts);
         $this->assertNull($challenge->consumed_at);
 
@@ -248,7 +262,7 @@ class EmailOtpInfrastructureTest extends TestCase
             $code,
             '192.0.2.16',
         ));
-        $this->assertNull(AuthOtpChallenge::query()->findOrFail($result->challengeId)->consumed_at);
+        $this->assertNull($this->challengeQuery()->findOrFail($result->challengeId)->consumed_at);
     }
 
     public function test_downstream_transaction_rollback_restores_the_challenge(): void
@@ -257,10 +271,11 @@ class EmailOtpInfrastructureTest extends TestCase
         $subject = 'registration-reference-'.str_repeat('i', 16);
         $result = $service->issue($subject, 'rollback@example.com', ipAddress: '192.0.2.17');
         $code = $this->sentCode();
+        $validation = $service->validate($result->challengeId, $subject, 'email_verification', $code, '192.0.2.17');
 
         try {
-            DB::transaction(function () use ($service, $result, $subject, $code): void {
-                $service->consume($result->challengeId, $subject, 'email_verification', $code);
+            DB::transaction(function () use ($service, $validation): void {
+                $service->consume($validation);
 
                 throw new RuntimeException('Simulated downstream provisioning failure.');
             });
@@ -268,8 +283,73 @@ class EmailOtpInfrastructureTest extends TestCase
             // Expected: the outer transaction must roll back the nested consume.
         }
 
-        $this->assertNull(AuthOtpChallenge::query()->findOrFail($result->challengeId)->consumed_at);
-        $service->verify($result->challengeId, $subject, 'email_verification', $code, '192.0.2.17');
+        $this->assertNull($this->challengeQuery()->findOrFail($result->challengeId)->consumed_at);
+        $service->consume($validation);
+    }
+
+    public function test_invalid_code_inside_outer_transaction_keeps_attempt_durable(): void
+    {
+        $this->useIsolatedOtpConnection();
+        $service = app(EmailOtpService::class);
+        $subject = 'registration-reference-'.str_repeat('m', 16);
+        $result = $service->issue($subject, 'outer-invalid@example.com', ipAddress: '192.0.2.21');
+
+        try {
+            DB::transaction(function () use ($service, $result, $subject): void {
+                $service->verify($result->challengeId, $subject, 'email_verification', '000000', '192.0.2.21');
+            });
+
+            $this->fail('Expected invalid OTP exception.');
+        } catch (OtpException $exception) {
+            $this->assertSame('OTP_INVALID', $exception->errorCode);
+        }
+
+        $this->assertSame(1, $this->challengeQuery()->findOrFail($result->challengeId)->failed_attempts);
+    }
+
+    public function test_five_invalid_codes_inside_rolled_back_transactions_lock_the_challenge(): void
+    {
+        $this->useIsolatedOtpConnection();
+        $service = app(EmailOtpService::class);
+        $subject = 'registration-reference-'.str_repeat('n', 16);
+        $result = $service->issue($subject, 'outer-five@example.com', ipAddress: '192.0.2.22');
+        $validCode = $this->sentCode();
+
+        for ($attempt = 1; $attempt <= 5; $attempt++) {
+            try {
+                DB::transaction(function () use ($service, $result, $subject): void {
+                    $service->verify($result->challengeId, $subject, 'email_verification', '000000', '192.0.2.22');
+                });
+
+                $this->fail('Expected invalid OTP exception.');
+            } catch (OtpException $exception) {
+                $this->assertSame($attempt === 5 ? 'OTP_MAX_ATTEMPTS' : 'OTP_INVALID', $exception->errorCode);
+            }
+        }
+
+        $challenge = $this->challengeQuery()->findOrFail($result->challengeId);
+        $this->assertSame(5, $challenge->failed_attempts);
+        $this->assertNotNull($challenge->locked_at);
+
+        $this->expectOtp('OTP_MAX_ATTEMPTS', fn () => $service->verify(
+            $result->challengeId,
+            $subject,
+            'email_verification',
+            $validCode,
+            '192.0.2.22',
+        ));
+    }
+
+    public function test_one_validation_result_cannot_be_consumed_twice(): void
+    {
+        $service = app(EmailOtpService::class);
+        $subject = 'registration-reference-'.str_repeat('o', 16);
+        $result = $service->issue($subject, 'replay@example.com', ipAddress: '192.0.2.23');
+        $validation = $service->validate($result->challengeId, $subject, 'email_verification', $this->sentCode(), '192.0.2.23');
+
+        $service->consume($validation);
+
+        $this->expectOtp('OTP_ALREADY_USED', fn () => $service->consume($validation));
     }
 
     public function test_unique_active_key_rejects_duplicate_active_state(): void
@@ -277,11 +357,11 @@ class EmailOtpInfrastructureTest extends TestCase
         $service = app(EmailOtpService::class);
         $subject = 'registration-reference-'.str_repeat('j', 16);
         $result = $service->issue($subject, 'unique@example.com', ipAddress: '192.0.2.18');
-        $active = AuthOtpChallenge::query()->findOrFail($result->challengeId);
+        $active = $this->challengeQuery()->findOrFail($result->challengeId);
 
         $this->expectException(UniqueConstraintViolationException::class);
 
-        AuthOtpChallenge::query()->create([
+        $this->challengeQuery()->create([
             'id' => (string) Str::uuid(),
             'subject_reference' => $subject,
             'purpose' => 'email_verification',
@@ -324,6 +404,43 @@ class EmailOtpInfrastructureTest extends TestCase
         });
 
         return (string) $code;
+    }
+
+    private function challengeQuery(): Builder
+    {
+        $connection = config('auth_otp.connection') ?: config('database.default');
+
+        return AuthOtpChallenge::on((string) $connection)->newQuery();
+    }
+
+    private function useIsolatedOtpConnection(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'pos-auth-otp-');
+
+        if ($path === false) {
+            $this->fail('Could not create an isolated OTP test database.');
+        }
+
+        $this->isolatedOtpDatabase = $path;
+        $defaultConnection = (string) config('database.default');
+
+        config([
+            "database.connections.{$defaultConnection}.database" => $path,
+            'database.connections.auth_otp_test' => array_merge(
+                (array) config("database.connections.{$defaultConnection}"),
+                ['database' => $path],
+            ),
+            'auth_otp.connection' => 'auth_otp_test',
+        ]);
+        DB::purge($defaultConnection);
+        DB::purge('auth_otp_test');
+
+        Artisan::call('migrate', [
+            '--database' => $defaultConnection,
+            '--path' => database_path('migrations/2026_10_24_000001_create_auth_otp_challenges_table.php'),
+            '--realpath' => true,
+            '--force' => true,
+        ]);
     }
 
     private function expectOtp(string $code, callable $callback): void

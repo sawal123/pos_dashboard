@@ -26,6 +26,14 @@ return [
     'key' => env('AUTH_OTP_KEY'),
 
     /*
+    | When AUTH-D03 validates an invalid code inside its provisioning
+    | transaction, it must use a separate connection to make failed-attempt
+    | accounting durable. The connection must point at the same database and
+    | use the same schema as the default connection.
+    */
+    'connection' => env('AUTH_OTP_DB_CONNECTION'),
+
+    /*
     | `log`, `array`, `failover`, and `roundrobin` are intentionally rejected
     | for real delivery because they can expose or discard an OTP. Mail::fake()
     | is allowed by the service for automated tests.

@@ -46,11 +46,12 @@ final class EmailOtpService
         $this->throttleIssue($subjectReference, $email, $ipAddress);
 
         $activeKey = $this->activeKey($subjectReference, $purpose);
+        $connectionName = $this->otpConnectionName();
 
         try {
-            return DB::transaction(function () use ($subjectReference, $email, $purpose, $activeKey): OtpChallengeResult {
+            return DB::connection($connectionName)->transaction(function () use ($subjectReference, $email, $purpose, $activeKey, $connectionName): OtpChallengeResult {
                 $now = now();
-                $active = AuthOtpChallenge::query()
+                $active = AuthOtpChallenge::on($connectionName)
                     ->where('active_key', $activeKey)
                     ->lockForUpdate()
                     ->first();
@@ -76,6 +77,7 @@ final class EmailOtpService
                     purpose: $purpose,
                     activeKey: $activeKey,
                     now: $now,
+                    connectionName: $connectionName,
                 );
 
                 $this->send($email, $this->plainCode, $challenge->expires_at);
@@ -85,7 +87,7 @@ final class EmailOtpService
         } catch (UniqueConstraintViolationException) {
             // A concurrent initial issue may win the nullable-unique active_key
             // race. Resolve the committed winner instead of sending another OTP.
-            $winner = AuthOtpChallenge::query()
+            $winner = AuthOtpChallenge::on($connectionName)
                 ->where('active_key', $activeKey)
                 ->first();
 
@@ -117,11 +119,12 @@ final class EmailOtpService
         $this->throttleResend($subjectReference, $email, $ipAddress);
 
         $activeKey = $this->activeKey($subjectReference, $purpose);
+        $connectionName = $this->otpConnectionName();
 
         try {
-            return DB::transaction(function () use ($subjectReference, $email, $purpose, $activeKey): OtpChallengeResult {
+            return DB::connection($connectionName)->transaction(function () use ($subjectReference, $email, $purpose, $activeKey, $connectionName): OtpChallengeResult {
                 $now = now();
-                $active = AuthOtpChallenge::query()
+                $active = AuthOtpChallenge::on($connectionName)
                     ->where('active_key', $activeKey)
                     ->lockForUpdate()
                     ->first();
@@ -151,6 +154,7 @@ final class EmailOtpService
                     purpose: $purpose,
                     activeKey: null,
                     now: $now,
+                    connectionName: $connectionName,
                 );
 
                 // Send while the old active row is locked and the new row is
@@ -168,69 +172,35 @@ final class EmailOtpService
     }
 
     /**
-     * Validate and atomically consume a code. The nested transaction/savepoint
-     * is intentional: AUTH-D03 can call this inside its own verification and
-     * provisioning transaction, so a downstream rollback restores the OTP.
+     * Validate a code and durably account for invalid attempts.
+     *
+     * A valid code is not consumed here. AUTH-D03 must pass the returned
+     * validation result to consume() inside the same transaction as email
+     * verification and provisioning. When this method runs inside an outer
+     * transaction, auth_otp.connection must be a separate connection to the
+     * same database; otherwise the service fails closed before validation.
      */
-    public function verify(
+    public function validate(
         string $challengeId,
         string $subjectReference,
         string $purpose,
         string $code,
         ?string $ipAddress = null,
-    ): OtpVerificationResult {
+    ): OtpValidationResult {
         $code = $this->policy->validateCode($code);
         $subjectReference = $this->policy->validateSubjectReference($subjectReference);
         $purpose = $this->policy->validatePurpose($purpose);
         $this->throttleVerify($subjectReference, $ipAddress);
 
-        return $this->consume($challengeId, $subjectReference, $purpose, $code);
-    }
-
-    /**
-     * Lower-level consume operation for callers already coordinating account
-     * verification. It still opens a transaction when called standalone.
-     */
-    public function consume(
-        string $challengeId,
-        string $subjectReference,
-        string $purpose,
-        string $code,
-    ): OtpVerificationResult {
-        $subjectReference = $this->policy->validateSubjectReference($subjectReference);
-        $purpose = $this->policy->validatePurpose($purpose);
-        $code = $this->policy->validateCode($code);
-
-        $result = DB::transaction(function () use ($challengeId, $subjectReference, $purpose, $code): OtpVerificationResult|OtpException {
+        $connectionName = $this->validationConnectionName();
+        $result = DB::connection($connectionName)->transaction(function () use ($challengeId, $subjectReference, $purpose, $code, $connectionName): OtpValidationResult|OtpException {
             /** @var AuthOtpChallenge|null $challenge */
-            $challenge = AuthOtpChallenge::query()
+            $challenge = AuthOtpChallenge::on($connectionName)
                 ->whereKey($challengeId)
                 ->lockForUpdate()
                 ->first();
 
-            if ($challenge === null) {
-                throw new OtpException('OTP_CHALLENGE_NOT_FOUND', 'The OTP challenge is invalid.');
-            }
-
-            if ($challenge->subject_reference !== $subjectReference || $challenge->purpose !== $purpose) {
-                throw new OtpException('OTP_CHALLENGE_MISMATCH', 'The OTP challenge is invalid.');
-            }
-
-            if ($challenge->isConsumed()) {
-                throw new OtpException('OTP_ALREADY_USED', 'The OTP challenge has already been consumed.');
-            }
-
-            if ($challenge->isReplaced()) {
-                throw new OtpException('OTP_REPLACED', 'The OTP challenge has been replaced.');
-            }
-
-            if ($challenge->isLocked()) {
-                throw new OtpException('OTP_MAX_ATTEMPTS', 'The OTP challenge is locked.');
-            }
-
-            if ($challenge->isExpired()) {
-                throw new OtpException('OTP_EXPIRED', 'The OTP challenge has expired.');
-            }
+            $challenge = $this->verifiableChallenge($challenge, $subjectReference, $purpose);
 
             $expectedDigest = $this->policy->digest(
                 $challenge->subject_reference,
@@ -256,6 +226,63 @@ final class EmailOtpService
                 return new OtpException('OTP_INVALID', 'The OTP code is invalid.');
             }
 
+            return new OtpValidationResult(
+                challengeId: $challenge->id,
+                subjectReference: $challenge->subject_reference,
+                purpose: $challenge->purpose,
+                digest: $expectedDigest,
+                validatedAt: now(),
+            );
+        }, 3);
+
+        if ($result instanceof OtpException) {
+            throw $result;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Compatibility helper for standalone callers. In an outer transaction,
+     * validation runs on the isolated connection and successful consumption
+     * runs on the caller connection, preserving both security properties.
+     */
+    public function verify(
+        string $challengeId,
+        string $subjectReference,
+        string $purpose,
+        string $code,
+        ?string $ipAddress = null,
+    ): OtpVerificationResult {
+        $validation = $this->validate($challengeId, $subjectReference, $purpose, $code, $ipAddress);
+
+        return $this->consume($validation);
+    }
+
+    /**
+     * Consume only a result produced by validate().
+     *
+     * The re-check is intentionally performed under a row lock. It prevents a
+     * replaced, expired, locked, or concurrently consumed challenge from being
+     * accepted after the separate validation phase.
+     */
+    public function consume(OtpValidationResult $validation): OtpVerificationResult
+    {
+        $connectionName = $this->consumeConnectionName();
+
+        return DB::connection($connectionName)->transaction(function () use ($validation, $connectionName): OtpVerificationResult {
+            /** @var AuthOtpChallenge|null $challenge */
+            $challenge = AuthOtpChallenge::on($connectionName)
+                ->whereKey($validation->challengeId)
+                ->lockForUpdate()
+                ->first();
+
+            $challenge = $this->verifiableChallenge($challenge, $validation->subjectReference, $validation->purpose);
+
+            if (! hash_equals($challenge->otp_digest, $validation->digest)) {
+                throw new OtpException('OTP_VALIDATION_STALE', 'The OTP validation result is no longer valid.');
+            }
+
             $consumedAt = now();
             $challenge->consumed_at = $consumedAt;
             $challenge->active_key = null;
@@ -267,12 +294,6 @@ final class EmailOtpService
                 consumedAt: $consumedAt,
             );
         }, 3);
-
-        if ($result instanceof OtpException) {
-            throw $result;
-        }
-
-        return $result;
     }
 
     /**
@@ -286,7 +307,7 @@ final class EmailOtpService
         $purpose = $this->policy->validatePurpose($purpose);
 
         /** @var AuthOtpChallenge|null $challenge */
-        $challenge = AuthOtpChallenge::query()->whereKey($challengeId)->first();
+        $challenge = AuthOtpChallenge::on($this->otpConnectionName())->whereKey($challengeId)->first();
 
         if ($challenge === null || $challenge->subject_reference !== $subjectReference || $challenge->purpose !== $purpose) {
             throw new OtpException('OTP_CHALLENGE_NOT_FOUND', 'The OTP challenge is invalid.');
@@ -313,18 +334,51 @@ final class EmailOtpService
 
     private string $plainCode;
 
+    private function verifiableChallenge(
+        ?AuthOtpChallenge $challenge,
+        string $subjectReference,
+        string $purpose,
+    ): AuthOtpChallenge {
+        if ($challenge === null) {
+            throw new OtpException('OTP_CHALLENGE_NOT_FOUND', 'The OTP challenge is invalid.');
+        }
+
+        if ($challenge->subject_reference !== $subjectReference || $challenge->purpose !== $purpose) {
+            throw new OtpException('OTP_CHALLENGE_MISMATCH', 'The OTP challenge is invalid.');
+        }
+
+        if ($challenge->isConsumed()) {
+            throw new OtpException('OTP_ALREADY_USED', 'The OTP challenge has already been consumed.');
+        }
+
+        if ($challenge->isReplaced()) {
+            throw new OtpException('OTP_REPLACED', 'The OTP challenge has been replaced.');
+        }
+
+        if ($challenge->isLocked()) {
+            throw new OtpException('OTP_MAX_ATTEMPTS', 'The OTP challenge is locked.');
+        }
+
+        if ($challenge->isExpired()) {
+            throw new OtpException('OTP_EXPIRED', 'The OTP challenge has expired.');
+        }
+
+        return $challenge;
+    }
+
     private function newChallenge(
         string $subjectReference,
         string $email,
         string $purpose,
         ?string $activeKey,
         CarbonInterface $now,
+        string $connectionName,
     ): AuthOtpChallenge {
         $this->plainCode = $this->policy->generateCode();
         $nonce = Str::random(48);
         $expiresAt = $now->copy()->addMinutes($this->policy->ttlMinutes());
 
-        return AuthOtpChallenge::query()->create([
+        return AuthOtpChallenge::on($connectionName)->create([
             'id' => (string) Str::uuid(),
             'subject_reference' => $subjectReference,
             'purpose' => $purpose,
@@ -433,6 +487,44 @@ final class EmailOtpService
     private function activeKey(string $subjectReference, string $purpose): string
     {
         return $this->policy->identifierKey($subjectReference.'|'.$purpose);
+    }
+
+    private function otpConnectionName(): string
+    {
+        $configured = config('auth_otp.connection');
+
+        return is_string($configured) && $configured !== ''
+            ? $configured
+            : (string) config('database.default', 'sqlite');
+    }
+
+    private function validationConnectionName(): string
+    {
+        $defaultConnection = (string) config('database.default', 'sqlite');
+        $defaultLevel = DB::connection($defaultConnection)->transactionLevel();
+        $configured = config('auth_otp.connection');
+
+        if ($defaultLevel > 0) {
+            if (! is_string($configured) || $configured === '' || $configured === $defaultConnection) {
+                throw new OtpException(
+                    'OTP_SEPARATE_CONNECTION_REQUIRED',
+                    'OTP validation inside a transaction requires an isolated OTP database connection.',
+                );
+            }
+
+            return $configured;
+        }
+
+        return $this->otpConnectionName();
+    }
+
+    private function consumeConnectionName(): string
+    {
+        $defaultConnection = (string) config('database.default', 'sqlite');
+
+        return DB::connection($defaultConnection)->transactionLevel() > 0
+            ? $defaultConnection
+            : $this->otpConnectionName();
     }
 
     private function purpose(): string
