@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers\Platform;
 
-use App\Http\Controllers\Controller;
 use App\Enums\BusinessType;
+use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Subscription;
 use App\Models\User;
