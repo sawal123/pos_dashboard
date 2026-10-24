@@ -46,7 +46,7 @@ final class EmailOtpService
         $this->throttleIssue($subjectReference, $email, $ipAddress);
 
         $activeKey = $this->activeKey($subjectReference, $purpose);
-        $connectionName = $this->otpConnectionName();
+        $connectionName = $this->databaseConnectionName();
 
         try {
             return DB::connection($connectionName)->transaction(function () use ($subjectReference, $email, $purpose, $activeKey, $connectionName): OtpChallengeResult {
@@ -119,7 +119,7 @@ final class EmailOtpService
         $this->throttleResend($subjectReference, $email, $ipAddress);
 
         $activeKey = $this->activeKey($subjectReference, $purpose);
-        $connectionName = $this->otpConnectionName();
+        $connectionName = $this->databaseConnectionName();
 
         try {
             return DB::connection($connectionName)->transaction(function () use ($subjectReference, $email, $purpose, $activeKey, $connectionName): OtpChallengeResult {
@@ -174,11 +174,10 @@ final class EmailOtpService
     /**
      * Validate a code and durably account for invalid attempts.
      *
-     * A valid code is not consumed here. AUTH-D03 must pass the returned
-     * validation result to consume() inside the same transaction as email
-     * verification and provisioning. When this method runs inside an outer
-     * transaction, auth_otp.connection must be a separate connection to the
-     * same database; otherwise the service fails closed before validation.
+     * A valid code is not consumed here. AUTH-D03 must call this method before
+     * opening its provisioning transaction, then pass the returned validation
+     * result to consume() inside that transaction. This boundary is required
+     * because rate limiting may use the database-backed cache store.
      */
     public function validate(
         string $challengeId,
@@ -190,9 +189,10 @@ final class EmailOtpService
         $code = $this->policy->validateCode($code);
         $subjectReference = $this->policy->validateSubjectReference($subjectReference);
         $purpose = $this->policy->validatePurpose($purpose);
+        $this->ensureValidationBoundary();
         $this->throttleVerify($subjectReference, $ipAddress);
 
-        $connectionName = $this->validationConnectionName();
+        $connectionName = $this->databaseConnectionName();
         $result = DB::connection($connectionName)->transaction(function () use ($challengeId, $subjectReference, $purpose, $code, $connectionName): OtpValidationResult|OtpException {
             /** @var AuthOtpChallenge|null $challenge */
             $challenge = AuthOtpChallenge::on($connectionName)
@@ -243,9 +243,8 @@ final class EmailOtpService
     }
 
     /**
-     * Compatibility helper for standalone callers. In an outer transaction,
-     * validation runs on the isolated connection and successful consumption
-     * runs on the caller connection, preserving both security properties.
+     * Compatibility helper for standalone callers. Provisioning integrations
+     * must call validate() before opening their outer transaction.
      */
     public function verify(
         string $challengeId,
@@ -268,7 +267,7 @@ final class EmailOtpService
      */
     public function consume(OtpValidationResult $validation): OtpVerificationResult
     {
-        $connectionName = $this->consumeConnectionName();
+        $connectionName = $this->databaseConnectionName();
 
         return DB::connection($connectionName)->transaction(function () use ($validation, $connectionName): OtpVerificationResult {
             /** @var AuthOtpChallenge|null $challenge */
@@ -307,7 +306,7 @@ final class EmailOtpService
         $purpose = $this->policy->validatePurpose($purpose);
 
         /** @var AuthOtpChallenge|null $challenge */
-        $challenge = AuthOtpChallenge::on($this->otpConnectionName())->whereKey($challengeId)->first();
+        $challenge = AuthOtpChallenge::on($this->databaseConnectionName())->whereKey($challengeId)->first();
 
         if ($challenge === null || $challenge->subject_reference !== $subjectReference || $challenge->purpose !== $purpose) {
             throw new OtpException('OTP_CHALLENGE_NOT_FOUND', 'The OTP challenge is invalid.');
@@ -489,42 +488,19 @@ final class EmailOtpService
         return $this->policy->identifierKey($subjectReference.'|'.$purpose);
     }
 
-    private function otpConnectionName(): string
+    private function databaseConnectionName(): string
     {
-        $configured = config('auth_otp.connection');
-
-        return is_string($configured) && $configured !== ''
-            ? $configured
-            : (string) config('database.default', 'sqlite');
+        return (string) config('database.default', 'sqlite');
     }
 
-    private function validationConnectionName(): string
+    private function ensureValidationBoundary(): void
     {
-        $defaultConnection = (string) config('database.default', 'sqlite');
-        $defaultLevel = DB::connection($defaultConnection)->transactionLevel();
-        $configured = config('auth_otp.connection');
-
-        if ($defaultLevel > 0) {
-            if (! is_string($configured) || $configured === '' || $configured === $defaultConnection) {
-                throw new OtpException(
-                    'OTP_SEPARATE_CONNECTION_REQUIRED',
-                    'OTP validation inside a transaction requires an isolated OTP database connection.',
-                );
-            }
-
-            return $configured;
+        if (DB::connection($this->databaseConnectionName())->transactionLevel() > 0) {
+            throw new OtpException(
+                'OTP_VALIDATION_TRANSACTION_ACTIVE',
+                'OTP validation must run before the provisioning transaction starts.',
+            );
         }
-
-        return $this->otpConnectionName();
-    }
-
-    private function consumeConnectionName(): string
-    {
-        $defaultConnection = (string) config('database.default', 'sqlite');
-
-        return DB::connection($defaultConnection)->transactionLevel() > 0
-            ? $defaultConnection
-            : $this->otpConnectionName();
     }
 
     private function purpose(): string
