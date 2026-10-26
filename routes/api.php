@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CloudBackupController;
+use App\Http\Controllers\Api\GoogleAccountLinkController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ManualRegistrationController;
 use App\Http\Controllers\Api\MidtransWebhookController;
@@ -33,6 +34,11 @@ Route::post('/webhooks/midtrans', MidtransWebhookController::class)
     ->middleware('throttle:60,1');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/v2/auth/reauthenticate', [GoogleAccountLinkController::class, 'reauthenticate'])
+        ->middleware('throttle:5,1');
+    Route::post('/v2/auth/google/link', [GoogleAccountLinkController::class, 'link'])
+        ->middleware('throttle:10,1');
+
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::delete('/auth/logout', [AuthController::class, 'logout']);
 
