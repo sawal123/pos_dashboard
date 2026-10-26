@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
 
 final class ManualRegistrationService
 {
+    private const IDEMPOTENCY_RESERVATION_TTL_SECONDS = 315_360_000;
+
     public function __construct(
         private readonly EmailOtpPolicy $policy,
         private readonly EmailOtpService $otpService,
@@ -35,6 +37,23 @@ final class ManualRegistrationService
         $email = $this->policy->normalizeEmail($payload['email']);
         $keyHash = $this->hashIdentifier('idempotency|'.$idempotencyKey);
         $fingerprint = $this->fingerprint($payload);
+
+        $existingRegistration = PendingRegistration::query()
+            ->where('idempotency_key_hash', $keyHash)
+            ->first();
+
+        if ($existingRegistration !== null && ! hash_equals((string) $existingRegistration->request_fingerprint, $fingerprint)) {
+            throw new ManualRegistrationException(
+                'IDEMPOTENCY_KEY_REUSED',
+                'The idempotency key was already used with a different request.',
+            );
+        }
+
+        // This reservation is deliberately outside the database transaction.
+        // Database-backed Cache::add uses the cache key's unique constraint as
+        // the cross-request race barrier without nesting cache SQL in the
+        // registration transaction.
+        $this->reserveIdempotencyFingerprint($keyHash, $fingerprint);
 
         try {
             [$registration, $collision] = DB::transaction(function () use ($payload, $email, $keyHash, $fingerprint): array {
@@ -101,10 +120,6 @@ final class ManualRegistrationService
         }
 
         if ($collision || $registration === null || ! $registration->isPending()) {
-            if ($collision) {
-                $this->rememberCollisionFingerprint($keyHash, $fingerprint);
-            }
-
             return [
                 'registration' => $registration,
                 'challenge' => null,
@@ -360,28 +375,55 @@ final class ManualRegistrationService
         return $base.'-'.$suffix;
     }
 
-    private function rememberCollisionFingerprint(string $keyHash, string $fingerprint): void
+    private function reserveIdempotencyFingerprint(string $keyHash, string $fingerprint): void
     {
-        $cacheKey = 'auth-registration:collision-fingerprint:'.$keyHash;
+        $cacheKey = 'auth-registration:idempotency-fingerprint:'.$keyHash;
         $stored = Cache::get($cacheKey);
 
-        if (is_string($stored) && ! hash_equals($stored, $fingerprint)) {
-            throw new ManualRegistrationException(
-                'IDEMPOTENCY_KEY_REUSED',
-                'The idempotency key was already used with a different request.',
-            );
-        }
+        // Promote reservations written by the previous collision-only
+        // implementation so an already-used key cannot become reusable after
+        // this release.
+        if ($stored === null) {
+            $legacyStored = Cache::get('auth-registration:collision-fingerprint:'.$keyHash);
 
-        if ($stored === null && ! Cache::add($cacheKey, $fingerprint, now()->addDays(30))) {
-            $stored = Cache::get($cacheKey);
+            if ($legacyStored !== null) {
+                if (! is_string($legacyStored) || ! hash_equals($legacyStored, $fingerprint)) {
+                    $this->throwIdempotencyConflict();
+                }
 
-            if (is_string($stored) && ! hash_equals($stored, $fingerprint)) {
-                throw new ManualRegistrationException(
-                    'IDEMPOTENCY_KEY_REUSED',
-                    'The idempotency key was already used with a different request.',
-                );
+                if (Cache::add($cacheKey, $legacyStored, self::IDEMPOTENCY_RESERVATION_TTL_SECONDS)) {
+                    return;
+                }
+
+                $stored = Cache::get($cacheKey);
             }
         }
+
+        if (is_string($stored) && hash_equals($stored, $fingerprint)) {
+            return;
+        }
+
+        if ($stored === null) {
+            if (Cache::add($cacheKey, $fingerprint, self::IDEMPOTENCY_RESERVATION_TTL_SECONDS)) {
+                return;
+            }
+
+            $stored = Cache::get($cacheKey);
+
+            if (is_string($stored) && hash_equals($stored, $fingerprint)) {
+                return;
+            }
+        }
+
+        $this->throwIdempotencyConflict();
+    }
+
+    private function throwIdempotencyConflict(): never
+    {
+        throw new ManualRegistrationException(
+            'IDEMPOTENCY_KEY_REUSED',
+            'The idempotency key was already used with a different request.',
+        );
     }
 
     /**

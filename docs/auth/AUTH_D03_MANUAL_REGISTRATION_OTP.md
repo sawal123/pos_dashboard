@@ -81,7 +81,9 @@ Resend is `202 Accepted` for a usable pending registration and applies the AUTH-
 
 `pending_registrations` stores an opaque UUID, the user reference, normalized email, business-name intent, status, provisioning marker, and nullable provisioning result references. It stores neither plaintext passwords, OTPs, bearer tokens, nor the original Idempotency-Key. The key and complete request fingerprint are keyed SHA-256 values.
 
-Database uniqueness is authoritative for user email, pending normalized email, user reference, and idempotency key. The same key and same payload resumes the same registration and active challenge. Reuse with a different payload returns `409 IDEMPOTENCY_KEY_REUSED`. A different key cannot modify an existing pending account or password.
+Before opening the registration database transaction, the service checks any persisted pending fingerprint and atomically reserves the keyed fingerprint with `Cache::add`. The reservation is long-lived, uses only keyed values, and is outside the database transaction; the database-backed cache driver uses its unique cache-key constraint to arbitrate concurrent requests without nested cache/database locking. A legacy collision-only cache reservation is promoted to the unified reservation key.
+
+Database uniqueness remains authoritative for user email, pending normalized email, user reference, and idempotency key. The same key and same payload resumes the same registration and active challenge. Reuse with a different payload returns `409 IDEMPOTENCY_KEY_REUSED` before any user or tenant write, regardless of whether the next email is available. A different key cannot modify an existing pending account or password.
 
 ## OTP transaction flow
 

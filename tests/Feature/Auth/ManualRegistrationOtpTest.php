@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
@@ -169,6 +170,62 @@ class ManualRegistrationOtpTest extends TestCase
         ], ['Idempotency-Key' => $key])
             ->assertStatus(409)
             ->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
+    }
+
+    public function test_collision_key_cannot_be_reused_for_a_new_email(): void
+    {
+        $this->register();
+
+        $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => 'd03-registration-key-0002',
+        ])->assertStatus(202);
+
+        $response = $this->postJson('/api/v2/auth/register', [
+            ...$this->payload(),
+            'email' => 'new-email@example.com',
+        ], ['Idempotency-Key' => 'd03-registration-key-0002']);
+
+        $response->assertStatus(409)->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('pending_registrations', 1);
+        $this->assertDatabaseCount('businesses', 0);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_real_registration_key_cannot_be_reused_for_a_new_email(): void
+    {
+        $this->register();
+
+        $response = $this->postJson('/api/v2/auth/register', [
+            ...$this->payload(),
+            'email' => 'another-new-email@example.com',
+        ], ['Idempotency-Key' => 'd03-registration-key-0001']);
+
+        $response->assertStatus(409)->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('pending_registrations', 1);
+    }
+
+    public function test_idempotency_reservation_works_with_database_backed_cache(): void
+    {
+        config([
+            'cache.default' => 'database',
+            'cache.stores.database.connection' => (string) config('database.default'),
+        ]);
+        Cache::purge('database');
+
+        $this->register();
+
+        $this->postJson('/api/v2/auth/register', [
+            ...$this->payload(),
+            'email' => 'database-cache-new-email@example.com',
+        ], ['Idempotency-Key' => 'd03-registration-key-0001'])
+            ->assertStatus(409)
+            ->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('pending_registrations', 1);
+        $this->assertDatabaseCount('businesses', 0);
     }
 
     public function test_valid_otp_verifies_and_provisions_exactly_one_default_tenant(): void
