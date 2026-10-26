@@ -20,7 +20,10 @@ return new class extends Migration
             $table->timestamp('consumed_at')->nullable();
             $table->timestamps();
 
-            $table->index(['user_id', 'personal_access_token_id', 'purpose']);
+            $table->index(
+                ['user_id', 'personal_access_token_id', 'purpose'],
+                'reauth_grants_user_token_purpose_idx',
+            );
             $table->index(['expires_at', 'consumed_at']);
         });
     }
