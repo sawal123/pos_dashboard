@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CloudBackupController;
+use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ManualRegistrationController;
 use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\MobileContextController;
@@ -17,6 +18,9 @@ Route::post('/auth/register', [AuthController::class, 'register'])
 
 Route::post('/auth/login', [AuthController::class, 'login'])
     ->middleware('throttle:6,1');
+
+Route::post('/v2/auth/google', [GoogleAuthController::class, 'authenticate'])
+    ->middleware('throttle:10,1');
 
 Route::post('/v2/auth/register', [ManualRegistrationController::class, 'register'])
     ->middleware('throttle:6,1');

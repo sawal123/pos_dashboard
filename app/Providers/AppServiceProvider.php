@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Services\Auth\GoogleIdTokenVerifier;
+use App\Services\Auth\GoogleOidcVerifier;
 use App\Services\Subscription\Midtrans\MidtransGateway;
 use App\Services\Subscription\Midtrans\OfficialMidtransGateway;
 use Carbon\CarbonImmutable;
@@ -21,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(MidtransGateway::class, OfficialMidtransGateway::class);
+        $this->app->singleton(GoogleIdTokenVerifier::class, GoogleOidcVerifier::class);
     }
 
     /**
