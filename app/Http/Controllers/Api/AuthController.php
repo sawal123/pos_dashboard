@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\Outlet;
+use App\Models\PendingRegistration;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -111,6 +112,17 @@ class AuthController extends Controller
         }
 
         if (! $user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Email address is not verified.',
+                'code' => 'EMAIL_NOT_VERIFIED',
+            ], 403);
+        }
+
+        $pendingRegistration = PendingRegistration::query()
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($pendingRegistration !== null && ! $pendingRegistration->isProvisioned()) {
             return response()->json([
                 'message' => 'Email address is not verified.',
                 'code' => 'EMAIL_NOT_VERIFIED',
