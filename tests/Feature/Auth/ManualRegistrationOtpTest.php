@@ -102,7 +102,8 @@ class ManualRegistrationOtpTest extends TestCase
 
     public function test_email_collision_response_is_stable_and_decoy_cannot_verify_or_resend(): void
     {
-        $this->register();
+        $realRegistration = $this->register();
+        $realId = (string) $realRegistration->json('data.registration_id');
         $key = 'd03-collision-stable-key';
 
         $first = $this->postJson('/api/v2/auth/register', $this->payload(), [
@@ -118,17 +119,60 @@ class ManualRegistrationOtpTest extends TestCase
         $this->assertSame(array_keys($first->json('data')), array_keys($second->json('data')));
 
         $decoyId = (string) $first->json('data.registration_id');
-        $this->postJson('/api/v2/auth/otp/verify', [
+        $realVerify = $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $realId,
+            'code' => '000000',
+        ]);
+        $decoyVerify = $this->postJson('/api/v2/auth/otp/verify', [
             'registration_id' => $decoyId,
-            'code' => $this->sentCode(),
-        ])->assertStatus(422)->assertJson(['code' => 'PENDING_EMAIL']);
-        $this->postJson('/api/v2/auth/otp/resend', [
+            'code' => '000000',
+        ]);
+        $this->assertSame($realVerify->status(), $decoyVerify->status());
+        $this->assertSame($realVerify->json(), $decoyVerify->json());
+        $this->assertNull($realVerify->headers->get('Retry-After'));
+        $this->assertNull($decoyVerify->headers->get('Retry-After'));
+
+        $realCooldown = $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $realId,
+        ]);
+        $decoyCooldown = $this->postJson('/api/v2/auth/otp/resend', [
             'registration_id' => $decoyId,
-        ])->assertStatus(422)->assertJson(['code' => 'PENDING_EMAIL']);
+        ]);
+        $this->assertSame($realCooldown->status(), $decoyCooldown->status());
+        $this->assertSame($realCooldown->json(), $decoyCooldown->json());
+        $this->assertNotNull($realCooldown->headers->get('Retry-After'));
+        $this->assertNotNull($decoyCooldown->headers->get('Retry-After'));
+
+        Carbon::setTestNow(now()->addSeconds(61));
+
+        $realResend = $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $realId,
+        ]);
+        $decoyResend = $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $decoyId,
+        ]);
+        $this->assertSame($realResend->status(), $decoyResend->status());
+        $this->assertSame($realResend->json('data.state'), $decoyResend->json('data.state'));
+        $this->assertSame($realResend->json('data.otp_expires_at'), $decoyResend->json('data.otp_expires_at'));
+        $this->assertSame($realResend->json('data.resend_available_at'), $decoyResend->json('data.resend_available_at'));
+
+        $realCooldownAfterRecovery = $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $realId,
+        ]);
+        $decoyCooldownAfterRecovery = $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $decoyId,
+        ]);
+        $this->assertSame($realCooldownAfterRecovery->status(), $decoyCooldownAfterRecovery->status());
+        $this->assertSame($realCooldownAfterRecovery->json(), $decoyCooldownAfterRecovery->json());
+        $this->assertNotNull($realCooldownAfterRecovery->headers->get('Retry-After'));
+        $this->assertNotNull($decoyCooldownAfterRecovery->headers->get('Retry-After'));
 
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseCount('businesses', 0);
+        $this->assertDatabaseCount('outlets', 0);
+        $this->assertDatabaseCount('subscriptions', 0);
         $this->assertDatabaseCount('personal_access_tokens', 0);
+        Mail::assertSent(EmailVerificationOtpMail::class, 2);
     }
 
     public function test_real_and_collision_registration_ids_are_deterministic_uuid_v4_values(): void

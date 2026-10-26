@@ -116,7 +116,9 @@ final class ManualRegistrationController extends Controller
         return response()->json([
             'message' => 'Jika registrasi dapat digunakan, instruksi verifikasi telah dikirim.',
             'data' => [
-                'registration_id' => (string) $result['registration']->getKey(),
+                'registration_id' => $result['registration'] !== null
+                    ? (string) $result['registration']->getKey()
+                    : $request->string('registration_id')->toString(),
                 'state' => 'pending_email',
                 'otp_expires_at' => $challenge->expiresAt->toIso8601String(),
                 'resend_available_at' => $challenge->resendAvailableAt->toIso8601String(),

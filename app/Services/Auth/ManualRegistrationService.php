@@ -8,11 +8,14 @@ use App\Models\Outlet;
 use App\Models\PendingRegistration;
 use App\Models\Subscription;
 use App\Models\User;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 
 final class ManualRegistrationService
@@ -146,13 +149,17 @@ final class ManualRegistrationService
     }
 
     /**
-     * @return array{registration: PendingRegistration, challenge: OtpChallengeResult}
+     * @return array{registration: PendingRegistration|null, challenge: OtpChallengeResult}
      */
     public function resend(string $registrationId, ?string $ipAddress = null): array
     {
         $registration = PendingRegistration::query()->find($registrationId);
 
-        if ($registration === null || ! $registration->isPending()) {
+        if ($registration === null) {
+            return ['registration' => null, 'challenge' => $this->resendDecoy($registrationId, $ipAddress)];
+        }
+
+        if (! $registration->isPending()) {
             throw new ManualRegistrationException('PENDING_EMAIL', 'The pending registration is not available.');
         }
 
@@ -180,7 +187,7 @@ final class ManualRegistrationService
     {
         $keyHash = $this->hashIdentifier('idempotency|'.$idempotencyKey);
 
-        return Cache::rememberForever('auth-registration:collision-response:'.$keyHash, function () use ($keyHash): array {
+        $data = Cache::rememberForever('auth-registration:collision-response:'.$keyHash, function () use ($keyHash): array {
             $decoyHash = $this->hashIdentifier('collision-decoy|'.$keyHash);
             $decoyUuid = $this->uuidV4FromHash($decoyHash);
 
@@ -191,6 +198,10 @@ final class ManualRegistrationService
                 'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
             ];
         });
+
+        $this->seedDecoyState($data);
+
+        return $data;
     }
 
     /**
@@ -203,7 +214,7 @@ final class ManualRegistrationService
         $registration = PendingRegistration::query()->find($registrationId);
 
         if ($registration === null) {
-            throw new ManualRegistrationException('PENDING_EMAIL', 'The pending registration is not available.');
+            $this->verifyDecoy($registrationId, $code, $ipAddress);
         }
 
         if ($registration->isProvisioned()) {
@@ -283,6 +294,162 @@ final class ManualRegistrationService
         }
 
         return ['state' => 'verified', 'provisioning' => 'complete'];
+    }
+
+    private function resendDecoy(string $registrationId, ?string $ipAddress): OtpChallengeResult
+    {
+        $this->throttleDecoy('resend', $registrationId, $ipAddress);
+        $state = $this->decoyState($registrationId);
+        $now = now();
+
+        if ($state['resend_available_at']->gt($now)) {
+            throw new OtpException(
+                'OTP_RESEND_COOLDOWN',
+                'The OTP resend cooldown is still active.',
+                (int) max(1, $now->diffInSeconds($state['resend_available_at'])),
+            );
+        }
+
+        $state = [
+            'failed_attempts' => 0,
+            'locked' => false,
+            'expires_at' => $now->copy()->addMinutes($this->policy->ttlMinutes()),
+            'resend_available_at' => $now->copy()->addSeconds($this->policy->resendCooldownSeconds()),
+        ];
+        $this->putDecoyState($registrationId, $state);
+
+        return new OtpChallengeResult(
+            challengeId: $registrationId,
+            purpose: EmailOtpService::PURPOSE_EMAIL_VERIFICATION,
+            expiresAt: $state['expires_at'],
+            resendAvailableAt: $state['resend_available_at'],
+            created: true,
+        );
+    }
+
+    private function verifyDecoy(string $registrationId, string $code, ?string $ipAddress): never
+    {
+        $this->throttleDecoy('verify', $registrationId, $ipAddress);
+        $state = $this->decoyState($registrationId);
+        $now = now();
+
+        if ($state['locked'] || $state['failed_attempts'] >= $this->policy->maxAttempts()) {
+            throw new OtpException('OTP_MAX_ATTEMPTS', 'The OTP challenge is locked.');
+        }
+
+        if ($state['expires_at']->lte($now)) {
+            throw new OtpException('OTP_EXPIRED', 'The OTP challenge has expired.');
+        }
+
+        $state['failed_attempts']++;
+
+        if ($state['failed_attempts'] >= $this->policy->maxAttempts()) {
+            $state['locked'] = true;
+            $this->putDecoyState($registrationId, $state);
+
+            throw new OtpException('OTP_MAX_ATTEMPTS', 'The OTP challenge is locked.');
+        }
+
+        $this->putDecoyState($registrationId, $state);
+
+        throw new OtpException('OTP_INVALID', 'The OTP code is invalid.');
+    }
+
+    /**
+     * @return array{failed_attempts: int, locked: bool, expires_at: CarbonInterface, resend_available_at: CarbonInterface}
+     */
+    private function decoyState(string $registrationId): array
+    {
+        $cacheKey = $this->decoyStateKey($registrationId);
+        $state = Cache::get($cacheKey);
+
+        if (is_array($state) && isset($state['expires_at'], $state['resend_available_at'])) {
+            return [
+                'failed_attempts' => (int) ($state['failed_attempts'] ?? 0),
+                'locked' => (bool) ($state['locked'] ?? false),
+                'expires_at' => $this->parseCachedTime($state['expires_at']),
+                'resend_available_at' => $this->parseCachedTime($state['resend_available_at']),
+            ];
+        }
+
+        $now = now();
+        $fresh = [
+            'failed_attempts' => 0,
+            'locked' => false,
+            'expires_at' => $now->copy()->addMinutes($this->policy->ttlMinutes()),
+            'resend_available_at' => $now->copy()->addSeconds($this->policy->resendCooldownSeconds()),
+        ];
+        $this->putDecoyState($registrationId, $fresh);
+
+        return $fresh;
+    }
+
+    /**
+     * @param  array{failed_attempts: int, locked: bool, expires_at: CarbonInterface, resend_available_at: CarbonInterface}  $state
+     */
+    private function putDecoyState(string $registrationId, array $state): void
+    {
+        Cache::put($this->decoyStateKey($registrationId), [
+            'failed_attempts' => $state['failed_attempts'],
+            'locked' => $state['locked'],
+            'expires_at' => $state['expires_at']->toIso8601String(),
+            'resend_available_at' => $state['resend_available_at']->toIso8601String(),
+        ], self::IDEMPOTENCY_RESERVATION_TTL_SECONDS);
+    }
+
+    private function parseCachedTime(mixed $value): CarbonInterface
+    {
+        return $value instanceof CarbonInterface ? $value : CarbonImmutable::parse((string) $value);
+    }
+
+    /**
+     * @param  array{registration_id: string, state: string, otp_expires_at: string, resend_available_at: string}  $data
+     */
+    private function seedDecoyState(array $data): void
+    {
+        Cache::add($this->decoyStateKey($data['registration_id']), [
+            'failed_attempts' => 0,
+            'locked' => false,
+            'expires_at' => $data['otp_expires_at'],
+            'resend_available_at' => $data['resend_available_at'],
+        ], self::IDEMPOTENCY_RESERVATION_TTL_SECONDS);
+    }
+
+    private function decoyStateKey(string $registrationId): string
+    {
+        return 'auth-registration:decoy-state:'.$this->hashIdentifier('decoy-state|'.$registrationId);
+    }
+
+    private function throttleDecoy(string $operation, string $registrationId, ?string $ipAddress): void
+    {
+        $this->hitDecoyLimit($operation.'_subject', $registrationId);
+
+        if ($operation === 'resend') {
+            $this->hitDecoyLimit($operation.'_email', $registrationId);
+        }
+
+        $this->hitDecoyLimit($operation.'_ip', $ipAddress ?: 'unknown');
+    }
+
+    private function hitDecoyLimit(string $bucket, string $identifier): void
+    {
+        $limit = (array) config('auth_otp.rate_limits.'.$bucket, [
+            'max_attempts' => 5,
+            'decay_seconds' => 600,
+        ]);
+        $key = 'auth-otp:'.$bucket.':'.$this->policy->identifierKey('decoy|'.$identifier);
+        $maxAttempts = (int) $limit['max_attempts'];
+        $decaySeconds = (int) $limit['decay_seconds'];
+
+        if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            throw new OtpException(
+                'OTP_RATE_LIMITED',
+                'The OTP operation is rate limited.',
+                RateLimiter::availableIn($key),
+            );
+        }
+
+        RateLimiter::hit($key, $decaySeconds);
     }
 
     private function provision(PendingRegistration $registration, User $user): void
