@@ -2,7 +2,7 @@
 
 ## Architecture
 
-The mobile client sends a Google OpenID Connect ID token to `POST /api/v2/auth/google`. The backend uses Google's maintained PHP Auth/OIDC library (`google/auth`, backed by `firebase/php-jwt`) to verify the JWT signature against Google's rotating JWKS, then validates the issuer, audience, authorized presenter, timestamps, subject, email format, and `email_verified` claim, and consumes a keyed one-time replay marker in the shared cache. The raw token is never stored or logged.
+The mobile client sends a Google OpenID Connect ID token to `POST /api/v2/auth/google`. The backend uses the maintained `firebase/php-jwt` JWK/JWT implementation to verify the JWT signature against Google's rotating JWKS, then validates the issuer, audience, authorized presenter, timestamps, subject, email format, and `email_verified` claim, and consumes a keyed one-time replay marker in the shared cache. The raw token is never stored or logged.
 
 The backend then maps the immutable Google `sub` claim to `auth_identities(provider, provider_subject)`. Email is only used for the account-collision check; it is never used as the Google identity key.
 
@@ -16,7 +16,7 @@ GOOGLE_CLIENT_SECRET=your-client-secret
 GOOGLE_ANDROID_CLIENT_IDS=optional,comma,separated,android,client,ids
 ```
 
-`GOOGLE_CLIENT_ID` is the primary configured audience. Android client IDs are accepted only when explicitly listed in `GOOGLE_ANDROID_CLIENT_IDS`; a client-supplied platform never adds an audience by itself. The client secret is retained in Laravel configuration for future authorization-code flows, but direct ID-token verification does not need it and it is never sent to mobile or written to logs.
+`GOOGLE_CLIENT_ID` is always an allowed server audience, including for Android. Additional Android audiences are accepted only when explicitly listed in `GOOGLE_ANDROID_CLIENT_IDS`; a client-supplied platform never adds an audience by itself. When present, `azp` must also be one of the explicitly configured server/client presenters. The client secret is retained in Laravel configuration for future authorization-code flows, but direct ID-token verification does not need it and it is never sent to mobile or written to logs.
 
 If the required audience is missing, the endpoint returns `GOOGLE_AUTH_NOT_CONFIGURED` with HTTP 503 and performs no database mutation.
 
@@ -24,7 +24,7 @@ If the required audience is missing, the endpoint returns `GOOGLE_AUTH_NOT_CONFI
 
 Create the OAuth client IDs in the correct Google Cloud project. Configure the web client ID as `GOOGLE_CLIENT_ID`, and configure Android package/signing-certificate client IDs explicitly in `GOOGLE_ANDROID_CLIENT_IDS` when Android tokens use a different audience. Keep staging and production client IDs separate and use separate environment values.
 
-The backend trusts only Google's JWKS endpoint over normal TLS validation. JWKS responses are cached according to the provider `Cache-Control` max-age, with a bounded fallback, and are refreshed once on an unknown key ID to support key rotation.
+The backend trusts only Google's JWKS endpoint over normal TLS validation. RSA JWKs are parsed from the provider's `kid`/`kty`/`alg`/`n`/`e` values using the maintained JWT library; an `x5c` certificate chain is not required. JWKS responses are cached according to the provider `Cache-Control` max-age, with a bounded fallback, and are refreshed once on an unknown key ID to support key rotation.
 
 ## API
 

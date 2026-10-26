@@ -3,9 +3,9 @@
 namespace App\Services\Auth;
 
 use Firebase\JWT\ExpiredException;
+use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Google\Auth\OAuth2;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -28,7 +28,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             );
         }
 
-        [$encodedHeader, $encodedPayload, $encodedSignature] = $this->segments($idToken);
+        [$encodedHeader, $encodedPayload] = $this->segments($idToken);
         $header = $this->decodeJson($encodedHeader, 'GOOGLE_TOKEN_INVALID');
         $payload = $this->decodeJson($encodedPayload, 'GOOGLE_TOKEN_INVALID');
 
@@ -37,22 +37,8 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         }
 
         $publicKey = $this->publicKey((string) $header['kid']);
-        $verificationAudience = is_string($payload['aud'] ?? null)
-            ? (string) $payload['aud']
-            : $this->allowedAudiences($clientPlatform)[0];
-
         try {
-            if (is_array($payload['aud'] ?? null)) {
-                JWT::decode($idToken, new Key($publicKey, 'RS256'));
-            } else {
-                (new OAuth2([
-                    'id_token' => $idToken,
-                    // The signed claim is checked against the server allow-list
-                    // below. This value only lets the Google library perform its
-                    // cryptographic verification before policy evaluation.
-                    'audience' => $verificationAudience,
-                ]))->verifyIdToken($publicKey, ['RS256']);
-            }
+            JWT::decode($idToken, $publicKey);
         } catch (ExpiredException $exception) {
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.', $exception);
         } catch (Throwable $exception) {
@@ -140,9 +126,14 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             $androidClientIds = [];
         }
 
-        $audiences = $clientPlatform === 'android' && $androidClientIds !== []
-            ? $androidClientIds
-            : [$clientId];
+        if ($clientId === '') {
+            return [];
+        }
+
+        $audiences = [$clientId];
+        if ($clientPlatform === 'android') {
+            $audiences = array_merge($audiences, $androidClientIds);
+        }
 
         return array_values(array_unique(array_filter(array_map(
             static fn (mixed $value): string => trim((string) $value),
@@ -150,7 +141,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         ))));
     }
 
-    /** @return array{0: string, 1: string, 2: string} */
+    /** @return array{0: string, 1: string} */
     private function segments(string $idToken): array
     {
         $segments = explode('.', $idToken);
@@ -158,7 +149,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
         }
 
-        return [$segments[0], $segments[1], $segments[2]];
+        return [$segments[0], $segments[1]];
     }
 
     /** @return array<string, mixed> */
@@ -189,7 +180,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         return $decoded === false ? null : $decoded;
     }
 
-    private function publicKey(string $keyId): string
+    private function publicKey(string $keyId): Key
     {
         $keys = $this->publicKeys();
         if (! isset($keys[$keyId])) {
@@ -203,14 +194,14 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         return $keys[$keyId];
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, Key> */
     private function publicKeys(bool $forceRefresh = false): array
     {
         try {
             if (! $forceRefresh) {
                 $cached = Cache::get(self::PUBLIC_KEYS_CACHE_KEY);
                 if (is_array($cached)) {
-                    return array_filter($cached, 'is_string');
+                    return $this->parsePublicKeys($cached);
                 }
             }
 
@@ -222,12 +213,17 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
                 throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
             }
 
-            $keys = $this->parsePublicKeys($response);
+            $jwks = $response->json();
+            if (! is_array($jwks)) {
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            }
+
+            $keys = $this->parsePublicKeys($jwks);
             if ($keys === []) {
                 throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
             }
 
-            Cache::put(self::PUBLIC_KEYS_CACHE_KEY, $keys, now()->addSeconds($this->maxAge($response)));
+            Cache::put(self::PUBLIC_KEYS_CACHE_KEY, $jwks, now()->addSeconds($this->maxAge($response)));
 
             return $keys;
         } catch (GoogleAuthenticationException $exception) {
@@ -237,26 +233,39 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         }
     }
 
-    /** @return array<string, string> */
-    private function parsePublicKeys(Response $response): array
+    /**
+     * @param  array<string, mixed>  $jwks
+     * @return array<string, Key>
+     */
+    private function parsePublicKeys(array $jwks): array
     {
-        $json = $response->json();
-        if (! is_array($json) || ! is_array($json['keys'] ?? null)) {
+        if (! is_array($jwks['keys'] ?? null)) {
             return [];
         }
 
         $keys = [];
-        foreach ($json['keys'] as $key) {
-            if (! is_array($key) || ($key['kty'] ?? null) !== 'RSA' || ! is_string($key['kid'] ?? null)) {
+        foreach ($jwks['keys'] as $key) {
+            if (! is_array($key)
+                || ($key['kty'] ?? null) !== 'RSA'
+                || ($key['alg'] ?? null) !== 'RS256'
+                || (isset($key['use']) && $key['use'] !== 'sig')
+                || ! is_string($key['kid'] ?? null)
+                || trim($key['kid']) === ''
+                || ! is_string($key['n'] ?? null)
+                || $key['n'] === ''
+                || ! is_string($key['e'] ?? null)
+                || $key['e'] === '') {
                 continue;
             }
 
-            $certificate = is_array($key['x5c'] ?? null) ? ($key['x5c'][0] ?? null) : null;
-            if (is_string($certificate)) {
-                $publicKey = openssl_pkey_get_public("-----BEGIN CERTIFICATE-----\n".$certificate."\n-----END CERTIFICATE-----");
-                if ($publicKey !== false) {
-                    $keys[$key['kid']] = "-----BEGIN CERTIFICATE-----\n".$certificate."\n-----END CERTIFICATE-----";
+            try {
+                $parsed = JWK::parseKey($key);
+                if ($parsed !== null) {
+                    $keys[$key['kid']] = $parsed;
                 }
+            } catch (Throwable) {
+                // Ignore malformed or unsupported provider keys. The caller
+                // fails closed when no usable key remains for the token kid.
             }
         }
 
