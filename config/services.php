@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'android_client_ids' => array_values(array_filter(array_map(
+            static fn (string $clientId): string => trim($clientId),
+            explode(',', (string) env('GOOGLE_ANDROID_CLIENT_IDS', '')),
+        ))),
+        'jwks_url' => 'https://www.googleapis.com/oauth2/v3/certs',
+        'issuer' => 'https://accounts.google.com',
+        'clock_skew_seconds' => 60,
+        'replay_ttl_seconds' => 3600,
+    ],
+
 ];
