@@ -167,9 +167,10 @@ final class ManualRegistrationService
 
         return Cache::rememberForever('auth-registration:collision-response:'.$keyHash, function () use ($keyHash): array {
             $decoyHash = $this->hashIdentifier('collision-decoy|'.$keyHash);
+            $decoyUuid = $this->uuidV4FromHash($decoyHash);
 
             return [
-                'registration_id' => substr($decoyHash, 0, 8).'-'.substr($decoyHash, 8, 4).'-'.substr($decoyHash, 12, 4).'-'.substr($decoyHash, 16, 4).'-'.substr($decoyHash, 20, 12),
+                'registration_id' => $decoyUuid,
                 'state' => 'pending_email',
                 'otp_expires_at' => now()->addMinutes(10)->toIso8601String(),
                 'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
@@ -237,11 +238,7 @@ final class ManualRegistrationService
 
                 $user = User::query()->whereKey($lockedRegistration->user_id)->lockForUpdate()->first();
 
-                if ($user === null || (string) $user->email !== (string) $lockedRegistration->normalized_email) {
-                    throw new ManualRegistrationException('AUTH_PROVISIONING_PENDING', 'Registration recovery is required.');
-                }
-
-                if ($user->email_verified_at !== null) {
+                if ($user === null || $this->policy->normalizeEmail((string) $user->email) !== (string) $lockedRegistration->normalized_email) {
                     throw new ManualRegistrationException('AUTH_PROVISIONING_PENDING', 'Registration recovery is required.');
                 }
 
@@ -405,5 +402,14 @@ final class ManualRegistrationService
     private function hashIdentifier(string $value): string
     {
         return hash_hmac('sha256', $value, $this->policy->key());
+    }
+
+    private function uuidV4FromHash(string $hex): string
+    {
+        $hex = substr_replace($hex, '4', 12, 1);
+        $variant = dechex((hexdec($hex[16]) & 0x3) | 0x8);
+        $hex = substr_replace($hex, $variant, 16, 1);
+
+        return substr($hex, 0, 8).'-'.substr($hex, 8, 4).'-'.substr($hex, 12, 4).'-'.substr($hex, 16, 4).'-'.substr($hex, 20, 12);
     }
 }

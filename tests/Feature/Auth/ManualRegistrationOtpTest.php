@@ -9,7 +9,9 @@ use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Testing\TestResponse;
+use Laravel\Fortify\Features;
 use Tests\TestCase;
 
 class ManualRegistrationOtpTest extends TestCase
@@ -126,6 +128,30 @@ class ManualRegistrationOtpTest extends TestCase
         $this->assertDatabaseCount('users', 1);
         $this->assertDatabaseCount('businesses', 0);
         $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_real_and_collision_registration_ids_are_deterministic_uuid_v4_values(): void
+    {
+        $realId = $this->jsonRegistrationId();
+        $firstDecoy = $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => 'd03-uuid-decoy-key-0001',
+        ])->json('data.registration_id');
+        $sameDecoy = $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => 'd03-uuid-decoy-key-0001',
+        ])->json('data.registration_id');
+        $secondDecoy = $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => 'd03-uuid-decoy-key-0002',
+        ])->json('data.registration_id');
+
+        $this->assertUuidV4((string) $realId);
+        $this->assertUuidV4((string) $firstDecoy);
+        $this->assertSame($firstDecoy, $sameDecoy);
+        $this->assertNotSame($firstDecoy, $secondDecoy);
+        $this->assertNotSame($realId, $firstDecoy);
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('businesses', 0);
+        $this->assertDatabaseCount('outlets', 0);
+        $this->assertDatabaseCount('subscriptions', 0);
     }
 
     public function test_collision_idempotency_key_conflict_is_consistent_for_changed_payload(): void
@@ -358,6 +384,48 @@ class ManualRegistrationOtpTest extends TestCase
         ])->assertOk()->assertJsonStructure(['data' => ['token']]);
     }
 
+    public function test_fortify_verification_does_not_bypass_pending_otp_or_api_login(): void
+    {
+        $this->skipUnlessFortifyHas(Features::emailVerification());
+
+        $registrationId = $this->jsonRegistrationId();
+        $user = User::query()->firstOrFail();
+        $verificationUrl = URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $user->id, 'hash' => sha1($user->email)],
+        );
+
+        $this->actingAs($user)->get($verificationUrl)->assertRedirect();
+        $this->assertNotNull($user->fresh()->email_verified_at);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'new-user@example.com',
+            'password' => 'ValidPassword123!',
+        ])->assertStatus(403)->assertJson(['code' => 'EMAIL_NOT_VERIFIED']);
+
+        $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $registrationId,
+            'code' => '000000',
+        ])->assertStatus(422)->assertJson(['code' => 'OTP_INVALID']);
+        $this->assertDatabaseCount('businesses', 0);
+
+        $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $registrationId,
+            'code' => $this->sentCode(),
+        ])->assertOk();
+
+        $this->assertDatabaseCount('businesses', 1);
+        $this->assertDatabaseCount('business_user', 1);
+        $this->assertDatabaseCount('outlets', 1);
+        $this->assertDatabaseCount('subscriptions', 1);
+
+        $this->postJson('/api/auth/login', [
+            'email' => 'new-user@example.com',
+            'password' => 'ValidPassword123!',
+        ])->assertOk()->assertJsonStructure(['data' => ['token']]);
+    }
+
     public function test_invalid_registration_input_is_rejected(): void
     {
         $this->postJson('/api/v2/auth/register', [
@@ -420,5 +488,13 @@ class ManualRegistrationOtpTest extends TestCase
                 'code' => '000000',
             ]);
         }
+    }
+
+    private function assertUuidV4(string $value): void
+    {
+        $this->assertMatchesRegularExpression(
+            '/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/i',
+            $value,
+        );
     }
 }

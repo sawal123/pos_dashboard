@@ -65,6 +65,8 @@ The account is persisted with `email_verified_at = null`; no business, outlet, s
 
 The current active challenge is resolved server-side from the registration subject and purpose. Clients never submit a challenge identifier.
 
+Fortify's signed web verification may set `email_verified_at` before the mobile OTP is submitted. That does not complete AUTH-D03: API login continues to deny a pending registration, and OTP verification still validates the normalized user/registration email binding and consumes the OTP before atomic provisioning. Existing users without a pending registration retain the existing Fortify and API-login behavior.
+
 ### `POST /api/v2/auth/otp/resend`
 
 ```json
