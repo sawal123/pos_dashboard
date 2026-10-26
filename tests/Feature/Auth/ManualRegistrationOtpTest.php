@@ -97,6 +97,54 @@ class ManualRegistrationOtpTest extends TestCase
         Mail::assertSent(EmailVerificationOtpMail::class, 1);
     }
 
+    public function test_email_collision_response_is_stable_and_decoy_cannot_verify_or_resend(): void
+    {
+        $this->register();
+        $key = 'd03-collision-stable-key';
+
+        $first = $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => $key,
+        ]);
+        $second = $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => $key,
+        ]);
+
+        $first->assertStatus(202);
+        $second->assertStatus(202);
+        $this->assertSame($first->getContent(), $second->getContent());
+        $this->assertSame(array_keys($first->json('data')), array_keys($second->json('data')));
+
+        $decoyId = (string) $first->json('data.registration_id');
+        $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $decoyId,
+            'code' => $this->sentCode(),
+        ])->assertStatus(422)->assertJson(['code' => 'PENDING_EMAIL']);
+        $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $decoyId,
+        ])->assertStatus(422)->assertJson(['code' => 'PENDING_EMAIL']);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('businesses', 0);
+        $this->assertDatabaseCount('personal_access_tokens', 0);
+    }
+
+    public function test_collision_idempotency_key_conflict_is_consistent_for_changed_payload(): void
+    {
+        $this->register();
+        $key = 'd03-collision-conflict-key';
+
+        $this->postJson('/api/v2/auth/register', $this->payload(), [
+            'Idempotency-Key' => $key,
+        ])->assertStatus(202);
+
+        $this->postJson('/api/v2/auth/register', [
+            ...$this->payload(),
+            'name' => 'Different Name',
+        ], ['Idempotency-Key' => $key])
+            ->assertStatus(409)
+            ->assertJson(['code' => 'IDEMPOTENCY_KEY_REUSED']);
+    }
+
     public function test_valid_otp_verifies_and_provisions_exactly_one_default_tenant(): void
     {
         $registrationId = $this->jsonRegistrationId();
@@ -173,6 +221,100 @@ class ManualRegistrationOtpTest extends TestCase
             'failed_attempts' => 5,
         ]);
         $this->assertNull(User::query()->firstOrFail()->fresh()->email_verified_at);
+    }
+
+    public function test_locked_challenge_can_be_recovered_after_cooldown_without_duplicate_provisioning(): void
+    {
+        $registrationId = $this->jsonRegistrationId();
+        $oldCode = $this->sentCode();
+
+        $this->lockRegistration($registrationId);
+
+        $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $registrationId,
+        ])->assertStatus(429)->assertJson(['code' => 'OTP_RESEND_COOLDOWN']);
+
+        Carbon::setTestNow(now()->addSeconds(61));
+
+        $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $registrationId,
+        ])->assertStatus(202);
+
+        $newCode = $this->latestSentCode();
+
+        $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $registrationId,
+            'code' => $oldCode,
+        ])->assertStatus(422)->assertJson(['code' => 'OTP_INVALID']);
+
+        $this->postJson('/api/v2/auth/otp/verify', [
+            'registration_id' => $registrationId,
+            'code' => $newCode,
+        ])->assertOk();
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('businesses', 1);
+        $this->assertDatabaseCount('outlets', 1);
+        $this->assertDatabaseCount('subscriptions', 1);
+    }
+
+    public function test_recovery_rate_limit_remains_enforced_after_lockout(): void
+    {
+        config([
+            'auth_otp.rate_limits.resend_subject' => ['max_attempts' => 1, 'decay_seconds' => 600],
+            'auth_otp.rate_limits.resend_email' => ['max_attempts' => 1, 'decay_seconds' => 600],
+            'auth_otp.rate_limits.resend_ip' => ['max_attempts' => 1, 'decay_seconds' => 600],
+        ]);
+
+        $registrationId = $this->jsonRegistrationId();
+        $this->lockRegistration($registrationId);
+        Carbon::setTestNow(now()->addSeconds(61));
+
+        $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $registrationId,
+        ])->assertStatus(202);
+
+        $this->postJson('/api/v2/auth/otp/resend', [
+            'registration_id' => $registrationId,
+        ])->assertStatus(429)->assertJson(['code' => 'OTP_RATE_LIMITED']);
+
+        $this->assertDatabaseCount('users', 1);
+        $this->assertDatabaseCount('businesses', 0);
+    }
+
+    public function test_business_slug_is_bounded_for_long_and_unicode_names(): void
+    {
+        $names = [
+            str_repeat('a', 255),
+            'Toko 東京',
+            '東京',
+        ];
+
+        foreach ($names as $index => $businessName) {
+            $payload = [
+                ...$this->payload(),
+                'name' => 'Slug User '.$index,
+                'email' => 'slug-'.$index.'@example.com',
+                'business_name' => $businessName,
+            ];
+            $registrationId = (string) $this->postJson('/api/v2/auth/register', $payload, [
+                'Idempotency-Key' => 'd03-slug-key-'.str_pad((string) $index, 4, '0', STR_PAD_LEFT),
+            ])->json('data.registration_id');
+
+            $this->postJson('/api/v2/auth/otp/verify', [
+                'registration_id' => $registrationId,
+                'code' => $this->latestSentCode(),
+            ])->assertOk();
+
+            $business = Business::query()->latest('id')->firstOrFail();
+            $this->assertLessThanOrEqual(255, strlen((string) $business->slug));
+            $this->assertMatchesRegularExpression('/-[a-z0-9]{12}$/', (string) $business->slug);
+        }
+
+        $this->assertDatabaseCount('users', 3);
+        $this->assertDatabaseCount('businesses', 3);
+        $this->assertDatabaseCount('outlets', 3);
+        $this->assertDatabaseCount('subscriptions', 3);
     }
 
     public function test_resend_replaces_old_code_after_cooldown(): void
@@ -263,5 +405,20 @@ class ManualRegistrationOtpTest extends TestCase
         });
 
         return (string) $code;
+    }
+
+    private function latestSentCode(): string
+    {
+        return (string) Mail::sent(EmailVerificationOtpMail::class)->last()->code;
+    }
+
+    private function lockRegistration(string $registrationId): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->postJson('/api/v2/auth/otp/verify', [
+                'registration_id' => $registrationId,
+                'code' => '000000',
+            ]);
+        }
     }
 }

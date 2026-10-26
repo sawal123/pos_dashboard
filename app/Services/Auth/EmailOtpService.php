@@ -130,7 +130,42 @@ final class EmailOtpService
                     ->first();
 
                 if ($active === null) {
-                    throw new OtpException('OTP_NO_ACTIVE_CHALLENGE', 'No active OTP challenge exists.');
+                    /** @var AuthOtpChallenge|null $latest */
+                    $latest = AuthOtpChallenge::on($connectionName)
+                        ->where('subject_reference', $subjectReference)
+                        ->where('purpose', $purpose)
+                        ->latest('created_at')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($latest === null || ! $latest->isLocked()) {
+                        throw new OtpException('OTP_NO_ACTIVE_CHALLENGE', 'No active OTP challenge exists.');
+                    }
+
+                    if ($latest->resend_available_at->gt($now)) {
+                        throw new OtpException(
+                            'OTP_RESEND_COOLDOWN',
+                            'The OTP resend cooldown is still active.',
+                            (int) max(1, $now->diffInSeconds($latest->resend_available_at)),
+                        );
+                    }
+
+                    // A locked challenge has no active_key by design. Create a
+                    // fresh challenge only after resend throttles and the
+                    // persisted cooldown above have both allowed recovery.
+                    $replacement = $this->newChallenge(
+                        subjectReference: $subjectReference,
+                        email: $email,
+                        purpose: $purpose,
+                        activeKey: null,
+                        now: $now,
+                        connectionName: $connectionName,
+                    );
+
+                    $this->send($email, $this->plainCode, $replacement->expires_at);
+                    $replacement->forceFill(['active_key' => $activeKey])->save();
+
+                    return $this->result($replacement, true);
                 }
 
                 if ($active->email !== $email) {

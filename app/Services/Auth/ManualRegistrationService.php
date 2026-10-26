@@ -10,6 +10,7 @@ use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -100,6 +101,10 @@ final class ManualRegistrationService
         }
 
         if ($collision || $registration === null || ! $registration->isPending()) {
+            if ($collision) {
+                $this->rememberCollisionFingerprint($keyHash, $fingerprint);
+            }
+
             return [
                 'registration' => $registration,
                 'challenge' => null,
@@ -148,6 +153,28 @@ final class ManualRegistrationService
         }
 
         return ['registration' => $registration, 'challenge' => $challenge];
+    }
+
+    /**
+     * Return a stable, non-persisted collision response. It is keyed only by
+     * the caller's idempotency key and contains no account or email data.
+     *
+     * @return array{registration_id: string, state: string, otp_expires_at: string, resend_available_at: string}
+     */
+    public function collisionResponse(string $idempotencyKey): array
+    {
+        $keyHash = $this->hashIdentifier('idempotency|'.$idempotencyKey);
+
+        return Cache::rememberForever('auth-registration:collision-response:'.$keyHash, function () use ($keyHash): array {
+            $decoyHash = $this->hashIdentifier('collision-decoy|'.$keyHash);
+
+            return [
+                'registration_id' => substr($decoyHash, 0, 8).'-'.substr($decoyHash, 8, 4).'-'.substr($decoyHash, 12, 4).'-'.substr($decoyHash, 16, 4).'-'.substr($decoyHash, 20, 12),
+                'state' => 'pending_email',
+                'otp_expires_at' => now()->addMinutes(10)->toIso8601String(),
+                'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
+            ];
+        });
     }
 
     /**
@@ -330,8 +357,34 @@ final class ManualRegistrationService
     private function uniqueBusinessSlug(string $name): string
     {
         $base = Str::slug($name) ?: 'toko';
+        $suffix = Str::lower(Str::random(12));
+        $base = Str::substr($base, 0, 255 - Str::length($suffix) - 1);
 
-        return $base.'-'.Str::lower(Str::random(12));
+        return $base.'-'.$suffix;
+    }
+
+    private function rememberCollisionFingerprint(string $keyHash, string $fingerprint): void
+    {
+        $cacheKey = 'auth-registration:collision-fingerprint:'.$keyHash;
+        $stored = Cache::get($cacheKey);
+
+        if (is_string($stored) && ! hash_equals($stored, $fingerprint)) {
+            throw new ManualRegistrationException(
+                'IDEMPOTENCY_KEY_REUSED',
+                'The idempotency key was already used with a different request.',
+            );
+        }
+
+        if ($stored === null && ! Cache::add($cacheKey, $fingerprint, now()->addDays(30))) {
+            $stored = Cache::get($cacheKey);
+
+            if (is_string($stored) && ! hash_equals($stored, $fingerprint)) {
+                throw new ManualRegistrationException(
+                    'IDEMPOTENCY_KEY_REUSED',
+                    'The idempotency key was already used with a different request.',
+                );
+            }
+        }
     }
 
     /**

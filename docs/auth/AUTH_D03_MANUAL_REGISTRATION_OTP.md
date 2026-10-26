@@ -40,7 +40,7 @@ Required header: `Idempotency-Key` (opaque ASCII token, 16–255 characters).
 }
 ```
 
-The account is persisted with `email_verified_at = null`; no business, outlet, subscription, or token exists yet. An email collision returns the same generic accepted shape with a non-persisted opaque UUID and never returns another account's registration ID.
+The account is persisted with `email_verified_at = null`; no business, outlet, subscription, or token exists yet. An email collision returns a stable generic accepted shape with a keyed, cache-backed opaque UUID and never returns another account's registration ID. The decoy cannot resolve in verify or resend, and the cache stores only keyed fingerprints and decoy metadata.
 
 ### `POST /api/v2/auth/otp/verify`
 
@@ -73,7 +73,7 @@ The current active challenge is resolved server-side from the registration subje
 }
 ```
 
-Resend is `202 Accepted` for a usable pending registration and applies the AUTH-D02 60-second cooldown. Invalid, verified, or foreign references do not reveal account state.
+Resend is `202 Accepted` for a usable pending registration and applies the AUTH-D02 60-second cooldown. Invalid, verified, or foreign references do not reveal account state. If five invalid codes lock the current challenge, resend remains rate-limited and observes the persisted cooldown; once permitted, it creates a fresh challenge without resetting the old failed-attempt counter.
 
 ## Storage and idempotency
 

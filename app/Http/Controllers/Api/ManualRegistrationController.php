@@ -11,7 +11,6 @@ use App\Services\Auth\ManualRegistrationException;
 use App\Services\Auth\ManualRegistrationService;
 use App\Services\Auth\OtpException;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Str;
 
 final class ManualRegistrationController extends Controller
 {
@@ -43,7 +42,7 @@ final class ManualRegistrationController extends Controller
         }
 
         if ($result['collision'] || $result['registration'] === null) {
-            return $this->genericPendingResponse();
+            return $this->genericPendingResponse($idempotencyKey);
         }
 
         $registration = $result['registration'];
@@ -177,16 +176,13 @@ final class ManualRegistrationController extends Controller
         return $response;
     }
 
-    private function genericPendingResponse(): JsonResponse
+    private function genericPendingResponse(string $idempotencyKey): JsonResponse
     {
+        $data = $this->registrations->collisionResponse($idempotencyKey);
+
         return response()->json([
             'message' => 'Jika alamat email dapat digunakan, instruksi verifikasi telah dikirim.',
-            'data' => [
-                'registration_id' => (string) Str::uuid(),
-                'state' => 'pending_email',
-                'otp_expires_at' => now()->addMinutes(10)->toIso8601String(),
-                'resend_available_at' => now()->addSeconds(60)->toIso8601String(),
-            ],
+            'data' => $data,
         ], 202);
     }
 
