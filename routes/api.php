@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CloudBackupController;
+use App\Http\Controllers\Api\EmailChangeController;
 use App\Http\Controllers\Api\GoogleAccountLinkController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ManualRegistrationController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileSubscriptionCheckoutController;
 use App\Http\Controllers\Api\MobileSubscriptionPaymentsController;
 use App\Http\Controllers\Api\MobileSubscriptionPlansController;
+use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Middleware\EnsureMobileSanctumToken;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,10 @@ Route::post('/v2/auth/login', [MobileAuthController::class, 'login'])
     ->middleware('throttle:6,1');
 Route::post('/v2/auth/2fa/verify', [MobileAuthController::class, 'verifyTwoFactor'])
     ->middleware('throttle:10,1');
+Route::post('/v2/auth/password/forgot', [PasswordRecoveryController::class, 'forgot'])
+    ->middleware('throttle:6,1');
+Route::post('/v2/auth/password/reset', [PasswordRecoveryController::class, 'reset'])
+    ->middleware('throttle:10,1');
 
 Route::post('/v2/auth/register', [ManualRegistrationController::class, 'register'])
     ->middleware('throttle:6,1');
@@ -42,6 +48,10 @@ Route::post('/webhooks/midtrans', MidtransWebhookController::class)
 Route::middleware(['auth:sanctum', EnsureMobileSanctumToken::class])->group(function () {
     Route::get('/v2/auth/me', [MobileAuthController::class, 'me']);
     Route::delete('/v2/auth/logout', [MobileAuthController::class, 'logout']);
+    Route::post('/v2/auth/email/change/request', [EmailChangeController::class, 'request'])
+        ->middleware('throttle:10,1');
+    Route::post('/v2/auth/email/change/verify', [EmailChangeController::class, 'verify'])
+        ->middleware('throttle:30,1');
 });
 
 Route::middleware('auth:sanctum')->group(function () {

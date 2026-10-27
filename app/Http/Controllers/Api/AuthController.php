@@ -34,6 +34,7 @@ class AuthController extends Controller
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => $validated['password'],
+                'password_login_enabled' => true,
             ]);
 
             // Mark email as verified for mobile registration

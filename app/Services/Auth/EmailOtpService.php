@@ -2,9 +2,11 @@
 
 namespace App\Services\Auth;
 
+use App\Mail\EmailChangeOtpMail;
 use App\Mail\EmailVerificationOtpMail;
 use App\Models\AuthOtpChallenge;
 use Carbon\CarbonInterface;
+use Closure;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -80,7 +82,7 @@ final class EmailOtpService
                     connectionName: $connectionName,
                 );
 
-                $this->send($email, $this->plainCode, $challenge->expires_at);
+                $this->send($email, $this->plainCode, $challenge->expires_at, $purpose);
 
                 return $this->result($challenge, true);
             }, 3);
@@ -162,7 +164,7 @@ final class EmailOtpService
                         connectionName: $connectionName,
                     );
 
-                    $this->send($email, $this->plainCode, $replacement->expires_at);
+                    $this->send($email, $this->plainCode, $replacement->expires_at, $purpose);
                     $replacement->forceFill(['active_key' => $activeKey])->save();
 
                     return $this->result($replacement, true);
@@ -194,7 +196,7 @@ final class EmailOtpService
 
                 // Send while the old active row is locked and the new row is
                 // not active. A delivery failure rolls back both rows.
-                $this->send($email, $this->plainCode, $replacement->expires_at);
+                $this->send($email, $this->plainCode, $replacement->expires_at, $purpose);
 
                 $this->replaceActive($active, $now);
                 $replacement->forceFill(['active_key' => $activeKey])->save();
@@ -291,6 +293,72 @@ final class EmailOtpService
         $validation = $this->validate($challengeId, $subjectReference, $purpose, $code, $ipAddress);
 
         return $this->consume($validation);
+    }
+
+    /**
+     * Validate, run the caller's state transition, and consume the OTP in one
+     * transaction. This is used when the protected account mutation must be
+     * atomic with OTP consumption.
+     */
+    public function verifyAndConsume(
+        string $challengeId,
+        string $subjectReference,
+        string $purpose,
+        string $code,
+        ?string $ipAddress,
+        Closure $onValid,
+    ): mixed {
+        $code = $this->policy->validateCode($code);
+        $subjectReference = $this->policy->validateSubjectReference($subjectReference);
+        $purpose = $this->policy->validatePurpose($purpose);
+        $this->throttleVerify($subjectReference, $ipAddress);
+        $connectionName = $this->databaseConnectionName();
+
+        $result = DB::connection($connectionName)->transaction(function () use ($challengeId, $subjectReference, $purpose, $code, $connectionName, $onValid): mixed {
+            /** @var AuthOtpChallenge|null $challenge */
+            $challenge = AuthOtpChallenge::on($connectionName)
+                ->whereKey($challengeId)
+                ->lockForUpdate()
+                ->first();
+
+            $challenge = $this->verifiableChallenge($challenge, $subjectReference, $purpose);
+            $expectedDigest = $this->policy->digest(
+                $challenge->subject_reference,
+                $challenge->purpose,
+                $challenge->challenge_nonce,
+                $code,
+            );
+
+            if (! hash_equals($challenge->otp_digest, $expectedDigest)) {
+                $failedAttempts = $challenge->failed_attempts + 1;
+                $challenge->failed_attempts = $failedAttempts;
+
+                if ($failedAttempts >= $challenge->max_attempts) {
+                    $challenge->locked_at = now();
+                    $challenge->active_key = null;
+                    $challenge->save();
+
+                    return new OtpException('OTP_MAX_ATTEMPTS', 'The OTP challenge is locked.');
+                }
+
+                $challenge->save();
+
+                return new OtpException('OTP_INVALID', 'The OTP code is invalid.');
+            }
+
+            $value = $onValid($challenge);
+            $challenge->consumed_at = now();
+            $challenge->active_key = null;
+            $challenge->save();
+
+            return $value;
+        }, 3);
+
+        if ($result instanceof OtpException) {
+            throw $result;
+        }
+
+        return $result;
     }
 
     /**
@@ -447,10 +515,12 @@ final class EmailOtpService
         );
     }
 
-    private function send(string $email, string $code, CarbonInterface $expiresAt): void
+    private function send(string $email, string $code, CarbonInterface $expiresAt, string $purpose): void
     {
         $mailer = (string) config('auth_otp.mailer', 'log');
-        $mailable = new EmailVerificationOtpMail($code, $expiresAt);
+        $mailable = $purpose === EmailChangeService::PURPOSE
+            ? new EmailChangeOtpMail($code, $expiresAt)
+            : new EmailVerificationOtpMail($code, $expiresAt);
 
         try {
             Mail::mailer($mailer)->to($email)->send($mailable);

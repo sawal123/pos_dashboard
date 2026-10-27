@@ -101,6 +101,8 @@ return [
         ],
     ],
 
+    'password_reset_url' => env('AUTH_PASSWORD_RESET_URL', null),
+
     /*
     |--------------------------------------------------------------------------
     | Password Confirmation Timeout

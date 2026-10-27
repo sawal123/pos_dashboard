@@ -67,6 +67,7 @@ final class GoogleAuthenticationService
                     'name' => $this->safeName($claims),
                     'email' => $claims->email,
                     'password' => Hash::make(Str::random(96)),
+                    'password_login_enabled' => false,
                 ]);
                 $user->forceFill(['email_verified_at' => now()])->save();
 
