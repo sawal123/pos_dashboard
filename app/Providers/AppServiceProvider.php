@@ -7,6 +7,7 @@ use App\Services\Auth\GoogleOidcVerifier;
 use App\Services\Subscription\Midtrans\MidtransGateway;
 use App\Services\Subscription\Midtrans\OfficialMidtransGateway;
 use Carbon\CarbonImmutable;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
@@ -33,6 +34,19 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->configureDefaults();
         $this->configureRateLimiting();
+        $this->configurePasswordResetUrl();
+    }
+
+    private function configurePasswordResetUrl(): void
+    {
+        ResetPassword::createUrlUsing(static function (mixed $notifiable, string $token): string {
+            $path = route('password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ], false);
+
+            return rtrim((string) (config('auth.password_reset_url') ?: config('app.url')), '/').$path;
+        });
     }
 
     /**

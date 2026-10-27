@@ -86,6 +86,7 @@ final class ManualRegistrationService
                     'name' => $payload['name'],
                     'email' => $email,
                     'password' => Hash::make($payload['password']),
+                    'password_login_enabled' => true,
                 ]);
 
                 $registration = PendingRegistration::create([
