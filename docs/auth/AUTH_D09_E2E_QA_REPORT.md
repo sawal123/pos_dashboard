@@ -59,7 +59,7 @@ Verified manual and linked accounts can request and complete reset. Google-only 
 
 ### Email change — PASS (automated feature coverage)
 
-The suite verifies password/Google proof, TOTP, OTP delivery to the new address, invalid OTP non-mutation, collision rejection, mixed-case original email reset-token deletion, old-token rejection, session revocation, and preservation of the linked Google subject.
+The suite verifies current-password proof for password-enabled accounts, fresh Google proof only for Google-only accounts with the authenticated user's own subject, TOTP, OTP delivery to the new address, invalid OTP non-mutation, collision rejection, mixed-case original email reset-token deletion, old-token rejection, session revocation, and preservation of the linked Google subject. A linked Google identity does not make Google proof a password replacement for a manual account.
 
 ### Tenant isolation and business authorization — PASS for exercised regression coverage
 

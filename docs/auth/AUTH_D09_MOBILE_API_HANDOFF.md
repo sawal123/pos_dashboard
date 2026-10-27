@@ -127,9 +127,31 @@ This contract is derived from `routes/api.php`, the API controllers, request cla
 ### `POST /api/v2/auth/email/change/request`
 
 - Auth: `auth:sanctum` plus `mobile` ability.
-- Request: `new_email` plus one proof path: `current_password`, or fresh Google `id_token` and `client_platform`; include `totp_code` when confirmed 2FA requires it.
+- Proof policy is determined by `password_login_enabled`, not merely by whether a Google identity is linked:
+  - Manual account (`password_login_enabled !== false`): `current_password` is required. This includes a manual account that also has a linked Google identity; a Google ID token does not replace the password.
+  - Google-only account (`password_login_enabled === false`): a fresh Google `id_token` and `client_platform` are required. The verified Google `sub` must already belong to the authenticated User.
+  - Confirmed 2FA: add a valid six-digit `totp_code` to the applicable proof above.
+- Manual request example:
+
+```json
+{"new_email":"new@example.com","current_password":"CurrentPassword123!"}
+```
+
+- Manual + Google-linked request example (still password-based):
+
+```json
+{"new_email":"new@example.com","current_password":"CurrentPassword123!"}
+```
+
+- Google-only request example:
+
+```json
+{"new_email":"new@example.com","id_token":"<fresh Google ID token>","client_platform":"android"}
+```
+
+- For a confirmed-2FA account, add `"totp_code":"123456"` to the relevant example. Do not send a Google token as a substitute for `current_password` on a manual or manual + Google-linked account.
 - Success: `202` with `message` and `data {change_id,state:"pending_verification",otp_expires_at,resend_available_at}`. No token is issued.
-- Errors: `401 INVALID_CREDENTIALS`; `403 TWO_FACTOR_REQUIRED`, `REAUTHENTICATION_REQUIRED`, or `MOBILE_ABILITY_REQUIRED`; `409 EMAIL_ALREADY_USED`, `EMAIL_CHANGE_PENDING`, or `EMAIL_CHANGE_CONFLICT`; `429 OTP_RATE_LIMITED`.
+- Errors: `401 INVALID_CREDENTIALS` when a password-enabled account has no valid `current_password`; `403 REAUTHENTICATION_REQUIRED` when a Google-only account has no valid fresh Google proof or the verified subject is not owned by the authenticated User; `403 TWO_FACTOR_REQUIRED` when confirmed 2FA has no valid TOTP; `403 MOBILE_ABILITY_REQUIRED`; `409 EMAIL_ALREADY_USED`, `EMAIL_CHANGE_PENDING`, or `EMAIL_CHANGE_CONFLICT`; `429 OTP_RATE_LIMITED`.
 - Retry: honor OTP cooldown and pending state. Do not create parallel active changes.
 - State: open OTP verification for the initiating user and session only.
 
