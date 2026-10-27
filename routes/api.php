@@ -6,12 +6,14 @@ use App\Http\Controllers\Api\GoogleAccountLinkController;
 use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ManualRegistrationController;
 use App\Http\Controllers\Api\MidtransWebhookController;
+use App\Http\Controllers\Api\MobileAuthController;
 use App\Http\Controllers\Api\MobileContextController;
 use App\Http\Controllers\Api\MobileDeviceController;
 use App\Http\Controllers\Api\MobileSubscriptionCheckoutController;
 use App\Http\Controllers\Api\MobileSubscriptionPaymentsController;
 use App\Http\Controllers\Api\MobileSubscriptionPlansController;
 use App\Http\Controllers\Api\SyncController;
+use App\Http\Middleware\EnsureMobileSanctumToken;
 use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register'])
@@ -21,6 +23,10 @@ Route::post('/auth/login', [AuthController::class, 'login'])
     ->middleware('throttle:6,1');
 
 Route::post('/v2/auth/google', [GoogleAuthController::class, 'authenticate'])
+    ->middleware('throttle:10,1');
+Route::post('/v2/auth/login', [MobileAuthController::class, 'login'])
+    ->middleware('throttle:6,1');
+Route::post('/v2/auth/2fa/verify', [MobileAuthController::class, 'verifyTwoFactor'])
     ->middleware('throttle:10,1');
 
 Route::post('/v2/auth/register', [ManualRegistrationController::class, 'register'])
@@ -32,6 +38,11 @@ Route::post('/v2/auth/otp/resend', [ManualRegistrationController::class, 'resend
 
 Route::post('/webhooks/midtrans', MidtransWebhookController::class)
     ->middleware('throttle:60,1');
+
+Route::middleware(['auth:sanctum', EnsureMobileSanctumToken::class])->group(function () {
+    Route::get('/v2/auth/me', [MobileAuthController::class, 'me']);
+    Route::delete('/v2/auth/logout', [MobileAuthController::class, 'logout']);
+});
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/v2/auth/reauthenticate', [GoogleAccountLinkController::class, 'reauthenticate'])

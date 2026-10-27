@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureBusinessPermission;
+use App\Http\Middleware\EnsureMobileSanctumToken;
 use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Http\Middleware\EnsurePlatformAdminTwoFactor;
 use App\Http\Middleware\EnsurePremiumAccess;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // PREM-D02A — per-route Cloud entitlement guard. RBAC is evaluated
             // separately; this only answers "is Premium active right now?".
             'premium.access' => EnsurePremiumAccess::class,
+            'mobile.token' => EnsureMobileSanctumToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

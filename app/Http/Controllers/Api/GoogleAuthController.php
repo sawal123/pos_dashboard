@@ -20,11 +20,13 @@ final class GoogleAuthController extends Controller
             $result = $this->authentication->authenticate(
                 (string) $request->validated('id_token'),
                 (string) $request->validated('client_platform'),
+                $request->ip(),
             );
         } catch (GoogleAuthenticationException $exception) {
             $status = match ($exception->errorCode) {
                 'GOOGLE_AUTH_NOT_CONFIGURED', 'GOOGLE_PROVISIONING_FAILED' => 503,
-                'GOOGLE_EMAIL_UNVERIFIED', 'TWO_FACTOR_REQUIRED' => 403,
+                'GOOGLE_EMAIL_UNVERIFIED', 'EMAIL_NOT_VERIFIED' => 403,
+                'AUTH_PROVISIONING_PENDING' => 403,
                 'ACCOUNT_LINK_REQUIRED', 'IDENTITY_CONFLICT' => 409,
                 default => 401,
             };
@@ -35,11 +37,24 @@ final class GoogleAuthController extends Controller
             ], $status);
         }
 
+        if (! isset($result['token'])) {
+            return response()->json([
+                'code' => 'TWO_FACTOR_REQUIRED',
+                'message' => 'Verifikasi dua langkah diperlukan.',
+                'data' => [
+                    'challenge_id' => $result['challenge_id'] ?? '',
+                    'expires_at' => $result['expires_at'],
+                    'methods' => $result['methods'] ?? [],
+                ],
+            ], 202);
+        }
+
         return response()->json([
             'message' => 'Login Google berhasil.',
             'data' => [
                 'token_type' => 'Bearer',
                 'token' => $result['token'],
+                'expires_at' => $result['expires_at'],
                 'user' => [
                     'id' => $result['user']->id,
                     'name' => $result['user']->name,
@@ -55,9 +70,10 @@ final class GoogleAuthController extends Controller
             'GOOGLE_TOKEN_EXPIRED' => 'Token Google sudah kedaluwarsa.',
             'GOOGLE_AUDIENCE_INVALID' => 'Token Google tidak ditujukan untuk aplikasi ini.',
             'GOOGLE_EMAIL_UNVERIFIED' => 'Email Google belum terverifikasi.',
+            'EMAIL_NOT_VERIFIED' => 'Email address is not verified.',
+            'AUTH_PROVISIONING_PENDING' => 'Account provisioning is not complete.',
             'ACCOUNT_LINK_REQUIRED' => 'Akun ini memerlukan penghubungan akun.',
             'IDENTITY_CONFLICT' => 'Identitas Google tidak dapat digunakan.',
-            'TWO_FACTOR_REQUIRED' => 'Two-factor authentication is required.',
             'GOOGLE_AUTH_NOT_CONFIGURED' => 'Login Google belum tersedia.',
             default => 'Token Google tidak valid.',
         };
