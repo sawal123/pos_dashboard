@@ -43,7 +43,7 @@ final class AuthSecurityAuditService
         }
 
         try {
-            Log::channel((string) config('auth_security.audit_channel', 'stack'))
+            Log::channel((string) config('auth_security.audit_channel', 'auth_security'))
                 ->info('auth.security', $payload);
         } catch (Throwable) {
             // Audit logging is intentionally non-blocking.

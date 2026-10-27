@@ -65,6 +65,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'auth_security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/auth-security.log'),
+            'level' => env('AUTH_SECURITY_LOG_LEVEL', 'info'),
+            'days' => (int) env('AUTH_SECURITY_LOG_DAILY_DAYS', 14),
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

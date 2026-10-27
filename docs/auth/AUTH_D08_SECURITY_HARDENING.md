@@ -94,11 +94,14 @@ audit code.
 
 `AuthSecurityAuditService` writes to the configured Laravel log channel using
 the event name, timestamp, result/status, error category, provider, client
-platform, retry interval, and safe aggregate counters. When an account
-identifier is useful, only an HMAC of the user ID or normalized identifier is
-included. Logging failures are swallowed and never turn successful
-authentication into a failure. Replay reservation remains fail-closed because
-that is an authentication enforcement operation, not merely telemetry.
+platform, retry interval, and safe aggregate counters. The default
+`AUTH_AUDIT_LOG_CHANNEL=auth_security` is a dedicated daily Laravel channel
+writing to `storage/logs/auth-security.log` with a 14-day default retention.
+Its `info` threshold is independent from application `LOG_LEVEL`, so setting
+`LOG_LEVEL=warning` does not discard security events. Logging failures are
+swallowed and never turn successful authentication into a failure. Replay
+reservation remains fail-closed because that is an authentication enforcement
+operation, not merely telemetry.
 
 Implemented events include Google verification/replay failures, login success
 and failure, OTP delivery/rate-limit failures, password reset request and
@@ -129,6 +132,8 @@ and cache checks, AUTH-D08 validates:
 - optional Google client IDs when Google Sign-In is enabled;
 - real mail transports for both the default mailer and AUTH OTP mailer;
 - a valid AUTH sender address;
+- the selected audit channel has an effective handler that accepts `info`
+  events; stacks are checked recursively and `null`/filtered destinations fail;
 - a shared atomic cache suitable for replay and throttling; and
 - the AUTH OTP, mobile challenge, email-change, and password-login schema.
 

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Services\Auth\AuthSecurityAuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
@@ -36,5 +37,35 @@ class AuthSecurityHardeningTest extends TestCase
         $this->assertStringContainsString('AUTH cache is shared and atomic', $output);
         $this->assertStringContainsString('AUTH migrations are applied', $output);
         $this->assertStringContainsString('Google Sign-In configuration is optional and disabled', $output);
+    }
+
+    public function test_info_audit_events_are_written_when_application_log_level_is_warning(): void
+    {
+        $path = storage_path('framework/auth-security-test.log');
+        @unlink($path);
+        config([
+            'auth_security.audit_channel' => 'auth_security',
+            'logging.channels.single.level' => 'warning',
+            'logging.channels.auth_security.driver' => 'single',
+            'logging.channels.auth_security.path' => $path,
+            'logging.channels.auth_security.level' => 'info',
+        ]);
+
+        app(AuthSecurityAuditService::class)->record('auth.security.test', [
+            'status' => 'accepted',
+            'account_identifier' => 'user@example.test',
+            'password' => 'password-must-not-appear',
+            'otp' => '123456',
+            'bearer_token' => 'token-must-not-appear',
+        ]);
+
+        $this->assertFileExists($path);
+        $contents = (string) file_get_contents($path);
+        $this->assertStringContainsString('auth.security', $contents);
+        $this->assertStringNotContainsString('password-must-not-appear', $contents);
+        $this->assertStringNotContainsString('123456', $contents);
+        $this->assertStringNotContainsString('token-must-not-appear', $contents);
+        $this->assertStringNotContainsString('user@example.test', $contents);
+        @unlink($path);
     }
 }

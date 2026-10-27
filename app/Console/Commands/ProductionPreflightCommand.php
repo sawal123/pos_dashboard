@@ -40,6 +40,7 @@ final class ProductionPreflightCommand extends Command
             $this->checkFalse('DB_CONNECTION is not sqlite', config('database.default') === 'sqlite'),
             $this->checkWarn('LOG_LEVEL is not debug', config('logging.channels.'.config('logging.default').'.level') === 'debug' || config('logging.level') === 'debug'),
             $this->checkLogging(),
+            $this->checkAuditLogging(),
             $this->checkWarn('QUEUE_CONNECTION is not sync', config('queue.default') === 'sync', 'A synchronous queue is fine for a single-node pilot but should be a real worker in production.'),
             $this->checkSafeMailer('MAIL_MAILER', (string) config('mail.default', 'log')),
             $this->checkSafeMailer('AUTH_OTP_MAILER', (string) config('auth_otp.mailer', 'log')),
@@ -220,6 +221,115 @@ final class ProductionPreflightCommand extends Command
         return $configured
             ? ['status' => 'pass', 'name' => 'AUTH audit logging is configured', 'message' => '']
             : ['status' => 'fail', 'name' => 'AUTH audit logging is configured', 'message' => 'LOG_CHANNEL must resolve to a real channel'];
+    }
+
+    /**
+     * @return array{status: string, name: string, message: string}
+     */
+    private function checkAuditLogging(): array
+    {
+        $channel = trim((string) config('auth_security.audit_channel', 'auth_security'));
+        if ($channel === '' || $channel === 'null') {
+            return [
+                'status' => 'fail',
+                'name' => 'AUTH audit channel is effective',
+                'message' => 'AUTH_AUDIT_LOG_CHANNEL must not be null or empty',
+            ];
+        }
+
+        $visited = [];
+        $state = $this->auditChannelState($channel, $visited);
+
+        if (! $state['valid'] || ! $state['effective']) {
+            return [
+                'status' => 'fail',
+                'name' => 'AUTH audit channel is effective',
+                'message' => $state['message'],
+            ];
+        }
+
+        return ['status' => 'pass', 'name' => 'AUTH audit channel is effective', 'message' => ''];
+    }
+
+    /**
+     * @param  array<string, bool>  $visited
+     * @return array{valid: bool, effective: bool, message: string}
+     */
+    private function auditChannelState(string $name, array &$visited): array
+    {
+        if (isset($visited[$name])) {
+            return ['valid' => false, 'effective' => false, 'message' => 'audit channel configuration contains a cycle'];
+        }
+
+        $visited[$name] = true;
+        $channel = config('logging.channels.'.$name);
+        if (! is_array($channel)) {
+            return ['valid' => false, 'effective' => false, 'message' => "audit channel '{$name}' is not configured"];
+        }
+
+        $driver = (string) ($channel['driver'] ?? '');
+        if ($driver === 'stack') {
+            $destinations = $channel['channels'] ?? [];
+            if (! is_array($destinations) || $destinations === []) {
+                return ['valid' => false, 'effective' => false, 'message' => "audit stack '{$name}' has no destinations"];
+            }
+
+            $effective = false;
+            foreach ($destinations as $destination) {
+                if (! is_string($destination) || $destination === '') {
+                    return ['valid' => false, 'effective' => false, 'message' => "audit stack '{$name}' has an invalid destination"];
+                }
+
+                $state = $this->auditChannelState($destination, $visited);
+                if (! $state['valid']) {
+                    return $state;
+                }
+
+                $effective = $effective || $state['effective'];
+            }
+
+            return $effective
+                ? ['valid' => true, 'effective' => true, 'message' => '']
+                : ['valid' => true, 'effective' => false, 'message' => "audit stack '{$name}' filters info events or has no effective handler"];
+        }
+
+        if (in_array($driver, ['', 'null', 'failover', 'roundrobin'], true)) {
+            return ['valid' => false, 'effective' => false, 'message' => "audit channel '{$name}' has no effective handler"];
+        }
+
+        $level = strtolower((string) ($channel['level'] ?? 'debug'));
+        $levels = [
+            'debug' => 100,
+            'info' => 200,
+            'notice' => 250,
+            'warning' => 300,
+            'error' => 400,
+            'critical' => 500,
+            'alert' => 550,
+            'emergency' => 600,
+        ];
+        if (! isset($levels[$level])) {
+            return ['valid' => false, 'effective' => false, 'message' => "audit channel '{$name}' has an invalid log level"];
+        }
+
+        $handlerConfigured = match ($driver) {
+            'single', 'daily', 'monthly' => is_string($channel['path'] ?? null) && $channel['path'] !== '',
+            'stream' => is_string($channel['handler_with']['stream'] ?? null) && $channel['handler_with']['stream'] !== '',
+            'slack' => is_string($channel['url'] ?? null) && $channel['url'] !== '',
+            'monolog' => isset($channel['handler']),
+            'custom' => is_string($channel['via'] ?? null) && $channel['via'] !== '',
+            default => true,
+        };
+
+        if (! $handlerConfigured) {
+            return ['valid' => false, 'effective' => false, 'message' => "audit channel '{$name}' has no configured handler"];
+        }
+
+        return [
+            'valid' => true,
+            'effective' => $levels[$level] <= $levels['info'],
+            'message' => $levels[$level] <= $levels['info'] ? '' : "audit channel '{$name}' filters info events",
+        ];
     }
 
     /**

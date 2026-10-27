@@ -91,6 +91,50 @@ class ProductionPreflightTest extends TestCase
         $this->artisan('deploy:preflight', ['--strict' => true])->assertExitCode(1);
     }
 
+    public function test_audit_info_level_is_effective_when_application_log_level_is_warning(): void
+    {
+        $this->hardenedConfig([
+            'logging.channels.single.level' => 'warning',
+            'logging.channels.auth_security.level' => 'info',
+            'auth_security.audit_channel' => 'auth_security',
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(0);
+    }
+
+    public function test_audit_channel_that_filters_info_fails_preflight(): void
+    {
+        $this->hardenedConfig([
+            'auth_security.audit_channel' => 'single',
+            'logging.channels.single.level' => 'warning',
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(1);
+    }
+
+    public function test_null_audit_channel_fails_preflight(): void
+    {
+        $this->hardenedConfig(['auth_security.audit_channel' => 'null']);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(1);
+    }
+
+    public function test_dedicated_audit_channel_passes_preflight(): void
+    {
+        $this->hardenedConfig([
+            'auth_security.audit_channel' => 'auth_security',
+            'logging.channels.auth_security.level' => 'info',
+        ]);
+
+        $this->artisan('deploy:preflight')->assertExitCode(0);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
