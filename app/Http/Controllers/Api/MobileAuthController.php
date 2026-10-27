@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuthIdentity;
 use App\Models\User;
+use App\Services\Auth\AuthRateLimiter;
+use App\Services\Auth\AuthRateLimitException;
+use App\Services\Auth\AuthSecurityAuditService;
 use App\Services\Auth\MobileAuthenticationException;
 use App\Services\Auth\MobileAuthenticationService;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +18,7 @@ final class MobileAuthController extends Controller
 {
     public function __construct(
         private readonly MobileAuthenticationService $authentication,
+        private readonly AuthRateLimiter $rateLimiter,
     ) {}
 
     public function login(Request $request): JsonResponse
@@ -24,17 +28,67 @@ final class MobileAuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::query()->where('email', $validated['email'])->first();
+        $normalizedEmail = mb_strtolower(trim((string) $validated['email']));
+
+        try {
+            $this->rateLimiter->enforce(
+                'login-account',
+                $normalizedEmail,
+                (int) config('auth_security.login_rate_limit.max_attempts', 10),
+                (int) config('auth_security.login_rate_limit.decay_seconds', 60),
+            );
+            $this->rateLimiter->enforce(
+                'login-account-ip',
+                $normalizedEmail.'|'.$request->ip(),
+                (int) config('auth_security.login_rate_limit.max_attempts', 10),
+                (int) config('auth_security.login_rate_limit.decay_seconds', 60),
+            );
+        } catch (AuthRateLimitException $exception) {
+            $response = response()->json([
+                'message' => 'Invalid credentials.',
+            ], $exception->status);
+
+            if ($exception->retryAfterSeconds > 0) {
+                $response->headers->set('Retry-After', (string) $exception->retryAfterSeconds);
+            }
+
+            return $response;
+        }
+
+        $user = User::query()->whereRaw('LOWER(email) = ?', [$normalizedEmail])->first();
 
         if (! $user instanceof User || ! Hash::check($validated['password'], $user->password)) {
+            app(AuthSecurityAuditService::class)->record('auth.login.failed', [
+                'status' => 'rejected',
+                'error_category' => 'invalid_credentials',
+                'provider' => 'password',
+                'client_platform' => 'mobile',
+                'account_identifier' => $normalizedEmail,
+            ]);
+
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
         try {
             $result = $this->authentication->authenticate($user, 'manual', $request->ip());
         } catch (MobileAuthenticationException $exception) {
+            app(AuthSecurityAuditService::class)->record('auth.login.failed', [
+                'status' => 'rejected',
+                'error_category' => $exception->errorCode,
+                'provider' => 'password',
+                'client_platform' => 'mobile',
+                'account_identifier' => (string) $user->getAuthIdentifier(),
+            ]);
+
             return $this->error($exception);
         }
+
+        app(AuthSecurityAuditService::class)->record('auth.login.succeeded', [
+            'status' => isset($result['token']) ? 'authenticated' : 'challenge_issued',
+            'provider' => 'password',
+            'client_platform' => 'mobile',
+            'account_identifier' => (string) $user->getAuthIdentifier(),
+        ]);
 
         return $this->authenticationResponse($result);
     }

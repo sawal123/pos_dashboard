@@ -525,6 +525,12 @@ final class EmailOtpService
         try {
             Mail::mailer($mailer)->to($email)->send($mailable);
         } catch (Throwable $exception) {
+            app(AuthSecurityAuditService::class)->record('auth.otp.delivery_failed', [
+                'status' => 'failed',
+                'error_category' => 'mail_provider',
+                'provider' => $purpose,
+            ]);
+
             throw new OtpException('OTP_DELIVERY_FAILED', 'The OTP email could not be delivered safely.', 0, $exception);
         }
     }
@@ -578,6 +584,13 @@ final class EmailOtpService
         $decaySeconds = (int) $limit['decay_seconds'];
 
         if (RateLimiter::tooManyAttempts($key, $maxAttempts)) {
+            app(AuthSecurityAuditService::class)->record('auth.otp.rate_limited', [
+                'status' => 'rejected',
+                'error_category' => $bucket,
+                'provider' => 'otp',
+                'retry_after' => RateLimiter::availableIn($key),
+            ]);
+
             throw new OtpException(
                 'OTP_RATE_LIMITED',
                 'The OTP operation is rate limited.',

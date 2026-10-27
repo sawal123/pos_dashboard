@@ -28,7 +28,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             );
         }
 
-        [$encodedHeader, $encodedPayload] = $this->segments($idToken);
+        [$encodedHeader, $encodedPayload, $encodedSignature] = $this->segments($idToken);
         $header = $this->decodeJson($encodedHeader, 'GOOGLE_TOKEN_INVALID');
         $payload = $this->decodeJson($encodedPayload, 'GOOGLE_TOKEN_INVALID');
 
@@ -36,17 +36,23 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
         }
 
+        $now = time();
+        $skew = $this->clockSkewSeconds();
         $publicKey = $this->publicKey((string) $header['kid']);
+        $previousLeeway = JWT::$leeway;
         try {
+            // firebase/php-jwt uses a process-global leeway. Scope it to this
+            // verification and always restore it before returning or throwing.
+            JWT::$leeway = $skew;
             JWT::decode($idToken, $publicKey);
         } catch (ExpiredException $exception) {
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.', $exception);
         } catch (Throwable $exception) {
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception);
+        } finally {
+            JWT::$leeway = $previousLeeway;
         }
 
-        $now = time();
-        $skew = max(0, (int) config('services.google.clock_skew_seconds', 60));
         $issuer = (string) config('services.google.issuer', 'https://accounts.google.com');
 
         if (! in_array($payload['iss'] ?? null, [$issuer, 'accounts.google.com'], true)) {
@@ -74,7 +80,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         }
 
         $expiresAt = (int) $payload['exp'];
-        if ($expiresAt < $now - $skew) {
+        if ($expiresAt <= $now - $skew) {
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.');
         }
 
@@ -83,7 +89,21 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         }
 
         $issuedAt = (int) $payload['iat'];
-        if ($issuedAt > $now + $skew) {
+        if ($issuedAt > $now + $skew || $expiresAt <= $issuedAt) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+        }
+
+        if (isset($payload['nbf'])
+            && (! is_int($payload['nbf']) && ! is_numeric($payload['nbf']))) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+        }
+
+        if (isset($payload['nbf']) && (int) $payload['nbf'] > $now + $skew) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+        }
+
+        $maxLifetime = max(1, min(86400, (int) config('services.google.max_token_lifetime_seconds', 3600)));
+        if ($expiresAt - $issuedAt > $maxLifetime) {
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
         }
 
@@ -101,7 +121,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             throw new GoogleAuthenticationException('GOOGLE_EMAIL_UNVERIFIED', 'Google email verification is required.');
         }
 
-        $this->reserveReplay($idToken, $expiresAt, $now);
+        $this->reserveReplay($encodedHeader, $encodedPayload, $encodedSignature, $expiresAt, $now, $skew);
 
         $name = is_string($payload['name'] ?? null) && trim((string) $payload['name']) !== ''
             ? mb_substr(trim((string) $payload['name']), 0, 255)
@@ -141,7 +161,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         ))));
     }
 
-    /** @return array{0: string, 1: string} */
+    /** @return array{0: string, 1: string, 2: string} */
     private function segments(string $idToken): array
     {
         $segments = explode('.', $idToken);
@@ -149,7 +169,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
         }
 
-        return [$segments[0], $segments[1]];
+        return [$segments[0], $segments[1], $segments[2]];
     }
 
     /** @return array<string, mixed> */
@@ -282,27 +302,56 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         return 3600;
     }
 
-    private function reserveReplay(string $idToken, int $expiresAt, int $now): void
-    {
+    private function reserveReplay(
+        string $encodedHeader,
+        string $encodedPayload,
+        string $encodedSignature,
+        int $expiresAt,
+        int $now,
+        int $skew,
+    ): void {
         $applicationKey = (string) config('app.key');
         if ($applicationKey === '') {
             throw new GoogleAuthenticationException('GOOGLE_AUTH_NOT_CONFIGURED', 'Google authentication could not be verified safely.');
         }
 
-        $tokenHash = hash_hmac('sha256', $idToken, $applicationKey);
-        $ttl = max(1, min(
-            (int) config('services.google.replay_ttl_seconds', 3600),
-            $expiresAt - $now,
-        ));
+        $header = $this->decodeBase64Url($encodedHeader);
+        $payload = $this->decodeBase64Url($encodedPayload);
+        $signature = $this->decodeBase64Url($encodedSignature);
+        if ($header === null || $payload === null || $signature === null) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+        }
+
+        $canonicalHeader = rtrim(strtr(base64_encode($header), '+/', '-_'), '=');
+        $canonicalPayload = rtrim(strtr(base64_encode($payload), '+/', '-_'), '=');
+        $signedInput = $canonicalHeader.'.'.$canonicalPayload;
+        $tokenHash = hash_hmac('sha256', $signedInput."\0".$signature, $applicationKey);
+        $requiredTtl = $expiresAt - $now + $skew;
+        $ttl = max(1, (int) config('services.google.replay_ttl_seconds', 3600), $requiredTtl);
 
         try {
             if (! Cache::add('auth-google:replay:'.$tokenHash, true, $ttl)) {
+                app(AuthSecurityAuditService::class)->record('auth.google.replay_rejected', [
+                    'status' => 'rejected',
+                    'error_category' => 'replay',
+                    'provider' => 'google',
+                ]);
                 throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
             }
         } catch (GoogleAuthenticationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
+            app(AuthSecurityAuditService::class)->record('auth.google.verification_failed', [
+                'status' => 'failed',
+                'error_category' => 'replay_reservation_unavailable',
+                'provider' => 'google',
+            ]);
             throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception);
         }
+    }
+
+    private function clockSkewSeconds(): int
+    {
+        return min(300, max(0, (int) config('services.google.clock_skew_seconds', 60)));
     }
 }

@@ -192,4 +192,18 @@ class PasswordRecoveryTest extends TestCase
             'password' => 'NewStrongPassword123!',
         ])->assertStatus(202)->assertJsonPath('code', 'TWO_FACTOR_REQUIRED');
     }
+
+    public function test_unsafe_password_reset_mailer_does_not_create_a_reset_token(): void
+    {
+        config(['mail.default' => 'log']);
+        $user = User::factory()->create(['email' => 'unsafe-reset@example.com']);
+
+        $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email])
+            ->assertStatus(202)
+            ->assertJson([
+                'message' => 'Jika akun memenuhi syarat, instruksi pemulihan telah dikirim.',
+            ]);
+
+        $this->assertDatabaseCount('password_reset_tokens', 0);
+    }
 }

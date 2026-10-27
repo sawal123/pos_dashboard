@@ -13,10 +13,13 @@ use App\Services\Auth\GoogleIdTokenVerifier;
 use App\Services\Auth\GoogleOidcVerifier;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Laravel\Sanctum\PersonalAccessToken;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class GoogleAuthenticationTest extends TestCase
@@ -321,6 +324,126 @@ class GoogleAuthenticationTest extends TestCase
             'iat' => time() - 1200,
             'exp' => time() - 600,
         ]), 'GOOGLE_TOKEN_EXPIRED');
+    }
+
+    public function test_equivalent_base64url_encoding_cannot_bypass_replay_reservation(): void
+    {
+        $this->fakeGoogleJwks();
+        $token = $this->realToken([
+            'iss' => 'https://accounts.google.com',
+            'aud' => 'web-client-id.apps.googleusercontent.com',
+            'sub' => 'canonical-replay-sub',
+            'email' => 'canonical-replay@example.com',
+            'email_verified' => true,
+            'iat' => time(),
+            'exp' => time() + 600,
+        ]);
+
+        app(GoogleOidcVerifier::class)->verify($token, 'android');
+        $equivalent = implode('.', array_map(function (string $segment): string {
+            $padding = (4 - strlen($segment) % 4) % 4;
+
+            return $segment.str_repeat('=', $padding);
+        }, explode('.', $token)));
+
+        $this->assertVerifierError($equivalent, 'GOOGLE_TOKEN_INVALID');
+    }
+
+    public function test_google_clock_skew_is_applied_consistently_and_global_leeway_is_restored(): void
+    {
+        $this->fakeGoogleJwks();
+        $verifier = app(GoogleOidcVerifier::class);
+        JWT::$leeway = 7;
+
+        try {
+            $accepted = $verifier->verify($this->realToken([
+                'iss' => 'https://accounts.google.com',
+                'aud' => 'web-client-id.apps.googleusercontent.com',
+                'sub' => 'skew-accepted-sub',
+                'email' => 'skew-accepted@example.com',
+                'email_verified' => true,
+                'iat' => time() - 600,
+                'exp' => time() - 30,
+            ]), 'android');
+            $this->assertSame('skew-accepted-sub', $accepted->subject);
+
+            $this->assertVerifierError($this->realToken([
+                'iss' => 'https://accounts.google.com',
+                'aud' => 'web-client-id.apps.googleusercontent.com',
+                'sub' => 'skew-expired-sub',
+                'email' => 'skew-expired@example.com',
+                'email_verified' => true,
+                'iat' => time() - 600,
+                'exp' => time() - 61,
+            ]), 'GOOGLE_TOKEN_EXPIRED');
+
+            $this->assertVerifierError($this->realToken([
+                'iss' => 'https://accounts.google.com',
+                'aud' => 'web-client-id.apps.googleusercontent.com',
+                'sub' => 'skew-future-iat-sub',
+                'email' => 'skew-future-iat@example.com',
+                'email_verified' => true,
+                'iat' => time() + 61,
+                'exp' => time() + 600,
+            ]), 'GOOGLE_TOKEN_INVALID');
+
+            $this->assertVerifierError($this->realToken([
+                'iss' => 'https://accounts.google.com',
+                'aud' => 'web-client-id.apps.googleusercontent.com',
+                'sub' => 'skew-future-nbf-sub',
+                'email' => 'skew-future-nbf@example.com',
+                'email_verified' => true,
+                'iat' => time(),
+                'nbf' => time() + 61,
+                'exp' => time() + 600,
+            ]), 'GOOGLE_TOKEN_INVALID');
+        } finally {
+            $this->assertSame(7, JWT::$leeway);
+            JWT::$leeway = 0;
+        }
+    }
+
+    public function test_google_replay_reservation_failure_fails_closed_without_provisioning_or_bearer_token(): void
+    {
+        $this->fakeGoogleJwks();
+        $seed = $this->realToken([
+            'iss' => 'https://accounts.google.com',
+            'aud' => 'web-client-id.apps.googleusercontent.com',
+            'sub' => 'cache-seed-sub',
+            'email' => 'cache-seed@example.com',
+            'email_verified' => true,
+            'iat' => time(),
+            'exp' => time() + 600,
+        ]);
+        app(GoogleOidcVerifier::class)->verify($seed, 'android');
+        $publicKeys = Cache::get('auth-google:oidc-public-keys:v1');
+
+        $cache = Mockery::mock(Repository::class);
+        $cache->shouldReceive('get')->andReturn($publicKeys);
+        $cache->shouldReceive('add')->once()->andThrow(new RuntimeException('cache unavailable'));
+        Cache::swap($cache);
+
+        $this->expectException(GoogleAuthenticationException::class);
+        $this->expectExceptionMessage('safely');
+        try {
+            app(GoogleOidcVerifier::class)->verify(
+                $this->realToken([
+                    'iss' => 'https://accounts.google.com',
+                    'aud' => 'web-client-id.apps.googleusercontent.com',
+                    'sub' => 'cache-failure-sub',
+                    'email' => 'cache-failure@example.com',
+                    'email_verified' => true,
+                    'iat' => time(),
+                    'exp' => time() + 600,
+                ]),
+                'android',
+            );
+        } finally {
+            $this->assertDatabaseCount('users', 0);
+            $this->assertDatabaseCount('auth_identities', 0);
+            Cache::clearResolvedInstance();
+        }
+
     }
 
     private function request(): array

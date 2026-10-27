@@ -3,6 +3,7 @@
 namespace Tests\Feature\Console;
 
 use App\Console\Commands\ProductionPreflightCommand;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -13,6 +14,15 @@ use Tests\TestCase;
  */
 class ProductionPreflightTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        config(['database.default' => 'sqlite']);
+
+        parent::tearDown();
+    }
+
     public function test_it_fails_when_debug_is_enabled_in_production(): void
     {
         $this->hardenedConfig(['app.debug' => true]);
@@ -81,6 +91,50 @@ class ProductionPreflightTest extends TestCase
         $this->artisan('deploy:preflight', ['--strict' => true])->assertExitCode(1);
     }
 
+    public function test_audit_info_level_is_effective_when_application_log_level_is_warning(): void
+    {
+        $this->hardenedConfig([
+            'logging.channels.single.level' => 'warning',
+            'logging.channels.auth_security.level' => 'info',
+            'auth_security.audit_channel' => 'auth_security',
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(0);
+    }
+
+    public function test_audit_channel_that_filters_info_fails_preflight(): void
+    {
+        $this->hardenedConfig([
+            'auth_security.audit_channel' => 'single',
+            'logging.channels.single.level' => 'warning',
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(1);
+    }
+
+    public function test_null_audit_channel_fails_preflight(): void
+    {
+        $this->hardenedConfig(['auth_security.audit_channel' => 'null']);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('AUTH audit channel is effective')
+            ->assertExitCode(1);
+    }
+
+    public function test_dedicated_audit_channel_passes_preflight(): void
+    {
+        $this->hardenedConfig([
+            'auth_security.audit_channel' => 'auth_security',
+            'logging.channels.auth_security.level' => 'info',
+        ]);
+
+        $this->artisan('deploy:preflight')->assertExitCode(0);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -99,6 +153,8 @@ class ProductionPreflightTest extends TestCase
             'logging.channels.stack.level' => 'warning',
             'queue.default' => 'database',
             'mail.default' => 'smtp',
+            'auth_otp.mailer' => 'smtp',
+            'auth_security.schema_connection' => 'sqlite',
             'cache.default' => 'database',
         ], $overrides));
     }
