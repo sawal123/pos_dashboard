@@ -17,15 +17,16 @@ final class GoogleAuthenticationService
 {
     public function __construct(
         private readonly GoogleIdTokenVerifier $verifier,
+        private readonly MobileAuthenticationService $mobileAuthentication,
     ) {}
 
     /**
      * Verify the assertion, atomically create a Google-only account when
      * required, and issue a mobile Sanctum token only after policy checks.
      *
-     * @return array{user: User, token: string}
+     * @return array{user: User, token?: string, expires_at: string, challenge_id?: string, methods?: list<string>}
      */
-    public function authenticate(string $idToken, string $clientPlatform): array
+    public function authenticate(string $idToken, string $clientPlatform, ?string $ipAddress = null): array
     {
         $claims = $this->verifier->verify($idToken, $clientPlatform);
 
@@ -90,7 +91,7 @@ final class GoogleAuthenticationService
             if ($identity !== null) {
                 $user = User::query()->find($identity->user_id);
                 if ($user !== null) {
-                    return $this->issueToken($user);
+                    return $this->issueToken($user, $ipAddress);
                 }
             }
 
@@ -115,23 +116,25 @@ final class GoogleAuthenticationService
             );
         }
 
-        return $this->issueToken($user);
+        return $this->issueToken($user, $ipAddress);
     }
 
-    /** @return array{user: User, token: string} */
-    private function issueToken(User $user): array
+    /** @return array{user: User, token?: string, expires_at: string, challenge_id?: string, methods?: list<string>} */
+    private function issueToken(User $user, ?string $ipAddress): array
     {
-        if ($user->two_factor_confirmed_at !== null) {
+        try {
+            return $this->mobileAuthentication->authenticate(
+                $user,
+                'google',
+                $ipAddress,
+            );
+        } catch (MobileAuthenticationException $exception) {
             throw new GoogleAuthenticationException(
-                'TWO_FACTOR_REQUIRED',
-                'Two-factor authentication is required.',
+                $exception->errorCode,
+                $exception->getMessage(),
+                $exception,
             );
         }
-
-        return [
-            'user' => $user,
-            'token' => $user->createToken('mobile-api', ['mobile'])->plainTextToken,
-        ];
     }
 
     private function safeName(GoogleIdTokenClaims $claims): string

@@ -120,7 +120,7 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertSame(1, AuthIdentity::query()->count());
     }
 
-    public function test_confirmed_two_factor_blocks_google_token_issuance(): void
+    public function test_confirmed_two_factor_returns_a_mobile_challenge_without_a_token(): void
     {
         $user = User::factory()->withTwoFactor()->create(['email' => '2fa@example.com']);
         AuthIdentity::create([
@@ -132,7 +132,9 @@ class GoogleAuthenticationTest extends TestCase
 
         $response = $this->postJson('/api/v2/auth/google', $this->request());
 
-        $response->assertStatus(403)->assertJsonPath('code', 'TWO_FACTOR_REQUIRED');
+        $response->assertStatus(202)
+            ->assertJsonPath('code', 'TWO_FACTOR_REQUIRED')
+            ->assertJsonPath('data.methods.0', 'totp');
         $this->assertSame(0, PersonalAccessToken::query()->count());
     }
 
