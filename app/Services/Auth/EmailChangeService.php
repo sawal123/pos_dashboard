@@ -81,11 +81,13 @@ final class EmailChangeService
                     $pending->forceFill(['status' => EmailChangeRecord::STATUS_EXPIRED])->save();
                 }
 
+                $originalEmail = (string) $lockedUser->getRawOriginal('email');
+
                 $change = EmailChangeRecord::query()->create([
                     'id' => (string) Str::uuid(),
                     'user_id' => $lockedUser->getKey(),
                     'personal_access_token_id' => $accessToken->getKey(),
-                    'original_email' => $this->emailPolicy->normalizeEmail((string) $lockedUser->email),
+                    'original_email' => $originalEmail,
                     'original_email_verified_at' => $lockedUser->email_verified_at,
                     'new_email' => $newEmail,
                     'status' => EmailChangeRecord::STATUS_PENDING_VERIFICATION,
@@ -158,7 +160,8 @@ final class EmailChangeService
                         throw new EmailChangeException('EMAIL_CHANGE_CONFLICT', 'The email change request is no longer valid.', 409);
                     }
 
-                    if ($this->emailPolicy->normalizeEmail((string) $user->email) !== $change->original_email
+                    if ($this->emailPolicy->normalizeEmail((string) $user->email)
+                        !== $this->emailPolicy->normalizeEmail((string) $change->original_email)
                         || ! $change->originalVerificationMatches($user->email_verified_at)) {
                         throw new EmailChangeException('EMAIL_CHANGE_CONFLICT', 'The account changed while email verification was pending.', 409);
                     }
@@ -167,7 +170,25 @@ final class EmailChangeService
                     $this->assertEmailAvailable($change->new_email, $user);
 
                     $passwordResetTable = (string) config('auth.passwords.'.config('auth.defaults.passwords').'.table', 'password_reset_tokens');
-                    DB::table($passwordResetTable)->whereIn('email', [$change->original_email, $change->new_email])->delete();
+                    $originalEmail = (string) $user->getRawOriginal('email');
+                    $normalizedOriginalEmail = $this->emailPolicy->normalizeEmail($originalEmail);
+                    $normalizedNewEmail = $this->emailPolicy->normalizeEmail($change->new_email);
+                    $resetEmails = array_values(array_unique([
+                        $originalEmail,
+                        $normalizedOriginalEmail,
+                        (string) $change->original_email,
+                        $this->emailPolicy->normalizeEmail((string) $change->original_email),
+                        (string) $change->new_email,
+                        $normalizedNewEmail,
+                    ]));
+
+                    DB::table($passwordResetTable)
+                        ->where(function ($query) use ($resetEmails, $normalizedOriginalEmail, $normalizedNewEmail): void {
+                            $query->whereIn('email', $resetEmails)
+                                ->orWhereRaw('LOWER(email) = ?', [$normalizedOriginalEmail])
+                                ->orWhereRaw('LOWER(email) = ?', [$normalizedNewEmail]);
+                        })
+                        ->delete();
 
                     $user->forceFill(['email' => $change->new_email])->save();
                     $change->forceFill([

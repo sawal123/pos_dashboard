@@ -7,9 +7,11 @@ use App\Models\AuthIdentity;
 use App\Models\User;
 use App\Services\Auth\GoogleIdTokenClaims;
 use App\Services\Auth\GoogleIdTokenVerifier;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
@@ -83,6 +85,52 @@ class EmailChangeTest extends TestCase
         ])->assertStatus(409)->assertJsonPath('code', 'EMAIL_ALREADY_USED');
 
         $this->assertSame('twofactor-old@example.com', $user->fresh()->email);
+    }
+
+    public function test_mixed_case_email_change_invalidates_case_sensitive_password_reset_tokens(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $user = User::factory()->create([
+            'email' => 'User@Example.com',
+            'password' => Hash::make('CurrentPassword123!'),
+        ]);
+        $token = $user->createToken('phone', ['mobile'])->plainTextToken;
+
+        $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email])
+            ->assertStatus(202);
+        $notification = Notification::sent($user, ResetPassword::class)->first();
+        $this->assertDatabaseHas('password_reset_tokens', ['email' => 'User@Example.com']);
+
+        $request = $this->requestWithToken($token)->postJson('/api/v2/auth/email/change/request', [
+            'new_email' => 'new@example.com',
+            'current_password' => 'CurrentPassword123!',
+        ])->assertStatus(202);
+        $mail = Mail::sent(EmailChangeOtpMail::class)->first();
+
+        $this->requestWithToken($token)->postJson('/api/v2/auth/email/change/verify', [
+            'change_id' => $request->json('data.change_id'),
+            'code' => $mail->code,
+        ])->assertOk();
+
+        $this->assertSame('new@example.com', $user->fresh()->email);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'User@Example.com']);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'user@example.com']);
+
+        $this->postJson('/api/v2/auth/password/reset', [
+            'email' => 'User@Example.com',
+            'token' => $notification->token,
+            'password' => 'CompromisedPassword123!',
+            'password_confirmation' => 'CompromisedPassword123!',
+        ])->assertStatus(422);
+
+        $reassigned = User::factory()->create(['email' => 'User@Example.com']);
+        $this->postJson('/api/v2/auth/password/reset', [
+            'email' => $reassigned->email,
+            'token' => $notification->token,
+            'password' => 'CompromisedPassword123!',
+            'password_confirmation' => 'CompromisedPassword123!',
+        ])->assertStatus(422);
     }
 
     public function test_wrong_otp_does_not_change_email_and_google_only_requires_own_subject(): void
