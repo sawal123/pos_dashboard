@@ -32,8 +32,11 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 | `DB_CONNECTION is not sqlite` | FAIL | MySQL/MariaDB in production |
 | `LOG_LEVEL is not debug` | WARN | `LOG_LEVEL=warning` (or higher) |
 | `QUEUE_CONNECTION is not sync` | WARN | a real worker/connection |
-| `MAIL_MAILER is not log` | WARN | a real mailer |
-| `CACHE_STORE is not array/null` | WARN | a shared cache store |
+| `MAIL_MAILER is safe` | FAIL | real credential-delivery transport; never `log`, `array`, or unsafe failover |
+| `AUTH_OTP_MAILER is safe` | FAIL | real OTP transport and valid sender |
+| `Google client IDs are valid` | FAIL when enabled | configured audiences use the Google client-ID format |
+| `AUTH cache is shared and atomic` | FAIL | database/Redis/Memcached/shared file cache |
+| `AUTH migrations are applied` | FAIL | OTP, mobile challenge, email-change, and password marker schema |
 | `config is cached` | WARN | `config:cache` was run |
 
 `--strict` turns every WARN into a release blocker. Use it in CI/CD.

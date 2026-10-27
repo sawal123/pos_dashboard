@@ -3,6 +3,7 @@
 namespace Tests\Feature\Console;
 
 use App\Console\Commands\ProductionPreflightCommand;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -13,6 +14,15 @@ use Tests\TestCase;
  */
 class ProductionPreflightTest extends TestCase
 {
+    use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        config(['database.default' => 'sqlite']);
+
+        parent::tearDown();
+    }
+
     public function test_it_fails_when_debug_is_enabled_in_production(): void
     {
         $this->hardenedConfig(['app.debug' => true]);
@@ -99,6 +109,8 @@ class ProductionPreflightTest extends TestCase
             'logging.channels.stack.level' => 'warning',
             'queue.default' => 'database',
             'mail.default' => 'smtp',
+            'auth_otp.mailer' => 'smtp',
+            'auth_security.schema_connection' => 'sqlite',
             'cache.default' => 'database',
         ], $overrides));
     }

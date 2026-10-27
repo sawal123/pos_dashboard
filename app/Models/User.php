@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Auth\PasswordRecoveryPolicy;
+use App\Services\Auth\PasswordRecoveryService;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -132,6 +133,17 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
             return;
         }
 
-        $this->notify(new ResetPassword($token));
+        $recovery = app(PasswordRecoveryService::class);
+
+        try {
+            $recovery->assertSafeDelivery();
+            $this->notify(new ResetPassword($token));
+        } catch (\Throwable $exception) {
+            // Password Broker creates its token before invoking this method.
+            // Remove it if delivery configuration or the provider fails.
+            $recovery->revokeResetToken($this);
+
+            throw $exception;
+        }
     }
 }

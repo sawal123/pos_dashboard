@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\GoogleAuthenticationRequest;
+use App\Services\Auth\AuthSecurityAuditService;
 use App\Services\Auth\GoogleAuthenticationException;
 use App\Services\Auth\GoogleAuthenticationService;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,13 @@ final class GoogleAuthController extends Controller
                 $request->ip(),
             );
         } catch (GoogleAuthenticationException $exception) {
+            app(AuthSecurityAuditService::class)->record('auth.google.verification_failed', [
+                'status' => 'rejected',
+                'error_category' => $exception->errorCode,
+                'provider' => 'google',
+                'client_platform' => (string) $request->validated('client_platform'),
+            ]);
+
             $status = match ($exception->errorCode) {
                 'GOOGLE_AUTH_NOT_CONFIGURED', 'GOOGLE_PROVISIONING_FAILED' => 503,
                 'GOOGLE_EMAIL_UNVERIFIED', 'EMAIL_NOT_VERIFIED' => 403,
@@ -48,6 +56,13 @@ final class GoogleAuthController extends Controller
                 ],
             ], 202);
         }
+
+        app(AuthSecurityAuditService::class)->record('auth.login.succeeded', [
+            'status' => 'authenticated',
+            'provider' => 'google',
+            'client_platform' => (string) $request->validated('client_platform'),
+            'account_identifier' => (string) $result['user']->getAuthIdentifier(),
+        ]);
 
         return response()->json([
             'message' => 'Login Google berhasil.',

@@ -78,7 +78,7 @@ final class ManualRegistrationService
 
                 // A collision is intentionally resolved before a new user is
                 // created. The caller receives only a generic accepted shape.
-                if (User::query()->where('email', $email)->lockForUpdate()->exists()) {
+                if (User::query()->whereRaw('LOWER(email) = ?', [$email])->lockForUpdate()->exists()) {
                     return [null, true];
                 }
 

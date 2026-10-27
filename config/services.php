@@ -44,7 +44,8 @@ return [
         ))),
         'jwks_url' => 'https://www.googleapis.com/oauth2/v3/certs',
         'issuer' => 'https://accounts.google.com',
-        'clock_skew_seconds' => 60,
+        'clock_skew_seconds' => (int) env('GOOGLE_CLOCK_SKEW_SECONDS', 60),
+        'max_token_lifetime_seconds' => (int) env('GOOGLE_MAX_TOKEN_LIFETIME_SECONDS', 3600),
         'replay_ttl_seconds' => 3600,
     ],
 

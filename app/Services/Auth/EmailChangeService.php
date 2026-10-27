@@ -199,6 +199,12 @@ final class EmailChangeService
                     // Save the change first; deleting the current token cascades
                     // its session-bound request row by design.
                     $this->sessions->revoke($user);
+
+                    app(AuthSecurityAuditService::class)->record('auth.email_change.completed', [
+                        'status' => 'completed',
+                        'provider' => 'email_otp',
+                        'account_identifier' => (string) $user->getAuthIdentifier(),
+                    ]);
                 },
             );
         } catch (OtpException $exception) {
