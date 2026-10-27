@@ -64,9 +64,62 @@ class PasswordRecoveryTest extends TestCase
         $unknown = $this->postJson('/api/v2/auth/password/forgot', ['email' => 'missing@example.com']);
         $google = $this->postJson('/api/v2/auth/password/forgot', ['email' => $googleOnly->email]);
 
-        $unknown->assertStatus(202)->assertJson($google->json());
+        $unknown->assertStatus(202);
+        $google->assertStatus(202);
+        $this->assertSame($unknown->json(), $google->json());
         Notification::assertNothingSent();
         $this->assertDatabaseCount('password_reset_tokens', 0);
+    }
+
+    public function test_first_request_has_the_same_generic_response_for_known_and_unknown_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'known-first@example.com']);
+
+        $known = $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email]);
+        $unknown = $this->postJson('/api/v2/auth/password/forgot', ['email' => 'missing-first@example.com']);
+
+        $known->assertStatus(202);
+        $unknown->assertStatus(202);
+        $this->assertSame($known->json(), $unknown->json());
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+    }
+
+    public function test_broker_throttled_known_request_matches_unknown_without_sending_another_notification(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'known-repeat@example.com']);
+
+        $first = $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email]);
+        $knownRepeat = $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email]);
+        $unknownRepeat = $this->postJson('/api/v2/auth/password/forgot', ['email' => 'missing-repeat@example.com']);
+
+        $first->assertStatus(202);
+        $knownRepeat->assertStatus(202);
+        $unknownRepeat->assertStatus(202);
+        $this->assertSame($knownRepeat->json(), $unknownRepeat->json());
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+    }
+
+    public function test_first_reset_token_remains_valid_after_a_throttled_forgot_request(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'known-token@example.com']);
+
+        $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email])
+            ->assertStatus(202);
+        $notification = Notification::sent($user, ResetPassword::class)->first();
+
+        $this->postJson('/api/v2/auth/password/forgot', ['email' => $user->email])
+            ->assertStatus(202);
+
+        Notification::assertSentToTimes($user, ResetPassword::class, 1);
+        $this->postJson('/api/v2/auth/password/reset', [
+            'email' => $user->email,
+            'token' => $notification->token,
+            'password' => 'NewStrongPassword123!',
+            'password_confirmation' => 'NewStrongPassword123!',
+        ])->assertOk();
     }
 
     public function test_manual_google_linked_account_can_recover_without_changing_identity(): void

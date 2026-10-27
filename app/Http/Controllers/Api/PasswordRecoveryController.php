@@ -20,12 +20,7 @@ final class PasswordRecoveryController extends Controller
         try {
             $this->recovery->request((string) $request->validated('email'));
         } catch (PasswordRecoveryException $exception) {
-            if ($exception->errorCode === 'PASSWORD_RESET_RATE_LIMITED') {
-                return response()->json([
-                    'message' => 'Permintaan pemulihan terlalu sering.',
-                    'code' => $exception->errorCode,
-                ], 429);
-            }
+            // Broker cooldowns must not disclose whether the submitted email exists.
         }
 
         return response()->json([
