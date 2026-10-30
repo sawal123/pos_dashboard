@@ -9,6 +9,7 @@ use Firebase\JWT\Key;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 use Throwable;
 
@@ -252,9 +253,28 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
                 throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_invalid_payload');
             }
 
-            $keys = $this->parsePublicKeys($jwks);
+            $parseError = null;
+            $keys = $this->parsePublicKeys($jwks, $parseError);
             if ($keys === []) {
-                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_no_keys');
+                $rawKeys = is_array($jwks['keys'] ?? null) ? $jwks['keys'] : [];
+                if ($rawKeys === []) {
+                    throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_empty_set');
+                }
+
+                // Keep the provider's public key material out of the log; the
+                // failure class/message is enough to tell an OpenSSL problem
+                // (for example a disabled openssl_pkey_get_public) apart from a
+                // malformed JWKS payload.
+                Log::warning('auth.google.jwks_parse_failed', [
+                    'raw_keys' => count($rawKeys),
+                    'first_key_fields' => is_array($rawKeys[array_key_first($rawKeys)] ?? null)
+                        ? array_keys($rawKeys[array_key_first($rawKeys)])
+                        : [],
+                    'openssl_pkey_function' => function_exists('openssl_pkey_get_public'),
+                    'error' => $parseError,
+                ]);
+
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_parse_failed');
             }
 
             try {
@@ -273,9 +293,10 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
 
     /**
      * @param  array<string, mixed>  $jwks
+     * @param  string|null  $parseError  Receives the first parse failure, if any.
      * @return array<string, Key>
      */
-    private function parsePublicKeys(array $jwks): array
+    private function parsePublicKeys(array $jwks, ?string &$parseError = null): array
     {
         if (! is_array($jwks['keys'] ?? null)) {
             return [];
@@ -301,9 +322,10 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
                 if ($parsed !== null) {
                     $keys[$key['kid']] = $parsed;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $exception) {
                 // Ignore malformed or unsupported provider keys. The caller
                 // fails closed when no usable key remains for the token kid.
+                $parseError ??= $exception::class.': '.$exception->getMessage();
             }
         }
 

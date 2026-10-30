@@ -13,7 +13,8 @@ class GoogleAuthDiagnoseTest extends TestCase
         $this->fakeJwks();
 
         $this->artisan('auth:google:diagnose')
-            ->expectsOutputToContain('1 usable key')
+            ->expectsOutputToContain('1 raw key')
+            ->expectsOutputToContain('Parsed kid(s): diagnose-kid')
             ->assertExitCode(0);
     }
 
@@ -36,7 +37,7 @@ class GoogleAuthDiagnoseTest extends TestCase
                     'alg' => 'RS256',
                     'use' => 'sig',
                     'kid' => 'diagnose-kid',
-                    'n' => 'abc',
+                    'n' => 'pIpnzA2ezyEERJSxiqpLBmMeIqATH-V6iuBtKIibXEyYovujrx8niqTeO6RIyXT6uDUUv0V2kJ8V_iWYFxzXY1BqK9IfcAmjg0XUDoyTVkoyLsF0gj299LH-zw5vCvy8jmamFIZKAbKcQ5hpHvSittM1vl-6vVL-i2GxyGbMA9aY6Hq15NylS1t7ELTYfQimlnvxcb7_DM0cuS5U1SfbCZMCpKhh0nrSlYds240oxpCJOV2rBahs_Ea5c7tezS1nwVC9W_E-bR9TF6BHkC_fv-E8DcWfkI_6geaJzBhINNxBfjx-w1-WUp2Jz3YYFWEfeQjxMqu-Fg6cGxwk7V16uQ',
                     'e' => 'AQAB',
                 ]],
             ], 200),
