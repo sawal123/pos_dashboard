@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Auth\GoogleAuthenticationException;
 use App\Services\Auth\GoogleIdTokenVerifier;
+use Firebase\JWT\JWK;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -48,22 +49,35 @@ final class GoogleAuthDiagnoseCommand extends Command
 
         $this->newLine();
         $this->line('Google JWKS reachability');
+        $this->line('  openssl_pkey_get_public(): '.(function_exists('openssl_pkey_get_public') ? 'available' : '<fg=red>missing/disabled</>'));
+
+        $disabled = array_map('trim', explode(',', (string) ini_get('disable_functions')));
+        if (in_array('openssl_pkey_get_public', $disabled, true)) {
+            $this->error('  openssl_pkey_get_public is listed in disable_functions; Google keys cannot be parsed.');
+            $ok = false;
+        }
+
         $started = microtime(true);
         try {
             $response = Http::timeout(10)->acceptJson()->get((string) config('services.google.jwks_url'));
             $duration = (int) round((microtime(true) - $started) * 1000);
-            $keys = $response->json('keys');
-            $usable = is_array($keys) ? count(array_filter($keys, static fn (mixed $key): bool => is_array($key)
-                && ($key['kty'] ?? null) === 'RSA'
-                && ($key['alg'] ?? null) === 'RS256'
-                && is_string($key['kid'] ?? null)
-                && $key['kid'] !== '')) : 0;
+            $jwks = $response->json();
+            $rawKeys = is_array($jwks) && is_array($jwks['keys'] ?? null) ? $jwks['keys'] : [];
 
-            $this->line("  HTTP {$response->status()} in {$duration}ms, {$usable} usable key(s)");
+            $this->line("  HTTP {$response->status()} in {$duration}ms, ".count($rawKeys).' raw key(s)');
 
-            if (! $response->successful() || $usable === 0) {
-                $this->error('  JWKS is not usable. Check outbound HTTPS/DNS to googleapis.com and TLS certificates.');
+            if (! $response->successful() || ! is_array($jwks)) {
+                $this->error('  JWKS request failed or returned invalid JSON. Check outbound HTTPS/DNS and TLS certificates.');
                 $ok = false;
+            } else {
+                try {
+                    $parsed = JWK::parseKeySet($jwks, 'RS256');
+                    $this->line('  Parsed kid(s): '.implode(', ', array_keys($parsed)));
+                } catch (Throwable $exception) {
+                    $this->error('  JWK parse failed: '.$exception::class.': '.$this->trim($exception->getMessage()));
+                    $this->error('  This is the same failure the login request hits; it is an environment problem, not a bad token.');
+                    $ok = false;
+                }
             }
         } catch (Throwable $exception) {
             $this->error('  JWKS fetch failed: '.$exception::class.': '.$this->trim($exception->getMessage()));
