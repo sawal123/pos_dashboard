@@ -2,6 +2,9 @@
 
 namespace App\Console\Commands;
 
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
@@ -46,6 +49,7 @@ final class ProductionPreflightCommand extends Command
             $this->checkSafeMailer('AUTH_OTP_MAILER', (string) config('auth_otp.mailer', 'log')),
             $this->checkMailSender(),
             $this->checkGoogleConfiguration(),
+            $this->checkGoogleJwtLibrary(),
             $this->checkAuthCache(),
             $this->checkAuthSchema(),
             $this->checkWarn('config is cached', ! $this->laravel->configurationIsCached(), 'Run `php artisan config:cache` before release.'),
@@ -363,6 +367,24 @@ final class ProductionPreflightCommand extends Command
         }
 
         return ['status' => 'pass', 'name' => 'Google OAuth client IDs are valid', 'message' => ''];
+    }
+
+    /**
+     * @return array{status: string, name: string, message: string}
+     */
+    private function checkGoogleJwtLibrary(): array
+    {
+        $ready = class_exists(JWT::class)
+            && class_exists(JWK::class)
+            && class_exists(Key::class);
+
+        return $ready
+            ? ['status' => 'pass', 'name' => 'Google JWT library is installed', 'message' => '']
+            : [
+                'status' => 'fail',
+                'name' => 'Google JWT library is installed',
+                'message' => 'firebase/php-jwt is missing from vendor; run composer install --no-dev --optimize-autoloader',
+            ];
     }
 
     /**

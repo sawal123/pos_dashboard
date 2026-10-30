@@ -19,6 +19,15 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
 
     public function verify(string $idToken, string $clientPlatform): GoogleIdTokenClaims
     {
+        if (! class_exists(JWT::class) || ! class_exists(JWK::class) || ! class_exists(Key::class)) {
+            throw new GoogleAuthenticationException(
+                'GOOGLE_AUTH_NOT_CONFIGURED',
+                'Google authentication could not be verified safely.',
+                null,
+                'jwt_library_missing',
+            );
+        }
+
         $idToken = trim($idToken);
         $allowedAudiences = $this->allowedAudiences($clientPlatform);
 
