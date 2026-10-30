@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MidtransRedirectController;
+use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Dashboard\BusinessContextController;
 use App\Http\Controllers\Dashboard\BusinessInvitationsController;
 use App\Http\Controllers\Dashboard\BusinessMembersController;
@@ -78,6 +79,11 @@ Route::get('/', function (PremiumPricing $pricing) {
 })->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
 Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
+
+// AUTH-D04 — web session login from a Google Identity Services credential.
+Route::post('auth/google', [GoogleLoginController::class, 'store'])
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('auth.google.login');
 
 // Midtrans Snap browser redirects. Payment truth remains the server-to-server
 // webhook at POST /api/webhooks/midtrans.

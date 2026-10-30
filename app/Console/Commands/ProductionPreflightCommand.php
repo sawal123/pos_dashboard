@@ -344,7 +344,11 @@ final class ProductionPreflightCommand extends Command
         )));
 
         if ($clientId === '' && $androidIds === []) {
-            return ['status' => 'pass', 'name' => 'Google Sign-In configuration is optional and disabled', 'message' => ''];
+            return [
+                'status' => 'warn',
+                'name' => 'Google Sign-In is configured',
+                'message' => 'GOOGLE_CLIENT_ID is empty, so POST /api/v2/auth/google returns 503 GOOGLE_AUTH_NOT_CONFIGURED; set it (and GOOGLE_ANDROID_CLIENT_IDS for Android) before releasing a build that offers Google login',
+            ];
         }
 
         if ($clientId === '') {

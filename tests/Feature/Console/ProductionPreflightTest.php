@@ -46,6 +46,30 @@ class ProductionPreflightTest extends TestCase
         $this->artisan('deploy:preflight')->assertExitCode(0);
     }
 
+    public function test_unconfigured_google_sign_in_warns_instead_of_silently_passing(): void
+    {
+        $this->hardenedConfig([
+            'services.google.client_id' => '',
+            'services.google.android_client_ids' => [],
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('GOOGLE_AUTH_NOT_CONFIGURED')
+            ->assertExitCode(0);
+    }
+
+    public function test_a_malformed_google_client_id_fails_preflight(): void
+    {
+        $this->hardenedConfig([
+            'services.google.client_id' => 'not-a-google-client-id',
+            'services.google.android_client_ids' => [],
+        ]);
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('Google OAuth client IDs are valid')
+            ->assertExitCode(1);
+    }
+
     public function test_it_fails_on_an_insecure_session_cookie(): void
     {
         $this->hardenedConfig(['session.secure' => false]);

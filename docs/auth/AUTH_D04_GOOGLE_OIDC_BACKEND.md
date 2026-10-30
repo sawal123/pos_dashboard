@@ -20,6 +20,25 @@ GOOGLE_ANDROID_CLIENT_IDS=optional,comma,separated,android,client,ids
 
 If the required audience is missing, the endpoint returns `GOOGLE_AUTH_NOT_CONFIGURED` with HTTP 503 and performs no database mutation.
 
+### Production 503 triage
+
+`503 GOOGLE_AUTH_NOT_CONFIGURED` means the **resolved** configuration has an empty
+`services.google.client_id` (or an empty `app.key` at replay reservation time). It
+is not a Google outage. Check in this order:
+
+```bash
+php artisan tinker --execute="dump(config('services.google.client_id'));"
+php artisan tinker --execute="dump(config('app.key') !== '');"
+php artisan config:clear && php artisan config:cache
+php artisan deploy:preflight --strict
+```
+
+The common cause is a `.env` that never received `GOOGLE_CLIENT_ID`, or a
+`config:cache` generated before the value was added — `config()` keeps serving the
+stale cached array until `config:cache` runs again. `GOOGLE_ANDROID_CLIENT_IDS`
+does not cause a 503 when omitted; a missing Android audience shows up as
+`401 GOOGLE_AUDIENCE_INVALID` instead.
+
 ## Google Cloud setup
 
 Create the OAuth client IDs in the correct Google Cloud project. Configure the web client ID as `GOOGLE_CLIENT_ID`, and configure Android package/signing-certificate client IDs explicitly in `GOOGLE_ANDROID_CLIENT_IDS` when Android tokens use a different audience. Keep staging and production client IDs separate and use separate environment values.
@@ -45,6 +64,28 @@ Content-Type: application/json
 Success is HTTP 200 and returns a Laravel Sanctum `mobile` ability token. The Google ID token is not used as a POS session token. A new account is verified from the signed Google assertion, receives one active retail Business, owner membership, `Outlet Utama`/`OUT-1`, and an active Free subscription in the same transaction. Google Sign-In does not send the POS email OTP.
 
 Stable error codes are `GOOGLE_TOKEN_INVALID` (401), `GOOGLE_TOKEN_EXPIRED` (401), `GOOGLE_AUDIENCE_INVALID` (401), `GOOGLE_EMAIL_UNVERIFIED` (403), `ACCOUNT_LINK_REQUIRED` (409), `IDENTITY_CONFLICT` (409), `TWO_FACTOR_REQUIRED` (403), and `GOOGLE_AUTH_NOT_CONFIGURED` (503). Provisioning failures fail closed with HTTP 503 and no token.
+
+### Web session login (`/login`)
+
+The dashboard login page renders Google Identity Services (GIS) when
+`GOOGLE_CLIENT_ID` resolves to a non-empty value. The browser receives a Google
+ID token (`credential`) and posts it to `POST /auth/google` (route
+`auth.google.login`, guest + `throttle:10,1`). The controller verifies the token
+with `client_platform=web` through the same `GoogleOidcVerifier`, resolves or
+provisions the account through `GoogleAccountService`, then creates a normal
+Laravel session.
+
+- The Google Cloud OAuth **web** client must list the dashboard origin (for
+  example `https://pos.eradig.my.id`) under **Authorized JavaScript origins**.
+  No redirect URI is used, and the client secret is not part of this flow.
+- A confirmed-2FA user is never logged in directly: the controller stores
+  `login.id`/`login.remember` and redirects to Fortify's `two-factor-challenge`,
+  so the existing TOTP/recovery-code screen completes the login.
+- Email collisions return a form error and require the existing password-login
+  plus account-linking flow; a Google identity is never attached by matching an
+  email address alone.
+- If `GOOGLE_CLIENT_ID` is empty the button is not rendered and the endpoint
+  fails closed with a form error.
 
 ## Identity and collision policy
 

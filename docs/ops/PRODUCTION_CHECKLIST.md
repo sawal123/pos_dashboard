@@ -34,7 +34,7 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 | `QUEUE_CONNECTION is not sync` | WARN | a real worker/connection |
 | `MAIL_MAILER is safe` | FAIL | real credential-delivery transport; never `log`, `array`, or unsafe failover |
 | `AUTH_OTP_MAILER is safe` | FAIL | real OTP transport and valid sender |
-| `Google client IDs are valid` | FAIL when enabled | configured audiences use the Google client-ID format |
+| `Google Sign-In is configured` | WARN when disabled, FAIL when malformed | `GOOGLE_CLIENT_ID` is set (otherwise `/api/v2/auth/google` returns `503`) and every configured ID ends with `.apps.googleusercontent.com` |
 | `AUTH cache is shared and atomic` | FAIL | database/Redis/Memcached/shared file cache |
 | `AUTH migrations are applied` | FAIL | OTP, mobile challenge, email-change, and password marker schema |
 | `config is cached` | WARN | `config:cache` was run |
@@ -50,6 +50,10 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 - [ ] `APP_KEY` generated and stored in the secret manager, **not** in Git
 - [ ] `APP_URL` is the public HTTPS URL
 - [ ] `LOG_LEVEL=warning` (never `debug` in production)
+- [ ] `GOOGLE_CLIENT_ID` is the production **web** OAuth client ID — an empty value
+      makes `POST /api/v2/auth/google` fail with `503 GOOGLE_AUTH_NOT_CONFIGURED`
+- [ ] `GOOGLE_ANDROID_CLIENT_IDS` lists every Android client ID the released app can
+      mint ID tokens with (comma-separated, no spaces)
 
 ## 2. HTTPS & session
 
@@ -97,6 +101,19 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 - [ ] Create a cash entry, then reverse it (owner) and confirm the summary updates
 - [ ] Download CSV/XLSX/PDF and confirm the totals match the on-screen report
 - [ ] Confirm the mobile API still authenticates (`POST /api/auth/login`)
+- [ ] Confirm Google login is configured:
+
+      ```bash
+      curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://<host>/api/v2/auth/google \
+        -H 'Accept: application/json' -H 'Content-Type: application/json' \
+        -d '{"id_token":"probe","client_platform":"android"}'
+      ```
+
+      Expect `401` (token rejected, configuration loaded). A `503` means
+      `GOOGLE_CLIENT_ID` is empty or `config:cache` is stale.
+- [ ] Open `/login` and confirm the Google button renders (it is hidden when
+      `GOOGLE_CLIENT_ID` is empty) and that the dashboard origin is listed in the
+      OAuth client's **Authorized JavaScript origins**
 
 ## 8. Rollback
 
