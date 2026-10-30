@@ -36,7 +36,7 @@ class AuthSecurityHardeningTest extends TestCase
         $this->assertStringContainsString('AUTH_OTP_MAILER', $output);
         $this->assertStringContainsString('AUTH cache is shared and atomic', $output);
         $this->assertStringContainsString('AUTH migrations are applied', $output);
-        $this->assertStringContainsString('Google Sign-In configuration is optional and disabled', $output);
+        $this->assertStringContainsString('Google Sign-In is configured', $output);
     }
 
     public function test_info_audit_events_are_written_when_application_log_level_is_warning(): void

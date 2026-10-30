@@ -22,6 +22,37 @@
             </div>
         @endif
 
+        {{-- ==================== GOOGLE SIGN-IN ==================== --}}
+        @php($googleClientId = trim((string) config('services.google.client_id')))
+        @if ($googleClientId !== '')
+            <div class="space-y-4">
+                <form id="google-login-form" method="POST" action="{{ route('auth.google.login') }}" class="hidden">
+                    @csrf
+                    <input type="hidden" name="credential" id="google-credential">
+                </form>
+
+                <div id="google-signin" class="flex justify-center" data-client-id="{{ $googleClientId }}"></div>
+
+                @error('google')
+                    <p class="text-xs text-center text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                @enderror
+                @error('credential')
+                    <p class="text-xs text-center text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                @enderror
+
+                <div class="relative my-5">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-slate-200 dark:border-slate-700"></div>
+                    </div>
+                    <div class="relative flex justify-center text-xs uppercase tracking-wider">
+                        <span class="px-2 text-slate-400 dark:text-slate-500 bg-white dark:bg-slate-900">
+                            {{ __('Atau masuk dengan email') }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        @endif
+
         {{-- ==================== PASSKEY ==================== --}}
         <x-passkey-verify />
 
@@ -142,4 +173,36 @@
             </a>
         </p>
     </div>
+
+    @if ($googleClientId !== '')
+        @push('scripts')
+            <script src="https://accounts.google.com/gsi/client" async defer onload="initNexaGoogleSignIn()"></script>
+            <script>
+                function initNexaGoogleSignIn() {
+                    const container = document.getElementById('google-signin');
+                    if (!container || typeof google === 'undefined' || !google.accounts?.id) {
+                        return;
+                    }
+
+                    google.accounts.id.initialize({
+                        client_id: container.dataset.clientId,
+                        callback: function (response) {
+                            document.getElementById('google-credential').value = response.credential;
+                            document.getElementById('google-login-form').submit();
+                        },
+                    });
+
+                    google.accounts.id.renderButton(container, {
+                        type: 'standard',
+                        theme: 'outline',
+                        size: 'large',
+                        text: 'continue_with',
+                        shape: 'pill',
+                        logo_alignment: 'left',
+                        width: Math.max(200, Math.min(400, container.clientWidth || 360)),
+                    });
+                }
+            </script>
+        @endpush
+    @endif
 </x-layouts::auth.pos>
