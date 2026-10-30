@@ -34,7 +34,8 @@ lists each check as `PASS` / `WARN` / `FAIL`:
 | `QUEUE_CONNECTION is not sync` | WARN | a real worker/connection |
 | `MAIL_MAILER is safe` | FAIL | real credential-delivery transport; never `log`, `array`, or unsafe failover |
 | `AUTH_OTP_MAILER is safe` | FAIL | real OTP transport and valid sender |
-| `Google Sign-In is configured` | WARN when disabled, FAIL when malformed | `GOOGLE_CLIENT_ID` is set (otherwise `/api/v2/auth/google` returns `503`) and every configured ID ends with `.apps.googleusercontent.com` |
+| `Google Sign-in is configured` | WARN when disabled, FAIL when malformed | `GOOGLE_CLIENT_ID` is set (otherwise `/api/v2/auth/google` returns `503`) and every configured ID ends with `.apps.googleusercontent.com` |
+| `Google JWT library is installed` | FAIL | `firebase/php-jwt` is present in `vendor/` — `composer install` ran for this release |
 | `AUTH cache is shared and atomic` | FAIL | database/Redis/Memcached/shared file cache |
 | `AUTH migrations are applied` | FAIL | OTP, mobile challenge, email-change, and password marker schema |
 | `config is cached` | WARN | `config:cache` was run |
@@ -72,8 +73,11 @@ lists each check as `PASS` / `WARN` / `FAIL`:
       backup, not before
 - [ ] `json`/`utf8mb4` collation matches the tested environment
 
-## 4. Queue, scheduler & cache
+## 4. Dependencies, queue, scheduler & cache
 
+- [ ] `composer install --no-dev --optimize-autoloader` ran for this release —
+      `vendor/` is not committed, and a stale vendor without `firebase/php-jwt`
+      breaks both web and mobile Google login
 - [ ] A queue worker runs under a supervisor (`queue:work`/`horizon`)
 - [ ] `php artisan schedule:work` (or a cron entry for `schedule:run`) is active
 - [ ] `QUEUE_CONNECTION` and `CACHE_STORE` point at a shared backend

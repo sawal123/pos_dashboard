@@ -52,13 +52,15 @@ php artisan auth:google:diagnose
 php artisan auth:google:diagnose --token="<fresh-id-token>" --platform=web
 ```
 
-Common `reason` values: `jwks_unavailable`/`jwks_http_...` (server cannot reach
-`www.googleapis.com`), `jwk_not_found` (stale key cache or unknown `kid`),
-`signature_invalid` (wrong token or key), `issued_in_future`/`expired` (server
-clock drift), `audience_invalid` (web page and `GOOGLE_CLIENT_ID` use different
-clients), `replay_detected` (the same ID token was submitted twice), and
-`email_unverified`. A token consumed by this command cannot be used for login
-afterwards; request a fresh one.
+Common `reason` values: `jwt_library_missing` (`firebase/php-jwt` absent from
+`vendor/` — run `composer install --no-dev --optimize-autoloader`),
+`jwks_unavailable`/`jwks_http_...` (server cannot reach `www.googleapis.com`),
+`jwks_empty_set`/`jwks_parse_failed` (unusable provider payload), `jwk_not_found`
+(stale key cache or unknown `kid`), `signature_invalid` (wrong token or key),
+`issued_in_future`/`expired` (server clock drift), `audience_invalid` (web page
+and `GOOGLE_CLIENT_ID` use different clients), `replay_detected` (the same ID
+token was submitted twice), and `email_unverified`. A token consumed by this
+command cannot be used for login afterwards; request a fresh one.
 
 ## Google Cloud setup
 

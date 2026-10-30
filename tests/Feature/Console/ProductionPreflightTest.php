@@ -46,6 +46,15 @@ class ProductionPreflightTest extends TestCase
         $this->artisan('deploy:preflight')->assertExitCode(0);
     }
 
+    public function test_it_verifies_the_google_jwt_library_is_installed(): void
+    {
+        $this->hardenedConfig();
+
+        $this->artisan('deploy:preflight')
+            ->expectsOutputToContain('Google JWT library is installed')
+            ->assertExitCode(0);
+    }
+
     public function test_unconfigured_google_sign_in_warns_instead_of_silently_passing(): void
     {
         $this->hardenedConfig([
