@@ -91,22 +91,38 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertSame(2, PersonalAccessToken::query()->where('tokenable_id', $user->id)->count());
     }
 
-    public function test_google_email_collision_requires_account_linking_without_mutating_existing_account(): void
+    public function test_verified_email_account_is_linked_and_logged_in_with_google(): void
     {
         $existing = User::factory()->create(['email' => 'used@example.com', 'name' => 'Original Name']);
         $this->fakeVerifier($this->claims('google-sub-collision', 'used@example.com', 'Google Collision'));
 
         $response = $this->postJson('/api/v2/auth/google', $this->request());
 
-        $response->assertStatus(409)
-            ->assertJsonPath('code', 'ACCOUNT_LINK_REQUIRED');
-        $this->assertDatabaseMissing('auth_identities', ['provider_subject' => 'google-sub-collision']);
+        $response->assertOk()->assertJsonPath('data.user.id', $existing->id);
+        $this->assertDatabaseHas('auth_identities', [
+            'user_id' => $existing->id,
+            'provider' => AuthIdentity::PROVIDER_GOOGLE,
+            'provider_subject' => 'google-sub-collision',
+        ]);
         $this->assertSame('Original Name', $existing->fresh()->name);
-        $this->assertSame(0, PersonalAccessToken::query()->count());
+        $this->assertSame(1, PersonalAccessToken::query()->where('tokenable_id', $existing->id)->count());
+        // Linking must reuse the existing tenant instead of provisioning another.
         $this->assertSame(0, Business::query()->count());
     }
 
-    public function test_different_google_subject_cannot_take_over_an_existing_email(): void
+    public function test_unverified_email_account_still_requires_manual_linking(): void
+    {
+        $existing = User::factory()->unverified()->create(['email' => 'unverified@example.com']);
+        $this->fakeVerifier($this->claims('google-sub-unverified', 'unverified@example.com', 'Google'));
+
+        $response = $this->postJson('/api/v2/auth/google', $this->request());
+
+        $response->assertStatus(409)->assertJsonPath('code', 'ACCOUNT_LINK_REQUIRED');
+        $this->assertDatabaseMissing('auth_identities', ['provider_subject' => 'google-sub-unverified']);
+        $this->assertSame(0, PersonalAccessToken::query()->count());
+    }
+
+    public function test_a_different_google_subject_cannot_replace_an_existing_link(): void
     {
         $existing = User::factory()->create(['email' => 'same@example.com', 'name' => 'Existing']);
         AuthIdentity::create([
@@ -118,7 +134,7 @@ class GoogleAuthenticationTest extends TestCase
 
         $response = $this->postJson('/api/v2/auth/google', $this->request());
 
-        $response->assertStatus(409)->assertJsonPath('code', 'ACCOUNT_LINK_REQUIRED');
+        $response->assertStatus(409)->assertJsonPath('code', 'IDENTITY_CONFLICT');
         $this->assertSame('Existing', $existing->fresh()->name);
         $this->assertSame(1, AuthIdentity::query()->count());
     }

@@ -165,7 +165,7 @@ The backend must never accept a client-supplied email, name, or `sub` as proof; 
 
 `POST /api/v2/auth/google` accepts an ID token and a server-validated client platform. A Google `sub` already linked to a user logs that user in. A new `sub` creates one user and one default business only once, using the same idempotent provisioning service as manual verification. Google login does not send or require an additional POS email OTP because Google has already asserted a verified email; the backend still performs all ID-token validation above.
 
-If the validated email matches a manual account but the `sub` is not linked, return `409 ACCOUNT_LINK_REQUIRED` with no token. Do not link by email. If that manual account has 2FA, linking and subsequent Google login still require the 2FA policy; Google is not a 2FA bypass.
+If the validated email matches a manual account but the `sub` is not linked, link the identity transactionally and continue the login **only when that account's own email is verified and provisioned** — both sides have proven control of the address. An unverified or still-pending manual account returns `409 ACCOUNT_LINK_REQUIRED` with no token. If the account already has a different Google `sub`, return `409 IDENTITY_CONFLICT`. If that manual account has 2FA, linking and subsequent Google login still require the 2FA policy; Google is not a 2FA bypass.
 
 ### 7.3 Google Cloud Console configuration — PROPOSED, not executed
 
@@ -189,9 +189,9 @@ Recommended endpoints are `POST /api/v2/auth/reauthenticate`, `POST /api/v2/auth
 | Manual account is new | Register with OTP, provision once, then optionally link Google through authenticated reauthentication. |
 | Google account is new | Validate token, create user and provider subject, mark account verified from Google assertion, provision once, issue Sanctum after 2FA policy (normally no 2FA configured). |
 | Existing manual account links Google | Require current authenticated account, recent reauthentication, valid Google token, and unique `sub`; attach identity transactionally. |
-| Google email equals existing manual email but `sub` is unlinked | `409 ACCOUNT_LINK_REQUIRED`; no token, no email-based auto-link, no mutation. User must sign in manually and explicitly link. |
+| Google email equals an existing verified, provisioned manual email but `sub` is unlinked | Link the identity transactionally and continue the login; both sides proved the same address. Unverified/pending accounts return `409 ACCOUNT_LINK_REQUIRED` without mutation. |
 | Google `sub` already linked | Sign in the owning user only after token validation. If the identity row points to more than one user or conflicts with the email/account state, fail closed with `409 IDENTITY_CONFLICT`. |
-| Google `sub` differs while email belongs to an existing account | Never replace or merge. Return `409 ACCOUNT_LINK_REQUIRED`; preserve existing business, tenant, device, subscription, and roles. |
+| Google `sub` differs while email belongs to an existing account | Never replace or merge. If the account has no Google identity and is verified, link it; if a different `sub` is already linked, return `409 IDENTITY_CONFLICT`. Preserve existing business, tenant, device, subscription, and roles. |
 | User has several businesses | Linking changes only the global user identity. It never selects, transfers, merges, or creates a business implicitly. The existing membership set remains unchanged. |
 | User has 2FA | Linking requires the same reauthentication/2FA policy. Google login after linking still enters the 2FA challenge before token issuance. |
 
@@ -217,7 +217,7 @@ VERIFIED
   ├─ password login failure ──────> INVALID_CREDENTIALS
   ├─ password login + 2FA off ────> AUTHENTICATED (Sanctum token)
   ├─ password/Google login + 2FA > TWO_FACTOR_CHALLENGE
-  └─ Google email collision ------- > ACCOUNT_LINK_REQUIRED
+  └─ Google email collision ------- > auto-link if local email verified, else ACCOUNT_LINK_REQUIRED
 
 TWO_FACTOR_CHALLENGE
   ├─ valid TOTP/recovery code ─────> AUTHENTICATED (Sanctum token)
@@ -430,7 +430,7 @@ The following target codes are **PROPOSED** unless marked `EXISTING`.
 | `MOBILE_TOKEN_REQUIRED` | 403 | Token lacks `mobile` ability. **EXISTING** in mobile controllers. |
 | `UNAUTHENTICATED` | 401 | Missing/revoked/expired Sanctum token. **EXISTING framework behavior**. |
 | `TOKEN_REVOKED` | 401 | Previously issued token is no longer accepted. **PROPOSED stable mapping**. |
-| `ACCOUNT_LINK_REQUIRED` | 409 | Valid Google identity collides with an existing account and requires explicit link. **PROPOSED**. |
+| `ACCOUNT_LINK_REQUIRED` | 409 | Valid Google identity collides with an existing **unverified or pending** account; verification/manual linking is required. **PROPOSED**. |
 | `GOOGLE_TOKEN_INVALID` | 401 | Signature/issuer/audience/expiry/nonce/email verification failed. Do not disclose which claim failed. **PROPOSED**. |
 | `IDENTITY_CONFLICT` | 409 | Provider subject is attached inconsistently or to a different user. Fail closed and alert. **PROPOSED**. |
 | `GOOGLE_IDENTITY_EXISTS` | 409 | Link target is already linked to another account. **PROPOSED**. |
@@ -505,7 +505,7 @@ All changes must be backward-compatible with current `users`, `business_user`, b
 | Account enumeration | Generic register/resend response and same login failure response/timing class. | Existing and unknown email do not disclose account state. |
 | Google token forgery | Signature/JWKS, issuer, audience, expiry, nonce, `email_verified`, and subject checks. | Altered signature, wrong audience, expired token, wrong issuer, unverified email all fail. |
 | Google replay | Validate expiry/nonce; do not persist token as session. | Replayed/expired token is rejected; issued Sanctum token remains independent. |
-| Email-collision takeover | No automatic link; explicit current-account proof and `sub` uniqueness. | Different `sub` with existing email returns `ACCOUNT_LINK_REQUIRED`. |
+| Email-collision takeover | Auto-link only when the local email is verified and provisioned; never link unverified/pending accounts; `sub` uniqueness. | A different `sub` already linked returns `IDENTITY_CONFLICT`; an unverified email returns `ACCOUNT_LINK_REQUIRED`. |
 | 2FA bypass through Google | Google login enters the same 2FA policy as password login. | A linked 2FA user receives a challenge and no bearer token. |
 | Stolen bearer token | Finite expiry, current/all-token revocation, mobile ability, security-change rotation. | Revoked/expired token receives 401; a token without `mobile` cannot use mobile endpoints. |
 | Tenant IDOR | Membership/role checks per requested business; scoped device/data queries; no implicit business transfer. | User A cannot read or mutate User B's business by changing `business_id`. |

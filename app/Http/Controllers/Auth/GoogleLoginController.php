@@ -78,7 +78,7 @@ final class GoogleLoginController extends Controller
             'GOOGLE_TOKEN_EXPIRED' => 'Sesi Google sudah kedaluwarsa. Silakan coba lagi.',
             'GOOGLE_AUDIENCE_INVALID' => 'Token Google tidak ditujukan untuk aplikasi ini.',
             'GOOGLE_EMAIL_UNVERIFIED', 'EMAIL_NOT_VERIFIED' => 'Email Google belum terverifikasi.',
-            'ACCOUNT_LINK_REQUIRED' => 'Email ini sudah terdaftar. Masuk dengan kata sandi, lalu hubungkan akun Google dari pengaturan.',
+            'ACCOUNT_LINK_REQUIRED' => 'Email ini terdaftar tetapi belum terverifikasi. Verifikasi email tersebut atau masuk dengan kata sandi terlebih dahulu.',
             'IDENTITY_CONFLICT' => 'Akun Google ini tidak dapat digunakan.',
             'GOOGLE_PROVISIONING_FAILED' => 'Akun tidak dapat disiapkan. Silakan coba lagi.',
             default => 'Login Google gagal. Silakan coba lagi.',
