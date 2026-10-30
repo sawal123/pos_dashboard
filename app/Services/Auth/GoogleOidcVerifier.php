@@ -25,6 +25,8 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             throw new GoogleAuthenticationException(
                 $allowedAudiences === [] ? 'GOOGLE_AUTH_NOT_CONFIGURED' : 'GOOGLE_TOKEN_INVALID',
                 'Google authentication could not be verified safely.',
+                null,
+                $allowedAudiences === [] ? 'audience_not_configured' : 'token_empty',
             );
         }
 
@@ -33,7 +35,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         $payload = $this->decodeJson($encodedPayload, 'GOOGLE_TOKEN_INVALID');
 
         if (($header['alg'] ?? null) !== 'RS256' || ! is_string($header['kid'] ?? null)) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'header_invalid');
         }
 
         $now = time();
@@ -46,9 +48,9 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
             JWT::$leeway = $skew;
             JWT::decode($idToken, $publicKey);
         } catch (ExpiredException $exception) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.', $exception);
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.', $exception, 'expired');
         } catch (Throwable $exception) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception);
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception, 'signature_invalid');
         } finally {
             JWT::$leeway = $previousLeeway;
         }
@@ -56,7 +58,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         $issuer = (string) config('services.google.issuer', 'https://accounts.google.com');
 
         if (! in_array($payload['iss'] ?? null, [$issuer, 'accounts.google.com'], true)) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'issuer_invalid');
         }
 
         $audience = $payload['aud'] ?? null;
@@ -64,61 +66,65 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         $audiences = array_values(array_filter($audiences, 'is_string'));
 
         if (count(array_intersect($audiences, $this->allowedAudiences($clientPlatform))) === 0) {
-            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.', null, 'audience_invalid');
         }
 
         if (isset($payload['azp']) && ! in_array($payload['azp'], $this->allowedAudiences($clientPlatform), true)) {
-            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.', null, 'presenter_invalid');
         }
 
         if (count($audiences) > 1 && ! isset($payload['azp'])) {
-            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_AUDIENCE_INVALID', 'Google authentication could not be verified safely.', null, 'presenter_missing');
         }
 
         if (! is_int($payload['exp'] ?? null) && ! is_numeric($payload['exp'] ?? null)) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'exp_invalid');
         }
 
         $expiresAt = (int) $payload['exp'];
         if ($expiresAt <= $now - $skew) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_EXPIRED', 'Google authentication could not be verified safely.', null, 'expired');
         }
 
         if (! is_int($payload['iat'] ?? null) && ! is_numeric($payload['iat'] ?? null)) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'iat_invalid');
         }
 
         $issuedAt = (int) $payload['iat'];
-        if ($issuedAt > $now + $skew || $expiresAt <= $issuedAt) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+        if ($issuedAt > $now + $skew) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'issued_in_future');
+        }
+
+        if ($expiresAt <= $issuedAt) {
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'lifetime_invalid');
         }
 
         if (isset($payload['nbf'])
             && (! is_int($payload['nbf']) && ! is_numeric($payload['nbf']))) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'nbf_invalid');
         }
 
         if (isset($payload['nbf']) && (int) $payload['nbf'] > $now + $skew) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'not_yet_valid');
         }
 
         $maxLifetime = max(1, min(86400, (int) config('services.google.max_token_lifetime_seconds', 3600)));
         if ($expiresAt - $issuedAt > $maxLifetime) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'lifetime_exceeded');
         }
 
         $subject = $payload['sub'] ?? null;
         if (! is_string($subject) || $subject === '' || strlen($subject) > 255) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'subject_invalid');
         }
 
         $email = $payload['email'] ?? null;
         if (! is_string($email) || filter_var($email, FILTER_VALIDATE_EMAIL) === false || strlen($email) > 255) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'email_invalid');
         }
 
         if (($payload['email_verified'] ?? null) !== true) {
-            throw new GoogleAuthenticationException('GOOGLE_EMAIL_UNVERIFIED', 'Google email verification is required.');
+            throw new GoogleAuthenticationException('GOOGLE_EMAIL_UNVERIFIED', 'Google email verification is required.', null, 'email_unverified');
         }
 
         $this->reserveReplay($encodedHeader, $encodedPayload, $encodedSignature, $expiresAt, $now, $skew);
@@ -166,7 +172,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
     {
         $segments = explode('.', $idToken);
         if (count($segments) !== 3 || in_array('', $segments, true)) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'malformed_segments');
         }
 
         return [$segments[0], $segments[1], $segments[2]];
@@ -177,17 +183,17 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
     {
         $decoded = $this->decodeBase64Url($encoded);
         if ($decoded === null) {
-            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.', null, 'segment_decode_failed');
         }
 
         try {
             $value = json_decode($decoded, true, 32, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
-            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.', $exception);
+            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.', $exception, 'segment_json_invalid');
         }
 
         if (! is_array($value)) {
-            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException($errorCode, 'Google authentication could not be verified safely.', null, 'segment_not_object');
         }
 
         return $value;
@@ -208,7 +214,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
         }
 
         if (! isset($keys[$keyId])) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwk_not_found');
         }
 
         return $keys[$keyId];
@@ -217,39 +223,51 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
     /** @return array<string, Key> */
     private function publicKeys(bool $forceRefresh = false): array
     {
-        try {
-            if (! $forceRefresh) {
+        if (! $forceRefresh) {
+            try {
                 $cached = Cache::get(self::PUBLIC_KEYS_CACHE_KEY);
                 if (is_array($cached)) {
-                    return $this->parsePublicKeys($cached);
+                    $keys = $this->parsePublicKeys($cached);
+                    if ($keys !== []) {
+                        return $keys;
+                    }
                 }
+            } catch (Throwable) {
+                // A cache read is an optimization. Fall back to a fresh JWKS
+                // fetch instead of rejecting an otherwise valid token.
             }
+        }
 
-            $response = Http::timeout(5)
+        try {
+            $response = Http::timeout(10)
                 ->acceptJson()
                 ->get((string) config('services.google.jwks_url'));
 
             if (! $response->successful()) {
-                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_http_'.$response->status());
             }
 
             $jwks = $response->json();
             if (! is_array($jwks)) {
-                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_invalid_payload');
             }
 
             $keys = $this->parsePublicKeys($jwks);
             if ($keys === []) {
-                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'jwks_no_keys');
             }
 
-            Cache::put(self::PUBLIC_KEYS_CACHE_KEY, $jwks, now()->addSeconds($this->maxAge($response)));
+            try {
+                Cache::put(self::PUBLIC_KEYS_CACHE_KEY, $jwks, now()->addSeconds($this->maxAge($response)));
+            } catch (Throwable) {
+                // Caching is best effort; the fetched keys are still usable.
+            }
 
             return $keys;
         } catch (GoogleAuthenticationException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception);
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception, 'jwks_unavailable');
         }
     }
 
@@ -312,14 +330,14 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
     ): void {
         $applicationKey = (string) config('app.key');
         if ($applicationKey === '') {
-            throw new GoogleAuthenticationException('GOOGLE_AUTH_NOT_CONFIGURED', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_AUTH_NOT_CONFIGURED', 'Google authentication could not be verified safely.', null, 'app_key_missing');
         }
 
         $header = $this->decodeBase64Url($encodedHeader);
         $payload = $this->decodeBase64Url($encodedPayload);
         $signature = $this->decodeBase64Url($encodedSignature);
         if ($header === null || $payload === null || $signature === null) {
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'replay_payload_invalid');
         }
 
         $canonicalHeader = rtrim(strtr(base64_encode($header), '+/', '-_'), '=');
@@ -336,7 +354,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
                     'error_category' => 'replay',
                     'provider' => 'google',
                 ]);
-                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.');
+                throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', null, 'replay_detected');
             }
         } catch (GoogleAuthenticationException $exception) {
             throw $exception;
@@ -346,7 +364,7 @@ final class GoogleOidcVerifier implements GoogleIdTokenVerifier
                 'error_category' => 'replay_reservation_unavailable',
                 'provider' => 'google',
             ]);
-            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception);
+            throw new GoogleAuthenticationException('GOOGLE_TOKEN_INVALID', 'Google authentication could not be verified safely.', $exception, 'replay_cache_unavailable');
         }
     }
 

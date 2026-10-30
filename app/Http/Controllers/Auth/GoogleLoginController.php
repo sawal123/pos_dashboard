@@ -33,6 +33,7 @@ final class GoogleLoginController extends Controller
             app(AuthSecurityAuditService::class)->record('auth.google.verification_failed', [
                 'status' => 'rejected',
                 'error_category' => $exception->errorCode,
+                'reason' => $exception->reason,
                 'provider' => 'google',
                 'client_platform' => 'web',
             ]);
@@ -73,6 +74,7 @@ final class GoogleLoginController extends Controller
     {
         return match ($errorCode) {
             'GOOGLE_AUTH_NOT_CONFIGURED' => 'Login Google belum dikonfigurasi.',
+            'GOOGLE_TOKEN_INVALID' => 'Sesi Google tidak valid atau sudah dipakai. Silakan coba lagi.',
             'GOOGLE_TOKEN_EXPIRED' => 'Sesi Google sudah kedaluwarsa. Silakan coba lagi.',
             'GOOGLE_AUDIENCE_INVALID' => 'Token Google tidak ditujukan untuk aplikasi ini.',
             'GOOGLE_EMAIL_UNVERIFIED', 'EMAIL_NOT_VERIFIED' => 'Email Google belum terverifikasi.',
