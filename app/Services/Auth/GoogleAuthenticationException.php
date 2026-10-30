@@ -10,6 +10,7 @@ final class GoogleAuthenticationException extends RuntimeException
         public readonly string $errorCode,
         string $message,
         ?\Throwable $previous = null,
+        public readonly ?string $reason = null,
     ) {
         parent::__construct($message, 0, $previous);
     }

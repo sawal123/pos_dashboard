@@ -27,6 +27,7 @@ final class GoogleAuthController extends Controller
             app(AuthSecurityAuditService::class)->record('auth.google.verification_failed', [
                 'status' => 'rejected',
                 'error_category' => $exception->errorCode,
+                'reason' => $exception->reason,
                 'provider' => 'google',
                 'client_platform' => (string) $request->validated('client_platform'),
             ]);
