@@ -39,6 +39,27 @@ stale cached array until `config:cache` runs again. `GOOGLE_ANDROID_CLIENT_IDS`
 does not cause a 503 when omitted; a missing Android audience shows up as
 `401 GOOGLE_AUDIENCE_INVALID` instead.
 
+### Diagnosing a rejected token
+
+Web and mobile rejections are recorded in `storage/logs/auth-security-*.log` as
+`auth.google.verification_failed` with `error_category` and a machine-readable
+`reason`. Run the read-only diagnostic on the affected deployment to see the
+resolved config, Google JWKS reachability, and — with a token — the exact claim
+that failed. Raw tokens, subjects, and emails are never printed:
+
+```bash
+php artisan auth:google:diagnose
+php artisan auth:google:diagnose --token="<fresh-id-token>" --platform=web
+```
+
+Common `reason` values: `jwks_unavailable`/`jwks_http_...` (server cannot reach
+`www.googleapis.com`), `jwk_not_found` (stale key cache or unknown `kid`),
+`signature_invalid` (wrong token or key), `issued_in_future`/`expired` (server
+clock drift), `audience_invalid` (web page and `GOOGLE_CLIENT_ID` use different
+clients), `replay_detected` (the same ID token was submitted twice), and
+`email_unverified`. A token consumed by this command cannot be used for login
+afterwards; request a fresh one.
+
 ## Google Cloud setup
 
 Create the OAuth client IDs in the correct Google Cloud project. Configure the web client ID as `GOOGLE_CLIENT_ID`, and configure Android package/signing-certificate client IDs explicitly in `GOOGLE_ANDROID_CLIENT_IDS` when Android tokens use a different audience. Keep staging and production client IDs separate and use separate environment values.

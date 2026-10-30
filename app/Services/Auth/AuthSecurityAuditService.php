@@ -18,6 +18,7 @@ final class AuthSecurityAuditService
         $safe = [
             'status',
             'error_category',
+            'reason',
             'provider',
             'client_platform',
             'result',
