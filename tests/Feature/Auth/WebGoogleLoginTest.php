@@ -86,17 +86,34 @@ class WebGoogleLoginTest extends TestCase
         $this->assertSame('web', $verifier->clientPlatform);
     }
 
-    public function test_google_login_rejects_an_existing_email_without_linking_it(): void
+    public function test_google_login_links_a_verified_existing_account(): void
     {
         $existing = User::factory()->create(['email' => 'used@example.com']);
         $this->fakeVerifier($this->claims('web-sub-collision', 'used@example.com', 'Collision'));
 
         $response = $this->post(route('auth.google.login'), ['credential' => 'signed-id-token']);
 
+        $response->assertSessionHasNoErrors()
+            ->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticatedAs($existing);
+        $this->assertDatabaseHas('auth_identities', [
+            'user_id' => $existing->id,
+            'provider' => AuthIdentity::PROVIDER_GOOGLE,
+            'provider_subject' => 'web-sub-collision',
+        ]);
+    }
+
+    public function test_google_login_does_not_link_an_unverified_existing_account(): void
+    {
+        $existing = User::factory()->unverified()->create(['email' => 'unverified@example.com']);
+        $this->fakeVerifier($this->claims('web-sub-unverified', 'unverified@example.com', 'Unverified'));
+
+        $response = $this->post(route('auth.google.login'), ['credential' => 'signed-id-token']);
+
         $response->assertSessionHasErrors('google');
         $this->assertGuest();
         $this->assertDatabaseMissing('auth_identities', [
-            'provider_subject' => 'web-sub-collision',
+            'provider_subject' => 'web-sub-unverified',
         ]);
         $this->assertSame(0, $existing->businesses()->count());
     }

@@ -104,15 +104,15 @@ Laravel session.
 - A confirmed-2FA user is never logged in directly: the controller stores
   `login.id`/`login.remember` and redirects to Fortify's `two-factor-challenge`,
   so the existing TOTP/recovery-code screen completes the login.
-- Email collisions return a form error and require the existing password-login
-  plus account-linking flow; a Google identity is never attached by matching an
-  email address alone.
+- A verified local account with the same email is linked automatically on the
+  first Google login; an unverified or still-pending account keeps returning a
+  form error and must verify/reset before linking.
 - If `GOOGLE_CLIENT_ID` is empty the button is not rendered and the endpoint
   fails closed with a form error.
 
 ## Identity and collision policy
 
-`auth_identities` has a unique `(provider, provider_subject)` constraint and a foreign key to `users`. An existing Google subject always resolves to its original user. If the subject is new but the verified email already belongs to a user, the backend returns `ACCOUNT_LINK_REQUIRED` without changing the existing account or creating an identity. Account linking is AUTH-D05.
+`auth_identities` has a unique `(provider, provider_subject)` constraint and a foreign key to `users`. An existing Google subject always resolves to its original user. If the subject is new but the verified Google email already belongs to a local account whose own email is verified and provisioned, the identity is linked to that account and the login continues — both sides have proven control of the same address. An unverified or still-pending local account is never linked automatically and returns `ACCOUNT_LINK_REQUIRED`. If that account already has a different Google subject, the result is `IDENTITY_CONFLICT`. Account linking through settings remains AUTH-D05.
 
 Provisioning is performed only while creating a new identity. The identity, verified user, membership, outlet, and subscription are committed atomically. Repeated login therefore issues another Sanctum token for the same user without creating another tenant or subscription. Concurrent creation is protected by the database uniqueness constraints and transaction handling.
 

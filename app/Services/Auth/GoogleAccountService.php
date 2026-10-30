@@ -5,6 +5,7 @@ namespace App\Services\Auth;
 use App\Models\AuthIdentity;
 use App\Models\Business;
 use App\Models\Outlet;
+use App\Models\PendingRegistration;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -16,6 +17,11 @@ use Throwable;
 /**
  * Resolves a verified Google subject to a local user, creating and provisioning
  * a Google-only account exactly once when the subject is new.
+ *
+ * When the verified Google email already belongs to an account whose own email
+ * is verified, the identity is linked to that account instead of being refused:
+ * both sides have proven control of the same address. Unverified or pending
+ * local accounts are never linked automatically.
  *
  * Shared by the mobile token flow (AUTH-D04) and the web session login so both
  * entry points enforce the same identity and collision policy.
@@ -51,10 +57,7 @@ final class GoogleAccountService
                     ->first();
 
                 if ($emailUser !== null) {
-                    throw new GoogleAuthenticationException(
-                        'ACCOUNT_LINK_REQUIRED',
-                        'This email is already used by another account.',
-                    );
+                    return $this->linkExistingAccount($emailUser, $claims);
                 }
 
                 $user = User::create([
@@ -90,12 +93,9 @@ final class GoogleAccountService
                 }
             }
 
-            if (User::query()->whereRaw('LOWER(email) = ?', [$claims->email])->exists()) {
-                throw new GoogleAuthenticationException(
-                    'ACCOUNT_LINK_REQUIRED',
-                    'This email is already used by another account.',
-                    $exception,
-                );
+            $emailUser = User::query()->whereRaw('LOWER(email) = ?', [$claims->email])->first();
+            if ($emailUser !== null) {
+                return $this->linkExistingAccountSafely($emailUser, $claims);
             }
 
             throw new GoogleAuthenticationException(
@@ -110,6 +110,84 @@ final class GoogleAccountService
                 $exception,
             );
         }
+    }
+
+    private function linkExistingAccount(User $user, GoogleIdTokenClaims $claims): User
+    {
+        if (! $user->hasVerifiedEmail() || $this->hasUnprovisionedRegistration($user)) {
+            throw new GoogleAuthenticationException(
+                'ACCOUNT_LINK_REQUIRED',
+                'This email is already used by an unverified account.',
+            );
+        }
+
+        $identity = AuthIdentity::query()
+            ->where('user_id', $user->getKey())
+            ->where('provider', AuthIdentity::PROVIDER_GOOGLE)
+            ->lockForUpdate()
+            ->first();
+
+        if ($identity !== null) {
+            if (! hash_equals((string) $identity->provider_subject, $claims->subject)) {
+                throw new GoogleAuthenticationException(
+                    'IDENTITY_CONFLICT',
+                    'Another Google identity is already linked to this account.',
+                );
+            }
+
+            return $user;
+        }
+
+        AuthIdentity::create([
+            'user_id' => $user->getKey(),
+            'provider' => AuthIdentity::PROVIDER_GOOGLE,
+            'provider_subject' => $claims->subject,
+        ]);
+
+        return $user;
+    }
+
+    private function linkExistingAccountSafely(User $user, GoogleIdTokenClaims $claims): User
+    {
+        try {
+            return DB::transaction(function () use ($user, $claims): User {
+                $locked = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+
+                if (! $locked instanceof User) {
+                    throw new GoogleAuthenticationException(
+                        'IDENTITY_CONFLICT',
+                        'Account ownership is inconsistent.',
+                    );
+                }
+
+                return $this->linkExistingAccount($locked, $claims);
+            }, 3);
+        } catch (GoogleAuthenticationException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            // A concurrent request may have linked this subject in the meantime.
+            $identity = AuthIdentity::query()
+                ->where('provider', AuthIdentity::PROVIDER_GOOGLE)
+                ->where('provider_subject', $claims->subject)
+                ->first();
+
+            if ($identity !== null && (int) $identity->user_id === (int) $user->getKey()) {
+                return $user;
+            }
+
+            throw new GoogleAuthenticationException(
+                'IDENTITY_CONFLICT',
+                'Google identity could not be linked safely.',
+                $exception,
+            );
+        }
+    }
+
+    private function hasUnprovisionedRegistration(User $user): bool
+    {
+        $pending = PendingRegistration::query()->where('user_id', $user->getKey())->first();
+
+        return $pending !== null && ! $pending->isProvisioned();
     }
 
     private function safeName(GoogleIdTokenClaims $claims): string
