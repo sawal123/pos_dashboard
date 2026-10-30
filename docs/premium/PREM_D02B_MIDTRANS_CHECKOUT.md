@@ -62,6 +62,29 @@ Returns the latest 20 payment attempts for the tenant.
 Public Midtrans notification endpoint. It does not use Sanctum, but invalid
 provider verification cannot mutate payment or subscription data.
 
+## Dashboard Checkout (web)
+
+Owners can now buy or renew Cloud from the dashboard `/subscription` page:
+
+- The page renders the database-owned monthly/yearly prices through
+  `MobileSubscriptionPlanCatalog` and shows `Rp …` amounts. When the plan or
+  prices are missing it renders "Harga langganan belum tersedia" and lists the
+  `SubscriptionCheckoutService::readiness()` reasons instead of inventing a price.
+- `POST /subscription/checkout` (route `subscriptions.checkout`) is a web-session
+  route protected by `auth`, `verified`, `BusinessPermission::SUBSCRIPTION_MANAGE`,
+  CSRF, and the `subscription-checkout` rate limiter. Only `billing_period` is
+  accepted; the plan is forced to the canonical `cloud`, and the business comes
+  from the active dashboard context, never from the request.
+- The controller calls the same `SubscriptionCheckoutService` as mobile and
+  redirects the browser to the returned Midtrans `redirect_url`.
+- `GET /dashboard/midtrans/finish` and `/failed` return JSON for API clients but
+  render the server-status result page for browsers. The browser callback never
+  activates Premium; only the verified webhook does.
+- Configure the Midtrans Snap **Finish Redirect URL** to
+  `https://<host>/dashboard/midtrans/finish` so web payments return to the result
+  page. Live checkout stays disabled until a Platform Admin sets active
+  monthly/yearly prices (ADMIN-06) and the Midtrans keys are configured.
+
 ## Persistence
 
 `subscription_payments` stores:
@@ -165,7 +188,9 @@ recurring charge, stored card mandate, scheduler charging, or auto-renewal.
 
 ## Tenant And RBAC Security
 
-Checkout/status/history require Sanctum and token ability `mobile`.
+The mobile API checkout/status/history require Sanctum and token ability
+`mobile`. The dashboard checkout requires a web session, a verified owner, and
+`BusinessPermission::SUBSCRIPTION_MANAGE` for the active business.
 
 Tenant checks:
 

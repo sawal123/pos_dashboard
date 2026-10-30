@@ -36,8 +36,8 @@
     <div class="rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/20 p-4 flex items-start gap-3">
         <i data-lucide="info" class="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400"></i>
         <p class="text-xs text-amber-800 dark:text-amber-200 leading-relaxed">
-            Pembelian dan perpanjangan otomatis belum tersedia. Halaman ini hanya menampilkan status langganan —
-            tidak ada checkout, invoice, atau tombol pembayaran. Hubungi administrator untuk perubahan paket.
+            Pembayaran paket Cloud diproses melalui Midtrans. Perpanjangan bersifat manual — tidak ada auto-renewal.
+            Langganan aktif setelah pembayaran dikonfirmasi server, bukan hanya dari redirect browser.
         </p>
     </div>
 </section>
