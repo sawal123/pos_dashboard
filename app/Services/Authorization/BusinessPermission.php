@@ -28,6 +28,10 @@ final class BusinessPermission
 
     public const STOCK_VIEW = 'stock.view';
 
+    // INV-D01 — dashboard stock mutations (adjustment, receiving, opname).
+    // Reading stays on stock.view; every mutation requires stock.manage.
+    public const STOCK_MANAGE = 'stock.manage';
+
     public const CASH_VIEW = 'cash.view';
 
     // Financial mutations (owner only for DASH-16).
@@ -95,6 +99,7 @@ final class BusinessPermission
                 self::TRANSACTIONS_VIEW,
                 self::PRODUCTS_VIEW,
                 self::STOCK_VIEW,
+                self::STOCK_MANAGE,
                 self::CASH_VIEW,
                 self::SHIFTS_VIEW,
                 self::CUSTOMERS_VIEW,

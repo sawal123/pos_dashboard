@@ -82,6 +82,11 @@ class AppServiceProvider extends ServiceProvider
             'platform-admin-mutations',
             static fn (Request $request) => Limit::perMinute(30)->by($byActor($request)),
         );
+
+        RateLimiter::for(
+            'stock-write',
+            static fn (Request $request) => Limit::perMinute(30)->by($byActor($request)),
+        );
     }
 
     /**

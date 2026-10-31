@@ -63,7 +63,9 @@
                     <div class="summary-value">
                         {{ $summary['type'] === 'integer'
                             ? number_format((int) $summary['value'], 0, ',', '.')
-                            : $rupiah($summary['value']) }}
+                            : ($summary['type'] === 'percent'
+                                ? number_format((float) $summary['value'], 2, ',', '.').'%'
+                                : $rupiah($summary['value'])) }}
                     </div>
                 </td>
             @endforeach

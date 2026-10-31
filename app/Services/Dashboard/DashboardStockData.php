@@ -2,6 +2,7 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\StockMovementType;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
@@ -191,11 +192,7 @@ class DashboardStockData
      */
     public function presentMovementType(string $raw): string
     {
-        return match (strtolower($raw)) {
-            'sale' => 'Penjualan',
-            'adjustment' => 'Penyesuaian',
-            default => ucwords(str_replace('_', ' ', $raw)),
-        };
+        return StockMovementType::labelFor($raw);
     }
 
     /**

@@ -24,6 +24,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $category
  * @property string|null $note
  * @property string|null $sale_sync_id
+ * @property int|null $user_id
+ * @property string|null $unit_cost
+ * @property string|null $idempotency_key
  * @property Carbon $occurred_at
  * @property string $sync_id
  * @property int $sync_version
@@ -32,8 +35,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Product|null $product
+ * @property-read User|null $user
  */
-#[Fillable(['business_id', 'product_id', 'movement_type', 'quantity_change', 'stock_before', 'stock_after', 'reference_id', 'category', 'note', 'sale_sync_id', 'occurred_at'])]
+#[Fillable(['business_id', 'product_id', 'user_id', 'movement_type', 'quantity_change', 'stock_before', 'stock_after', 'reference_id', 'category', 'note', 'sale_sync_id', 'unit_cost', 'idempotency_key', 'occurred_at'])]
 class StockMovement extends Model
 {
     use HasSyncMetadata;
@@ -49,6 +53,7 @@ class StockMovement extends Model
             'quantity_change' => 'decimal:3',
             'stock_before' => 'decimal:3',
             'stock_after' => 'decimal:3',
+            'unit_cost' => 'decimal:2',
             'occurred_at' => 'datetime',
         ];
     }
@@ -71,5 +76,15 @@ class StockMovement extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    /**
+     * The dashboard user who recorded the movement (null for device sync).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

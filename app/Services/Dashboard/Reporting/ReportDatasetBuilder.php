@@ -55,11 +55,19 @@ final class ReportDatasetBuilder
         $estimatedGrossProfit = number_format((float) (clone $salesQuery)->sum('gross_profit'), 2, '.', '');
         $totalExpenses = (int) (clone $expenseQuery)->sum('amount');
 
+        // Discounts are a snapshot written by the POS. `total_amount` is already
+        // net of discount, so the pre-discount value is total + discount.
+        $totalDiscount = (int) (clone $salesQuery)->sum('discount_amount');
+        $grossSales = $totalSales + $totalDiscount;
+        $discountRate = $grossSales > 0 ? round($totalDiscount / $grossSales * 100, 2) : 0.0;
+
         $summary = [
             'total_sales' => $totalSales,
             'total_transactions' => $totalTransactions,
             'estimated_gross_profit' => $estimatedGrossProfit,
             'total_expenses' => $totalExpenses,
+            'total_discount' => $totalDiscount,
+            'discount_rate' => number_format($discountRate, 2, '.', ''),
         ];
 
         $salesTrend = $this->salesTrend(clone $salesQuery, $rowLimit, $truncated);

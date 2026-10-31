@@ -152,6 +152,11 @@
                         label="Stok"
                         route="stock.index"
                     />
+                    <x-ui.sidebar-item
+                        icon="history"
+                        label="Riwayat Stok"
+                        route="stock.history"
+                    />
                 @endif
                 @if($can($P::CASH_VIEW))
                     <x-ui.sidebar-item

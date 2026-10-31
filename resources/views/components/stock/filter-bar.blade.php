@@ -76,16 +76,15 @@
                 <span class="hidden sm:inline">Reset</span>
             </a>
 
-            {{-- Stock Adjustment Action (Neutral non-fake placeholder) --}}
-            <button
-                type="button"
+            {{-- Stock movement action: history + manual adjustment entry point --}}
+            <a
+                href="{{ route('stock.history') }}"
                 id="adjustStockBtn"
-                onclick="showToast('info', 'Penyesuaian stok dari dashboard belum tersedia.')"
                 class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
                 <i data-lucide="sliders" class="w-4 h-4"></i>
-                <span>Penyesuaian Stok</span>
-            </button>
+                <span>Riwayat & Penyesuaian</span>
+            </a>
         </div>
     </form>
 </div>

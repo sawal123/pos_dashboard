@@ -37,6 +37,7 @@ use Illuminate\Support\Carbon;
  * @property-read Business|null $business
  * @property-read Category|null $category
  * @property-read Collection<int, SaleItem> $saleItems
+ * @property-read Collection<int, StockMovement> $stockMovements
  */
 #[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
@@ -104,5 +105,15 @@ class Product extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * Every stock movement recorded for this product.
+     *
+     * @return HasMany<StockMovement, $this>
+     */
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
     }
 }
