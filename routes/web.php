@@ -18,6 +18,7 @@ use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
 use App\Http\Controllers\Dashboard\StockLedgerController;
+use App\Http\Controllers\Dashboard\StockOpnameController;
 use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
@@ -158,6 +159,31 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::post('stock/receipts', [StockLedgerController::class, 'storeReceipt'])
         ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
         ->name('stock.receipts.store');
+
+    // INV-D02 — stock opname sessions. Reading stays on stock.view; opening,
+    // counting, posting and cancelling require stock.manage.
+    Route::get('stock/opname', [StockOpnameController::class, 'index'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('stock.opname.index');
+    Route::post('stock/opname', [StockOpnameController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.opname.store');
+    Route::get('stock/opname/{opnameId}', [StockOpnameController::class, 'show'])
+        ->whereNumber('opnameId')
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('stock.opname.show');
+    Route::patch('stock/opname/{opnameId}/counts', [StockOpnameController::class, 'updateCounts'])
+        ->whereNumber('opnameId')
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.opname.counts.update');
+    Route::post('stock/opname/{opnameId}/post', [StockOpnameController::class, 'post'])
+        ->whereNumber('opnameId')
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.opname.post');
+    Route::post('stock/opname/{opnameId}/cancel', [StockOpnameController::class, 'cancel'])
+        ->whereNumber('opnameId')
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.opname.cancel');
 
     Route::get('cash', [CashController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::CASH_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

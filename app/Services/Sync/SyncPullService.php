@@ -82,6 +82,7 @@ class SyncPullService
                     'barcode' => $prod->barcode,
                     'price' => (int) $prod->price,
                     'kind' => $prod->kind,
+                    'is_sellable' => (bool) $prod->is_sellable,
                     'cost' => (float) $prod->cost,
                     'stock' => (float) $prod->stock,
                     'unit' => $prod->unit,

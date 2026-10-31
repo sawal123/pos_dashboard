@@ -1,6 +1,6 @@
 # INV-D02 — Gudang & Persediaan (Bahan Baku, Opname, Metrik)
 
-Status: ready for execution (belum ada kode).
+Status: implemented on branch `feat/inv-d02-warehouse-operations` (stacked on INV-D01, belum di-merge).
 Branch: `feat/inv-d02-warehouse-operations`
 Depends on: **INV-D01** (`StockLedgerService`, `StockMovementType`, permission `stock.manage`).
 Kerangka: [INV-D00 Roadmap](./INV_D00_ROADMAP_STOCK_WAREHOUSE_PROMO.md)
@@ -269,3 +269,34 @@ npm run build
 ## 13. Definition of Done
 
 Semua test §10 hijau, gate `composer ci:check` dan `npm run build` lulus, dokumen ini `Status: implemented` dengan bukti test, PR ke `main` dari `feat/inv-d02-warehouse-operations`.
+
+---
+
+## 14. Bukti implementasi
+
+- `products.is_sellable` (default `true`) + tab **Persediaan** pada katalog; checkbox "Dijual di POS" di modal produk.
+- `SyncPullService` mengirim `is_sellable`; `SyncAuthorizationPolicy` menolak `sale_items` baru untuk produk non-jual (`product_not_sellable`) tanpa merusak retry sale lama.
+- `stock_opnames` / `stock_opname_items` + `StockOpnameService` (open, saveCounts, post, cancel) dan halaman `/stock/opname`.
+- Posting hanya membuat movement `opname` untuk variance ≠ 0 dan dibungkus satu transaksi.
+- `InventoryProfile` menyediakan default unit/opname per tipe bisnis tanpa menyentuh otorisasi.
+- Metrik stok: `stock_value`, `dead_stock_count`, `shrinkage_rate`, `days_of_cover` tampil di halaman stok.
+
+Hasil verifikasi:
+
+```
+php vendor/bin/phpunit tests/Feature/ProductSellableTest.php \
+  tests/Feature/StockOpnameTest.php tests/Feature/StockMetricsTest.php
+# OK (18 tests, 53 assertions)
+
+php vendor/bin/phpunit tests/Feature/ProductsCrudTest.php tests/Feature/StockPageTest.php \
+  tests/Feature/StockHistoryPageTest.php tests/Feature/StockAdjustmentTest.php \
+  tests/Feature/StockReceiptTest.php tests/Feature/SyncPushTest.php \
+  tests/Feature/CashierSafeSyncTest.php tests/Feature/SaleFoundationTest.php \
+  tests/Feature/ReportExportTest.php
+# OK (227 tests, 844 assertions)
+
+vendor/bin/pint --test   # PASS
+vendor/bin/phpstan analyse   # no errors
+npm run build            # exit 0
+```
+

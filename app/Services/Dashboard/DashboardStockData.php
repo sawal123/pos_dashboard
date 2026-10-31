@@ -50,6 +50,10 @@ class DashboardStockData
             'safe_stock' => $safeStock,
             'low_stock' => $lowStock,
             'critical_stock' => $criticalStock,
+            'stock_value' => $this->stockValue($business->id),
+            'dead_stock_count' => $this->deadStockCount($business->id),
+            'shrinkage_rate' => $this->shrinkageRate($business->id),
+            'days_of_cover' => $this->daysOfCover($business->id),
         ];
 
         $hasAnyStock = (clone $baseCatalog)->exists();
@@ -159,6 +163,97 @@ class DashboardStockData
     }
 
     /**
+     * Inventory value at the current HPP snapshot.
+     */
+    private function stockValue(int $businessId): float
+    {
+        /** @var Product|null $product */
+        $product = Product::query()
+            ->where('business_id', $businessId)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->selectRaw('COALESCE(SUM(stock * cost), 0) as value')
+            ->first();
+
+        $row = $product instanceof Product ? $product->toArray() : [];
+
+        return round((float) ($row['value'] ?? 0), 2);
+    }
+
+    /**
+     * Products with stock on hand but no sale movement in the last 60 days.
+     */
+    private function deadStockCount(int $businessId): int
+    {
+        return Product::query()
+            ->where('business_id', $businessId)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->where('stock', '>', 0)
+            ->whereDoesntHave('stockMovements', function (Builder $query): void {
+                $query->where('movement_type', StockMovementType::Sale->value)
+                    ->where('occurred_at', '>=', now()->subDays(60));
+            })
+            ->count();
+    }
+
+    /**
+     * Absolute opname variance divided by the counted system stock, in percent,
+     * over posted sessions of the last 90 days.
+     */
+    private function shrinkageRate(int $businessId): ?float
+    {
+        $row = (array) DB::table('stock_opname_items')
+            ->join('stock_opnames', 'stock_opnames.id', '=', 'stock_opname_items.stock_opname_id')
+            ->where('stock_opnames.business_id', $businessId)
+            ->where('stock_opnames.status', 'posted')
+            ->where('stock_opnames.posted_at', '>=', now()->subDays(90))
+            ->selectRaw('COALESCE(SUM(ABS(stock_opname_items.variance)), 0) as variance, COALESCE(SUM(stock_opname_items.system_stock), 0) as system')
+            ->first();
+
+        $system = (float) ($row['system'] ?? 0);
+
+        if ($system <= 0.0) {
+            return null;
+        }
+
+        return round(((float) ($row['variance'] ?? 0)) / $system * 100, 2);
+    }
+
+    /**
+     * Current stock divided by the average daily outflow (sales + usage) of the
+     * last 30 days. Null when there is no outflow to extrapolate from.
+     */
+    private function daysOfCover(int $businessId): ?float
+    {
+        /** @var Product|null $product */
+        $product = Product::query()
+            ->where('business_id', $businessId)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->selectRaw('COALESCE(SUM(stock), 0) as total_stock')
+            ->first();
+
+        $row = $product instanceof Product ? $product->toArray() : [];
+        $totalStock = (float) ($row['total_stock'] ?? 0);
+
+        $outflow = (float) StockMovement::query()
+            ->where('business_id', $businessId)
+            ->whereIn('movement_type', [StockMovementType::Sale->value, StockMovementType::Usage->value])
+            ->where('quantity_change', '<', 0)
+            ->where('occurred_at', '>=', now()->subDays(30))
+            ->sum('quantity_change');
+
+        $dailyOutflow = abs($outflow) / 30;
+
+        if ($dailyOutflow <= 0.0) {
+            return null;
+        }
+
+        return round($totalStock / $dailyOutflow, 1);
+    }
+
+    /**
      * Map a Product model to stock row presentation shape.
      *
      * @return array<string, mixed>
@@ -252,6 +347,10 @@ class DashboardStockData
                 'safe_stock' => 0,
                 'low_stock' => 0,
                 'critical_stock' => 0,
+                'stock_value' => 0.0,
+                'dead_stock_count' => 0,
+                'shrinkage_rate' => null,
+                'days_of_cover' => null,
             ],
             'items' => $empty,
             'hasAnyStock' => false,
