@@ -268,6 +268,15 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->middleware('business.permission:'.BusinessPermission::SUBSCRIPTION_MANAGE)
         ->name('subscriptions.index');
 
+    // Owner-only Midtrans checkout for the active business. Prices are resolved
+    // server-side; the request never carries an amount or business id.
+    Route::post('subscription/checkout', [SubscriptionsController::class, 'checkout'])
+        ->middleware([
+            'business.permission:'.BusinessPermission::SUBSCRIPTION_MANAGE,
+            'throttle:subscription-checkout',
+        ])
+        ->name('subscriptions.checkout');
+
     // DASH-14 — owner-only business profile / business type setup.
     Route::get('business-settings', [BusinessSettingsController::class, 'edit'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)

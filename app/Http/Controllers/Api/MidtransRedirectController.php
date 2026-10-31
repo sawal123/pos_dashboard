@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\SubscriptionPayment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 final class MidtransRedirectController extends Controller
 {
@@ -16,7 +17,7 @@ final class MidtransRedirectController extends Controller
      * trusted as proof of payment; the Midtrans webhook is responsible for
      * verifying the transaction and activating the subscription.
      */
-    public function finish(Request $request): JsonResponse
+    public function finish(Request $request): JsonResponse|View
     {
         return $this->paymentStatus($request, expectedStatus: SubscriptionPayment::STATUS_PAID);
     }
@@ -24,14 +25,29 @@ final class MidtransRedirectController extends Controller
     /**
      * Return the server-side status after a failed/unfinished Snap payment.
      */
-    public function failed(Request $request): JsonResponse
+    public function failed(Request $request): JsonResponse|View
     {
         return $this->paymentStatus($request);
     }
 
-    private function paymentStatus(Request $request, ?string $expectedStatus = null): JsonResponse
+    private function paymentStatus(Request $request, ?string $expectedStatus = null): JsonResponse|View
     {
         $orderId = trim((string) $request->query('order_id', ''));
+
+        if (! $request->expectsJson()) {
+            $payment = $orderId === '' ? null : SubscriptionPayment::query()
+                ->where('provider', SubscriptionPayment::PROVIDER_MIDTRANS)
+                ->where('provider_order_id', $orderId)
+                ->first();
+
+            return view('subscriptions.payment-result', [
+                'orderId' => $orderId,
+                'payment' => $payment,
+                'confirmed' => $payment !== null
+                    && ($expectedStatus === null || $payment->status === $expectedStatus),
+                'expectedStatus' => $expectedStatus,
+            ]);
+        }
 
         if ($orderId === '') {
             return response()->json([

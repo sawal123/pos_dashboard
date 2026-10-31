@@ -6,6 +6,8 @@ use App\Models\Business;
 use App\Models\Device;
 use App\Models\Outlet;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPlanPrice;
 use App\Models\User;
 use App\Services\Dashboard\DashboardBusinessContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -348,7 +350,22 @@ class SubscriptionsPageTest extends TestCase
         $response->assertSee('Tingkatkan Paket');
     }
 
-    public function test_page_has_no_fake_purchase_action(): void
+    public function test_page_shows_cloud_prices_and_checkout_when_configured(): void
+    {
+        [$user, $business] = $this->makeOwnerWithBusiness();
+        Subscription::factory()->free()->create(['business_id' => $business->id]);
+        $this->configurePricing();
+
+        $response = $this->actingAs($user)->get(route('subscriptions.index'));
+
+        $response->assertOk();
+        $response->assertSee('Rp 49.000');
+        $response->assertSee('Rp 490.000');
+        $response->assertSee('Langganan Sekarang');
+        $response->assertSee(route('subscriptions.checkout'), false);
+    }
+
+    public function test_page_explains_when_pricing_is_not_configured(): void
     {
         [$user, $business] = $this->makeOwnerWithBusiness();
         Subscription::factory()->free()->create(['business_id' => $business->id]);
@@ -356,10 +373,8 @@ class SubscriptionsPageTest extends TestCase
         $response = $this->actingAs($user)->get(route('subscriptions.index'));
 
         $response->assertOk();
-        $response->assertSee('belum tersedia');
-        foreach (['Checkout', 'Invoice', 'Beli Sekarang', 'Bayar Sekarang', 'Berlangganan Sekarang'] as $fakeAction) {
-            $response->assertDontSee($fakeAction);
-        }
+        $response->assertSee('Harga langganan belum tersedia');
+        $response->assertDontSee(route('subscriptions.checkout'), false);
     }
 
     // ============================================================
@@ -505,6 +520,28 @@ class SubscriptionsPageTest extends TestCase
         }
 
         return [$user, $business];
+    }
+
+    private function configurePricing(): void
+    {
+        $plan = SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_CLOUD,
+            'name' => 'Cloud',
+        ]);
+
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $plan->id,
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'price_minor' => 49000,
+        ]);
+
+        SubscriptionPlanPrice::factory()->create([
+            'subscription_plan_id' => $plan->id,
+            'billing_period' => 'yearly',
+            'currency' => 'IDR',
+            'price_minor' => 490000,
+        ]);
     }
 
     /**
