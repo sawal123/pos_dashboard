@@ -87,6 +87,22 @@ final class CsvReportFormatter extends ReportFormatter
                 ]);
             }
 
+            $this->write($handle, []);
+            $this->write($handle, ['Performa Promo']);
+            $this->write($handle, ['Promo', 'Jumlah Pemakaian', 'Total Diskon', 'Omzet Setelah Diskon', 'Rata-rata Basket']);
+            if ($document->dataset->promoSummary === []) {
+                $this->write($handle, ['Tidak ada data', 0, 0, 0, 0]);
+            }
+            foreach ($document->dataset->promoSummary as $promo) {
+                $this->write($handle, [
+                    $this->text((string) $promo['promo_name']),
+                    (int) $promo['redeemed_count'],
+                    (int) $promo['total_discount'],
+                    (int) $promo['revenue_after_discount'],
+                    (int) $promo['avg_basket'],
+                ]);
+            }
+
             $note = $document->note();
             if ($note !== null) {
                 $this->write($handle, []);

@@ -92,6 +92,7 @@ class SyncPushRequest extends FormRequest
             'changes.sales.*.status' => ['sometimes', 'string'],
             'changes.sales.*.subtotal' => ['required', 'integer', 'min:0'],
             'changes.sales.*.discount_amount' => ['sometimes', 'integer', 'min:0'],
+            'changes.sales.*.promo_sync_id' => ['nullable', 'uuid'],
             'changes.sales.*.tax_amount' => ['sometimes', 'integer', 'min:0'],
             'changes.sales.*.total_amount' => ['required', 'integer', 'min:0'],
             'changes.sales.*.payment_method' => ['nullable', 'string', 'max:50'],

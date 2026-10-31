@@ -44,6 +44,7 @@ class DashboardReportsData
                 'salesTrend' => [],
                 'paymentBreakdown' => [],
                 'expenseBreakdown' => [],
+                'promoSummary' => [],
                 'filterOptions' => [
                     'outlets' => [],
                 ],
@@ -68,6 +69,7 @@ class DashboardReportsData
             'salesTrend' => $dataset->salesTrend,
             'paymentBreakdown' => $dataset->paymentBreakdown,
             'expenseBreakdown' => $dataset->expenseBreakdown,
+            'promoSummary' => $dataset->promoSummary,
             'filterOptions' => [
                 'outlets' => $outlets,
             ],

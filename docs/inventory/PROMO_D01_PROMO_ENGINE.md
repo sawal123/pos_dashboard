@@ -1,6 +1,6 @@
 # PROMO-D01 — Promo Engine (Server-Defined)
 
-Status: ready for execution (belum ada kode).
+Status: implemented on branch `feat/promo-d01-promo-engine` (stacked on INV-D01/INV-D02, belum di-merge).
 Branch: `feat/promo-d01-promo-engine`
 Depends on: **INV-D01** (untuk analitik diskon di laporan). Tidak bergantung pada INV-D02.
 Kerangka: [INV-D00 Roadmap](./INV_D00_ROADMAP_STOCK_WAREHOUSE_PROMO.md)
@@ -321,3 +321,33 @@ npm run build
 ## 12. Definition of Done
 
 Semua test §9 hijau, gate `composer ci:check` dan `npm run build` lulus, dokumen ini `Status: implemented` dengan bukti test, PR ke `main` dari `feat/promo-d01-promo-engine`.
+
+---
+
+## 13. Bukti implementasi
+
+- Tabel `promos`, `promo_targets`, `sale_promotions`, dan kolom additive `sales.promo_sync_id`.
+- `PromoEvaluator` menjadi satu-satunya implementasi pembulatan (percent basis point + `intdiv`, cap `max_discount`, clamp subtotal).
+- Dashboard `/promos` dengan CRUD, aktivasi/nonaktivasi, filter, dan validasi bentrok promo aktif.
+- `SyncPullService` mengirim promo non-draft beserta target; `SyncPushService` menyimpan jejak `sale_promotions` secara idempoten.
+- `SyncAuthorizationPolicy` menegakkan `sale_total_mismatch`, `promo_discount_mismatch`, `promo_usage_limit_exceeded`, dan `promo_not_found` di semua push mode tanpa mengubah prioritas violation cashier lama.
+- Laporan menampilkan Total Diskon, Rasio Diskon, Transaksi Promo, Diskon Manual, dan tabel Performa Promo di layar, CSV, XLSX, dan PDF.
+
+Hasil verifikasi:
+
+```
+php vendor/bin/phpunit tests/Feature/PromoEvaluatorTest.php \
+  tests/Feature/PromoManagementTest.php tests/Feature/PromoSyncTest.php \
+  tests/Feature/PromoReportTest.php
+# OK (24 tests, 51 assertions)
+
+php vendor/bin/phpunit tests/Feature/SyncPushTest.php tests/Feature/CashierSafeSyncTest.php \
+  tests/Feature/SaleFoundationTest.php tests/Feature/ReportExportTest.php \
+  tests/Feature/ProductSellableTest.php tests/Feature/StockOpnameTest.php
+# OK (135 tests, 556 assertions)
+
+vendor/bin/pint --test   # PASS
+vendor/bin/phpstan analyse   # no errors
+npm run build            # exit 0
+```
+

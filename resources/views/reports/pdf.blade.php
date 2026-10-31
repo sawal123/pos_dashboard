@@ -145,6 +145,32 @@
                 @endforelse
             </tbody>
         </table>
+
+        <div class="section-title">Performa Promo</div>
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Promo</th>
+                    <th class="num">Pemakaian</th>
+                    <th class="num">Total Diskon</th>
+                    <th class="num">Omzet Setelah Diskon</th>
+                    <th class="num">Rata-rata Basket</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($document->dataset->promoSummary as $promo)
+                    <tr>
+                        <td>{{ $promo['promo_name'] }}</td>
+                        <td class="num">{{ number_format((int) $promo['redeemed_count'], 0, ',', '.') }}</td>
+                        <td class="num">{{ $rupiah($promo['total_discount']) }}</td>
+                        <td class="num">{{ $rupiah($promo['revenue_after_discount']) }}</td>
+                        <td class="num">{{ $rupiah($promo['avg_basket']) }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="muted">Tidak ada promo yang terpakai.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
     @endif
 
     @if($document->note() !== null)

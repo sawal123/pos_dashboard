@@ -13,6 +13,7 @@ final class ReportDataset
      * @param  list<array<string, mixed>>  $salesTrend
      * @param  list<array<string, mixed>>  $paymentBreakdown
      * @param  list<array<string, mixed>>  $expenseBreakdown
+     * @param  list<array<string, mixed>>  $promoSummary
      */
     public function __construct(
         public readonly array $summary,
@@ -23,6 +24,7 @@ final class ReportDataset
         public readonly bool $hasFilteredReportData,
         public readonly bool $truncated = false,
         public readonly int $rowLimit = 0,
+        public readonly array $promoSummary = [],
     ) {}
 
     /**
@@ -37,6 +39,7 @@ final class ReportDataset
             'salesTrend' => $this->salesTrend,
             'paymentBreakdown' => $this->paymentBreakdown,
             'expenseBreakdown' => $this->expenseBreakdown,
+            'promoSummary' => $this->promoSummary,
             'hasAnyReportData' => $this->hasAnyReportData,
             'hasFilteredReportData' => $this->hasFilteredReportData,
         ];

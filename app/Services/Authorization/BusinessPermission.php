@@ -32,6 +32,12 @@ final class BusinessPermission
     // Reading stays on stock.view; every mutation requires stock.manage.
     public const STOCK_MANAGE = 'stock.manage';
 
+    // PROMO-D01 — server-defined promotions. Reading for owner + member;
+    // mutations are owner-only because they change effective prices.
+    public const PROMO_VIEW = 'promos.view';
+
+    public const PROMO_MANAGE = 'promos.manage';
+
     public const CASH_VIEW = 'cash.view';
 
     // Financial mutations (owner only for DASH-16).
@@ -111,6 +117,7 @@ final class BusinessPermission
                 self::MOBILE_DEVICES_MANAGE,
                 self::CLOUD_BACKUP,
                 self::CLOUD_RESTORE,
+                self::PROMO_VIEW,
             ],
             Business::ROLE_CASHIER => [
                 self::DASHBOARD_VIEW,
