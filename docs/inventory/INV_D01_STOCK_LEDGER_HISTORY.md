@@ -1,6 +1,6 @@
 # INV-D01 — Stock Ledger & Riwayat Stok
 
-Status: implemented on branch `feat/inv-d01-stock-ledger-history` (belum di-merge).
+Status: ✅ DONE — implemented on branch `feat/inv-d01-stock-ledger-history` (belum di-merge).
 Branch: `feat/inv-d01-stock-ledger-history`
 Depends on: tidak ada (fase pertama).
 Kerangka: [INV-D00 Roadmap](./INV_D00_ROADMAP_STOCK_WAREHOUSE_PROMO.md)

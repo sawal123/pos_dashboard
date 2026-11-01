@@ -1,6 +1,6 @@
 # PROMO-D01 — Promo Engine (Server-Defined)
 
-Status: implemented on branch `feat/promo-d01-promo-engine` (stacked on INV-D01/INV-D02, belum di-merge).
+Status: ✅ DONE — implemented on branch `feat/promo-d01-promo-engine` (stacked on INV-D01/INV-D02, belum di-merge).
 Branch: `feat/promo-d01-promo-engine`
 Depends on: **INV-D01** (untuk analitik diskon di laporan). Tidak bergantung pada INV-D02.
 Kerangka: [INV-D00 Roadmap](./INV_D00_ROADMAP_STOCK_WAREHOUSE_PROMO.md)

@@ -1,6 +1,6 @@
 # INV-D02 — Gudang & Persediaan (Bahan Baku, Opname, Metrik)
 
-Status: implemented on branch `feat/inv-d02-warehouse-operations` (stacked on INV-D01, belum di-merge).
+Status: ✅ DONE — implemented on branch `feat/inv-d02-warehouse-operations` (stacked on INV-D01, belum di-merge).
 Branch: `feat/inv-d02-warehouse-operations`
 Depends on: **INV-D01** (`StockLedgerService`, `StockMovementType`, permission `stock.manage`).
 Kerangka: [INV-D00 Roadmap](./INV_D00_ROADMAP_STOCK_WAREHOUSE_PROMO.md)
