@@ -30,7 +30,7 @@
                 action="{{ route('promos.store') }}"
                 data-store-url="{{ route('promos.store') }}"
                 data-update-url-template="{{ route('promos.update', ['promoId' => '__ID__']) }}"
-                class="p-5 space-y-4"
+                class="p-5 space-y-4 relative"
                 novalidate
             >
                 @csrf
@@ -85,19 +85,24 @@
                     </div>
                 </div>
 
-                <div>
-                    <label for="promoTargets" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1.5">Target</label>
-                    <select id="promoTargets" name="target_ids[]" multiple size="4" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                        @foreach($products as $product)
-                            <option value="{{ $product['id'] }}" data-target-type="product">{{ $product['name'] }} ({{ $product['sku'] ?? '-' }})</option>
-                        @endforeach
-                        @foreach($categories as $category)
-                            <option value="{{ $category['id'] }}" data-target-type="category">{{ $category['name'] }}</option>
-                        @endforeach
+                <div id="promoTargetGroup" class="{{ old('scope', 'all') === 'all' ? 'hidden' : '' }} transition-all duration-150">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label id="promoTargetLabel" for="promoTargets" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">Target</label>
+                        <span id="promoTargetCount" class="text-[11px] font-medium text-slate-400"></span>
+                    </div>
+                    <select id="promoTargets" name="target_ids[]" multiple class="w-full">
+                        {{-- Populated strictly based on selected scope --}}
                     </select>
-                    <p class="mt-1 text-[11px] text-slate-400">Dipakai hanya saat cakupan bukan "Semua Item".</p>
+                    <p id="promoTargetHint" class="mt-1 text-[11px] text-slate-400">Dipakai hanya saat cakupan bukan "Semua Item".</p>
                     @error('targets')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
+
+                <script id="promoModalData" type="application/json">
+                    {
+                        "products": @json($products),
+                        "categories": @json($categories)
+                    }
+                </script>
 
                 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>

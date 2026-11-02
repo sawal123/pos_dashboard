@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Category;
+use App\Models\Product;
 use App\Models\Promo;
+use App\Models\PromoTarget;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -128,6 +131,85 @@ class PromoManagementTest extends TestCase
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->post(route('promos.store'), $this->payload(['status' => 'active']))
             ->assertSessionHasErrors('name');
+    }
+
+    public function test_09_can_create_promo_with_product_scope_and_target_ids(): void
+    {
+        [$business, $owner] = $this->actingAsRole('owner');
+        $product1 = Product::factory()->create(['business_id' => $business->id]);
+        $product2 = Product::factory()->create(['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('promos.store'), $this->payload([
+                'name' => 'Promo Produk Khusus',
+                'scope' => 'product',
+                'target_ids' => [$product1->id, $product2->id],
+            ]))
+            ->assertRedirect(route('promos.index'));
+
+        $promo = Promo::query()->where('business_id', $business->id)->where('name', 'Promo Produk Khusus')->firstOrFail();
+        $this->assertSame('product', $promo->scope);
+        $this->assertCount(2, $promo->targets);
+        $this->assertTrue($promo->targets->contains(fn ($t) => $t->target_type === 'product' && $t->target_id === $product1->id));
+        $this->assertTrue($promo->targets->contains(fn ($t) => $t->target_type === 'product' && $t->target_id === $product2->id));
+    }
+
+    public function test_10_can_create_promo_with_category_scope_and_target_ids(): void
+    {
+        [$business, $owner] = $this->actingAsRole('owner');
+        $category = Category::factory()->create(['business_id' => $business->id]);
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('promos.store'), $this->payload([
+                'name' => 'Promo Kategori Minuman',
+                'scope' => 'category',
+                'target_ids' => [$category->id],
+            ]))
+            ->assertRedirect(route('promos.index'));
+
+        $promo = Promo::query()->where('business_id', $business->id)->where('name', 'Promo Kategori Minuman')->firstOrFail();
+        $this->assertSame('category', $promo->scope);
+        $this->assertCount(1, $promo->targets);
+        $this->assertSame('category', $promo->targets->first()->target_type);
+        $this->assertSame($category->id, $promo->targets->first()->target_id);
+    }
+
+    public function test_11_switching_scope_to_all_removes_targets(): void
+    {
+        [$business, $owner] = $this->actingAsRole('owner');
+        $product = Product::factory()->create(['business_id' => $business->id]);
+
+        $promo = Promo::create([
+            'business_id' => $business->id,
+            'name' => 'Promo Target Awal',
+            'discount_type' => 'fixed',
+            'discount_value' => 1000,
+            'scope' => 'product',
+            'status' => 'draft',
+        ]);
+        PromoTarget::create([
+            'business_id' => $business->id,
+            'promo_id' => $promo->id,
+            'target_type' => 'product',
+            'target_id' => $product->id,
+        ]);
+
+        $this->assertCount(1, $promo->targets()->get());
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->patch(route('promos.update', ['promoId' => $promo->id]), $this->payload([
+                'name' => 'Promo Berubah Ke Semua',
+                'scope' => 'all',
+                'target_ids' => [],
+            ]))
+            ->assertRedirect(route('promos.index'));
+
+        $promo->refresh();
+        $this->assertSame('all', $promo->scope);
+        $this->assertCount(0, $promo->targets()->get());
     }
 
     /**
