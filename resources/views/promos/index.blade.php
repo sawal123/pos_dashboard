@@ -98,7 +98,14 @@
                                         @endif
                                     </td>
                                     <td class="py-3 px-4 font-bold text-rose-600 dark:text-rose-400">{{ $promo['discount_label'] }}</td>
-                                    <td class="py-3 px-4 text-slate-600 dark:text-slate-300">{{ $promo['scope'] }}</td>
+                                    <td class="py-3 px-4 text-slate-600 dark:text-slate-300">
+                                        <p class="font-medium">{{ $promo['scope'] }}</p>
+                                        @if(!empty($promo['targets']) && $promo['scope_raw'] !== 'all')
+                                            <p class="text-[11px] text-slate-400 font-normal">
+                                                {{ count($promo['targets']) }} {{ $promo['scope_raw'] === 'product' ? 'Produk' : 'Kategori' }}
+                                            </p>
+                                        @endif
+                                    </td>
                                     <td class="py-3 px-4 text-slate-500 dark:text-slate-400">
                                         {{ $promo['starts_at'] ?? 'Kapan saja' }}
                                         @if($promo['ends_at']) – {{ $promo['ends_at'] }} @endif
@@ -171,30 +178,129 @@
             const form = document.getElementById('promoForm');
             const subtitle = document.getElementById('promoModalSubtitle');
             const title = document.getElementById('promoModalTitle');
+            const scopeSelect = document.getElementById('promoScope');
+            const targetGroup = document.getElementById('promoTargetGroup');
+            const targetLabel = document.getElementById('promoTargetLabel');
+            const targetHint = document.getElementById('promoTargetHint');
+            const targetSelect = document.getElementById('promoTargets');
+
+            const modalDataEl = document.getElementById('promoModalData');
+            let modalData = { products: [], categories: [] };
+            if (modalDataEl) {
+                try {
+                    modalData = JSON.parse(modalDataEl.textContent || '{}');
+                } catch (e) {
+                    modalData = { products: [], categories: [] };
+                }
+            }
 
             const setValue = (name, value) => {
                 const field = form.elements.namedItem(name);
                 if (field) field.value = value === null || value === undefined ? '' : value;
             };
 
-            const selectTargets = (scope, ids) => {
-                const select = document.getElementById('promoTargets');
-                if (!select) return;
-                Array.from(select.options).forEach((option) => {
-                    const matchesScope = option.dataset.targetType === scope;
-                    option.selected = matchesScope && ids.includes(Number(option.value));
+            const getProductDisplay = (product) => {
+                const sku = product.sku && product.sku !== '-' ? ` (${product.sku})` : '';
+                return `${product.name}${sku}`;
+            };
+
+            const initSelect2 = (placeholder = 'Pilih target...') => {
+                if (!targetSelect || typeof window.jQuery === 'undefined' || !window.jQuery.fn || !window.jQuery.fn.select2) {
+                    return;
+                }
+                const $select = window.jQuery(targetSelect);
+                if ($select.hasClass('select2-hidden-accessible')) {
+                    $select.select2('destroy');
+                }
+                $select.select2({
+                    dropdownParent: window.jQuery('#promoForm'),
+                    width: '100%',
+                    placeholder: placeholder,
+                    allowClear: true,
+                    closeOnSelect: false,
+                    language: {
+                        noResults: () => 'Tidak ada pilihan ditemukan'
+                    }
                 });
+            };
+
+            const setTargetScope = (scope, selectedIds = []) => {
+                if (!targetSelect) return;
+
+                const normalizedIds = (selectedIds || []).map((id) => String(id));
+
+                if (scope === 'product') {
+                    if (targetGroup) targetGroup.classList.remove('hidden');
+                    if (targetLabel) targetLabel.textContent = 'Target Produk';
+                    if (targetHint) targetHint.textContent = 'Pilih satu atau lebih produk yang berhak mendapat diskon promo ini.';
+
+                    targetSelect.innerHTML = '';
+                    (modalData.products || []).forEach((product) => {
+                        const opt = document.createElement('option');
+                        opt.value = product.id;
+                        opt.textContent = getProductDisplay(product);
+                        if (normalizedIds.includes(String(product.id))) {
+                            opt.selected = true;
+                        }
+                        targetSelect.appendChild(opt);
+                    });
+
+                    initSelect2('Pilih produk...');
+                    if (typeof window.jQuery !== 'undefined') {
+                        window.jQuery(targetSelect).val(normalizedIds).trigger('change');
+                    }
+                } else if (scope === 'category') {
+                    if (targetGroup) targetGroup.classList.remove('hidden');
+                    if (targetLabel) targetLabel.textContent = 'Target Kategori';
+                    if (targetHint) targetHint.textContent = 'Pilih satu atau lebih kategori yang berhak mendapat diskon promo ini.';
+
+                    targetSelect.innerHTML = '';
+                    (modalData.categories || []).forEach((category) => {
+                        const opt = document.createElement('option');
+                        opt.value = category.id;
+                        opt.textContent = category.name;
+                        if (normalizedIds.includes(String(category.id))) {
+                            opt.selected = true;
+                        }
+                        targetSelect.appendChild(opt);
+                    });
+
+                    initSelect2('Pilih kategori...');
+                    if (typeof window.jQuery !== 'undefined') {
+                        window.jQuery(targetSelect).val(normalizedIds).trigger('change');
+                    }
+                } else {
+                    // 'all'
+                    if (targetGroup) targetGroup.classList.add('hidden');
+                    targetSelect.innerHTML = '';
+                    initSelect2('Pilih target...');
+                    if (typeof window.jQuery !== 'undefined') {
+                        window.jQuery(targetSelect).val([]).trigger('change');
+                    }
+                }
             };
 
             const open = () => {
                 modal.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
+                setTimeout(() => {
+                    if (typeof window.jQuery !== 'undefined' && targetSelect) {
+                        window.jQuery(targetSelect).trigger('change.select2');
+                    }
+                }, 50);
             };
 
             const close = () => {
                 modal.classList.add('hidden');
                 document.body.style.overflow = '';
+                if (typeof window.jQuery !== 'undefined' && targetSelect && window.jQuery(targetSelect).data('select2')) {
+                    window.jQuery(targetSelect).select2('close');
+                }
             };
+
+            scopeSelect?.addEventListener('change', () => {
+                setTargetScope(scopeSelect.value, []);
+            });
 
             document.getElementById('openPromoBtn')?.addEventListener('click', () => {
                 form.reset();
@@ -204,7 +310,7 @@
                 setValue('scope', 'all');
                 setValue('discount_type', 'percent');
                 setValue('discount_value', '0');
-                selectTargets('all', []);
+                setTargetScope('all', []);
                 if (subtitle) subtitle.textContent = 'Tambah';
                 if (title) title.textContent = 'Promo';
                 open();
@@ -237,8 +343,14 @@
                     setValue('usage_limit_per_customer', raw.usage_limit_per_customer ?? '');
                     setValue('status', raw.status_raw || 'draft');
 
-                    const ids = Array.isArray(raw.targets) ? raw.targets.map((target) => Number(target.id)) : [];
-                    selectTargets(raw.scope_raw || 'all', ids);
+                    const scope = raw.scope_raw || 'all';
+                    const ids = Array.isArray(raw.targets)
+                        ? raw.targets
+                            .filter((target) => !target.type || target.type === scope)
+                            .map((target) => String(target.id))
+                        : [];
+
+                    setTargetScope(scope, ids);
 
                     if (subtitle) subtitle.textContent = 'Edit';
                     if (title) title.textContent = raw.name || 'Promo';
@@ -255,6 +367,11 @@
                     close();
                 }
             });
+
+            @if($errors->any())
+                open();
+                setTargetScope('{{ old('scope', 'all') }}', @json(old('target_ids', [])));
+            @endif
 
             if (window.lucide) window.lucide.createIcons();
         }
