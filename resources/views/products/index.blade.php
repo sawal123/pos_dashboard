@@ -62,6 +62,22 @@
                 </span>
             </a>
             <a
+                href="{{ route('products.index', ['tab' => 'supplies']) }}"
+                wire:navigate
+                id="tabSupplies"
+                role="tab"
+                aria-selected="{{ $activeTab === 'supplies' ? 'true' : 'false' }}"
+                aria-controls="panelSupplies"
+                tabindex="{{ $activeTab === 'supplies' ? '0' : '-1' }}"
+                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 {{ $activeTab === 'supplies' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
+            >
+                <i data-lucide="warehouse" class="w-4 h-4"></i>
+                <span>Persediaan</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'supplies' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                    {{ $tabCounts['supplies'] ?? 0 }}
+                </span>
+            </a>
+            <a
                 href="{{ route('products.index', ['tab' => 'services']) }}"
                 wire:navigate
                 id="tabServices"
@@ -110,6 +126,10 @@
                 <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
                     <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
                 </div>
+            @elseif($activeTab === 'supplies')
+                <div id="panelSupplies" role="tabpanel" aria-labelledby="tabSupplies" class="catalog-panel space-y-4">
+                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
+                </div>
             @elseif($activeTab === 'services')
                 <div id="panelServices" role="tabpanel" aria-labelledby="tabServices" class="catalog-panel space-y-4">
                     <x-products.service-table :services="$items" :can-manage="$canManageCatalog" />
@@ -124,7 +144,7 @@
             <div id="mobileCardsWrapper">
                 <x-products.mobile-cards
                     :items="$items"
-                    :active-tab="$activeTab"
+                    :active-tab="$activeTab === 'supplies' ? 'products' : $activeTab"
                     :can-manage="$canManageCatalog"
                 />
             </div>
@@ -561,6 +581,9 @@
                         setValue(form, 'min_stock', '0');
                         setValue(form, 'min_quantity', '0');
 
+                        const sellableCreate = document.getElementById('catalogProductIsSellable');
+                        if (sellableCreate) sellableCreate.checked = true;
+
                         const defaultUnit = el.dataset.defaultUnit || 'pcs';
                         if (!form.elements.namedItem('unit').value) {
                             setValue(form, 'unit', defaultUnit);
@@ -617,6 +640,11 @@
                         setValue(form, 'barcode', raw.barcode || '');
                         setValue(form, 'cost', raw.cost ?? '0');
                         setValue(form, 'min_stock', raw.min_stock ?? '0');
+
+                        const sellableEdit = document.getElementById('catalogProductIsSellable');
+                        if (sellableEdit) {
+                            sellableEdit.checked = raw.is_sellable !== false && raw.is_sellable !== 0;
+                        }
                     }
 
                     applyKind(form, kind, true);

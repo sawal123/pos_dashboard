@@ -191,6 +191,25 @@
                             @error('min_stock')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                         </div>
                     </div>
+
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer">
+                        <input type="hidden" name="is_sellable" value="0">
+                        <input
+                            id="catalogProductIsSellable"
+                            name="is_sellable"
+                            type="checkbox"
+                            value="1"
+                            @checked(old('is_sellable', '1') === '1' || old('is_sellable') === 1 || old('is_sellable') === true)
+                            class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        >
+                        <span class="text-xs text-slate-600 dark:text-slate-300">
+                            <span class="block font-semibold text-slate-800 dark:text-slate-200">Dijual di POS</span>
+                            <span class="block text-[11px] text-slate-500 dark:text-slate-400">
+                                Lepaskan centang untuk bahan baku / persediaan yang dilacak stoknya tetapi tidak dijual.
+                            </span>
+                        </span>
+                    </label>
+                    @error('is_sellable')<p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
 
                 {{-- Service-only fields --}}

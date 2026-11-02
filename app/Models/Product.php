@@ -21,6 +21,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $barcode
  * @property int $price
  * @property string $kind
+ * @property bool $is_sellable
  * @property string $cost
  * @property string $stock
  * @property string $unit
@@ -39,7 +40,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, SaleItem> $saleItems
  * @property-read Collection<int, StockMovement> $stockMovements
  */
-#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
+#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'is_sellable', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -52,6 +53,7 @@ class Product extends Model
      */
     protected $attributes = [
         'kind' => 'product',
+        'is_sellable' => true,
         'cost' => 0,
         'stock' => 0,
         'unit' => 'pcs',
@@ -70,6 +72,7 @@ class Product extends Model
     {
         return [
             'price' => 'integer',
+            'is_sellable' => 'boolean',
             'cost' => 'decimal:2',
             'stock' => 'decimal:3',
             'min_stock' => 'decimal:3',

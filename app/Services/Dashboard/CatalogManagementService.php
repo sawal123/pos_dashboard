@@ -48,6 +48,7 @@ class CatalogManagementService
 
         if ($kind === 'service') {
             $attributes['barcode'] = null;
+            $attributes['is_sellable'] = true;
             $attributes['cost'] = $this->money(0);
             $attributes['stock'] = $this->quantity(0);
             $attributes['min_stock'] = $this->quantity(0);
@@ -57,6 +58,7 @@ class CatalogManagementService
             $attributes['estimated_duration'] = $this->text($data['estimated_duration'] ?? null);
         } else {
             $attributes['barcode'] = $this->text($data['barcode'] ?? null);
+            $attributes['is_sellable'] = $this->sellable($data['is_sellable'] ?? true);
             $attributes['cost'] = $this->money($data['cost'] ?? 0);
             // Initial stock is an absolute snapshot and is allowed to be
             // negative; it is the only place stock is set from the dashboard.
@@ -99,6 +101,9 @@ class CatalogManagementService
             }
         } else {
             $product->barcode = $this->text($data['barcode'] ?? null);
+            $product->is_sellable = array_key_exists('is_sellable', $data)
+                ? $this->sellable($data['is_sellable'])
+                : (bool) $product->is_sellable;
             $product->cost = $this->money($data['cost'] ?? 0);
             $product->unit = $this->text($data['unit'] ?? null) ?? 'pcs';
             $product->min_stock = $this->quantity($data['min_stock'] ?? 0);
@@ -209,5 +214,14 @@ class CatalogManagementService
         $status = is_string($value) ? $value : '';
 
         return in_array($status, self::STATUSES, true) ? $status : 'active';
+    }
+
+    private function sellable(mixed $value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
     }
 }

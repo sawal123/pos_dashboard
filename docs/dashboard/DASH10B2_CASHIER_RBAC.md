@@ -47,6 +47,8 @@ Legend: ✓ = allowed, ✗ = HTTP 403.
 | `products.index` | `products.view` | ✓ | ✓ | ✓ |
 | `stock.index`, `stock.movements`, `stock.history`, `stock.history.data` | `stock.view` | ✓ | ✓ | ✓ |
 | `stock.adjustments.store`, `stock.receipts.store` (INV-D01) | `stock.manage` | ✓ | ✓ | ✗ |
+| `stock.opname.index`, `stock.opname.show` (INV-D02) | `stock.view` | ✓ | ✓ | ✓ |
+| `stock.opname.store`, `stock.opname.counts.update`, `stock.opname.post`, `stock.opname.cancel` (INV-D02) | `stock.manage` | ✓ | ✓ | ✗ |
 | `cash.index` | `cash.view` | ✓ | ✓ | ✓ |
 | `shifts.index`, `shifts.detail` | `shifts.view` | ✓ | ✓ | ✓ |
 | `customers.index`, `customers.detail` | `customers.view` | ✓ | ✓ | ✓ |

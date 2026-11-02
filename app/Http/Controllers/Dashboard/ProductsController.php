@@ -44,7 +44,7 @@ class ProductsController extends Controller
         ]);
 
         $validator = Validator::make($filters, [
-            'tab' => ['nullable', 'string', Rule::in(['products', 'services', 'categories'])],
+            'tab' => ['nullable', 'string', Rule::in(['products', 'supplies', 'services', 'categories'])],
             'q' => ['nullable', 'string', 'max:100'],
             'category_id' => ['nullable', 'integer'],
             'status' => ['nullable', 'string', 'max:50'],

@@ -124,6 +124,8 @@ class ProductRequest extends FormRequest
             $rules['unit'] = ['nullable', 'string', 'max:20'];
             // Minimum stock may be negative — no `min:0` here on purpose.
             $rules['min_stock'] = ['nullable', 'numeric'];
+            // INV-D02 — raw materials / supplies are tracked but not sold.
+            $rules['is_sellable'] = ['sometimes', 'boolean'];
         }
 
         return $rules;
@@ -147,6 +149,7 @@ class ProductRequest extends FormRequest
             'cost.min' => 'HPP tidak boleh negatif.',
             'min_quantity.min' => 'Minimum quantity tidak boleh negatif.',
             'stock.numeric' => 'Stok awal harus berupa angka.',
+            'is_sellable.boolean' => 'Penanda bahan baku tidak valid.',
         ];
     }
 

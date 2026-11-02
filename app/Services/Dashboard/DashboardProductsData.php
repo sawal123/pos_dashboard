@@ -44,7 +44,7 @@ class DashboardProductsData
             return $this->emptyResult($filters);
         }
 
-        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'services', 'categories'], true)
+        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories'], true)
             ? (string) $filters['tab']
             : 'products';
 
@@ -54,6 +54,15 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
             ->count();
+
+        $sellableProducts = Product::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->where('is_sellable', true)
+            ->count();
+
+        $supplyProducts = $totalProducts - $sellableProducts;
 
         $totalServices = Product::query()
             ->where('business_id', $business->id)
@@ -85,7 +94,8 @@ class DashboardProductsData
         ];
 
         $tabCounts = [
-            'products' => $totalProducts,
+            'products' => $sellableProducts,
+            'supplies' => $supplyProducts,
             'services' => $totalServices,
             'categories' => $totalCategories,
         ];
@@ -95,6 +105,8 @@ class DashboardProductsData
             $data = $this->getServicesData($business, $filters);
         } elseif ($activeTab === 'categories') {
             $data = $this->getCategoriesData($business, $filters);
+        } elseif ($activeTab === 'supplies') {
+            $data = $this->getSuppliesData($business, $filters);
         } else {
             $data = $this->getProductsData($business, $filters);
         }
@@ -125,6 +137,7 @@ class DashboardProductsData
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
+            ->where('is_sellable', true)
             ->with('category');
 
         $hasAnyData = (clone $baseQuery)->exists();
@@ -177,6 +190,55 @@ class DashboardProductsData
 
         return [
             'items' => $mapped,
+            'hasAnyData' => $hasAnyData,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{items: LengthAwarePaginator<int, array<string, mixed>>, hasAnyData: bool}
+     */
+    private function getSuppliesData(Business $business, array $filters): array
+    {
+        $baseQuery = Product::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->where('is_sellable', false)
+            ->with('category');
+
+        $hasAnyData = (clone $baseQuery)->exists();
+
+        $query = clone $baseQuery;
+
+        $q = isset($filters['q']) ? trim((string) $filters['q']) : '';
+        if ($q !== '') {
+            $query->where(function (Builder $sub) use ($q): void {
+                $sub->where('name', 'like', '%'.$q.'%')
+                    ->orWhere('sku', 'like', '%'.$q.'%')
+                    ->orWhere('barcode', 'like', '%'.$q.'%');
+            });
+        }
+
+        $categoryId = isset($filters['category_id']) && $filters['category_id'] !== '' && $filters['category_id'] !== 'all'
+            ? (int) $filters['category_id']
+            : null;
+        if ($categoryId !== null) {
+            $query->where('category_id', $categoryId);
+        }
+
+        $status = isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all'
+            ? (string) $filters['status']
+            : null;
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        /** @var LengthAwarePaginator<int, Product> $paginator */
+        $paginator = $query->orderBy('name')->orderBy('id')->paginate(self::PER_PAGE)->withQueryString();
+
+        return [
+            'items' => $paginator->through(fn (Product $p) => $this->presentProduct($p)),
             'hasAnyData' => $hasAnyData,
         ];
     }
@@ -295,6 +357,7 @@ class DashboardProductsData
 
             'price' => (int) $product->price,
             'cost' => (string) $product->cost,
+            'is_sellable' => (bool) $product->is_sellable,
 
             'stock' => (string) $product->stock,
             'unit' => $product->unit ?? 'pcs',
@@ -431,7 +494,7 @@ class DashboardProductsData
      */
     private function emptyResult(array $filters): array
     {
-        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'services', 'categories'], true)
+        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories'], true)
             ? (string) $filters['tab']
             : 'products';
 
@@ -457,6 +520,7 @@ class DashboardProductsData
             ],
             'tabCounts' => [
                 'products' => 0,
+                'supplies' => 0,
                 'services' => 0,
                 'categories' => 0,
             ],

@@ -341,6 +341,20 @@ final class SyncAuthorizationPolicy
 
             if (! $incomingProductId) {
                 $violations[] = $this->violation('sale_items', 'upsert', 'invalid_product_relation');
+            } else {
+                // INV-D02 — raw materials / supplies are stock-tracked but not
+                // sellable. A device that still shows them in the catalog must
+                // never be able to sell them. Historical sale items are exempt:
+                // a retry of an already-accepted sale must stay idempotent.
+                if (! $record instanceof SaleItem) {
+                    $sellable = Product::where('business_id', $business->id)
+                        ->whereKey($incomingProductId)
+                        ->value('is_sellable');
+
+                    if (! (bool) $sellable) {
+                        $violations[] = $this->violation('sale_items', 'upsert', 'product_not_sellable');
+                    }
+                }
             }
         }
 
