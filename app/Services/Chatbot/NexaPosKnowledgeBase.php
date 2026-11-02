@@ -160,6 +160,17 @@ J. LANGGANAN & PENGATURAN AKUN (/subscription, /business-settings, /profile)
 - Paket Langganan: Pilihan paket Standar (Free) dan Paket Cloud Premium untuk integrasi multi-cabang dan sinkronisasi real-time. Checkout resmi terintegrasi dengan Midtrans (QRIS, Transfer VA Bank, Kartu Debit/Kredit, e-Wallet).
 - Profil & Keamanan: Pengaturan kata sandi, Autentikasi Dua Faktor (2FA) via aplikasi authenticator untuk melindungi akun admin/pemilik dari pembobolan.
 
+K. APLIKASI PWA (PROGRESSIVE WEB APP) & AKSES OFFLINE
+- NexaPOS mendukung PWA penuh dan dapat diinstall ke perangkat (PC / Laptop Windows, macOS, Tablet Android, iPad, maupun Smartphone).
+- Cara Install:
+  1. Klik tombol "Install Aplikasi" pada sidebar kiri bawah atau banner ajakan install yang muncul.
+  2. Atau klik ikon 'Install / Pasang Aplikasi' di bilah alamat (address bar) browser (Google Chrome, Microsoft Edge, atau Safari).
+  3. Setelah terpasang, NexaPOS berjalan mandiri (standalone) seperti aplikasi desktop / mobile native tanpa address bar.
+- Dukungan Offline & Service Worker:
+  - NexaPOS dilengkapi Service Worker cerdas untuk caching aset statis dan halaman yang telah dibuka.
+  - Jika internet terputus, aplikasi otomatis menampilkan indikator Mode Offline dan menyajikan halaman fallback offline interaktif (/offline) dengan opsi tetap menjalankan Zona Kasir (/pos).
+  - Begitu internet terhubung kembali, aplikasi otomatis mendeteksi dan memperbarui data secara langsung.
+
 ==================================================
 PEDOMAN PENUTUP
 ==================================================

@@ -41,6 +41,7 @@ use App\Http\Controllers\Platform\SubscriptionsController as PlatformSubscriptio
 use App\Http\Controllers\Platform\SyncMonitoringController as PlatformSyncMonitoringController;
 use App\Http\Controllers\Platform\UsageAnalyticsController as PlatformUsageAnalyticsController;
 use App\Http\Controllers\Platform\UsersController as PlatformUsersController;
+use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SeoController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
@@ -84,6 +85,12 @@ Route::get('/', function (PremiumPricing $pricing) {
 })->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
 Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
+
+// PWA — Progressive Web App manifest, offline fallback, and service worker routes
+Route::get('manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
+Route::get('manifest.json', [PwaController::class, 'manifest']);
+Route::get('offline', [PwaController::class, 'offline'])->name('pwa.offline');
+Route::get('sw.js', [PwaController::class, 'serviceWorker'])->name('pwa.sw');
 
 // AUTH-D04 — web session login from a Google Identity Services credential.
 Route::post('auth/google', [GoogleLoginController::class, 'store'])
