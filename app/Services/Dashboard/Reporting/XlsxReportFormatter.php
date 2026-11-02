@@ -56,7 +56,7 @@ final class XlsxReportFormatter extends ReportFormatter
         foreach ($document->summaryRows() as $summary) {
             $style = match ($summary['type']) {
                 'integer' => $integerStyle,
-                'decimal' => $decimalStyle,
+                'decimal', 'percent' => $decimalStyle,
                 default => $currencyStyle,
             };
 

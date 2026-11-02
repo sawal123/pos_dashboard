@@ -12,6 +12,7 @@
                 </p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
+                <x-stock.tabs active="stock" />
                 <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
                     <i data-lucide="boxes" class="w-3.5 h-3.5"></i>
                     <span>Inventori & Stok</span>

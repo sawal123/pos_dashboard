@@ -17,6 +17,7 @@ use App\Http\Controllers\Dashboard\ReportExportController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
 use App\Http\Controllers\Dashboard\StockController;
+use App\Http\Controllers\Dashboard\StockLedgerController;
 use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
@@ -141,6 +142,22 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('stock.movements');
+
+    // INV-D01 — stock ledger history and dashboard stock mutations. Reading
+    // stays on stock.view; every mutation requires stock.manage. The literal
+    // history routes are registered before the {productId} wildcard above.
+    Route::get('stock/history', [StockLedgerController::class, 'history'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('stock.history');
+    Route::get('stock/history/data', [StockLedgerController::class, 'historyData'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('stock.history.data');
+    Route::post('stock/adjustments', [StockLedgerController::class, 'storeAdjustment'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.adjustments.store');
+    Route::post('stock/receipts', [StockLedgerController::class, 'storeReceipt'])
+        ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('stock.receipts.store');
 
     Route::get('cash', [CashController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::CASH_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

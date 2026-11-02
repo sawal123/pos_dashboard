@@ -41,7 +41,7 @@ final class ReportDocument
      * Summary metrics with an explicit value type so numeric formats can be
      * applied in spreadsheets without re-parsing display strings.
      *
-     * @return list<array{label: string, value: int|string, type: 'integer'|'currency'|'decimal'}>
+     * @return list<array{label: string, value: int|string, type: 'integer'|'currency'|'decimal'|'percent'}>
      */
     public function summaryRows(): array
     {
@@ -50,6 +50,8 @@ final class ReportDocument
             ['label' => 'Total Transaksi', 'value' => $this->dataset->summary['total_transactions'], 'type' => 'integer'],
             ['label' => 'Estimasi Laba Kotor', 'value' => $this->dataset->summary['estimated_gross_profit'], 'type' => 'decimal'],
             ['label' => 'Total Pengeluaran', 'value' => $this->dataset->summary['total_expenses'], 'type' => 'currency'],
+            ['label' => 'Total Diskon', 'value' => $this->dataset->summary['total_discount'] ?? 0, 'type' => 'currency'],
+            ['label' => 'Rasio Diskon', 'value' => (string) ($this->dataset->summary['discount_rate'] ?? 0), 'type' => 'percent'],
         ];
     }
 
