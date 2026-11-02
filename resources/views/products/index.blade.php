@@ -793,12 +793,22 @@
 
                 const showProductForm = (form) => {
                     form.classList.remove('hidden');
-                    categoryForm()?.classList.add('hidden');
+                    form.classList.add('flex');
+                    const catF = categoryForm();
+                    if (catF) {
+                        catF.classList.add('hidden');
+                        catF.classList.remove('flex');
+                    }
                 };
 
                 const showCategoryForm = (form) => {
                     form.classList.remove('hidden');
-                    productForm()?.classList.add('hidden');
+                    form.classList.add('flex');
+                    const prodF = productForm();
+                    if (prodF) {
+                        prodF.classList.add('hidden');
+                        prodF.classList.remove('flex');
+                    }
                 };
 
                 const open = (trigger) => {
@@ -808,6 +818,13 @@
                     lastTrigger = trigger || null;
                     el.classList.remove('hidden');
                     document.body.style.overflow = 'hidden';
+
+                    // Reset scroll to top so user always sees the beginning of the form
+                    const activeForm = productForm()?.classList.contains('hidden') ? categoryForm() : productForm();
+                    const formBody = activeForm?.querySelector('.overflow-y-auto');
+                    if (formBody) {
+                        formBody.scrollTop = 0;
+                    }
 
                     requestAnimationFrame(() => {
                         const focusables = Array.from(el.querySelectorAll(focusableSelector));

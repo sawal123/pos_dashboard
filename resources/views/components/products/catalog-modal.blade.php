@@ -27,9 +27,9 @@
 >
     <div class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-xs" data-close-catalog-modal></div>
 
-    <div class="fixed inset-0 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        <div class="w-full max-w-2xl my-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl">
-            <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 rounded-t-2xl">
+    <div class="fixed inset-0 flex items-center justify-center p-3 sm:p-6 overflow-hidden">
+        <div class="w-full max-w-3xl rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] sm:max-h-[calc(100vh-3.5rem)] overflow-hidden">
+            <div class="flex items-center justify-between gap-3 px-6 py-4 border-b border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 z-10 shrink-0">
                 <div>
                     <span id="catalogModalSubtitle" class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tambah</span>
                     <h2 id="catalogModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white">Produk</h2>
@@ -51,12 +51,15 @@
                 action="{{ route('products.store') }}"
                 data-store-url="{{ route('products.store') }}"
                 data-update-url-template="{{ route('products.update', ['productId' => '__ID__']) }}"
-                class="p-5 space-y-4"
+                class="flex flex-col min-h-0 flex-1 overflow-hidden"
                 novalidate
             >
                 @csrf
                 <input type="hidden" name="_method" value="POST" id="catalogProductMethod">
                 <input type="hidden" name="kind" value="product" id="catalogProductKind">
+
+                {{-- Scrollable Form Body --}}
+                <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
 
                 <div>
                     <label for="catalogProductName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama</label>
@@ -442,39 +445,43 @@
                     </select>
                     <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Status dapat diubah kapan saja. Item tidak pernah dihapus permanen.</p>
                 </div>
+            </div>
 
-                <div class="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
-                    <button
-                        type="button"
-                        data-close-catalog-modal
-                        class="inline-flex items-center justify-center h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                        Batal
-                    </button>
-                    <button
-                        type="submit"
-                        id="catalogProductSubmit"
-                        class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-60 disabled:pointer-events-none"
-                    >
-                        <i data-lucide="save" class="w-4 h-4"></i>
-                        <span data-submit-label>Simpan</span>
-                    </button>
-                </div>
-            </form>
+            {{-- Sticky Form Footer --}}
+            <div class="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 flex items-center justify-end gap-2.5 shrink-0 rounded-b-2xl">
+                <button
+                    type="button"
+                    data-close-catalog-modal
+                    class="inline-flex items-center justify-center h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    Batal
+                </button>
+                <button
+                    type="submit"
+                    id="catalogProductSubmit"
+                    class="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-60 disabled:pointer-events-none shadow-sm"
+                >
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span data-submit-label>Simpan</span>
+                </button>
+            </div>
+        </form>
 
-            {{-- ==================== CATEGORY FORM ==================== --}}
-            <form
-                id="catalogCategoryForm"
-                method="POST"
-                action="{{ route('products.categories.store') }}"
-                data-store-url="{{ route('products.categories.store') }}"
-                data-update-url-template="{{ route('products.categories.update', ['categoryId' => '__ID__']) }}"
-                class="p-5 space-y-4 hidden"
-                novalidate
-            >
-                @csrf
-                <input type="hidden" name="_method" value="POST" id="catalogCategoryMethod">
+        {{-- ==================== CATEGORY FORM ==================== --}}
+        <form
+            id="catalogCategoryForm"
+            method="POST"
+            action="{{ route('products.categories.store') }}"
+            data-store-url="{{ route('products.categories.store') }}"
+            data-update-url-template="{{ route('products.categories.update', ['categoryId' => '__ID__']) }}"
+            class="flex flex-col min-h-0 flex-1 overflow-hidden hidden"
+            novalidate
+        >
+            @csrf
+            <input type="hidden" name="_method" value="POST" id="catalogCategoryMethod">
 
+            {{-- Scrollable Form Body --}}
+            <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
                 <div>
                     <label for="catalogCategoryName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama Kategori</label>
                     <input
@@ -501,25 +508,27 @@
                         @endforeach
                     </select>
                 </div>
+            </div>
 
-                <div class="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
-                    <button
-                        type="button"
-                        data-close-catalog-modal
-                        class="inline-flex items-center justify-center h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                        Batal
-                    </button>
-                    <button
-                        type="submit"
-                        id="catalogCategorySubmit"
-                        class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-60 disabled:pointer-events-none"
-                    >
-                        <i data-lucide="save" class="w-4 h-4"></i>
-                        <span data-submit-label>Simpan</span>
-                    </button>
-                </div>
-            </form>
+            {{-- Sticky Form Footer --}}
+            <div class="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 flex items-center justify-end gap-2.5 shrink-0 rounded-b-2xl">
+                <button
+                    type="button"
+                    data-close-catalog-modal
+                    class="inline-flex items-center justify-center h-10 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    Batal
+                </button>
+                <button
+                    type="submit"
+                    id="catalogCategorySubmit"
+                    class="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-60 disabled:pointer-events-none shadow-sm"
+                >
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span data-submit-label>Simpan</span>
+                </button>
+            </div>
+        </form>
         </div>
     </div>
 
