@@ -285,6 +285,68 @@
 
     /* ==================== Select2 NexaPOS Styles ==================== */
     .select2-container { width: 100% !important; }
+
+    /* Single Select styling */
+    .select2-container--default .select2-selection--single {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.5rem;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        transition: all 0.15s ease-in-out;
+    }
+    .dark .select2-container--default .select2-selection--single {
+        background-color: #0f172a;
+        border-color: #334155;
+        color: #f8fafc;
+    }
+    .select2-container--default.select2-container--focus .select2-selection--single,
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #6366f1;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+    }
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #0f172a;
+        font-size: 0.75rem;
+        font-weight: 500;
+        padding-left: 10px;
+        padding-right: 28px;
+        line-height: normal;
+        display: flex;
+        align-items: center;
+        width: 100%;
+    }
+    .dark .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #f8fafc;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__placeholder {
+        color: #94a3b8;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 100%;
+        top: 0;
+        right: 8px;
+        display: flex;
+        align-items: center;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__arrow b {
+        border-color: #64748b transparent transparent transparent;
+    }
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
+        border-color: transparent transparent #64748b transparent;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-right: 8px;
+        font-weight: bold;
+    }
+    .select2-container--default .select2-selection--single .select2-selection__clear:hover {
+        color: #ef4444;
+    }
+
     .select2-container--default .select2-selection--multiple {
         background-color: #ffffff;
         border: 1px solid #e2e8f0;

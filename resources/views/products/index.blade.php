@@ -629,8 +629,9 @@
                             const unitEl = row.querySelector('.recipe-row-unit');
 
                             const selectedOption = select?.selectedOptions?.[0];
-                            const componentCost = parseFloat(selectedOption?.dataset?.cost) || 0;
-                            const componentUnit = selectedOption?.dataset?.unit || 'pcs';
+                            const hasSelection = Boolean(select?.value);
+                            const componentCost = hasSelection ? (parseFloat(selectedOption?.dataset?.cost) || 0) : 0;
+                            const componentUnit = hasSelection ? (selectedOption?.dataset?.unit || '-') : '-';
                             const qty = parseFloat(qtyInput?.value) || 0;
 
                             if (unitEl) unitEl.textContent = componentUnit;
@@ -706,6 +707,19 @@
                     });
                 };
 
+                const clearRecipeRows = () => {
+                    const container = recipeContainer();
+                    if (!container) return;
+                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+                        $(container).find('.recipe-component-select').each(function () {
+                            if ($(this).data('select2')) {
+                                $(this).select2('destroy');
+                            }
+                        });
+                    }
+                    container.innerHTML = '';
+                };
+
                 const addRecipeRow = (item = null) => {
                     const container = recipeContainer();
                     if (!container) return;
@@ -719,7 +733,7 @@
                     const selectedCompId = item ? (item.component_product_id || item.id) : '';
                     const initialQty = item ? (item.quantity ?? 1) : 1;
 
-                    let optionsHtml = '<option value="">-- Pilih Bahan Baku --</option>';
+                    let optionsHtml = '<option value="">-- Cari & Pilih Bahan Baku --</option>';
                     rawMaterials.forEach(mat => {
                         const isSel = String(mat.id) === String(selectedCompId) ? 'selected' : '';
                         optionsHtml += `<option value="${mat.id}" data-cost="${mat.cost}" data-unit="${mat.unit}" ${isSel}>${mat.name} (${mat.sku}) - Rp ${Math.round(mat.cost).toLocaleString('id-ID')}/${mat.unit}</option>`;
@@ -727,7 +741,7 @@
 
                     row.innerHTML = `
                         <div class="flex-1 min-w-0">
-                            <select name="recipe_items[${rowIndex}][component_product_id]" required class="recipe-component-select w-full h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <select name="recipe_items[${rowIndex}][component_product_id]" required class="recipe-component-select w-full">
                                 ${optionsHtml}
                             </select>
                         </div>
@@ -749,9 +763,26 @@
                     const qty = row.querySelector('.recipe-qty-input');
                     const removeBtn = row.querySelector('.recipe-remove-btn');
 
-                    sel?.addEventListener('change', updateLiveCalculations);
+                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+                        $(sel).select2({
+                            dropdownParent: $('#catalogModal'),
+                            placeholder: '-- Cari & Pilih Bahan Baku --',
+                            allowClear: true,
+                            width: '100%',
+                        }).on('change', () => {
+                            updateLiveCalculations();
+                        });
+                    } else {
+                        sel?.addEventListener('change', updateLiveCalculations);
+                    }
+
                     qty?.addEventListener('input', updateLiveCalculations);
                     removeBtn?.addEventListener('click', () => {
+                        if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+                            if ($(sel).data('select2')) {
+                                $(sel).select2('destroy');
+                            }
+                        }
                         row.remove();
                         reindexRecipeRows();
                         updateLiveCalculations();
@@ -840,6 +871,14 @@
                     const el = modalEl();
                     if (!el || el.classList.contains('hidden')) return;
 
+                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+                        $('.recipe-component-select').each(function () {
+                            if ($(this).data('select2')) {
+                                $(this).select2('close');
+                            }
+                        });
+                    }
+
                     el.classList.add('hidden');
                     document.body.style.overflow = '';
 
@@ -874,7 +913,7 @@
 
                         currentEditingProductId = null;
                         currentHppCalculated = 0;
-                        if (recipeContainer()) recipeContainer().innerHTML = '';
+                        clearRecipeRows();
                         if (emptyHint()) emptyHint().classList.remove('hidden');
                         setValue(form, 'cost', '0');
                         setValue(form, 'cost_source', 'manual');
@@ -957,7 +996,7 @@
                             calcAtEdit.textContent = raw.hpp_calculated_at ? `(${raw.hpp_calculated_at})` : '';
                         }
 
-                        if (recipeContainer()) recipeContainer().innerHTML = '';
+                        clearRecipeRows();
                         if (raw.recipe_items && raw.recipe_items.length > 0) {
                             raw.recipe_items.forEach(ri => addRecipeRow(ri));
                         } else {
