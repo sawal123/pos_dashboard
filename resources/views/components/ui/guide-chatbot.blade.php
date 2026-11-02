@@ -174,6 +174,18 @@
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
+                // Markdown Links: [Text](URL)
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, label, url) => {
+                    const cleanUrl = url.trim();
+                    return `<a href="${cleanUrl}" class="inline-flex items-center gap-1 px-2.5 py-1 my-1 rounded-xl font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-xs text-[11px] cursor-pointer"><span>${label}</span><i data-lucide="arrow-up-right" class="w-3.5 h-3.5 inline"></i></a>`;
+                })
+                // Path in parentheses like (/products) or (/pos)
+                .replace(/\((\/(?:products|pos|stock|stock\/history|stock\/opname|promos|transactions|laundry-orders|cash|shifts|customers|outlets|users|devices|sync|subscription|reports|business-settings|profile|dashboard)[^)\s]*)\)/g, (match, path) => {
+                    return `(<a href="${path}" class="font-bold underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">${path} ↗</a>)`;
+                })
+                // Headings
+                .replace(/^### (.*$)/gim, '<div class="font-bold text-xs text-slate-900 dark:text-white mt-2 mb-0.5">$1</div>')
+                .replace(/^## (.*$)/gim, '<div class="font-black text-sm text-slate-900 dark:text-white mt-2.5 mb-1">$1</div>')
                 // Code block / inline code
                 .replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-mono text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">$1</code>')
                 // Bold: **text**

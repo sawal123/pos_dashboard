@@ -116,6 +116,8 @@ class GuideChatbotTest extends TestCase
         $this->assertStringContainsString('STRICT OFF-TOPIC GUARDRAIL', $prompt);
         $this->assertStringContainsString('DILARANG KERAS MENJAWAB PERTANYAAN DI LUAR TOPIK', $prompt);
         $this->assertStringContainsString('TOLAK DENGAN SANGAT LEMBUT', $prompt);
+        $this->assertStringContainsString('TAUTAN NAVIGASI CEPAT', $prompt);
+        $this->assertStringContainsString('[Buka Menu Produk & Layanan](/products)', $prompt);
         $this->assertStringContainsString('Kopi Nusantara', $prompt);
         $this->assertStringContainsString('cafe', $prompt);
     }
