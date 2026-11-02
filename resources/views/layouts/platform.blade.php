@@ -459,6 +459,9 @@
         {{-- ==================== GLOBAL CONFIRMATION MODAL ==================== --}}
         <x-ui.confirmation-modal />
 
+        {{-- ==================== PWA STATUS & INSTALL BANNER ==================== --}}
+        <x-ui.pwa-banner />
+
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
             (function() {

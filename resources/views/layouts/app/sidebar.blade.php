@@ -34,6 +34,9 @@
         {{-- ==================== NEXABOT AI GUIDE CHATBOT ==================== --}}
         <x-ui.guide-chatbot />
 
+        {{-- ==================== PWA STATUS & INSTALL BANNER ==================== --}}
+        <x-ui.pwa-banner />
+
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
             (function() {

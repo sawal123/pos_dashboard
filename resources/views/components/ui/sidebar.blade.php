@@ -321,6 +321,22 @@
         </div>
     </div>
 
+    {{-- PWA Install Action --}}
+    <div id="sidebarPwaInstallRow" class="px-3 py-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
+        <button
+            type="button"
+            onclick="if (typeof window.triggerPwaInstall === 'function') window.triggerPwaInstall()"
+            class="w-full flex items-center gap-2.5 py-1.5 px-2 rounded-xl text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors text-xs font-semibold group focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            data-tooltip-right="Install Aplikasi NexaPOS"
+            aria-label="Install Aplikasi NexaPOS ke Perangkat"
+        >
+            <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+                <i data-lucide="download" class="w-3.5 h-3.5"></i>
+            </div>
+            <span class="sidebar-label truncate">Install Aplikasi</span>
+        </button>
+    </div>
+
     {{-- Collapse Desktop Toggle Button at bottom --}}
     <button
         type="button"

@@ -15,6 +15,44 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
+{{-- ==================== PWA META TAGS & MANIFEST ==================== --}}
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NexaPOS">
+<meta name="application-name" content="NexaPOS">
+<meta name="msapplication-TileColor" content="#4f46e5">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+
+{{-- ==================== PWA SERVICE WORKER REGISTRATION ==================== --}}
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                .then(function(registration) {
+                    registration.addEventListener('updatefound', function() {
+                        const installingWorker = registration.installing;
+                        if (installingWorker) {
+                            installingWorker.addEventListener('statechange', function() {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    window.dispatchEvent(new CustomEvent('pwa-update-available'));
+                                }
+                            });
+                        }
+                    });
+                })
+                .catch(function(err) {
+                    console.debug('[PWA] Service Worker registration failed:', err);
+                });
+        });
+    }
+</script>
+
 {{-- Inter Font --}}
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
