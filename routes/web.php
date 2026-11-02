@@ -12,6 +12,7 @@ use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
+use App\Http\Controllers\Dashboard\PosController;
 use App\Http\Controllers\Dashboard\ProductsController;
 use App\Http\Controllers\Dashboard\PromosController;
 use App\Http\Controllers\Dashboard\ReportExportController;
@@ -102,6 +103,34 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('dashboard', [DashboardController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::DASHBOARD_VIEW)
         ->name('dashboard');
+
+    // POS-W01 — Web Cashier Zone (Zona Kasir)
+    Route::get('pos', [PosController::class, 'index'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.index');
+    Route::post('pos/switch-outlet', [PosController::class, 'switchOutlet'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.switch-outlet');
+    Route::post('pos/shifts/open', [PosController::class, 'openShift'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:pos-shift'])
+        ->name('pos.shifts.open');
+    Route::post('pos/shifts/close', [PosController::class, 'closeShift'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:pos-shift'])
+        ->name('pos.shifts.close');
+    Route::get('pos/shifts/{shiftId}/summary', [PosController::class, 'shiftSummary'])
+        ->whereNumber('shiftId')
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.shifts.summary');
+    Route::post('pos/promo-preview', [PosController::class, 'previewPromo'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.promo-preview');
+    Route::post('pos/checkout', [PosController::class, 'checkout'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:pos-checkout'])
+        ->name('pos.checkout');
+    Route::get('pos/receipt/{saleId}', [PosController::class, 'receipt'])
+        ->whereNumber('saleId')
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.receipt');
 
     Route::get('transactions', [TransactionsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::TRANSACTIONS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

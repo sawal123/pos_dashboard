@@ -19,6 +19,17 @@
     }
 
     // Operasional
+    if ($can($P::POS_SELL)) {
+        $menuItems[] = [
+            'title' => 'Zona Kasir (Transaksi Baru POS)',
+            'category' => 'Operasional',
+            'desc' => 'Mode kasir layar penuh untuk melayani pesanan dan checkout',
+            'url' => route('pos.index'),
+            'icon' => 'shopping-cart',
+            'keywords' => ['kasir', 'pos', 'transaksi baru', 'jual', 'checkout', 'zona kasir', 'order', 'pesanan baru'],
+        ];
+    }
+
     if ($can($P::PRODUCTS_VIEW)) {
         $menuItems[] = [
             'title' => 'Produk & Layanan',

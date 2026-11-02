@@ -45,6 +45,11 @@ final class BusinessPermission
 
     public const SHIFTS_VIEW = 'shifts.view';
 
+    // POS-W01 — web cashier zone: create sales and open/close shifts from the
+    // browser. Granted to every operational role because selling is the core
+    // cashier job; every sale is still recomputed server-side.
+    public const POS_SELL = 'pos.sell';
+
     public const CUSTOMERS_VIEW = 'customers.view';
 
     public const LAUNDRY_VIEW = 'laundry.view';
@@ -118,6 +123,7 @@ final class BusinessPermission
                 self::CLOUD_BACKUP,
                 self::CLOUD_RESTORE,
                 self::PROMO_VIEW,
+                self::POS_SELL,
             ],
             Business::ROLE_CASHIER => [
                 self::DASHBOARD_VIEW,
@@ -130,6 +136,7 @@ final class BusinessPermission
                 self::LAUNDRY_VIEW,
                 self::SYNC_PUSH_CASHIER_SAFE,
                 self::SYNC_PULL,
+                self::POS_SELL,
             ],
         ];
     }
