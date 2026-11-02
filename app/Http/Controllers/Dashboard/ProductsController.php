@@ -14,6 +14,7 @@ use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\CatalogManagementService;
 use App\Services\Dashboard\DashboardProductsData;
+use App\Services\Inventory\HppService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -75,11 +76,14 @@ class ProductsController extends Controller
         $business = $this->activeBusiness($request);
         $kind = (string) $request->validated('kind');
 
-        $this->catalog->createProduct($business, $request->validated(), $kind);
+        $product = $this->catalog->createProduct($business, $request->validated(), $kind);
+
+        $tab = $kind === 'service' ? 'services' : (! $product->is_sellable ? 'supplies' : 'products');
+        $label = $kind === 'service' ? 'Layanan' : (! $product->is_sellable ? 'Bahan baku' : 'Produk');
 
         return redirect()
-            ->route('products.index', ['tab' => $kind === 'service' ? 'services' : 'products'])
-            ->with('status', $kind === 'service' ? 'Layanan berhasil ditambahkan.' : 'Produk berhasil ditambahkan.');
+            ->route('products.index', ['tab' => $tab])
+            ->with('status', $label.' berhasil ditambahkan.');
     }
 
     public function update(ProductRequest $request): RedirectResponse
@@ -93,9 +97,26 @@ class ProductsController extends Controller
 
         $this->catalog->updateProduct($product, $request->validated());
 
+        $tab = $product->kind === 'service' ? 'services' : (! $product->is_sellable ? 'supplies' : 'products');
+        $label = $product->kind === 'service' ? 'Layanan' : (! $product->is_sellable ? 'Bahan baku' : 'Produk');
+
         return redirect()
-            ->route('products.index', ['tab' => $product->kind === 'service' ? 'services' : 'products'])
-            ->with('status', $product->kind === 'service' ? 'Layanan berhasil diperbarui.' : 'Produk berhasil diperbarui.');
+            ->route('products.index', ['tab' => $tab])
+            ->with('status', $label.' berhasil diperbarui.');
+    }
+
+    public function applyHpp(Request $request, int $productId): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $product = Product::query()
+            ->where('business_id', $business->id)
+            ->whereKey($productId)
+            ->firstOrFail();
+
+        app(HppService::class)->applyHppToCost($product, $request->user());
+
+        return back()->with('status', 'HPP terhitung berhasil diterapkan ke harga modal.');
     }
 
     public function updateStatus(UpdateCatalogStatusRequest $request): RedirectResponse

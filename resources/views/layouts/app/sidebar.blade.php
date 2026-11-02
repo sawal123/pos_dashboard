@@ -319,7 +319,7 @@
 
                 function closeAllCustomSelects(exceptDropdown) {
                     document.querySelectorAll('.select-dropdown, [id$="Dropdown"]').forEach(d => {
-                        if (d !== exceptDropdown && !d.classList.contains('dropdown-hidden') && d.id !== 'notificationDropdown' && d.id !== 'profileDropdown') {
+                        if (d !== exceptDropdown && !d.classList.contains('dropdown-hidden') && d.id !== 'notificationDropdown' && d.id !== 'profileDropdown' && !d.id.startsWith('globalMenuSearch')) {
                             d.classList.add('dropdown-hidden');
                         }
                     });

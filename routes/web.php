@@ -136,6 +136,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('products.update');
+    Route::post('products/{productId}/apply-hpp', [ProductsController::class, 'applyHpp'])
+        ->whereNumber('productId')
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.apply-hpp');
 
     Route::get('stock', [StockController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

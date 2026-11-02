@@ -2,10 +2,13 @@
 
 namespace App\Services\Dashboard;
 
+use App\Enums\CostSource;
+use App\Enums\HppMethod;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
+use App\Services\Inventory\HppService;
 use Illuminate\Support\Str;
 
 /**
@@ -60,6 +63,12 @@ class CatalogManagementService
             $attributes['barcode'] = $this->text($data['barcode'] ?? null);
             $attributes['is_sellable'] = $this->sellable($data['is_sellable'] ?? true);
             $attributes['cost'] = $this->money($data['cost'] ?? 0);
+            $attributes['hpp'] = $this->money($data['cost'] ?? 0);
+            $attributes['cost_source'] = $data['cost_source'] ?? CostSource::Manual->value;
+            $attributes['hpp_method'] = $data['hpp_method'] ?? HppMethod::Average->value;
+            $attributes['hpp_overhead_fixed'] = $this->money($data['hpp_overhead_fixed'] ?? 0);
+            $attributes['hpp_overhead_percent'] = number_format((float) ($data['hpp_overhead_percent'] ?? 0), 2, '.', '');
+            $attributes['hpp_calculated_at'] = now();
             // Initial stock is an absolute snapshot and is allowed to be
             // negative; it is the only place stock is set from the dashboard.
             $attributes['stock'] = $this->quantity($data['stock'] ?? 0);
@@ -70,7 +79,13 @@ class CatalogManagementService
             $attributes['estimated_duration'] = null;
         }
 
-        return Product::create($attributes);
+        $product = Product::create($attributes);
+
+        if (! empty($data['recipe_items']) && is_array($data['recipe_items'])) {
+            app(HppService::class)->syncRecipe($product, $data['recipe_items']);
+        }
+
+        return $product;
     }
 
     /**
@@ -104,7 +119,31 @@ class CatalogManagementService
             $product->is_sellable = array_key_exists('is_sellable', $data)
                 ? $this->sellable($data['is_sellable'])
                 : (bool) $product->is_sellable;
-            $product->cost = $this->money($data['cost'] ?? 0);
+
+            if (array_key_exists('cost_source', $data) && in_array($data['cost_source'], CostSource::values(), true)) {
+                $product->cost_source = $data['cost_source'];
+            }
+
+            if (array_key_exists('hpp_method', $data) && in_array($data['hpp_method'], HppMethod::values(), true)) {
+                $product->hpp_method = $data['hpp_method'];
+            }
+
+            if (array_key_exists('hpp_overhead_fixed', $data)) {
+                $product->hpp_overhead_fixed = $this->money($data['hpp_overhead_fixed']);
+            }
+
+            if (array_key_exists('hpp_overhead_percent', $data)) {
+                $product->hpp_overhead_percent = number_format((float) $data['hpp_overhead_percent'], 2, '.', '');
+            }
+
+            if (array_key_exists('cost', $data)) {
+                $product->cost = $this->money($data['cost']);
+                if ($product->hpp_method !== HppMethod::Recipe->value) {
+                    $product->hpp = $product->cost;
+                    $product->hpp_calculated_at = now();
+                }
+            }
+
             $product->unit = $this->text($data['unit'] ?? null) ?? 'pcs';
             $product->min_stock = $this->quantity($data['min_stock'] ?? 0);
 
@@ -115,6 +154,12 @@ class CatalogManagementService
         }
 
         $product->save();
+
+        if (array_key_exists('recipe_items', $data) && is_array($data['recipe_items'])) {
+            app(HppService::class)->syncRecipe($product, $data['recipe_items']);
+        } elseif ($product->hpp_method === HppMethod::Recipe->value) {
+            app(HppService::class)->recalculateRecipe($product);
+        }
 
         return $product;
     }

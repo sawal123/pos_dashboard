@@ -59,26 +59,23 @@
         </div>
     </div>
 
-    {{-- Center: Global Search Placeholder (Non-destructive Visual Search UI) --}}
-    <div class="hidden xl:flex items-center flex-1 max-w-xs mx-6">
-        <div class="relative w-full">
-            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
-            <input
-                type="text"
-                readonly
-                onclick="showToast('info', 'Pencarian global terpusat akan tersedia setelah integrasi data.')"
-                placeholder="Cari transaksi, produk, pelanggan..."
-                class="w-full pl-9 pr-8 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50/70 dark:bg-slate-800/40 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/70 focus:outline-none transition-colors"
-                aria-label="Pencarian cepat"
-            />
-            <kbd class="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-400 bg-white dark:bg-slate-800">
-                /
-            </kbd>
-        </div>
+    {{-- Center: Global Menu Search --}}
+    <div class="hidden md:flex items-center flex-1 max-w-sm mx-4 lg:mx-8">
+        <x-ui.menu-search />
     </div>
 
     {{-- Right: Status & Actions --}}
     <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+
+        {{-- Mobile Search Trigger Button --}}
+        <button
+            type="button"
+            onclick="if (typeof window.openMobileSearch === 'function') window.openMobileSearch()"
+            class="md:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            aria-label="Cari menu"
+        >
+            <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
 
         {{-- Cloud Connection Status Pill --}}
         <span

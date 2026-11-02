@@ -38,7 +38,7 @@
                     <th scope="col" class="py-3.5 px-4">Produk</th>
                     <th scope="col" class="py-3.5 px-4">SKU / Barcode</th>
                     <th scope="col" class="py-3.5 px-4">Kategori</th>
-                    <th scope="col" class="py-3.5 px-4 text-right">HPP</th>
+                    <th scope="col" class="py-3.5 px-4 text-right">Modal (HPP)</th>
                     <th scope="col" class="py-3.5 px-4 text-right">Harga Jual</th>
                     <th scope="col" class="py-3.5 px-4 text-center">Stok</th>
                     <th scope="col" class="py-3.5 px-4 text-center">Status</th>
@@ -101,14 +101,32 @@
                             </span>
                         </td>
 
-                        {{-- 4. HPP --}}
-                        <td class="py-3 px-4 text-right tabular-nums text-slate-500 dark:text-slate-400">
-                            {{ $formattedCost }}
+                        {{-- 4. Modal (HPP) --}}
+                        <td class="py-3 px-4 text-right tabular-nums">
+                            <span class="font-semibold text-slate-800 dark:text-slate-200 block">{{ $formattedCost }}</span>
+                            @if(($product['cost_source'] ?? 'manual') === 'hpp')
+                                <span class="inline-flex items-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                                    Auto HPP
+                                </span>
+                            @elseif(($product['hpp_method'] ?? 'average') === 'recipe')
+                                <span class="inline-flex items-center text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                                    Resep
+                                </span>
+                            @else
+                                <span class="inline-flex items-center text-[10px] text-slate-400 dark:text-slate-500">
+                                    Manual
+                                </span>
+                            @endif
                         </td>
 
-                        {{-- 5. Harga Jual --}}
-                        <td class="py-3 px-4 text-right tabular-nums font-bold text-slate-900 dark:text-white">
-                            {{ $formattedPrice }}
+                        {{-- 5. Harga Jual & Margin --}}
+                        <td class="py-3 px-4 text-right tabular-nums">
+                            <span class="font-bold text-slate-900 dark:text-white block">{{ $formattedPrice }}</span>
+                            @if(isset($product['margin_percent']))
+                                <span class="block text-[10px] font-semibold {{ (float)$product['margin_percent'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                    Margin {{ number_format($product['margin_percent'], 1) }}%
+                                </span>
+                            @endif
                         </td>
 
                         {{-- 6. Stok & Badge --}}

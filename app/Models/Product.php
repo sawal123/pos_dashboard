@@ -23,6 +23,12 @@ use Illuminate\Support\Carbon;
  * @property string $kind
  * @property bool $is_sellable
  * @property string $cost
+ * @property string|null $hpp
+ * @property string $hpp_method
+ * @property string $cost_source
+ * @property string $hpp_overhead_fixed
+ * @property string $hpp_overhead_percent
+ * @property Carbon|null $hpp_calculated_at
  * @property string $stock
  * @property string $unit
  * @property string $min_stock
@@ -39,8 +45,11 @@ use Illuminate\Support\Carbon;
  * @property-read Category|null $category
  * @property-read Collection<int, SaleItem> $saleItems
  * @property-read Collection<int, StockMovement> $stockMovements
+ * @property-read Collection<int, ProductRecipeItem> $recipeItems
+ * @property-read Collection<int, ProductRecipeItem> $usedInRecipes
+ * @property-read Collection<int, ProductCostHistory> $costHistories
  */
-#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'is_sellable', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
+#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'is_sellable', 'cost', 'hpp', 'hpp_method', 'cost_source', 'hpp_overhead_fixed', 'hpp_overhead_percent', 'hpp_calculated_at', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -55,6 +64,10 @@ class Product extends Model
         'kind' => 'product',
         'is_sellable' => true,
         'cost' => 0,
+        'hpp_method' => 'average',
+        'cost_source' => 'hpp',
+        'hpp_overhead_fixed' => 0,
+        'hpp_overhead_percent' => 0,
         'stock' => 0,
         'unit' => 'pcs',
         'min_stock' => 0,
@@ -74,6 +87,10 @@ class Product extends Model
             'price' => 'integer',
             'is_sellable' => 'boolean',
             'cost' => 'decimal:2',
+            'hpp' => 'decimal:2',
+            'hpp_overhead_fixed' => 'decimal:2',
+            'hpp_overhead_percent' => 'decimal:2',
+            'hpp_calculated_at' => 'datetime',
             'stock' => 'decimal:3',
             'min_stock' => 'decimal:3',
             'min_quantity' => 'decimal:3',
@@ -118,5 +135,35 @@ class Product extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    /**
+     * Recipe components required to produce this product.
+     *
+     * @return HasMany<ProductRecipeItem, $this>
+     */
+    public function recipeItems(): HasMany
+    {
+        return $this->hasMany(ProductRecipeItem::class, 'product_id');
+    }
+
+    /**
+     * Products that use this item as a component.
+     *
+     * @return HasMany<ProductRecipeItem, $this>
+     */
+    public function usedInRecipes(): HasMany
+    {
+        return $this->hasMany(ProductRecipeItem::class, 'component_product_id');
+    }
+
+    /**
+     * History of cost and HPP changes for this product.
+     *
+     * @return HasMany<ProductCostHistory, $this>
+     */
+    public function costHistories(): HasMany
+    {
+        return $this->hasMany(ProductCostHistory::class, 'product_id')->orderByDesc('id');
     }
 }

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Dashboard;
 
+use App\Enums\CostSource;
+use App\Enums\HppMethod;
 use App\Models\Business;
 use App\Models\Product;
 use App\Services\Authorization\BusinessAuthorizer;
@@ -121,11 +123,24 @@ class ProductRequest extends FormRequest
                 Rule::unique('products', 'sku')->where('business_id', $businessId)->ignore($productId),
             ];
             $rules['cost'] = ['nullable', 'numeric', 'min:0'];
+            $rules['cost_source'] = ['nullable', 'string', Rule::in(CostSource::values())];
+            $rules['hpp_method'] = ['nullable', 'string', Rule::in(HppMethod::values())];
+            $rules['hpp_overhead_fixed'] = ['nullable', 'numeric', 'min:0'];
+            $rules['hpp_overhead_percent'] = ['nullable', 'numeric', 'min:0', 'max:1000'];
             $rules['unit'] = ['nullable', 'string', 'max:20'];
             // Minimum stock may be negative — no `min:0` here on purpose.
             $rules['min_stock'] = ['nullable', 'numeric'];
             // INV-D02 — raw materials / supplies are tracked but not sold.
             $rules['is_sellable'] = ['sometimes', 'boolean'];
+
+            $rules['recipe_items'] = ['nullable', 'array'];
+            $rules['recipe_items.*.component_product_id'] = [
+                'required_with:recipe_items',
+                'integer',
+                Rule::exists('products', 'id')->where('business_id', $businessId),
+            ];
+            $rules['recipe_items.*.quantity'] = ['required_with:recipe_items', 'numeric', 'min:0.0001'];
+            $rules['recipe_items.*.note'] = ['nullable', 'string', 'max:255'];
         }
 
         return $rules;

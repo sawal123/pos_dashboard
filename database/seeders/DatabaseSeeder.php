@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             SubscriptionPlanSeeder::class,
             UserSeeder::class,
             DummyDataSeeder::class,
+            ProductHppSeeder::class,
         ]);
     }
 }

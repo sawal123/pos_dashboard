@@ -13,6 +13,13 @@
             'no_results_title' => 'Produk Tidak Ditemukan',
             'icon' => 'package-search',
         ],
+        'supplies' => [
+            'type' => 'Persediaan',
+            'no_data_title' => 'Belum Ada Bahan Baku',
+            'no_data_desc' => 'Bahan baku dan persediaan yang dilacak stoknya akan muncul di sini.',
+            'no_results_title' => 'Bahan Baku Tidak Ditemukan',
+            'icon' => 'warehouse',
+        ],
         'services' => [
             'type' => 'Layanan',
             'no_data_title' => 'Belum Ada Layanan',
