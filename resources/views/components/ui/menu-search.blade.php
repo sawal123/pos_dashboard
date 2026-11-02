@@ -271,7 +271,7 @@
 
     {{-- Desktop Dropdown Panel --}}
     <div
-        id="globalMenuSearchDropdown"
+        id="globalMenuSearchPanel"
         class="hidden absolute top-full left-0 mt-2 w-full min-w-[340px] sm:min-w-[440px] max-w-lg bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs"
     >
         <div class="px-3.5 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500 bg-slate-50/60 dark:bg-slate-950/40">
@@ -338,7 +338,7 @@
     let filteredItems = [];
 
     const desktopInput = document.getElementById('globalMenuSearchInput');
-    const desktopDropdown = document.getElementById('globalMenuSearchDropdown');
+    const desktopPanel = document.getElementById('globalMenuSearchPanel');
     const desktopResultsList = document.getElementById('globalMenuSearchResultsList');
     const desktopCountEl = document.getElementById('globalMenuSearchResultCount');
     const desktopClearBtn = document.getElementById('globalMenuSearchClearBtn');
@@ -428,9 +428,9 @@
         });
     }
 
-    function openDesktopDropdown() {
-        if (!desktopDropdown) return;
-        desktopDropdown.classList.remove('hidden');
+    function openDesktopPanel() {
+        if (!desktopPanel) return;
+        desktopPanel.classList.remove('hidden', 'dropdown-hidden');
         filteredItems = filterMenus(desktopInput ? desktopInput.value : '');
         if (desktopCountEl) {
             desktopCountEl.textContent = `${filteredItems.length} menu ditemukan`;
@@ -438,16 +438,22 @@
         renderItems(filteredItems, desktopResultsList, false);
     }
 
-    function closeDesktopDropdown() {
-        if (!desktopDropdown) return;
-        desktopDropdown.classList.add('hidden');
+    function closeDesktopPanel() {
+        if (!desktopPanel) return;
+        desktopPanel.classList.add('hidden');
+        desktopPanel.classList.remove('dropdown-hidden');
         activeIndex = -1;
     }
 
     // Desktop Input Listeners
     if (desktopInput) {
         desktopInput.addEventListener('focus', () => {
-            openDesktopDropdown();
+            openDesktopPanel();
+        });
+
+        desktopInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDesktopPanel();
         });
 
         desktopInput.addEventListener('input', (e) => {
@@ -455,17 +461,13 @@
             if (desktopClearBtn) {
                 desktopClearBtn.classList.toggle('hidden', !val);
             }
-            filteredItems = filterMenus(val);
-            if (desktopCountEl) {
-                desktopCountEl.textContent = `${filteredItems.length} menu ditemukan`;
-            }
-            renderItems(filteredItems, desktopResultsList, false);
+            openDesktopPanel();
         });
 
         desktopInput.addEventListener('keydown', (e) => {
-            if (desktopDropdown.classList.contains('hidden')) {
+            if (!desktopPanel || desktopPanel.classList.contains('hidden')) {
                 if (e.key === 'ArrowDown' || e.key === 'Enter') {
-                    openDesktopDropdown();
+                    openDesktopPanel();
                     e.preventDefault();
                 }
                 return;
@@ -490,20 +492,27 @@
                 }
             } else if (e.key === 'Escape') {
                 e.preventDefault();
-                closeDesktopDropdown();
+                closeDesktopPanel();
                 desktopInput.blur();
             }
         });
     }
 
+    if (desktopPanel) {
+        desktopPanel.addEventListener('click', (e) => {
+            // Prevent clicks inside panel from bubbling to document click handlers
+            e.stopPropagation();
+        });
+    }
+
     if (desktopClearBtn) {
-        desktopClearBtn.addEventListener('click', () => {
+        desktopClearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             if (desktopInput) {
                 desktopInput.value = '';
                 desktopInput.focus();
                 desktopClearBtn.classList.add('hidden');
-                filteredItems = filterMenus('');
-                renderItems(filteredItems, desktopResultsList, false);
+                openDesktopPanel();
             }
         });
     }
@@ -512,7 +521,7 @@
     document.addEventListener('click', (e) => {
         const root = document.getElementById('globalMenuSearchRoot');
         if (root && !root.contains(e.target)) {
-            closeDesktopDropdown();
+            closeDesktopPanel();
         }
     });
 
@@ -526,7 +535,7 @@
             if (window.innerWidth >= 768 && desktopInput) {
                 desktopInput.focus();
                 desktopInput.select();
-                openDesktopDropdown();
+                openDesktopPanel();
             } else {
                 openMobileSearch();
             }
@@ -535,7 +544,7 @@
             if (window.innerWidth >= 768 && desktopInput) {
                 desktopInput.focus();
                 desktopInput.select();
-                openDesktopDropdown();
+                openDesktopPanel();
             } else {
                 openMobileSearch();
             }
