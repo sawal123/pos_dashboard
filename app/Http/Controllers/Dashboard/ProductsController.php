@@ -76,11 +76,14 @@ class ProductsController extends Controller
         $business = $this->activeBusiness($request);
         $kind = (string) $request->validated('kind');
 
-        $this->catalog->createProduct($business, $request->validated(), $kind);
+        $product = $this->catalog->createProduct($business, $request->validated(), $kind);
+
+        $tab = $kind === 'service' ? 'services' : (! $product->is_sellable ? 'supplies' : 'products');
+        $label = $kind === 'service' ? 'Layanan' : (! $product->is_sellable ? 'Bahan baku' : 'Produk');
 
         return redirect()
-            ->route('products.index', ['tab' => $kind === 'service' ? 'services' : 'products'])
-            ->with('status', $kind === 'service' ? 'Layanan berhasil ditambahkan.' : 'Produk berhasil ditambahkan.');
+            ->route('products.index', ['tab' => $tab])
+            ->with('status', $label.' berhasil ditambahkan.');
     }
 
     public function update(ProductRequest $request): RedirectResponse
@@ -94,9 +97,12 @@ class ProductsController extends Controller
 
         $this->catalog->updateProduct($product, $request->validated());
 
+        $tab = $product->kind === 'service' ? 'services' : (! $product->is_sellable ? 'supplies' : 'products');
+        $label = $product->kind === 'service' ? 'Layanan' : (! $product->is_sellable ? 'Bahan baku' : 'Produk');
+
         return redirect()
-            ->route('products.index', ['tab' => $product->kind === 'service' ? 'services' : 'products'])
-            ->with('status', $product->kind === 'service' ? 'Layanan berhasil diperbarui.' : 'Produk berhasil diperbarui.');
+            ->route('products.index', ['tab' => $tab])
+            ->with('status', $label.' berhasil diperbarui.');
     }
 
     public function applyHpp(Request $request, int $productId): RedirectResponse

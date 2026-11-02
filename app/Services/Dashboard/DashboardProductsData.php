@@ -252,6 +252,19 @@ class DashboardProductsData
             $query->where('status', $status);
         }
 
+        // Stock status filter
+        $stockStatus = isset($filters['stock_status']) && in_array($filters['stock_status'], ['safe', 'low', 'empty', 'negative'], true)
+            ? (string) $filters['stock_status']
+            : null;
+        if ($stockStatus !== null) {
+            match ($stockStatus) {
+                'negative' => $query->where('stock', '<', 0),
+                'empty' => $query->where('stock', '=', 0),
+                'low' => $query->where('stock', '>', 0)->where('stock', '<=', DB::raw('min_stock')),
+                'safe' => $query->where('stock', '>', DB::raw('min_stock')),
+            };
+        }
+
         /** @var LengthAwarePaginator<int, Product> $paginator */
         $paginator = $query->orderBy('name')->orderBy('id')->paginate(self::PER_PAGE)->withQueryString();
 

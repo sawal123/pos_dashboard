@@ -822,6 +822,48 @@
                     if (titleEl) titleEl.textContent = title;
                 };
 
+                const generateRandomSku = (overrideKind = null, overrideSellable = null) => {
+                    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                    let code = '';
+                    for (let i = 0; i < 6; i++) {
+                        code += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    const form = productForm();
+                    const kind = overrideKind !== null ? overrideKind : (form?.elements.namedItem('kind')?.value || 'product');
+                    const sellableCheckbox = document.getElementById('catalogProductIsSellable');
+                    const isSellable = overrideSellable !== null ? overrideSellable : (sellableCheckbox ? sellableCheckbox.checked : true);
+
+                    let prefix = 'SKU';
+                    if (kind === 'service') {
+                        prefix = 'SRV';
+                    } else if (!isSellable) {
+                        prefix = 'RAW';
+                    }
+
+                    return `${prefix}-${code}`;
+                };
+
+                const handleGenerateSku = () => {
+                    const skuInput = document.getElementById('catalogProductSku');
+                    if (!skuInput) return;
+                    skuInput.value = generateRandomSku();
+                    skuInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    skuInput.dispatchEvent(new Event('change', { bubbles: true }));
+                };
+
+                document.getElementById('btnGenerateSkuLink')?.addEventListener('click', handleGenerateSku);
+                document.getElementById('btnGenerateSkuInline')?.addEventListener('click', handleGenerateSku);
+
+                const sellableToggle = document.getElementById('catalogProductIsSellable');
+                sellableToggle?.addEventListener('change', () => {
+                    const isEdit = Boolean(currentEditingProductId);
+                    const prefix = isEdit ? 'Edit' : 'Tambah';
+                    const isService = productForm()?.elements.namedItem('kind')?.value === 'service';
+                    if (!isService) {
+                        setHeading(prefix, sellableToggle.checked ? 'Produk' : 'Bahan Baku');
+                    }
+                });
+
                 const showProductForm = (form) => {
                     form.classList.remove('hidden');
                     form.classList.add('flex');
@@ -915,6 +957,9 @@
                         currentHppCalculated = 0;
                         clearRecipeRows();
                         if (emptyHint()) emptyHint().classList.remove('hidden');
+
+                        const isSupply = trigger?.getAttribute('data-catalog-target') === 'supply' || trigger?.getAttribute('data-catalog-kind') === 'supply';
+
                         setValue(form, 'cost', '0');
                         setValue(form, 'cost_source', 'manual');
                         setValue(form, 'hpp_method', 'average');
@@ -926,9 +971,13 @@
                         updateLiveCalculations();
 
                         const sellableCreate = document.getElementById('catalogProductIsSellable');
-                        if (sellableCreate) sellableCreate.checked = true;
+                        if (sellableCreate) sellableCreate.checked = !isSupply;
 
-                        const defaultUnit = el.dataset.defaultUnit || 'pcs';
+                        if (isSupply) {
+                            setValue(form, 'price', '0');
+                        }
+
+                        const defaultUnit = isSupply ? 'gram' : (el.dataset.defaultUnit || 'pcs');
                         if (!form.elements.namedItem('unit').value) {
                             setValue(form, 'unit', defaultUnit);
                         }
@@ -936,9 +985,21 @@
                             setValue(form, 'pricing_unit', defaultUnit);
                         }
 
+                        // Auto-fill fresh generated SKU on create
+                        const skuInput = document.getElementById('catalogProductSku');
+                        if (skuInput) {
+                            skuInput.value = generateRandomSku(kind, !isSupply);
+                        }
+
                         applyKind(form, kind, false);
                         showProductForm(form);
-                        setHeading('Tambah', kind === 'service' ? 'Layanan' : 'Produk');
+                        if (kind === 'service') {
+                            setHeading('Tambah', 'Layanan');
+                        } else if (isSupply) {
+                            setHeading('Tambah', 'Bahan Baku');
+                        } else {
+                            setHeading('Tambah', 'Produk');
+                        }
                     }
 
                     open(trigger);
@@ -1006,17 +1067,19 @@
                         const isRecipe = (raw.hpp_method === 'recipe');
                         if (recipeSection()) recipeSection().classList.toggle('hidden', !isRecipe);
 
+                        const isSellable = raw.is_sellable !== false && raw.is_sellable !== 0;
                         const sellableEdit = document.getElementById('catalogProductIsSellable');
                         if (sellableEdit) {
-                            sellableEdit.checked = raw.is_sellable !== false && raw.is_sellable !== 0;
+                            sellableEdit.checked = isSellable;
                         }
 
                         updateLiveCalculations();
-                    }
 
-                    applyKind(form, kind, true);
-                    setHeading('Edit', kind === 'service' ? 'Layanan' : 'Produk');
-                    open(trigger);
+                        applyKind(form, kind, true);
+                        const isSupply = !isSellable;
+                        setHeading('Edit', kind === 'service' ? 'Layanan' : (isSupply ? 'Bahan Baku' : 'Produk'));
+                        open(trigger);
+                    }
                 };
 
                 const parseRaw = (el) => {
