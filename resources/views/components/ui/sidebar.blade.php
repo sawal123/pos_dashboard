@@ -117,8 +117,15 @@
         @endif
 
         {{-- 2. OPERASIONAL --}}
-        @if($can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW))
+        @if($can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW) || $can($P::POS_SELL))
             <x-ui.sidebar-section title="Operasional">
+                @if($can($P::POS_SELL))
+                    <x-ui.sidebar-item
+                        icon="shopping-bag"
+                        label="Kasir (POS)"
+                        route="pos.index"
+                    />
+                @endif
                 {{--
                     DASH-14: "Pesanan Laundry" is relevant only for a laundry
                     business, so it requires BOTH the LAUNDRY_VIEW permission

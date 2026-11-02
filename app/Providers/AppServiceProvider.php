@@ -87,6 +87,16 @@ class AppServiceProvider extends ServiceProvider
             'stock-write',
             static fn (Request $request) => Limit::perMinute(30)->by($byActor($request)),
         );
+
+        RateLimiter::for(
+            'pos-checkout',
+            static fn (Request $request) => Limit::perMinute(60)->by($byActor($request)),
+        );
+
+        RateLimiter::for(
+            'pos-shift',
+            static fn (Request $request) => Limit::perMinute(15)->by($byActor($request)),
+        );
     }
 
     /**

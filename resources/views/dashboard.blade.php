@@ -45,10 +45,10 @@
                     <i data-lucide="minus-circle" class="w-4 h-4 text-rose-500"></i>
                     <span>Catat Kas</span>
                 </button>
-                <button type="button" id="newTransactionBtn" onclick="showToast('info', 'Transaksi baru dari dashboard belum tersedia.')" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs md:text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-indigo-500/20">
+                <a href="{{ route('pos.index') }}" id="newTransactionBtn" class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs md:text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-indigo-500/20">
                     <i data-lucide="plus" class="w-4 h-4"></i>
                     <span>Transaksi Baru (POS)</span>
-                </button>
+                </a>
             </div>
         </div>
 

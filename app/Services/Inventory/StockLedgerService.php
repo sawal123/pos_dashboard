@@ -25,7 +25,7 @@ final class StockLedgerService
 {
     /**
      * @param  array<string, mixed>  $meta  note, reference_id, category, unit_cost,
-     *                                      idempotency_key, occurred_at
+     *                                      idempotency_key, occurred_at, sale_sync_id
      */
     public function record(
         Business $business,
@@ -78,6 +78,7 @@ final class StockLedgerService
                     'reference_id' => $this->nullableString($meta['reference_id'] ?? null),
                     'category' => $this->nullableString($meta['category'] ?? null),
                     'note' => $this->nullableString($meta['note'] ?? null),
+                    'sale_sync_id' => $this->nullableString($meta['sale_sync_id'] ?? null),
                     'idempotency_key' => $idempotencyKey,
                     'unit_cost' => $this->unitCost($meta['unit_cost'] ?? null),
                     'occurred_at' => $this->occurredAt($meta['occurred_at'] ?? null),
