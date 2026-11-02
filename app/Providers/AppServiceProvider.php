@@ -97,6 +97,11 @@ class AppServiceProvider extends ServiceProvider
             'pos-shift',
             static fn (Request $request) => Limit::perMinute(15)->by($byActor($request)),
         );
+
+        RateLimiter::for(
+            'guide-chat',
+            static fn (Request $request) => Limit::perMinute(20)->by($byActor($request)),
+        );
     }
 
     /**

@@ -10,6 +10,7 @@ use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
+use App\Http\Controllers\Dashboard\GuideChatController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
 use App\Http\Controllers\Dashboard\PosController;
@@ -381,6 +382,11 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');
+
+    // CHATBOT-01 — NexaBot AI Application Guide
+    Route::post('guide-chat/message', [GuideChatController::class, 'message'])
+        ->middleware('throttle:guide-chat')
+        ->name('guide-chat.message');
 });
 
 // DASH-10B1 — invitation acceptance. GET is public so a brand-new user can be
