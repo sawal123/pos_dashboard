@@ -50,6 +50,9 @@
                     {{-- Right: Expense Categories Breakdown --}}
                     <x-reports.expense-breakdown :breakdown="$expenseBreakdown" />
                 </div>
+
+                {{-- Section 3: Per-promo performance (PROMO-D01) --}}
+                <x-reports.promo-breakdown :breakdown="$promoSummary ?? []" />
             </div>
         @endif
 

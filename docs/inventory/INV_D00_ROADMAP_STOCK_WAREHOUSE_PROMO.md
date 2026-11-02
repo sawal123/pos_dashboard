@@ -1,6 +1,6 @@
 # INV-D00 — Roadmap: Gudang, Riwayat Stok, dan Promo per Tipe Bisnis
 
-Status: draft rencana (belum ada kode yang diubah).
+Status: implemented — ketiga task (A, B, C) sudah dikerjakan pada branch masing-masing, menunggu merge. Lihat [INV_D00A_FEATURES_IMPLEMENTED.md](./INV_D00A_FEATURES_IMPLEMENTED.md).
 Scope: roadmap lintas domain untuk `INV-D01` (stock ledger & riwayat stok), `INV-D02` (gudang & persediaan), dan `PROMO-D01` (promo engine). Dokumen ini adalah rencana induk; spesifikasi tiap fase ditulis terpisah saat fase tersebut dikerjakan.
 Keputusan lingkup: persediaan level bisnis dulu, promo terdefinisi di server, dikerjakan bertahap 3 fase, mutasi stok oleh owner + member.
 
@@ -8,11 +8,11 @@ Keputusan lingkup: persediaan level bisnis dulu, promo terdefinisi di server, di
 
 Dokumen ini adalah kerangka. Setiap tugas di bawah adalah spesifikasi mandiri yang bisa langsung diserahkan ke satu agent.
 
-| Task | Judul | File | Depends on |
-|---|---|---|---|
-| A | Stock Ledger & Riwayat Stok | [INV_D01_STOCK_LEDGER_HISTORY.md](./INV_D01_STOCK_LEDGER_HISTORY.md) | — |
-| B | Gudang & Persediaan | [INV_D02_WAREHOUSE_OPERATIONS.md](./INV_D02_WAREHOUSE_OPERATIONS.md) | Task A |
-| C | Promo Engine | [PROMO_D01_PROMO_ENGINE.md](./PROMO_D01_PROMO_ENGINE.md) | Task A (untuk analitik diskon) |
+| Task | Judul | File | Depends on | Status |
+|---|---|---|---|---|
+| A | Stock Ledger & Riwayat Stok | [INV_D01_STOCK_LEDGER_HISTORY.md](./INV_D01_STOCK_LEDGER_HISTORY.md) | — | ✅ Selesai |
+| B | Gudang & Persediaan | [INV_D02_WAREHOUSE_OPERATIONS.md](./INV_D02_WAREHOUSE_OPERATIONS.md) | Task A | ✅ Selesai |
+| C | Promo Engine | [PROMO_D01_PROMO_ENGINE.md](./PROMO_D01_PROMO_ENGINE.md) | Task A (untuk analitik diskon) | ✅ Selesai |
 
 Urutan eksekusi yang disarankan: **A → B → C**. B dan C tidak boleh dikerjakan bersamaan dengan A yang belum merge, karena keduanya memakai `StockLedgerService`/`StockMovementType`.
 

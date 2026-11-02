@@ -9,6 +9,7 @@ use App\Models\Customer;
 use App\Models\Device;
 use App\Models\Expense;
 use App\Models\Product;
+use App\Models\Promo;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Shift;
@@ -306,6 +307,53 @@ class SyncPullService
                     'note' => $movement->note,
                     'sale_sync_id' => $movement->sale_sync_id,
                     'occurred_at' => $this->formatDate($movement->occurred_at),
+                ],
+            ];
+        }
+
+        // Promos (PROMO-D01). Draft promos never leave the dashboard.
+        $promos = Promo::where('business_id', $business->id)
+            ->where('status', '!=', 'draft')
+            ->where('sync_sequence', '>', $after)
+            ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
+            ->with(['targets.product', 'targets.category'])
+            ->get();
+
+        foreach ($promos as $promo) {
+            $records[] = [
+                'entity' => 'promos',
+                'sync_sequence' => (int) $promo->sync_sequence,
+                'data' => [
+                    'sync_id' => $promo->sync_id,
+                    'sync_version' => (int) $promo->sync_version,
+                    'name' => $promo->name,
+                    'code' => $promo->code,
+                    'discount_type' => $promo->discount_type,
+                    'discount_value' => (int) $promo->discount_value,
+                    'scope' => $promo->scope,
+                    'min_purchase' => (int) $promo->min_purchase,
+                    'max_discount' => $promo->max_discount !== null ? (int) $promo->max_discount : null,
+                    'weekdays' => $promo->weekdays,
+                    'starts_at' => $this->formatDate($promo->starts_at),
+                    'ends_at' => $this->formatDate($promo->ends_at),
+                    'start_time' => $promo->start_time,
+                    'end_time' => $promo->end_time,
+                    'usage_limit_total' => $promo->usage_limit_total,
+                    'usage_limit_per_customer' => $promo->usage_limit_per_customer,
+                    'is_stackable' => (bool) $promo->is_stackable,
+                    'status' => $promo->status,
+                    'targets' => $promo->targets->map(static function ($target): array {
+                        $targetSyncId = $target->target_type === 'product'
+                            ? $target->product?->sync_id
+                            : $target->category?->sync_id;
+
+                        return [
+                            'target_type' => $target->target_type,
+                            'target_sync_id' => $targetSyncId,
+                        ];
+                    })->values()->all(),
                 ],
             ];
         }

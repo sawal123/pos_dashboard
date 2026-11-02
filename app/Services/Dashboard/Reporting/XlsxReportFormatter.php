@@ -133,6 +133,29 @@ final class XlsxReportFormatter extends ReportFormatter
             ]));
         }
 
+        // ── Sheet 5: Performa Promo ───────────────────────────────────────
+        $promoSheet = $writer->addNewSheetAndMakeItCurrent();
+        $promoSheet->setName('Performa Promo');
+        $promoSheet->setColumnWidth(28, 1);
+        $promoSheet->setColumnWidth(18, 2);
+        $promoSheet->setColumnWidth(18, 3);
+        $promoSheet->setColumnWidth(22, 4);
+        $promoSheet->setColumnWidth(18, 5);
+
+        $writer->addRow($this->textRow(['Promo', 'Jumlah Pemakaian', 'Total Diskon', 'Omzet Setelah Diskon', 'Rata-rata Basket'], $headerStyle));
+        if ($document->dataset->promoSummary === []) {
+            $writer->addRow($this->textRow(['Tidak ada data']));
+        }
+        foreach ($document->dataset->promoSummary as $promo) {
+            $writer->addRow(new Row([
+                new StringCell((string) $promo['promo_name'], null),
+                new NumericCell((int) $promo['redeemed_count'], $integerStyle),
+                new NumericCell((float) $promo['total_discount'], $currencyStyle),
+                new NumericCell((float) $promo['revenue_after_discount'], $currencyStyle),
+                new NumericCell((float) $promo['avg_basket'], $currencyStyle),
+            ]));
+        }
+
         $writer->close();
 
         return $path;

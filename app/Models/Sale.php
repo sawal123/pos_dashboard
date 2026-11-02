@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $status
  * @property int $subtotal
  * @property int $discount_amount
+ * @property string|null $promo_sync_id
  * @property int $tax_amount
  * @property int $total_amount
  * @property string|null $payment_method
@@ -44,8 +45,9 @@ use Illuminate\Support\Carbon;
  * @property-read Customer|null $customer
  * @property-read Shift|null $shift
  * @property-read Collection<int, SaleItem> $items
+ * @property-read Collection<int, SalePromotion> $promotions
  */
-#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
+#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'promo_sync_id', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
 class Sale extends Model
 {
     use HasSyncMetadata;
@@ -134,5 +136,13 @@ class Sale extends Model
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * @return HasMany<SalePromotion, $this>
+     */
+    public function promotions(): HasMany
+    {
+        return $this->hasMany(SalePromotion::class);
     }
 }

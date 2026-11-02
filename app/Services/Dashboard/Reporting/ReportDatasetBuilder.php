@@ -5,6 +5,7 @@ namespace App\Services\Dashboard\Reporting;
 use App\Models\Business;
 use App\Models\Expense;
 use App\Models\Sale;
+use App\Models\SalePromotion;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -60,6 +61,11 @@ final class ReportDatasetBuilder
         $totalDiscount = (int) (clone $salesQuery)->sum('discount_amount');
         $grossSales = $totalSales + $totalDiscount;
         $discountRate = $grossSales > 0 ? round($totalDiscount / $grossSales * 100, 2) : 0.0;
+        $promoTransactions = (int) (clone $salesQuery)->whereNotNull('promo_sync_id')->count();
+        $manualDiscountTransactions = (int) (clone $salesQuery)
+            ->where('discount_amount', '>', 0)
+            ->whereNull('promo_sync_id')
+            ->count();
 
         $summary = [
             'total_sales' => $totalSales,
@@ -68,11 +74,14 @@ final class ReportDatasetBuilder
             'total_expenses' => $totalExpenses,
             'total_discount' => $totalDiscount,
             'discount_rate' => number_format($discountRate, 2, '.', ''),
+            'promo_transactions' => $promoTransactions,
+            'manual_discount_transactions' => $manualDiscountTransactions,
         ];
 
         $salesTrend = $this->salesTrend(clone $salesQuery, $rowLimit, $truncated);
         $paymentBreakdown = $this->paymentBreakdown(clone $salesQuery, $totalTransactions, $rowLimit, $truncated);
         $expenseBreakdown = $this->expenseBreakdown(clone $expenseQuery, $totalExpenses, $rowLimit, $truncated);
+        $promoSummary = $this->promoBreakdown($businessId, clone $salesQuery, $rowLimit, $truncated);
 
         return new ReportDataset(
             summary: $summary,
@@ -83,7 +92,69 @@ final class ReportDatasetBuilder
             hasFilteredReportData: $totalTransactions > 0 || $expenseBreakdown !== [],
             truncated: $truncated,
             rowLimit: $rowLimit ?? 0,
+            promoSummary: $promoSummary,
         );
+    }
+
+    /**
+     * Per-promo performance over the filtered paid sales.
+     *
+     * @param  Builder<Sale>  $salesQuery
+     * @return list<array<string, mixed>>
+     */
+    private function promoBreakdown(int $businessId, Builder $salesQuery, ?int $rowLimit, bool &$truncated): array
+    {
+        $saleIds = (clone $salesQuery)->select('sales.id');
+
+        $redemptions = SalePromotion::query()
+            ->where('business_id', $businessId)
+            ->whereIn('sale_id', $saleIds)
+            ->with('promo:id,name')
+            ->get();
+
+        if ($redemptions->isEmpty()) {
+            return [];
+        }
+
+        $revenueBySale = Sale::query()
+            ->where('business_id', $businessId)
+            ->whereIn('id', $redemptions->pluck('sale_id')->unique()->all())
+            ->pluck('total_amount', 'id');
+
+        /** @var array<int, array{promo_name: string, redeemed_count: int, total_discount: int, revenue_after_discount: int}> $grouped */
+        $grouped = [];
+
+        foreach ($redemptions as $redemption) {
+            $promoId = (int) $redemption->promo_id;
+            $grouped[$promoId] ??= [
+                'promo_name' => $redemption->promo->name,
+                'redeemed_count' => 0,
+                'total_discount' => 0,
+                'revenue_after_discount' => 0,
+            ];
+
+            $grouped[$promoId]['redeemed_count']++;
+            $grouped[$promoId]['total_discount'] += (int) $redemption->discount_amount;
+            $grouped[$promoId]['revenue_after_discount'] += (int) ($revenueBySale[(int) $redemption->sale_id] ?? 0);
+        }
+
+        $rows = [];
+
+        foreach ($grouped as $row) {
+            $row['avg_basket'] = $row['redeemed_count'] > 0
+                ? (int) round($row['revenue_after_discount'] / $row['redeemed_count'])
+                : 0;
+            $rows[] = $row;
+        }
+
+        usort($rows, static fn (array $a, array $b): int => $b['total_discount'] <=> $a['total_discount']);
+
+        if ($rowLimit !== null && count($rows) > $rowLimit) {
+            $truncated = true;
+            $rows = array_slice($rows, 0, $rowLimit);
+        }
+
+        return $rows;
     }
 
     private function hasAnyReportData(int $businessId): bool

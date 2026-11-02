@@ -13,6 +13,7 @@ use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
 use App\Http\Controllers\Dashboard\ProductsController;
+use App\Http\Controllers\Dashboard\PromosController;
 use App\Http\Controllers\Dashboard\ReportExportController;
 use App\Http\Controllers\Dashboard\ReportsController;
 use App\Http\Controllers\Dashboard\ShiftsController;
@@ -184,6 +185,23 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('opnameId')
         ->middleware(['business.permission:'.BusinessPermission::STOCK_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
         ->name('stock.opname.cancel');
+
+    // PROMO-D01 — server-defined promos. Reading for owner + member; mutations
+    // are owner-only because they change effective prices.
+    Route::get('promos', [PromosController::class, 'index'])
+        ->middleware(['business.permission:'.BusinessPermission::PROMO_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('promos.index');
+    Route::post('promos', [PromosController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::PROMO_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('promos.store');
+    Route::patch('promos/{promoId}/status', [PromosController::class, 'updateStatus'])
+        ->whereNumber('promoId')
+        ->middleware(['business.permission:'.BusinessPermission::PROMO_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('promos.status.update');
+    Route::patch('promos/{promoId}', [PromosController::class, 'update'])
+        ->whereNumber('promoId')
+        ->middleware(['business.permission:'.BusinessPermission::PROMO_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:stock-write'])
+        ->name('promos.update');
 
     Route::get('cash', [CashController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::CASH_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

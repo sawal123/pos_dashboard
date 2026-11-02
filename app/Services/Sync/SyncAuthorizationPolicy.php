@@ -6,13 +6,16 @@ use App\Models\Business;
 use App\Models\CashLedger;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Models\Promo;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SalePromotion;
 use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Promo\PromoEvaluator;
 use Illuminate\Support\Carbon;
 
 final class SyncAuthorizationPolicy
@@ -75,8 +78,18 @@ final class SyncAuthorizationPolicy
     {
         $mode = $this->pushMode($context['user'], $context['business']);
 
+        /** @var array<string, list<array<string, mixed>>> $changes */
+        $changes = is_array($payload['changes'] ?? null) ? $payload['changes'] : [];
+        $business = $context['business'];
+
+        // PROMO-D01 — financial integrity applies to every push mode: a sale's
+        // totals must be internally consistent and a claimed promo must match
+        // the server-side discount math exactly. Cashier-specific violations
+        // keep priority ordering; financial ones are appended after them.
+        $financialViolations = $this->authorizeSaleFinancials($business, $changes);
+
         if ($mode === self::PUSH_MODE_FULL) {
-            return [];
+            return $financialViolations;
         }
 
         if ($mode !== self::PUSH_MODE_CASHIER_SAFE) {
@@ -87,9 +100,6 @@ final class SyncAuthorizationPolicy
             ]];
         }
 
-        /** @var array<string, list<array<string, mixed>>> $changes */
-        $changes = is_array($payload['changes'] ?? null) ? $payload['changes'] : [];
-        $business = $context['business'];
         $outletId = (int) $context['outlet_id'];
         $violations = [];
 
@@ -126,7 +136,7 @@ final class SyncAuthorizationPolicy
             $this->authorizeStockMovements($business, $outletId, $changes['stock_movements'] ?? [], $incomingSales, $changes['sale_items'] ?? []),
         );
 
-        return $violations;
+        return array_merge($violations, $financialViolations);
     }
 
     /**
@@ -160,6 +170,122 @@ final class SyncAuthorizationPolicy
         }
 
         return [];
+    }
+
+    /**
+     * Arithmetic integrity plus server-side promo verification.
+     *
+     * @param  array<string, mixed>  $changes
+     * @return list<array{entity: string, operation: string, reason?: string}>
+     */
+    private function authorizeSaleFinancials(Business $business, array $changes): array
+    {
+        $violations = [];
+
+        /** @var list<array<string, mixed>> $sales */
+        $sales = isset($changes['sales']) && is_array($changes['sales']) ? array_values($changes['sales']) : [];
+        /** @var list<array<string, mixed>> $saleItems */
+        $saleItems = isset($changes['sale_items']) && is_array($changes['sale_items']) ? array_values($changes['sale_items']) : [];
+
+        /** @var array<string, list<array<string, mixed>>> $itemsBySale */
+        $itemsBySale = [];
+        $productSyncIds = [];
+
+        foreach ($saleItems as $item) {
+            $saleSyncId = isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : '';
+            if ($saleSyncId !== '') {
+                $itemsBySale[$saleSyncId][] = $item;
+            }
+
+            $productSyncId = isset($item['product_sync_id']) ? (string) $item['product_sync_id'] : '';
+            if ($productSyncId !== '') {
+                $productSyncIds[] = $productSyncId;
+            }
+        }
+
+        /** @var array<string, array{id: int, category_id: int|null}> $productMap */
+        $productMap = [];
+
+        if ($productSyncIds !== []) {
+            $products = Product::where('business_id', $business->id)
+                ->whereIn('sync_id', array_values(array_unique($productSyncIds)))
+                ->get(['id', 'sync_id', 'category_id']);
+
+            foreach ($products as $product) {
+                $productMap[(string) $product->sync_id] = [
+                    'id' => (int) $product->id,
+                    'category_id' => $product->category_id !== null ? (int) $product->category_id : null,
+                ];
+            }
+        }
+
+        foreach ($sales as $sale) {
+            $subtotal = (int) ($sale['subtotal'] ?? 0);
+            $discount = (int) ($sale['discount_amount'] ?? 0);
+            $tax = (int) ($sale['tax_amount'] ?? 0);
+            $total = (int) ($sale['total_amount'] ?? 0);
+
+            if ($subtotal - $discount + $tax !== $total) {
+                $violations[] = $this->violation('sales', 'upsert', 'sale_total_mismatch');
+            }
+
+            $promoSyncId = isset($sale['promo_sync_id']) ? (string) $sale['promo_sync_id'] : '';
+            if ($promoSyncId === '') {
+                continue;
+            }
+
+            $promo = Promo::where('business_id', $business->id)
+                ->where('sync_id', $promoSyncId)
+                ->with('targets')
+                ->first();
+
+            if (! $promo instanceof Promo) {
+                $violations[] = $this->violation('sales', 'upsert', 'promo_not_found');
+
+                continue;
+            }
+
+            $lines = [];
+
+            foreach ($itemsBySale[(string) ($sale['sync_id'] ?? '')] ?? [] as $item) {
+                $mapped = $productMap[(string) ($item['product_sync_id'] ?? '')] ?? null;
+
+                $lines[] = [
+                    'product_id' => $mapped['id'] ?? 0,
+                    'category_id' => $mapped['category_id'] ?? null,
+                    'unit_price' => (int) ($item['unit_price'] ?? 0),
+                    'quantity' => (float) ($item['quantity'] ?? 0),
+                    'line_total' => (int) ($item['line_total'] ?? 0),
+                ];
+            }
+
+            $at = Carbon::parse((string) ($sale['sold_at'] ?? now()));
+            $result = app(PromoEvaluator::class)->evaluate($promo, $subtotal, $lines, $at);
+
+            if (! $result['eligible']) {
+                $violations[] = $this->violation('sales', 'upsert', $result['reason'] ?? 'promo_not_eligible');
+
+                continue;
+            }
+
+            if ((int) $result['discount'] !== $discount) {
+                $violations[] = $this->violation('sales', 'upsert', 'promo_discount_mismatch');
+            }
+
+            $limit = $promo->usage_limit_total;
+
+            if ($limit !== null) {
+                $used = SalePromotion::where('business_id', $business->id)
+                    ->where('promo_id', $promo->id)
+                    ->count();
+
+                if ($used + 1 > (int) $limit) {
+                    $violations[] = $this->violation('sales', 'upsert', 'promo_usage_limit_exceeded');
+                }
+            }
+        }
+
+        return $violations;
     }
 
     /**

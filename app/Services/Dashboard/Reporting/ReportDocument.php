@@ -52,6 +52,8 @@ final class ReportDocument
             ['label' => 'Total Pengeluaran', 'value' => $this->dataset->summary['total_expenses'], 'type' => 'currency'],
             ['label' => 'Total Diskon', 'value' => $this->dataset->summary['total_discount'] ?? 0, 'type' => 'currency'],
             ['label' => 'Rasio Diskon', 'value' => (string) ($this->dataset->summary['discount_rate'] ?? 0), 'type' => 'percent'],
+            ['label' => 'Transaksi Promo', 'value' => $this->dataset->summary['promo_transactions'] ?? 0, 'type' => 'integer'],
+            ['label' => 'Diskon Manual', 'value' => $this->dataset->summary['manual_discount_transactions'] ?? 0, 'type' => 'integer'],
         ];
     }
 

@@ -9,8 +9,10 @@ use App\Models\Customer;
 use App\Models\Device;
 use App\Models\Expense;
 use App\Models\Product;
+use App\Models\Promo;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SalePromotion;
 use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\SyncRequest;
@@ -422,16 +424,20 @@ class SyncPushService
                 'status' => (string) ($item['status'] ?? 'completed'),
                 'subtotal' => (int) $item['subtotal'],
                 'discount_amount' => (int) ($item['discount_amount'] ?? 0),
+                'promo_sync_id' => isset($item['promo_sync_id']) && $item['promo_sync_id'] !== ''
+                    ? (string) $item['promo_sync_id']
+                    : null,
                 'tax_amount' => (int) ($item['tax_amount'] ?? 0),
                 'total_amount' => (int) $item['total_amount'],
                 'sold_at' => Carbon::parse((string) $item['sold_at']),
             ], $payment, $snapshots);
 
+            $sale = null;
+
             if ($record instanceof Sale) {
                 if ($this->attributesMatch($record, $attributes)) {
                     continue;
                 }
-
                 // Laundry lifecycle regression guard: a stale device must never
                 // move an order backwards (Selesai -> Siap Diambil, and so on).
                 if (array_key_exists('order_status', $attributes)) {
@@ -456,7 +462,48 @@ class SyncPushService
                 $sale->sync_id = $syncId;
                 $sale->save();
             }
+
+            $savedSale = $sale instanceof Sale ? $sale : $record;
+
+            $this->syncSalePromotion($business, $savedSale, $item);
         }
+    }
+
+    /**
+     * Record promo traceability for a sale (PROMO-D01). Idempotent across
+     * retries because the unique key is (business, sale, promo).
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected function syncSalePromotion(Business $business, Sale $sale, array $item): void
+    {
+        $promoSyncId = isset($item['promo_sync_id']) ? (string) $item['promo_sync_id'] : '';
+        $discount = (int) ($item['discount_amount'] ?? 0);
+
+        if ($promoSyncId === '' || $discount <= 0) {
+            return;
+        }
+
+        $promo = Promo::where('business_id', $business->id)
+            ->where('sync_id', $promoSyncId)
+            ->first();
+
+        if (! $promo instanceof Promo) {
+            return;
+        }
+
+        SalePromotion::firstOrCreate(
+            [
+                'business_id' => $business->id,
+                'sale_id' => $sale->id,
+                'promo_id' => $promo->id,
+            ],
+            [
+                'promo_sync_id' => $promoSyncId,
+                'discount_amount' => $discount,
+                'created_at' => now(),
+            ],
+        );
     }
 
     /**

@@ -163,6 +163,13 @@
                         route="stock.opname.index"
                     />
                 @endif
+                @if($can($P::PROMO_VIEW))
+                    <x-ui.sidebar-item
+                        icon="badge-percent"
+                        label="Promo"
+                        route="promos.index"
+                    />
+                @endif
                 @if($can($P::CASH_VIEW))
                     <x-ui.sidebar-item
                         icon="wallet-cards"
