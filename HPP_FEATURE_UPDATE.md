@@ -31,6 +31,12 @@ Fitur HPP (Harga Pokok Penjualan) menyediakan sistem kalkulasi modal produk yang
 
 ## 3. Komponen UI & UX Baru
 - **Modal Produk Responsif**: Header judul dan tombol aksi sticky, dengan area form yang dapat di-scroll secara independen sehingga form tetap utuh dan nyaman di semua ukuran layar.
+- **Tombol Dinamis "+ Tambah Bahan" di Tab Persediaan**:
+  - Pada tab **Persediaan**, tombol tambah otomatis berubah menjadi **"+ Tambah Bahan"** dengan judul modal **"TAMBAH Bahan Baku"**.
+  - Opsi *"Dijual di POS"* otomatis tidak dicentang (`is_sellable = false`), harga jual default Rp 0, dan otomatis dialihkan kembali ke tab Persediaan setelah disimpan.
+- **Tombol Otomatis "Generate SKU"**:
+  - Input field SKU kini memiliki tombol **Generate SKU** (baik di label atas maupun tombol inline di dalam input field).
+  - Meng-generate kode unik secara cerdas berdasarkan jenis item (`RAW-XXXXXX` untuk bahan baku, `SKU-XXXXXX` untuk produk fisik, dan `SRV-XXXXXX` untuk layanan).
 - **Select2 Searchable Bahan Baku**:
   - Dropdown bahan baku pada resep kini dilengkapi fitur pencarian cepat (nama bahan, SKU, atau harga satuan).
   - Tampilan telah disesuaikan dengan tema gelap (Dark Mode) dan terang (Light Mode) NexaPOS.
@@ -50,3 +56,4 @@ php artisan db:seed --class=ProductHppSeeder
 - `database/migrations/2026_11_02_000001_add_hpp_columns_to_products_table.php`
 - `database/migrations/2026_11_02_000002_create_product_recipe_items_table.php`
 - `database/migrations/2026_11_02_000003_create_product_cost_histories_table.php`
+
