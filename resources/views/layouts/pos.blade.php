@@ -138,6 +138,9 @@
         {{-- ==================== TOAST CONTAINER ==================== --}}
         <x-ui.toast-container />
 
+        {{-- ==================== NEXABOT AI GUIDE CHATBOT ==================== --}}
+        <x-ui.guide-chatbot />
+
         {{-- ==================== SCRIPTS ==================== --}}
         <script>
             (function() {

@@ -31,6 +31,9 @@
         {{-- ==================== GLOBAL CONFIRMATION MODAL ==================== --}}
         <x-ui.confirmation-modal />
 
+        {{-- ==================== NEXABOT AI GUIDE CHATBOT ==================== --}}
+        <x-ui.guide-chatbot />
+
         {{-- ==================== JAVASCRIPT ==================== --}}
         <script>
             (function() {
