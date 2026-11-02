@@ -2,6 +2,7 @@
 @props([
     'categories' => [],
     'businessType' => null,
+    'rawMaterialOptions' => [],
 ])
 
 @php
@@ -27,7 +28,7 @@
     <div class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-xs" data-close-catalog-modal></div>
 
     <div class="fixed inset-0 flex items-start sm:items-center justify-center p-3 sm:p-4 overflow-y-auto">
-        <div class="w-full max-w-lg my-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl">
+        <div class="w-full max-w-2xl my-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xl">
             <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 rounded-t-2xl">
                 <div>
                     <span id="catalogModalSubtitle" class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tambah</span>
@@ -136,31 +137,202 @@
 
                 {{-- Product-only fields --}}
                 <div data-catalog-field="product" class="space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Barcode</label>
-                            <input
-                                id="catalogProductBarcode"
-                                name="barcode"
-                                type="text"
-                                maxlength="255"
-                                value="{{ old('barcode') }}"
-                                class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                            @error('barcode')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                    <div>
+                        <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Barcode</label>
+                        <input
+                            id="catalogProductBarcode"
+                            name="barcode"
+                            type="text"
+                            maxlength="255"
+                            value="{{ old('barcode') }}"
+                            placeholder="Scan atau ketik barcode..."
+                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                        @error('barcode')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                    </div>
+
+                    {{-- HPP & Modal Card --}}
+                    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-4">
+                        <div class="flex items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/80 pb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                                    <i data-lucide="calculator" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-900 dark:text-white">Harga Modal & HPP</h4>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Atur acuan harga modal dan kalkulasi HPP produk ini</p>
+                                </div>
+                            </div>
+                            <span id="catalogMarginBadge" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                Margin: --
+                            </span>
                         </div>
-                        <div>
-                            <label for="catalogProductCost" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">HPP (Rp)</label>
-                            <input
-                                id="catalogProductCost"
-                                name="cost"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                value="{{ old('cost') }}"
-                                class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            >
-                            @error('cost')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="catalogProductCost" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                    Harga Modal Acuan (Rp)
+                                </label>
+                                <input
+                                    id="catalogProductCost"
+                                    name="cost"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="{{ old('cost', 0) }}"
+                                    class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                                    Nilai modal aktif yang disinkronkan ke POS & laporan laba.
+                                </p>
+                                @error('cost')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                            </div>
+
+                            <div>
+                                <label for="catalogCostSource" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                    Sumber Harga Modal
+                                </label>
+                                <select
+                                    id="catalogCostSource"
+                                    name="cost_source"
+                                    class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="manual" @selected(old('cost_source', 'manual') === 'manual')>Manual (Ditentukan Sendiri)</option>
+                                    <option value="hpp" @selected(old('cost_source') === 'hpp')>Otomatis Ikuti HPP</option>
+                                </select>
+                                <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                                    Pilih apakah harga modal acuan diisi manual atau otomatis diperbarui oleh HPP.
+                                </p>
+                                @error('cost_source')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label for="catalogHppMethod" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                    Metode Hitung HPP
+                                </label>
+                                <select
+                                    id="catalogHppMethod"
+                                    name="hpp_method"
+                                    class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                    <option value="average" @selected(old('hpp_method', 'average') === 'average')>Rata-rata Tertimbang (Moving Avg)</option>
+                                    <option value="last_purchase" @selected(old('hpp_method') === 'last_purchase')>Harga Pembelian Terakhir</option>
+                                    <option value="recipe" @selected(old('hpp_method') === 'recipe')>Resep / Komposisi Bahan (BOM)</option>
+                                    <option value="none" @selected(old('hpp_method') === 'none')>Tidak Dihitung</option>
+                                </select>
+                                @error('hpp_method')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                            </div>
+
+                            <div class="flex flex-col justify-between p-3 rounded-xl border border-indigo-100 dark:border-indigo-950/70 bg-indigo-50/50 dark:bg-indigo-950/20">
+                                <div>
+                                    <span class="text-[11px] font-medium text-indigo-700 dark:text-indigo-300">HPP Terhitung Saat Ini</span>
+                                    <div class="flex items-baseline gap-1.5 mt-0.5">
+                                        <span id="catalogHppCalculatedDisplay" class="text-base font-extrabold text-indigo-900 dark:text-indigo-100">Rp 0</span>
+                                        <span id="catalogHppCalculatedAt" class="text-[10px] text-indigo-500 dark:text-indigo-400"></span>
+                                    </div>
+                                </div>
+                                <div class="mt-2 pt-2 border-t border-indigo-100/80 dark:border-indigo-900/40 flex items-center justify-between">
+                                    <span class="text-[11px] text-slate-500 dark:text-slate-400">Gunakan nilai ini?</span>
+                                    <button
+                                        type="button"
+                                        id="catalogApplyHppBtn"
+                                        class="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                    >
+                                        <span>Salin ke Modal</span>
+                                        <i data-lucide="arrow-up-left" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Recipe Builder Section (Shown only when hpp_method === 'recipe') --}}
+                        <div id="catalogRecipeSection" class="pt-3 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3 hidden">
+                            <div class="flex items-center justify-between gap-2">
+                                <div>
+                                    <span class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                                        <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                        Komposisi Bahan Baku (Resep)
+                                    </span>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        HPP dihitung otomatis dari total modal bahan + overhead.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    id="catalogAddRecipeItemBtn"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold transition-colors"
+                                >
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                    <span>Tambah Bahan</span>
+                                </button>
+                            </div>
+
+                            {{-- Recipe items list container --}}
+                            <div id="catalogRecipeItemsContainer" class="space-y-2">
+                                {{-- Dynamically populated via JS --}}
+                            </div>
+
+                            <div id="catalogRecipeEmptyHint" class="p-4 text-center rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-xs text-slate-400 dark:text-slate-500">
+                                Belum ada bahan baku. Klik <strong>+ Tambah Bahan</strong> untuk menentukan komposisi produk ini.
+                            </div>
+
+                            {{-- Overhead inputs --}}
+                            <div class="pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+                                <span class="block text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2">
+                                    Biaya Operasional / Overhead (Opsional)
+                                </span>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="catalogHppOverheadFixed" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                            Overhead Tetap (Rp)
+                                        </label>
+                                        <input
+                                            id="catalogHppOverheadFixed"
+                                            name="hpp_overhead_fixed"
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            value="{{ old('hpp_overhead_fixed', 0) }}"
+                                            placeholder="Contoh: 1500 (kemasan/cup)"
+                                            class="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                    </div>
+                                    <div>
+                                        <label for="catalogHppOverheadPercent" class="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                                            Overhead Persentase (%)
+                                        </label>
+                                        <input
+                                            id="catalogHppOverheadPercent"
+                                            name="hpp_overhead_percent"
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            step="0.01"
+                                            value="{{ old('hpp_overhead_percent', 0) }}"
+                                            placeholder="Contoh: 5 (% susut/gas)"
+                                            class="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Recipe live summary preview --}}
+                            <div class="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 text-xs space-y-1">
+                                <div class="flex justify-between text-slate-600 dark:text-slate-300">
+                                    <span>Total Biaya Bahan:</span>
+                                    <span id="catalogRecipeMaterialsSubtotal" class="font-semibold">Rp 0</span>
+                                </div>
+                                <div class="flex justify-between text-slate-600 dark:text-slate-300">
+                                    <span>Total Biaya Overhead:</span>
+                                    <span id="catalogRecipeOverheadSubtotal" class="font-semibold">Rp 0</span>
+                                </div>
+                                <div class="flex justify-between pt-1 border-t border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white">
+                                    <span>Estimasi HPP Resep:</span>
+                                    <span id="catalogRecipeTotalEstimate" class="text-indigo-600 dark:text-indigo-400">Rp 0</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -350,4 +522,7 @@
             </form>
         </div>
     </div>
+
+    {{-- Raw materials / components data for recipe builder (base64 encoded to avoid leaking names into HTML body assertions) --}}
+    <script id="catalogRawMaterialsData" type="application/json">"{{ base64_encode(json_encode($rawMaterialOptions ?? [])) }}"</script>
 </div>

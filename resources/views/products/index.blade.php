@@ -214,7 +214,11 @@
 
         @if($canManageCatalog)
             {{-- ==================== 7. CATALOG MODAL (DASH-15) ==================== --}}
-            <x-products.catalog-modal :categories="$categories" :business-type="$dashboardBusinessType ?? null" />
+            <x-products.catalog-modal
+                :categories="$categories"
+                :business-type="$dashboardBusinessType ?? null"
+                :raw-material-options="$rawMaterialOptions ?? []"
+            />
         @endif
 
     </main>
@@ -344,8 +348,11 @@
                 const productInventorySec = document.getElementById('detailProductInventorySection');
                 const serviceOperationalSec = document.getElementById('detailServiceOperationalSection');
 
+                const detailRecipeSec = document.getElementById('detailItemRecipeSection');
+
                 if (isService) {
                     costRow.classList.add('hidden');
+                    if (detailRecipeSec) detailRecipeSec.classList.add('hidden');
                     pricingUnitRow.classList.remove('hidden');
                     const unitStr = itemData.pricing_unit || itemData.unit || '';
                     document.getElementById('detailPricingUnit').textContent = unitStr ? `Per ${unitStr}` : '-';
@@ -363,6 +370,85 @@
                 } else {
                     costRow.classList.remove('hidden');
                     document.getElementById('detailItemCost').textContent = formatRupiah(itemData.cost);
+
+                    // Cost Source Badge
+                    const costSourceBadge = document.getElementById('detailCostSourceBadge');
+                    if (costSourceBadge) {
+                        const isAutoHpp = itemData.cost_source === 'hpp';
+                        costSourceBadge.textContent = isAutoHpp ? 'Otomatis HPP' : 'Manual';
+                        costSourceBadge.className = isAutoHpp
+                            ? 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                            : 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+                    }
+
+                    // HPP Row & Method Badge
+                    const hppEl = document.getElementById('detailItemHpp');
+                    const hppMethodBadge = document.getElementById('detailHppMethodBadge');
+                    if (hppEl) {
+                        hppEl.textContent = formatRupiah(itemData.hpp ?? 0);
+                    }
+                    if (hppMethodBadge) {
+                        const methodLabels = {
+                            'average': 'Rata-rata',
+                            'last_purchase': 'Beli Terakhir',
+                            'recipe': 'Resep (BOM)',
+                            'none': 'None'
+                        };
+                        hppMethodBadge.textContent = methodLabels[itemData.hpp_method] || 'Rata-rata';
+                    }
+
+                    // Margin Row
+                    const marginEl = document.getElementById('detailItemMargin');
+                    if (marginEl) {
+                        if (itemData.margin_percent !== undefined && itemData.margin_percent !== null) {
+                            const pct = Number(itemData.margin_percent).toFixed(1);
+                            const amt = formatRupiah(itemData.margin_amount ?? 0);
+                            marginEl.textContent = `${amt} (${pct}%)`;
+                            marginEl.className = Number(itemData.margin_percent) >= 0
+                                ? 'font-bold tabular-nums text-emerald-600 dark:text-emerald-400'
+                                : 'font-bold tabular-nums text-rose-600 dark:text-rose-400';
+                        } else {
+                            marginEl.textContent = '-';
+                            marginEl.className = 'font-bold tabular-nums text-slate-500';
+                        }
+                    }
+
+                    // Recipe Composition Section
+                    const recipeItemsList = document.getElementById('detailRecipeItemsList');
+                    const recipeCount = document.getElementById('detailRecipeItemCount');
+                    const recipeOverheadText = document.getElementById('detailRecipeOverheadText');
+
+                    if (detailRecipeSec && recipeItemsList) {
+                        const items = itemData.recipe_items || [];
+                        if (items.length > 0) {
+                            detailRecipeSec.classList.remove('hidden');
+                            if (recipeCount) recipeCount.textContent = `${items.length} bahan`;
+                            recipeItemsList.innerHTML = items.map(ri => {
+                                const subtotal = (Number(ri.quantity) * Number(ri.component_cost || 0));
+                                return `
+                                    <div class="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 text-[11px]">
+                                        <div class="min-w-0 pr-2">
+                                            <span class="font-bold text-slate-800 dark:text-slate-200 block truncate">${ri.component_name || 'Bahan'}</span>
+                                            <span class="text-slate-400 dark:text-slate-500">${ri.quantity} ${ri.component_unit || 'pcs'} @ ${formatRupiah(ri.component_cost || 0)}</span>
+                                        </div>
+                                        <span class="font-semibold text-slate-700 dark:text-slate-300 tabular-nums shrink-0">${formatRupiah(subtotal)}</span>
+                                    </div>
+                                `;
+                            }).join('');
+
+                            if (recipeOverheadText) {
+                                const fixed = Number(itemData.hpp_overhead_fixed || 0);
+                                const pct = Number(itemData.hpp_overhead_percent || 0);
+                                const parts = [];
+                                if (fixed > 0) parts.push(formatRupiah(fixed));
+                                if (pct > 0) parts.push(`${pct}%`);
+                                recipeOverheadText.textContent = parts.length > 0 ? parts.join(' + ') : 'Rp 0';
+                            }
+                        } else {
+                            detailRecipeSec.classList.add('hidden');
+                        }
+                    }
+
                     pricingUnitRow.classList.add('hidden');
 
                     productInventorySec.classList.remove('hidden');
@@ -482,10 +568,198 @@
                 const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
                 let lastTrigger = null;
+                let currentEditingProductId = null;
+                let currentHppCalculated = 0;
 
                 const modalEl = () => document.getElementById('catalogModal');
                 const productForm = () => document.getElementById('catalogProductForm');
                 const categoryForm = () => document.getElementById('catalogCategoryForm');
+                const recipeContainer = () => document.getElementById('catalogRecipeItemsContainer');
+                const recipeSection = () => document.getElementById('catalogRecipeSection');
+                const emptyHint = () => document.getElementById('catalogRecipeEmptyHint');
+
+                const getRawMaterials = () => {
+                    const scriptEl = document.getElementById('catalogRawMaterialsData');
+                    if (!scriptEl) return [];
+                    try {
+                        let text = scriptEl.textContent ? scriptEl.textContent.trim() : '';
+                        if (text.startsWith('"') && text.endsWith('"')) {
+                            text = text.slice(1, -1);
+                        }
+                        const decoded = text ? atob(text) : '[]';
+                        const all = JSON.parse(decoded || '[]');
+                        if (currentEditingProductId) {
+                            return all.filter(m => Number(m.id) !== Number(currentEditingProductId));
+                        }
+                        return all;
+                    } catch (e) {
+                        return [];
+                    }
+                };
+
+                const formatRupiahVal = (val) => {
+                    const num = Number(val) || 0;
+                    return 'Rp ' + Math.round(num).toLocaleString('id-ID');
+                };
+
+                const updateLiveCalculations = () => {
+                    const form = productForm();
+                    if (!form) return;
+
+                    const priceInput = form.elements.namedItem('price');
+                    const costInput = form.elements.namedItem('cost');
+                    const costSourceSelect = form.elements.namedItem('cost_source');
+                    const hppMethodSelect = form.elements.namedItem('hpp_method');
+                    const overheadFixedInput = form.elements.namedItem('hpp_overhead_fixed');
+                    const overheadPercentInput = form.elements.namedItem('hpp_overhead_percent');
+
+                    const hppMethod = hppMethodSelect ? hppMethodSelect.value : 'average';
+                    const costSource = costSourceSelect ? costSourceSelect.value : 'manual';
+                    const sellingPrice = parseFloat(priceInput?.value) || 0;
+
+                    // If recipe method: calculate recipe total
+                    let recipeMaterialsSubtotal = 0;
+                    const container = recipeContainer();
+                    if (container) {
+                        const rows = container.querySelectorAll('.recipe-row');
+                        rows.forEach(row => {
+                            const select = row.querySelector('.recipe-component-select');
+                            const qtyInput = row.querySelector('.recipe-qty-input');
+                            const subtotalEl = row.querySelector('.recipe-row-subtotal');
+                            const unitEl = row.querySelector('.recipe-row-unit');
+
+                            const selectedOption = select?.selectedOptions?.[0];
+                            const componentCost = parseFloat(selectedOption?.dataset?.cost) || 0;
+                            const componentUnit = selectedOption?.dataset?.unit || 'pcs';
+                            const qty = parseFloat(qtyInput?.value) || 0;
+
+                            if (unitEl) unitEl.textContent = componentUnit;
+                            const rowSubtotal = componentCost * qty;
+                            if (subtotalEl) subtotalEl.textContent = formatRupiahVal(rowSubtotal);
+
+                            recipeMaterialsSubtotal += rowSubtotal;
+                        });
+                    }
+
+                    const overheadFixed = parseFloat(overheadFixedInput?.value) || 0;
+                    const overheadPercent = parseFloat(overheadPercentInput?.value) || 0;
+                    const overheadFromPercent = (recipeMaterialsSubtotal * overheadPercent) / 100;
+                    const totalOverhead = overheadFixed + overheadFromPercent;
+                    const totalRecipeHpp = recipeMaterialsSubtotal + totalOverhead;
+
+                    // Update recipe preview elements
+                    const matSubtotalEl = document.getElementById('catalogRecipeMaterialsSubtotal');
+                    const ovhSubtotalEl = document.getElementById('catalogRecipeOverheadSubtotal');
+                    const totalEstEl = document.getElementById('catalogRecipeTotalEstimate');
+                    if (matSubtotalEl) matSubtotalEl.textContent = formatRupiahVal(recipeMaterialsSubtotal);
+                    if (ovhSubtotalEl) ovhSubtotalEl.textContent = formatRupiahVal(totalOverhead);
+                    if (totalEstEl) totalEstEl.textContent = formatRupiahVal(totalRecipeHpp);
+
+                    // Calculated HPP display
+                    const hppDisplayEl = document.getElementById('catalogHppCalculatedDisplay');
+                    let effectiveHpp = currentHppCalculated;
+                    if (hppMethod === 'recipe') {
+                        effectiveHpp = totalRecipeHpp;
+                    }
+                    if (hppDisplayEl) {
+                        hppDisplayEl.textContent = formatRupiahVal(effectiveHpp);
+                    }
+
+                    // If cost_source is 'hpp', auto-sync cost input with effective HPP!
+                    if (costSource === 'hpp' && costInput) {
+                        costInput.value = effectiveHpp > 0 ? (effectiveHpp % 1 === 0 ? effectiveHpp : effectiveHpp.toFixed(2)) : '0';
+                    }
+
+                    // Margin badge calculation
+                    const activeCost = parseFloat(costInput?.value) || 0;
+                    const marginBadge = document.getElementById('catalogMarginBadge');
+                    if (marginBadge) {
+                        if (sellingPrice > 0) {
+                            const marginAmt = sellingPrice - activeCost;
+                            const marginPct = (marginAmt / sellingPrice) * 100;
+                            const sign = marginPct >= 0 ? '+' : '';
+                            marginBadge.textContent = `Margin: ${formatRupiahVal(marginAmt)} (${sign}${marginPct.toFixed(1)}%)`;
+                            marginBadge.className = marginPct >= 0
+                                ? 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                                : 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-300';
+                        } else {
+                            marginBadge.textContent = 'Margin: --';
+                            marginBadge.className = 'inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+                        }
+                    }
+                };
+
+                const reindexRecipeRows = () => {
+                    const container = recipeContainer();
+                    if (!container) return;
+                    const rows = container.querySelectorAll('.recipe-row');
+                    if (rows.length === 0) {
+                        if (emptyHint()) emptyHint().classList.remove('hidden');
+                    } else {
+                        if (emptyHint()) emptyHint().classList.add('hidden');
+                    }
+                    rows.forEach((r, idx) => {
+                        const sel = r.querySelector('.recipe-component-select');
+                        const qty = r.querySelector('.recipe-qty-input');
+                        if (sel) sel.name = `recipe_items[${idx}][component_product_id]`;
+                        if (qty) qty.name = `recipe_items[${idx}][quantity]`;
+                    });
+                };
+
+                const addRecipeRow = (item = null) => {
+                    const container = recipeContainer();
+                    if (!container) return;
+
+                    const rowIndex = container.querySelectorAll('.recipe-row').length;
+                    const rawMaterials = getRawMaterials();
+
+                    const row = document.createElement('div');
+                    row.className = 'recipe-row flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-xl border border-slate-200/90 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs shadow-xs';
+
+                    const selectedCompId = item ? (item.component_product_id || item.id) : '';
+                    const initialQty = item ? (item.quantity ?? 1) : 1;
+
+                    let optionsHtml = '<option value="">-- Pilih Bahan Baku --</option>';
+                    rawMaterials.forEach(mat => {
+                        const isSel = String(mat.id) === String(selectedCompId) ? 'selected' : '';
+                        optionsHtml += `<option value="${mat.id}" data-cost="${mat.cost}" data-unit="${mat.unit}" ${isSel}>${mat.name} (${mat.sku}) - Rp ${Math.round(mat.cost).toLocaleString('id-ID')}/${mat.unit}</option>`;
+                    });
+
+                    row.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <select name="recipe_items[${rowIndex}][component_product_id]" required class="recipe-component-select w-full h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-1.5 w-full sm:w-36">
+                            <input type="number" name="recipe_items[${rowIndex}][quantity]" step="any" min="0.0001" required value="${initialQty}" placeholder="Takaran" class="recipe-qty-input w-20 h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-right text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <span class="recipe-row-unit text-[11px] font-semibold text-slate-500 dark:text-slate-400 w-12 truncate">-</span>
+                        </div>
+                        <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-32">
+                            <span class="recipe-row-subtotal font-bold text-slate-800 dark:text-slate-200 text-xs tabular-nums text-right">Rp 0</span>
+                            <button type="button" class="recipe-remove-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors" title="Hapus Bahan">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    `;
+
+                    container.appendChild(row);
+
+                    const sel = row.querySelector('.recipe-component-select');
+                    const qty = row.querySelector('.recipe-qty-input');
+                    const removeBtn = row.querySelector('.recipe-remove-btn');
+
+                    sel?.addEventListener('change', updateLiveCalculations);
+                    qty?.addEventListener('input', updateLiveCalculations);
+                    removeBtn?.addEventListener('click', () => {
+                        row.remove();
+                        reindexRecipeRows();
+                        updateLiveCalculations();
+                    });
+
+                    if (emptyHint()) emptyHint().classList.add('hidden');
+                    updateLiveCalculations();
+                };
 
                 const setValue = (form, name, value) => {
                     const field = form.elements.namedItem(name);
@@ -581,6 +855,20 @@
                         setValue(form, 'min_stock', '0');
                         setValue(form, 'min_quantity', '0');
 
+                        currentEditingProductId = null;
+                        currentHppCalculated = 0;
+                        if (recipeContainer()) recipeContainer().innerHTML = '';
+                        if (emptyHint()) emptyHint().classList.remove('hidden');
+                        setValue(form, 'cost', '0');
+                        setValue(form, 'cost_source', 'manual');
+                        setValue(form, 'hpp_method', 'average');
+                        setValue(form, 'hpp_overhead_fixed', '0');
+                        setValue(form, 'hpp_overhead_percent', '0');
+                        if (recipeSection()) recipeSection().classList.add('hidden');
+                        const calcAtCreate = document.getElementById('catalogHppCalculatedAt');
+                        if (calcAtCreate) calcAtCreate.textContent = '';
+                        updateLiveCalculations();
+
                         const sellableCreate = document.getElementById('catalogProductIsSellable');
                         if (sellableCreate) sellableCreate.checked = true;
 
@@ -637,14 +925,37 @@
                         setValue(form, 'min_quantity', raw.min_quantity ?? '0');
                         setValue(form, 'estimated_duration', raw.estimated_duration || '');
                     } else {
+                        currentEditingProductId = raw.id || null;
+                        currentHppCalculated = parseFloat(raw.hpp) || 0;
                         setValue(form, 'barcode', raw.barcode || '');
                         setValue(form, 'cost', raw.cost ?? '0');
                         setValue(form, 'min_stock', raw.min_stock ?? '0');
+                        setValue(form, 'cost_source', raw.cost_source || 'manual');
+                        setValue(form, 'hpp_method', raw.hpp_method || 'average');
+                        setValue(form, 'hpp_overhead_fixed', raw.hpp_overhead_fixed ?? '0');
+                        setValue(form, 'hpp_overhead_percent', raw.hpp_overhead_percent ?? '0');
+
+                        const calcAtEdit = document.getElementById('catalogHppCalculatedAt');
+                        if (calcAtEdit) {
+                            calcAtEdit.textContent = raw.hpp_calculated_at ? `(${raw.hpp_calculated_at})` : '';
+                        }
+
+                        if (recipeContainer()) recipeContainer().innerHTML = '';
+                        if (raw.recipe_items && raw.recipe_items.length > 0) {
+                            raw.recipe_items.forEach(ri => addRecipeRow(ri));
+                        } else {
+                            if (emptyHint()) emptyHint().classList.remove('hidden');
+                        }
+
+                        const isRecipe = (raw.hpp_method === 'recipe');
+                        if (recipeSection()) recipeSection().classList.toggle('hidden', !isRecipe);
 
                         const sellableEdit = document.getElementById('catalogProductIsSellable');
                         if (sellableEdit) {
                             sellableEdit.checked = raw.is_sellable !== false && raw.is_sellable !== 0;
                         }
+
+                        updateLiveCalculations();
                     }
 
                     applyKind(form, kind, true);
@@ -730,6 +1041,56 @@
                         const label = button.querySelector('[data-submit-label]');
                         if (label) label.textContent = 'Menyimpan…';
                     });
+                });
+
+                // HPP & Recipe event listeners
+                const addRecipeBtn = document.getElementById('catalogAddRecipeItemBtn');
+                if (addRecipeBtn) {
+                    addRecipeBtn.addEventListener('click', () => addRecipeRow());
+                }
+
+                const applyHppBtn = document.getElementById('catalogApplyHppBtn');
+                if (applyHppBtn) {
+                    applyHppBtn.addEventListener('click', () => {
+                        const form = productForm();
+                        const costInput = form?.elements.namedItem('cost');
+                        const hppMethodSelect = form?.elements.namedItem('hpp_method');
+                        if (!costInput) return;
+
+                        let targetHpp = currentHppCalculated;
+                        if (hppMethodSelect?.value === 'recipe') {
+                            const totalEstEl = document.getElementById('catalogRecipeTotalEstimate');
+                            const cleanText = totalEstEl?.textContent?.replace(/[^0-9]/g, '') || '0';
+                            targetHpp = parseFloat(cleanText) || 0;
+                        }
+
+                        costInput.value = targetHpp > 0 ? (targetHpp % 1 === 0 ? targetHpp : targetHpp.toFixed(2)) : '0';
+                        updateLiveCalculations();
+                    });
+                }
+
+                const hppMethodSelect = document.getElementById('catalogHppMethod');
+                if (hppMethodSelect) {
+                    hppMethodSelect.addEventListener('change', () => {
+                        const isRecipe = hppMethodSelect.value === 'recipe';
+                        const sec = recipeSection();
+                        if (sec) {
+                            sec.classList.toggle('hidden', !isRecipe);
+                        }
+                        updateLiveCalculations();
+                    });
+                }
+
+                const costSourceSelect = document.getElementById('catalogCostSource');
+                if (costSourceSelect) {
+                    costSourceSelect.addEventListener('change', updateLiveCalculations);
+                }
+
+                ['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.addEventListener('input', updateLiveCalculations);
+                    }
                 });
 
                 if (window.__catalogModalOpenOnError) {

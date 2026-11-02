@@ -113,6 +113,23 @@ class DashboardProductsData
 
         $filterOptions = $this->buildFilterOptions($business, $activeTab);
 
+        $rawMaterialOptions = Product::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->where('kind', 'product')
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'cost', 'unit', 'is_sellable'])
+            ->map(fn ($p) => [
+                'id' => (int) $p->id,
+                'name' => (string) $p->name,
+                'sku' => (string) $p->sku,
+                'cost' => (float) $p->cost,
+                'unit' => (string) ($p->unit ?? 'pcs'),
+                'is_sellable' => (bool) $p->is_sellable,
+            ])
+            ->values()
+            ->all();
+
         return [
             'summary' => $summary,
             'tabCounts' => $tabCounts,
@@ -121,6 +138,7 @@ class DashboardProductsData
             'hasAnyData' => $data['hasAnyData'],
             'categories' => $filterOptions['categories'],
             'statuses' => $filterOptions['statuses'],
+            'rawMaterialOptions' => $rawMaterialOptions,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters, $activeTab),
@@ -138,7 +156,7 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
             ->where('is_sellable', true)
-            ->with('category');
+            ->with(['category', 'recipeItems.componentProduct']);
 
         $hasAnyData = (clone $baseQuery)->exists();
 
@@ -205,7 +223,7 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
             ->where('is_sellable', false)
-            ->with('category');
+            ->with(['category', 'recipeItems.componentProduct']);
 
         $hasAnyData = (clone $baseQuery)->exists();
 
@@ -357,6 +375,23 @@ class DashboardProductsData
 
             'price' => (int) $product->price,
             'cost' => (string) $product->cost,
+            'hpp' => $product->hpp !== null ? (string) $product->hpp : (string) $product->cost,
+            'hpp_method' => (string) ($product->hpp_method ?? 'average'),
+            'cost_source' => (string) ($product->cost_source ?? 'manual'),
+            'hpp_overhead_fixed' => (string) ($product->hpp_overhead_fixed ?? '0.00'),
+            'hpp_overhead_percent' => (string) ($product->hpp_overhead_percent ?? '0.00'),
+            'margin_amount' => (int) ($product->price - (float) $product->cost),
+            'margin_percent' => $product->price > 0 ? round((($product->price - (float) $product->cost) / $product->price) * 100, 1) : 0,
+            'recipe_items' => $product->relationLoaded('recipeItems') ? $product->recipeItems->map(fn ($r) => [
+                'id' => (int) $r->id,
+                'component_product_id' => (int) $r->component_product_id,
+                'component_name' => $r->componentProduct?->name ?? ('Item #'.$r->component_product_id),
+                'component_cost' => (float) ($r->componentProduct?->cost ?? 0),
+                'component_unit' => $r->componentProduct?->unit ?? 'pcs',
+                'quantity' => (float) $r->quantity,
+                'subtotal' => (float) $r->quantity * (float) ($r->componentProduct?->cost ?? 0),
+                'note' => $r->note,
+            ])->values()->all() : [],
             'is_sellable' => (bool) $product->is_sellable,
 
             'stock' => (string) $product->stock,

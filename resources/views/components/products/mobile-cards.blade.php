@@ -78,8 +78,13 @@
 
                     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
                         <div>
-                            <span class="text-[11px] text-slate-400 dark:text-slate-500 block">HPP</span>
+                            <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Modal (HPP)</span>
                             <span class="font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{{ $formattedCost }}</span>
+                            @if(isset($product['margin_percent']))
+                                <span class="block text-[10px] font-semibold {{ (float)$product['margin_percent'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                    Margin {{ number_format($product['margin_percent'], 1) }}%
+                                </span>
+                            @endif
                         </div>
                         <div class="text-right">
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Stok Saat Ini</span>

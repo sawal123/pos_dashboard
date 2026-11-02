@@ -89,15 +89,17 @@ final class StockLedgerService
 
                 $unitCost = $this->unitCost($meta['unit_cost'] ?? null);
                 if ($type === StockMovementType::Receipt && $unitCost !== null) {
-                    $locked->cost = $this->weightedAverageCost(
-                        $stockBefore,
-                        (float) $locked->cost,
+                    app(HppService::class)->applyReceipt(
+                        $locked,
                         $delta,
                         (float) $unitCost,
+                        $stockBefore,
+                        $movement->reference_id,
+                        $user
                     );
+                } else {
+                    $locked->save();
                 }
-
-                $locked->save();
 
                 return $movement;
             });

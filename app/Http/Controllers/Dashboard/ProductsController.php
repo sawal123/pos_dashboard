@@ -14,6 +14,7 @@ use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\CatalogManagementService;
 use App\Services\Dashboard\DashboardProductsData;
+use App\Services\Inventory\HppService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -96,6 +97,20 @@ class ProductsController extends Controller
         return redirect()
             ->route('products.index', ['tab' => $product->kind === 'service' ? 'services' : 'products'])
             ->with('status', $product->kind === 'service' ? 'Layanan berhasil diperbarui.' : 'Produk berhasil diperbarui.');
+    }
+
+    public function applyHpp(Request $request, int $productId): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $product = Product::query()
+            ->where('business_id', $business->id)
+            ->whereKey($productId)
+            ->firstOrFail();
+
+        app(HppService::class)->applyHppToCost($product, $request->user());
+
+        return back()->with('status', 'HPP terhitung berhasil diterapkan ke harga modal.');
     }
 
     public function updateStatus(UpdateCatalogStatusRequest $request): RedirectResponse
