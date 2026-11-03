@@ -3,7 +3,7 @@
 > **Dokumen Referensi & Rencana Aksi Sinkronisasi Fitur Antara Web Dashboard/POS dan Aplikasi POS Mobile**  
 > **Target Aplikasi Mobile**: `D:\PROJECT WEB\POS OFFLINE\pos-mobile` (Vue 3 + Pinia + Capacitor SQLite)  
 > **Target Aplikasi Backend / Web**: `D:\PROJECT WEB\POS OFFLINE\pos_dashboard` (Laravel 12 + Livewire + Blade)  
-> **Status**: 📋 DRAFT ROADMAP FOR IMPLEMENTATION
+> **Status**: 🚀 PHASE 1, 2, & 5 COMPLETED (Pull Request #71 in `pos-mobile`)
 
 ---
 
@@ -22,13 +22,13 @@ Agar pengalaman kasir di **POS Mobile (Android / Tablet)** memiliki fitur yang s
 
 ## 2. Matriks Gap & Penyesuaian Fitur (Web vs Mobile)
 
-| Domain Fitur | Status di Web Dashboard | Status Saat Ini di POS Mobile | Kebutuhan Penyesuaian di POS Mobile | Prioritas |
+| Domain Fitur | Status di Web Dashboard | Status Saat Ini di POS Mobile | Kebutuhan Penyesuaian di POS Mobile | Status Implementasi |
 |---|---|---|---|:---:|
-| **1. Promo & Diskon** | ✅ Engine promo lengkap (`promos`, `promo_targets`, validasi syarat belanja, kuota, happy hour) | ❌ Belum ada tabel promo. `discount_amount` di-hardcode `0`. Menghasilkan warning saat pull. | Tambah SQLite migration promo, promo store, kalkulasi diskon di cart, UI pilih voucher/promo, cetak diskon di struk, sync envelope. | 🔴 **P0 (Kritis)** |
-| **2. Pemisahan Produk vs Bahan Baku** | ✅ Kolom `is_sellable`. Bahan baku tidak muncul di menu kasir. | ⚠️ Semua item di tabel `products` tampil di katalog kasir tanpa filter `is_sellable`. | Tambah kolom `is_sellable` di SQLite, filter katalog kasir hanya `is_sellable = 1`, cegah bahan mentah dijual langsung. | 🔴 **P0 (Kritis)** |
-| **3. Tutup Shift & Selisih Kas** | ✅ Rekonsiliasi kas: modal awal, uang terhitung, estimasi sistem, selisih kas (`discrepancy`), catatan selisih. | ⚠️ Tutup shift ada, namun perhitungan `discrepancy` dan pelaporan selisih belum selaras penuh dengan kontrak sync. | Selaraskan kalkulasi `expected_cash`, input `actual_cash`, hitung `discrepancy`, dan kirim pada payload `shifts`. | 🟡 **P1 (Tinggi)** |
-| **4. Metode Pembayaran & Kembalian** | ✅ Tunai (pecahan cepat), QRIS (statis/dinamis), Transfer Bank, Kartu Debit/Kredit EDC. | ⚠️ Pembayaran dasar ada, perlu standardisasi kode enum pembayaran (`cash`, `qris`, `transfer`, `card`). | Standarisasi enum pembayaran, pencatatan otomatis ke `cash_ledger` khusus untuk transaksi tunai. | 🟡 **P1 (Tinggi)** |
-| **5. Format Struk Termal (ESC/POS)** | ✅ Format 58mm/80mm rapi: info outlet, kasir, baris diskon promo, pajak, total, pembayaran, kembalian. | ⚠️ Cetak Bluetooth ada di `printerStore.js`, namun belum menyertakan rincian diskon promo. | Tambahkan baris diskon promo, nama promo, dan catatan kaki struk yang seragam. | 🟢 **P2 (Medium)** |
+| **1. Promo & Diskon** | ✅ Engine promo lengkap (`promos`, `promo_targets`, validasi syarat belanja, kuota, happy hour) | ✅ Engine promo offline lengkap (`promoStore`, `evaluatePromoDiscount`, modal voucher, cart subtotal/tax). | SQLite migration v5, adapter promo, cart discount computation, contract push/pull. | ✅ **Selesai (PR #71)** |
+| **2. Pemisahan Produk vs Bahan Baku** | ✅ Kolom `is_sellable`. Bahan baku tidak muncul di menu kasir. | ✅ Kolom `is_sellable` aktif di SQLite. Filter katalog otomatis sembunyikan bahan baku/supplies. | Tambah kolom `is_sellable` di SQLite, filter katalog kasir hanya `is_sellable = 1`. | ✅ **Selesai (PR #71)** |
+| **3. Tutup Shift & Selisih Kas** | ✅ Rekonsiliasi kas: modal awal, uang terhitung, estimasi sistem, selisih kas (`discrepancy`), catatan selisih. | ⚠️ Tutup shift ada, namun perhitungan `discrepancy` dan pelaporan selisih belum selaras penuh dengan kontrak sync. | Selaraskan kalkulasi `expected_cash`, input `actual_cash`, hitung `discrepancy`, dan kirim pada payload `shifts`. | 🟡 **Next (Phase 3)** |
+| **4. Metode Pembayaran & Kembalian** | ✅ Tunai (pecahan cepat), QRIS (statis/dinamis), Transfer Bank, Kartu Debit/Kredit EDC. | ⚠️ Pembayaran dasar ada, perlu standardisasi kode enum pembayaran (`cash`, `qris`, `transfer`, `card`). | Standarisasi enum pembayaran, pencatatan otomatis ke `cash_ledger` khusus untuk transaksi tunai. | 🟡 **Next (Phase 4)** |
+| **5. Format Struk Termal (ESC/POS)** | ✅ Format 58mm/80mm rapi: info outlet, kasir, baris diskon promo, pajak, total, pembayaran, kembalian. | ✅ Rincian diskon promo tercetak di struk layar (`ReceiptContent.vue`) dan print ESC/POS thermal 58mm/80mm. | Tambahkan baris diskon promo, nama promo, dan potongan harga pada layout struk. | ✅ **Selesai (PR #71)** |
 | **6. Pelanggan & Kuota Promo** | ✅ Pelanggan terhubung ke transaksi, riwayat belanja, dan kuota promo per pelanggan. | ⚠️ Autocomplete pelanggan ada, namun belum divalidasi ke pemakaian promo. | Hubungkan ID pelanggan terpilih ke kalkulator promo untuk memeriksa kuota promo pelanggan. | 🟢 **P2 (Medium)** |
 
 ---
