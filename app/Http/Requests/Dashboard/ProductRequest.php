@@ -93,6 +93,13 @@ class ProductRequest extends FormRequest
                 'max:255',
                 Rule::unique('products', 'barcode')->where('business_id', $businessId)->ignore($productId),
             ],
+            'variant_group_ids' => ['nullable', 'array'],
+            'variant_group_ids.*' => [
+                'integer',
+                Rule::exists('variant_groups', 'id')->where(
+                    fn ($query) => $query->where('business_id', $businessId)->where('status', '!=', 'deleted')
+                ),
+            ],
         ];
 
         if (! $this->isUpdate()) {

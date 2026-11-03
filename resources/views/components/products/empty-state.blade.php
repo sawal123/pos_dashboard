@@ -34,6 +34,13 @@
             'no_results_title' => 'Kategori Tidak Ditemukan',
             'icon' => 'tags',
         ],
+        'variants' => [
+            'type' => 'Template Varian',
+            'no_data_title' => 'Belum Ada Template Varian',
+            'no_data_desc' => 'Buat template varian (seperti Level Gula, Ukuran, Suhu) untuk digunakan pada menu produk Anda.',
+            'no_results_title' => 'Template Varian Tidak Ditemukan',
+            'icon' => 'sliders-horizontal',
+        ],
     ];
 
     $tabInfo = $tabLabels[$activeTab] ?? $tabLabels['products'];

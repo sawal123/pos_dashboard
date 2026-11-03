@@ -5,6 +5,8 @@ namespace App\Services\Dashboard;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\VariantGroup;
+use App\Models\VariantOption;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +46,7 @@ class DashboardProductsData
             return $this->emptyResult($filters);
         }
 
-        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories'], true)
+        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories', 'variants'], true)
             ? (string) $filters['tab']
             : 'products';
 
@@ -86,6 +88,11 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->count();
 
+        $totalVariantGroups = VariantGroup::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->count();
+
         $summary = [
             'total_products' => $totalProducts,
             'total_services' => $totalServices,
@@ -98,6 +105,7 @@ class DashboardProductsData
             'supplies' => $supplyProducts,
             'services' => $totalServices,
             'categories' => $totalCategories,
+            'variants' => $totalVariantGroups,
         ];
 
         // Process active tab dataset
@@ -107,6 +115,8 @@ class DashboardProductsData
             $data = $this->getCategoriesData($business, $filters);
         } elseif ($activeTab === 'supplies') {
             $data = $this->getSuppliesData($business, $filters);
+        } elseif ($activeTab === 'variants') {
+            $data = $this->getVariantsData($business, $filters);
         } else {
             $data = $this->getProductsData($business, $filters);
         }
@@ -130,6 +140,24 @@ class DashboardProductsData
             ->values()
             ->all();
 
+        $variantGroupOptions = VariantGroup::query()
+            ->where('business_id', $business->id)
+            ->where('status', 'active')
+            ->with(['options' => fn ($q) => $q->where('status', 'active')->orderBy('sort_order')])
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (VariantGroup $g) => [
+                'id' => (int) $g->id,
+                'name' => (string) $g->name,
+                'selection_type' => (string) $g->selection_type,
+                'is_required' => (bool) $g->is_required,
+                'options_count' => $g->options->count(),
+                'options_summary' => $g->options->pluck('name')->join(', '),
+            ])
+            ->values()
+            ->all();
+
         return [
             'summary' => $summary,
             'tabCounts' => $tabCounts,
@@ -139,6 +167,7 @@ class DashboardProductsData
             'categories' => $filterOptions['categories'],
             'statuses' => $filterOptions['statuses'],
             'rawMaterialOptions' => $rawMaterialOptions,
+            'variantGroupOptions' => $variantGroupOptions,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters, $activeTab),
@@ -156,7 +185,7 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
             ->where('is_sellable', true)
-            ->with(['category', 'recipeItems.componentProduct']);
+            ->with(['category', 'recipeItems.componentProduct', 'variantGroups']);
 
         $hasAnyData = (clone $baseQuery)->exists();
 
@@ -395,16 +424,32 @@ class DashboardProductsData
             'hpp_overhead_percent' => (string) ($product->hpp_overhead_percent ?? '0.00'),
             'margin_amount' => (int) ($product->price - (float) $product->cost),
             'margin_percent' => $product->price > 0 ? round((($product->price - (float) $product->cost) / $product->price) * 100, 1) : 0,
-            'recipe_items' => $product->relationLoaded('recipeItems') ? $product->recipeItems->map(fn ($r) => [
-                'id' => (int) $r->id,
-                'component_product_id' => (int) $r->component_product_id,
-                'component_name' => $r->componentProduct?->name ?? ('Item #'.$r->component_product_id),
-                'component_cost' => (float) ($r->componentProduct?->cost ?? 0),
-                'component_unit' => $r->componentProduct?->unit ?? 'pcs',
-                'quantity' => (float) $r->quantity,
-                'subtotal' => (float) $r->quantity * (float) ($r->componentProduct?->cost ?? 0),
-                'note' => $r->note,
-            ])->values()->all() : [],
+            'recipe_items' => $product->relationLoaded('recipeItems') ? $product->recipeItems->map(function ($r) {
+                $component = $r->componentProduct;
+                $cost = $component instanceof Product ? (float) $component->cost : 0.0;
+                $unit = $component instanceof Product ? (string) $component->unit : 'pcs';
+                $name = $component instanceof Product ? (string) $component->name : ('Item #'.$r->component_product_id);
+
+                return [
+                    'id' => (int) $r->id,
+                    'component_product_id' => (int) $r->component_product_id,
+                    'component_name' => $name,
+                    'component_cost' => $cost,
+                    'component_unit' => $unit,
+                    'quantity' => (float) $r->quantity,
+                    'subtotal' => (float) $r->quantity * $cost,
+                    'note' => $r->note,
+                ];
+            })->values()->all() : [],
+            'variant_group_ids' => $product->relationLoaded('variantGroups')
+                ? $product->variantGroups->pluck('id')->all()
+                : [],
+            'variant_groups_count' => $product->relationLoaded('variantGroups')
+                ? $product->variantGroups->count()
+                : 0,
+            'variant_groups_summary' => $product->relationLoaded('variantGroups')
+                ? $product->variantGroups->pluck('name')->join(', ')
+                : '',
             'is_sellable' => (bool) $product->is_sellable,
 
             'stock' => (string) $product->stock,
@@ -538,11 +583,98 @@ class DashboardProductsData
 
     /**
      * @param  array<string, mixed>  $filters
+     * @return array{items: LengthAwarePaginator<int, array<string, mixed>>, hasAnyData: bool}
+     */
+    private function getVariantsData(Business $business, array $filters): array
+    {
+        $baseQuery = VariantGroup::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->with([
+                'options' => fn ($q) => $q->where('status', '!=', 'deleted')->with('ingredientProduct')->orderBy('sort_order'),
+                'products',
+            ])
+            ->withCount('products');
+
+        $hasAnyData = (clone $baseQuery)->exists();
+        $query = clone $baseQuery;
+
+        $q = isset($filters['q']) ? trim((string) $filters['q']) : '';
+        if ($q !== '') {
+            $query->where('name', 'like', '%'.$q.'%');
+        }
+
+        $status = isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all'
+            ? (string) $filters['status']
+            : null;
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+
+        /** @var LengthAwarePaginator<int, VariantGroup> $paginator */
+        $paginator = $query->orderBy('sort_order')->orderBy('name')->paginate(self::PER_PAGE)->withQueryString();
+
+        $mapped = $paginator->through(fn (VariantGroup $g) => $this->presentVariantGroup($g));
+
+        return [
+            'items' => $mapped,
+            'hasAnyData' => $hasAnyData,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function presentVariantGroup(VariantGroup $group): array
+    {
+        $productNames = $group->products->pluck('name')->slice(0, 3)->all();
+        $productsSummary = implode(', ', $productNames);
+        if ($group->products_count > 3) {
+            $productsSummary .= ' +'.($group->products_count - 3).' lainnya';
+        }
+
+        return [
+            'id' => $group->id,
+            'name' => $group->name,
+            'selection_type' => $group->selection_type,
+            'selection_type_label' => $group->selection_type === 'multiple' ? 'Pilihan Ganda (Checkbox)' : 'Pilihan Tunggal (Radio)',
+            'is_required' => (bool) $group->is_required,
+            'min_selection' => (int) $group->min_selection,
+            'max_selection' => $group->max_selection,
+            'sort_order' => (int) $group->sort_order,
+            'status' => $this->presentStatus($group->status),
+            'status_raw' => $group->status,
+            'products_count' => (int) $group->products_count,
+            'products_summary' => $productsSummary ?: 'Belum ada produk',
+            'options_count' => $group->options->count(),
+            'options' => $group->options->map(function (VariantOption $opt) {
+                $ingredient = $opt->ingredientProduct;
+
+                return [
+                    'id' => $opt->id,
+                    'name' => $opt->name,
+                    'price_adjustment' => (int) $opt->price_adjustment,
+                    'cost_adjustment' => (int) $opt->cost_adjustment,
+                    'ingredient_product_id' => $opt->ingredient_product_id,
+                    'ingredient_name' => $ingredient instanceof Product ? (string) $ingredient->name : null,
+                    'ingredient_unit' => $ingredient instanceof Product ? (string) $ingredient->unit : 'gr',
+                    'ingredient_quantity' => (float) $opt->ingredient_quantity,
+                    'is_default' => (bool) $opt->is_default,
+                    'sort_order' => (int) $opt->sort_order,
+                    'status' => $opt->status,
+                ];
+            })->values()->all(),
+            'options_summary' => $group->options->map(fn ($o) => $o->name.($o->price_adjustment > 0 ? ' (+Rp '.number_format($o->price_adjustment, 0, ',', '.').')' : ''))->join(', '),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     private function emptyResult(array $filters): array
     {
-        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories'], true)
+        $activeTab = isset($filters['tab']) && in_array($filters['tab'], ['products', 'supplies', 'services', 'categories', 'variants'], true)
             ? (string) $filters['tab']
             : 'products';
 

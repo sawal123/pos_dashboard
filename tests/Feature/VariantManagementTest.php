@@ -7,6 +7,8 @@ use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\Subscription;
+use App\Models\User;
 use App\Models\VariantGroup;
 use App\Models\VariantOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -186,5 +188,185 @@ class VariantManagementTest extends TestCase
         $this->assertCount(2, $fresh->variants_snapshot);
         $this->assertEquals('Less Sugar', $fresh->variants_snapshot[0]['option_name']);
         $this->assertEquals(5000, $fresh->variants_snapshot[1]['price_adjustment']);
+    }
+
+    public function test_owner_can_create_variant_group_via_http(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+
+        $payload = [
+            'name' => 'Topping Minuman',
+            'selection_type' => 'multiple',
+            'is_required' => false,
+            'min_selection' => 0,
+            'max_selection' => 3,
+            'options' => [
+                [
+                    'name' => 'Boba Pearl',
+                    'price_adjustment' => 4000,
+                    'is_default' => false,
+                ],
+                [
+                    'name' => 'Egg Pudding',
+                    'price_adjustment' => 5000,
+                    'is_default' => false,
+                ],
+            ],
+        ];
+
+        $response = $this->post(route('products.variant-groups.store'), $payload);
+        $response->assertRedirect(route('products.index', ['tab' => 'variants']));
+
+        $this->assertDatabaseHas('variant_groups', [
+            'business_id' => $business->id,
+            'name' => 'Topping Minuman',
+            'selection_type' => 'multiple',
+            'max_selection' => 3,
+        ]);
+
+        $group = VariantGroup::where('business_id', $business->id)->where('name', 'Topping Minuman')->firstOrFail();
+        $this->assertCount(2, $group->options);
+        $this->assertDatabaseHas('variant_options', [
+            'variant_group_id' => $group->id,
+            'name' => 'Boba Pearl',
+            'price_adjustment' => 4000,
+        ]);
+    }
+
+    public function test_owner_can_update_variant_group_via_http(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+
+        $group = VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Ukuran Gelas',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'status' => 'active',
+        ]);
+
+        $payload = [
+            'name' => 'Ukuran Cup (Updated)',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'options' => [
+                [
+                    'name' => 'Regular',
+                    'price_adjustment' => 0,
+                    'is_default' => true,
+                ],
+                [
+                    'name' => 'Large',
+                    'price_adjustment' => 6000,
+                    'is_default' => false,
+                ],
+            ],
+        ];
+
+        $response = $this->patch(route('products.variant-groups.update', ['groupId' => $group->id]), $payload);
+        $response->assertRedirect(route('products.index', ['tab' => 'variants']));
+
+        $group->refresh();
+        $this->assertSame('Ukuran Cup (Updated)', $group->name);
+        $this->assertCount(2, $group->options);
+    }
+
+    public function test_owner_can_delete_variant_group_via_http(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+
+        $group = VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Mau Dihapus',
+            'selection_type' => 'single',
+            'is_required' => false,
+            'status' => 'active',
+        ]);
+
+        $response = $this->delete(route('products.variant-groups.destroy', ['groupId' => $group->id]));
+        $response->assertRedirect(route('products.index', ['tab' => 'variants']));
+
+        $this->assertSame('deleted', $group->fresh()->status);
+    }
+
+    public function test_cashier_cannot_mutate_variant_group(): void
+    {
+        [$business] = $this->actingAsRole('cashier');
+
+        $this->post(route('products.variant-groups.store'), [
+            'name' => 'Grup Ilegal',
+            'selection_type' => 'single',
+            'options' => [['name' => 'Opsi 1']],
+        ])->assertForbidden();
+    }
+
+    public function test_can_assign_variant_groups_to_product_via_http(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+
+        $group1 = VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Suhu',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'status' => 'active',
+        ]);
+
+        $group2 = VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Level Gula',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'status' => 'active',
+        ]);
+
+        // Create product with variant_group_ids
+        $response = $this->post(route('products.store'), [
+            'kind' => 'product',
+            'name' => 'Kopi Susu Gula Aren',
+            'sku' => 'KPS-AREN-1',
+            'price' => 18000,
+            'is_sellable' => 1,
+            'variant_group_ids' => [$group1->id, $group2->id],
+        ]);
+        $response->assertRedirect();
+
+        $product = Product::where('business_id', $business->id)->where('sku', 'KPS-AREN-1')->firstOrFail();
+        $this->assertCount(2, $product->variantGroups);
+        $this->assertTrue($product->variantGroups->pluck('id')->contains($group1->id));
+        $this->assertTrue($product->variantGroups->pluck('id')->contains($group2->id));
+    }
+
+    public function test_can_view_variants_tab_on_products_page(): void
+    {
+        [$business] = $this->actingAsRole('owner');
+
+        VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Level Es',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'status' => 'active',
+        ]);
+
+        $response = $this->get(route('products.index', ['tab' => 'variants']));
+        $response->assertOk();
+        $response->assertSee('Template Varian');
+        $response->assertSee('Level Es');
+    }
+
+    /**
+     * @return array{0: Business, 1: User}
+     */
+    private function actingAsRole(string $role, array $businessAttributes = []): array
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create($businessAttributes);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+        $business->users()->attach($user->id, ['role' => $role]);
+
+        $this->actingAs($user)->withSession(['dashboard.current_business_id' => $business->id]);
+
+        return [$business, $user];
     }
 }

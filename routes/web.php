@@ -26,6 +26,7 @@ use App\Http\Controllers\Dashboard\SubscriptionsController;
 use App\Http\Controllers\Dashboard\SyncMonitoringController;
 use App\Http\Controllers\Dashboard\TransactionsController;
 use App\Http\Controllers\Dashboard\UsersController;
+use App\Http\Controllers\Dashboard\VariantGroupController;
 use App\Http\Controllers\Invitations\InvitationAcceptanceController;
 use App\Http\Controllers\Platform\AuditLogsController as PlatformAuditLogsController;
 use App\Http\Controllers\Platform\BusinessesController as PlatformBusinessesController;
@@ -177,6 +178,17 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('products.apply-hpp');
+    Route::post('products/variant-groups', [VariantGroupController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.variant-groups.store');
+    Route::patch('products/variant-groups/{groupId}', [VariantGroupController::class, 'update'])
+        ->whereNumber('groupId')
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.variant-groups.update');
+    Route::delete('products/variant-groups/{groupId}', [VariantGroupController::class, 'destroy'])
+        ->whereNumber('groupId')
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.variant-groups.destroy');
 
     Route::get('stock', [StockController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::STOCK_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

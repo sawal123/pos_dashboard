@@ -109,6 +109,22 @@
                     {{ $tabCounts['categories'] ?? 0 }}
                 </span>
             </a>
+            <a
+                href="{{ route('products.index', ['tab' => 'variants']) }}"
+                wire:navigate
+                id="tabVariants"
+                role="tab"
+                aria-selected="{{ $activeTab === 'variants' ? 'true' : 'false' }}"
+                aria-controls="panelVariants"
+                tabindex="{{ $activeTab === 'variants' ? '0' : '-1' }}"
+                class="catalog-tab-btn flex items-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold border-b-2 {{ $activeTab === 'variants' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200' }} transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-t-lg"
+            >
+                <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                <span>Template Varian</span>
+                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'variants' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                    {{ $tabCounts['variants'] ?? 0 }}
+                </span>
+            </a>
         </div>
 
         {{-- ==================== 3. FILTER BAR ==================== --}}
@@ -138,16 +154,22 @@
                 <div id="panelCategories" role="tabpanel" aria-labelledby="tabCategories" class="catalog-panel space-y-4">
                     <x-products.category-table :categories="$items" :can-manage="$canManageCatalog" />
                 </div>
+            @elseif($activeTab === 'variants')
+                <div id="panelVariants" role="tabpanel" aria-labelledby="tabVariants" class="catalog-panel space-y-4">
+                    <x-products.variant-group-table :variant-groups="$items" :can-manage="$canManageCatalog" />
+                </div>
             @endif
 
             {{-- Mobile Cards (Unified Container) --}}
-            <div id="mobileCardsWrapper">
-                <x-products.mobile-cards
-                    :items="$items"
-                    :active-tab="$activeTab === 'supplies' ? 'products' : $activeTab"
-                    :can-manage="$canManageCatalog"
-                />
-            </div>
+            @if($activeTab !== 'variants')
+                <div id="mobileCardsWrapper">
+                    <x-products.mobile-cards
+                        :items="$items"
+                        :active-tab="$activeTab === 'supplies' ? 'products' : $activeTab"
+                        :can-manage="$canManageCatalog"
+                    />
+                </div>
+            @endif
 
             {{-- ==================== 5. PAGINATION ==================== --}}
             <div id="catalogPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
@@ -218,6 +240,12 @@
                 :categories="$categories"
                 :business-type="$dashboardBusinessType ?? null"
                 :raw-material-options="$rawMaterialOptions ?? []"
+                :variant-group-options="$variantGroupOptions ?? []"
+            />
+
+            {{-- ==================== 8. VARIANT GROUP MODAL ==================== --}}
+            <x-products.variant-group-modal
+                :raw-materials="$rawMaterialOptions ?? []"
             />
         @endif
 
@@ -973,6 +1001,15 @@
                         const sellableCreate = document.getElementById('catalogProductIsSellable');
                         if (sellableCreate) sellableCreate.checked = !isSupply;
 
+                        // Reset variant group checkboxes
+                        document.querySelectorAll('.product-variant-group-checkbox').forEach(cb => {
+                            cb.checked = false;
+                        });
+                        const variantSecCreate = document.getElementById('catalogVariantGroupsSection');
+                        if (variantSecCreate) {
+                            variantSecCreate.classList.toggle('hidden', isSupply);
+                        }
+
                         if (isSupply) {
                             setValue(form, 'price', '0');
                         }
@@ -1071,6 +1108,16 @@
                         const sellableEdit = document.getElementById('catalogProductIsSellable');
                         if (sellableEdit) {
                             sellableEdit.checked = isSellable;
+                        }
+
+                        // Pre-check variant groups
+                        const selectedGroupIds = (raw.variant_group_ids || []).map(String);
+                        document.querySelectorAll('.product-variant-group-checkbox').forEach(cb => {
+                            cb.checked = selectedGroupIds.includes(String(cb.value));
+                        });
+                        const variantSecEdit = document.getElementById('catalogVariantGroupsSection');
+                        if (variantSecEdit) {
+                            variantSecEdit.classList.toggle('hidden', !isSellable);
                         }
 
                         updateLiveCalculations();
@@ -1203,6 +1250,16 @@
                 const costSourceSelect = document.getElementById('catalogCostSource');
                 if (costSourceSelect) {
                     costSourceSelect.addEventListener('change', updateLiveCalculations);
+                }
+
+                const sellableCheck = document.getElementById('catalogProductIsSellable');
+                if (sellableCheck) {
+                    sellableCheck.addEventListener('change', () => {
+                        const variantSec = document.getElementById('catalogVariantGroupsSection');
+                        if (variantSec) {
+                            variantSec.classList.toggle('hidden', !sellableCheck.checked);
+                        }
+                    });
                 }
 
                 ['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].forEach(id => {

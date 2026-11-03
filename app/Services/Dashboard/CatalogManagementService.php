@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
 use App\Services\Inventory\HppService;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -82,7 +83,13 @@ class CatalogManagementService
         $product = Product::create($attributes);
 
         if (! empty($data['recipe_items']) && is_array($data['recipe_items'])) {
-            app(HppService::class)->syncRecipe($product, $data['recipe_items']);
+            /** @var list<array{component_product_id: int|string, quantity: float|string, note?: string|null}> $recipeItems */
+            $recipeItems = array_values($data['recipe_items']);
+            app(HppService::class)->syncRecipe($product, $recipeItems);
+        }
+
+        if (array_key_exists('variant_group_ids', $data) && is_array($data['variant_group_ids'])) {
+            $this->syncVariantGroups($product, $data['variant_group_ids']);
         }
 
         return $product;
@@ -140,7 +147,7 @@ class CatalogManagementService
                 $product->cost = $this->money($data['cost']);
                 if ($product->hpp_method !== HppMethod::Recipe->value) {
                     $product->hpp = $product->cost;
-                    $product->hpp_calculated_at = now();
+                    $product->hpp_calculated_at = Carbon::now();
                 }
             }
 
@@ -156,12 +163,36 @@ class CatalogManagementService
         $product->save();
 
         if (array_key_exists('recipe_items', $data) && is_array($data['recipe_items'])) {
-            app(HppService::class)->syncRecipe($product, $data['recipe_items']);
+            /** @var list<array{component_product_id: int|string, quantity: float|string, note?: string|null}> $recipeItems */
+            $recipeItems = array_values($data['recipe_items']);
+            app(HppService::class)->syncRecipe($product, $recipeItems);
         } elseif ($product->hpp_method === HppMethod::Recipe->value) {
             app(HppService::class)->recalculateRecipe($product);
         }
 
+        if (array_key_exists('variant_group_ids', $data) && is_array($data['variant_group_ids'])) {
+            $this->syncVariantGroups($product, $data['variant_group_ids']);
+        }
+
         return $product;
+    }
+
+    /**
+     * @param  array<array-key, mixed>  $variantGroupIds
+     */
+    public function syncVariantGroups(Product $product, array $variantGroupIds): void
+    {
+        $syncData = [];
+        foreach ($variantGroupIds as $idx => $groupId) {
+            $gid = (int) $groupId;
+            if ($gid > 0) {
+                $syncData[$gid] = [
+                    'business_id' => $product->business_id,
+                    'sort_order' => $idx + 1,
+                ];
+            }
+        }
+        $product->variantGroups()->sync($syncData);
     }
 
     /**
