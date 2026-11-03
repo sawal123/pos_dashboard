@@ -132,6 +132,8 @@ class SyncPushRequest extends FormRequest
             'changes.sale_items.*.kind' => ['sometimes', 'string', 'in:product,service'],
             'changes.sale_items.*.pricing_unit' => ['sometimes', 'string', 'max:50'],
             'changes.sale_items.*.line_cost' => ['sometimes', 'numeric', 'min:0'],
+            'changes.sale_items.*.variant_summary' => ['sometimes', 'nullable', 'string', 'max:500'],
+            'changes.sale_items.*.variants_snapshot' => ['sometimes', 'nullable'],
 
             // Expenses
             'changes.expenses' => ['sometimes', 'array', 'max:100'],

@@ -16,6 +16,7 @@ use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\SyncCounter;
 use App\Models\User;
+use App\Models\VariantGroup;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 
@@ -67,7 +68,7 @@ class SyncPullService
             ->where('sync_sequence', '<=', $serverSequence)
             ->orderBy('sync_sequence', 'asc')
             ->limit($fetchLimit)
-            ->with('category')
+            ->with(['category', 'variantGroups'])
             ->get();
 
         foreach ($products as $prod) {
@@ -92,6 +93,7 @@ class SyncPullService
                     'min_quantity' => (float) $prod->min_quantity,
                     'estimated_duration' => $prod->estimated_duration,
                     'status' => $prod->status,
+                    'variant_group_sync_ids' => $prod->variantGroups->pluck('sync_id')->values()->all(),
                 ],
             ];
         }
@@ -220,6 +222,8 @@ class SyncPullService
                     'kind' => $item->kind,
                     'pricing_unit' => $item->pricing_unit,
                     'line_cost' => (float) $item->line_cost,
+                    'variant_summary' => $item->variant_summary,
+                    'variants_snapshot' => $item->variants_snapshot,
                 ],
             ];
         }
@@ -352,6 +356,47 @@ class SyncPullService
                         return [
                             'target_type' => $target->target_type,
                             'target_sync_id' => $targetSyncId,
+                        ];
+                    })->values()->all(),
+                ],
+            ];
+        }
+
+        // Variant Groups
+        $variantGroups = VariantGroup::where('business_id', $business->id)
+            ->where('sync_sequence', '>', $after)
+            ->where('sync_sequence', '<=', $serverSequence)
+            ->orderBy('sync_sequence', 'asc')
+            ->limit($fetchLimit)
+            ->with(['options.ingredientProduct'])
+            ->get();
+
+        foreach ($variantGroups as $group) {
+            $records[] = [
+                'entity' => 'variant_groups',
+                'sync_sequence' => (int) $group->sync_sequence,
+                'data' => [
+                    'sync_id' => $group->sync_id,
+                    'sync_version' => (int) $group->sync_version,
+                    'name' => $group->name,
+                    'selection_type' => $group->selection_type,
+                    'is_required' => (bool) $group->is_required,
+                    'min_selection' => (int) $group->min_selection,
+                    'max_selection' => $group->max_selection !== null ? (int) $group->max_selection : null,
+                    'sort_order' => (int) $group->sort_order,
+                    'status' => $group->status,
+                    'options' => $group->options->map(static function ($opt): array {
+                        return [
+                            'sync_id' => $opt->sync_id,
+                            'sync_version' => (int) $opt->sync_version,
+                            'name' => $opt->name,
+                            'price_adjustment' => (int) $opt->price_adjustment,
+                            'cost_adjustment' => (int) $opt->cost_adjustment,
+                            'ingredient_product_sync_id' => $opt->ingredientProduct?->sync_id,
+                            'ingredient_quantity' => (float) $opt->ingredient_quantity,
+                            'is_default' => (bool) $opt->is_default,
+                            'sort_order' => (int) $opt->sort_order,
+                            'status' => $opt->status,
                         ];
                     })->values()->all(),
                 ],

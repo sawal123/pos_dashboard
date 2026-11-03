@@ -141,11 +141,15 @@ class VariantManagementService
                 }
 
                 // Soft-delete options not in the kept list for offline sync tombstones
-                VariantOption::query()
+                $toDelete = VariantOption::query()
                     ->where('business_id', $group->business_id)
                     ->where('variant_group_id', $group->id)
                     ->whereNotIn('id', $keptOptionIds)
-                    ->update(['status' => 'deleted']);
+                    ->get();
+
+                foreach ($toDelete as $delOpt) {
+                    $delOpt->update(['status' => 'deleted']);
+                }
             }
 
             return $group->fresh(['options']);
@@ -159,7 +163,9 @@ class VariantManagementService
     {
         DB::transaction(function () use ($group): void {
             $group->products()->detach();
-            $group->options()->update(['status' => 'deleted']);
+            foreach ($group->options as $opt) {
+                $opt->update(['status' => 'deleted']);
+            }
             $group->status = 'deleted';
             $group->save();
         });
