@@ -82,6 +82,7 @@ class SyncPullService
                     'name' => $prod->name,
                     'sku' => $prod->sku,
                     'barcode' => $prod->barcode,
+                    'image_url' => $prod->image_url,
                     'price' => (int) $prod->price,
                     'kind' => $prod->kind,
                     'is_sellable' => (bool) $prod->is_sellable,

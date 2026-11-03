@@ -10,7 +10,9 @@ use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
 use App\Models\Unit;
 use App\Services\Inventory\HppService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
@@ -82,6 +84,13 @@ class CatalogManagementService
             $attributes['pricing_unit'] = 'pcs';
             $attributes['min_quantity'] = $this->quantity(0);
             $attributes['estimated_duration'] = null;
+        }
+
+        if (isset($data['image']) && $data['image'] instanceof UploadedFile) {
+            $storedPath = $data['image']->store('products', 'public');
+            if (is_string($storedPath)) {
+                $attributes['image_path'] = $storedPath;
+            }
         }
 
         $product = Product::create($attributes);
@@ -172,6 +181,21 @@ class CatalogManagementService
             $sku = $this->text($data['sku'] ?? null);
             if ($sku !== null) {
                 $product->sku = $sku;
+            }
+        }
+
+        if (! empty($data['remove_image'])) {
+            if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
+                Storage::disk('public')->delete($product->image_path);
+            }
+            $product->image_path = null;
+        } elseif (isset($data['image']) && $data['image'] instanceof UploadedFile) {
+            if ($product->image_path && Storage::disk('public')->exists($product->image_path)) {
+                Storage::disk('public')->delete($product->image_path);
+            }
+            $storedPath = $data['image']->store('products', 'public');
+            if (is_string($storedPath)) {
+                $product->image_path = $storedPath;
             }
         }
 

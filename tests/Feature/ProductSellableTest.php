@@ -9,6 +9,8 @@ use App\Models\Product;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -73,14 +75,14 @@ class ProductSellableTest extends TestCase
             ->get(route('products.index', ['tab' => 'products']));
         $sellable->assertOk();
         $sellable->assertSee('Kopi Susu');
-        $this->assertStringNotContainsString('data-name="Susu UHT"', $sellable->getContent());
+        $this->assertStringNotContainsString('data-name="Susu UHT"', (string) $sellable->getContent());
 
         $supplies = $this->actingAs($user)
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('products.index', ['tab' => 'supplies']));
         $supplies->assertOk();
         $supplies->assertSee('Susu UHT');
-        $this->assertStringNotContainsString('data-name="Kopi Susu"', $supplies->getContent());
+        $this->assertStringNotContainsString('data-name="Kopi Susu"', (string) $supplies->getContent());
     }
 
     public function test_04_pull_payload_includes_is_sellable(): void
@@ -98,7 +100,9 @@ class ProductSellableTest extends TestCase
 
         $response->assertOk();
 
-        $records = collect($response->json('data.records'));
+        /** @var array<int, array<string, mixed>> $recordsData */
+        $recordsData = (array) $response->json('data.records');
+        $records = collect($recordsData);
         $product = $records->firstWhere('entity', 'products');
 
         $this->assertNotNull($product);
@@ -201,6 +205,112 @@ class ProductSellableTest extends TestCase
         $this->assertEquals('200.00', $product->cost);
     }
 
+    public function test_09_product_image_upload_replace_and_remove(): void
+    {
+        Storage::fake('public');
+        [$business, $user] = $this->actingAsRole('owner');
+
+        $image = UploadedFile::fake()->image('coffee.jpg');
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('products.store'), [
+                'kind' => 'product',
+                'name' => 'Americano',
+                'sku' => 'SKU-AMR01',
+                'price' => 18000,
+                'image' => $image,
+            ]);
+
+        $response->assertRedirect(route('products.index', ['tab' => 'products']));
+        $product = Product::where('business_id', $business->id)->where('sku', 'SKU-AMR01')->firstOrFail();
+        $this->assertNotNull($product->image_path);
+        Storage::disk('public')->assertExists($product->image_path);
+        $this->assertNotNull($product->image_url);
+
+        // Replace image
+        $newImage = UploadedFile::fake()->image('americano_v2.png');
+        $oldPath = $product->image_path;
+
+        $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->patch(route('products.update', ['productId' => $product->id]), [
+                'name' => 'Americano',
+                'sku' => 'SKU-AMR01',
+                'price' => 19000,
+                'image' => $newImage,
+            ]);
+
+        $product->refresh();
+        $this->assertNotSame($oldPath, $product->image_path);
+        Storage::disk('public')->assertMissing($oldPath);
+        Storage::disk('public')->assertExists($product->image_path);
+
+        // Remove image
+        $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->patch(route('products.update', ['productId' => $product->id]), [
+                'name' => 'Americano',
+                'sku' => 'SKU-AMR01',
+                'price' => 19000,
+                'remove_image' => '1',
+            ]);
+
+        $product->refresh();
+        $this->assertNull($product->image_path);
+        $this->assertNull($product->image_url);
+    }
+
+    public function test_10_product_recipe_creation_and_hpp_calculation(): void
+    {
+        [$business, $user] = $this->actingAsRole('owner');
+
+        $bean = Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Biji Kopi',
+            'sku' => 'RAW-BEAN',
+            'cost' => 200,
+            'is_sellable' => false,
+            'unit' => 'gram',
+        ]);
+
+        $milk = Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Susu UHT',
+            'sku' => 'RAW-MILK',
+            'cost' => 20,
+            'is_sellable' => false,
+            'unit' => 'ml',
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('products.store'), [
+                'kind' => 'product',
+                'name' => 'Latte',
+                'sku' => 'SKU-LATTE',
+                'price' => 25000,
+                'cost_source' => 'hpp',
+                'hpp_method' => 'recipe',
+                'hpp_overhead_fixed' => 1500,
+                'hpp_overhead_percent' => 5,
+                'recipe_items' => [
+                    ['component_product_id' => $bean->id, 'quantity' => 15], // 15g * 200 = 3000
+                    ['component_product_id' => $milk->id, 'quantity' => 100], // 100ml * 20 = 2000
+                ],
+            ]);
+
+        $response->assertRedirect(route('products.index', ['tab' => 'products']));
+        $latte = Product::where('business_id', $business->id)->where('sku', 'SKU-LATTE')->firstOrFail();
+
+        // 3000 + 2000 = 5000 bahan
+        // overhead: 1500 + (5000 * 0.05 = 250) = 1750
+        // total HPP: 5000 + 1750 = 6750
+        $this->assertEquals('6750.00', $latte->hpp);
+        $this->assertEquals('6750.00', $latte->cost);
+        $this->assertCount(2, $latte->recipeItems);
+    }
+
     /**
      * @return array{0: Business, 1: User}
      */
@@ -246,6 +356,7 @@ class ProductSellableTest extends TestCase
 
     /**
      * @param  array{business: Business, outlet: Outlet, token: string}  $env
+     * @return TestResponse<\Symfony\Component\HttpFoundation\Response>
      */
     private function pushSale(array $env, Product $product): TestResponse
     {

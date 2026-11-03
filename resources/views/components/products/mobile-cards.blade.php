@@ -65,11 +65,16 @@
                     data-raw="{{ json_encode($product) }}"
                 >
                     <div class="flex items-start justify-between gap-3">
-                        <div class="min-w-0">
-                            <h3 class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ $product['name'] }}</h3>
-                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                <span class="font-mono">{{ $product['sku'] }}</span> · {{ $product['category_name'] }}
-                            </p>
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                            @if(!empty($product['image_url']))
+                                <img src="{{ $product['image_url'] }}" alt="{{ $product['name'] }}" class="w-10 h-10 rounded-xl object-cover shrink-0 border border-slate-200/80 dark:border-slate-700/80">
+                            @endif
+                            <div class="min-w-0 flex-1">
+                                <h3 class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ $product['name'] }}</h3>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                    <span class="font-mono">{{ $product['sku'] }}</span> · {{ $product['category_name'] }}
+                                </p>
+                            </div>
                         </div>
                         @if(! ($product['is_sellable'] ?? true))
                             <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">

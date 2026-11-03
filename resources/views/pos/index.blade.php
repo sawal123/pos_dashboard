@@ -718,8 +718,16 @@
                     stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">Stok ${p.stock}</span>`;
                 }
 
+                let imageHtml = '';
+                if (p.image_url) {
+                    imageHtml = `<div class="w-full h-24 mb-2 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shrink-0">
+                        <img src="${p.image_url}" alt="${p.name}" class="w-full h-full object-cover">
+                    </div>`;
+                }
+
                 card.innerHTML = `
                     <div>
+                        ${imageHtml}
                         <div class="flex items-center justify-between gap-1 mb-1.5">
                             <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 truncate max-w-[100px]">${p.category_name}</span>
                             <div class="flex items-center gap-1">${variantBadge}${stockBadge}</div>

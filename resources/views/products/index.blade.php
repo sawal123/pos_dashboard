@@ -334,6 +334,19 @@
                 document.getElementById('productDrawerTitle').textContent = itemData.name || '-';
                 document.getElementById('detailItemKind').textContent = isService ? 'Layanan' : 'Produk';
 
+                // Image Banner
+                const detailImg = document.getElementById('detailItemImage');
+                const detailImgCont = document.getElementById('detailImageContainer');
+                if (detailImg && detailImgCont) {
+                    if (itemData.image_url) {
+                        detailImg.src = itemData.image_url;
+                        detailImgCont.classList.remove('hidden');
+                    } else {
+                        detailImg.src = '';
+                        detailImgCont.classList.add('hidden');
+                    }
+                }
+
                 // Status Badge (DOM Safe, non-deleted items)
                 const statusBadge = document.getElementById('detailItemStatusBadge');
                 statusBadge.textContent = '';
@@ -609,14 +622,20 @@
                 const emptyHint = () => document.getElementById('catalogRecipeEmptyHint');
 
                 const getRawMaterials = () => {
-                    const scriptEl = document.getElementById('catalogRawMaterialsData');
-                    if (!scriptEl) return [];
-                    try {
-                        let text = scriptEl.textContent ? scriptEl.textContent.trim() : '';
-                        if (text.startsWith('"') && text.endsWith('"')) {
-                            text = text.slice(1, -1);
+                    const modal = modalEl();
+                    let text = modal?.getAttribute('data-raw-materials') || '';
+                    if (!text) {
+                        const scriptEl = document.getElementById('catalogRawMaterialsData');
+                        if (scriptEl) {
+                            text = scriptEl.textContent ? scriptEl.textContent.trim() : '';
+                            if (text.startsWith('"') && text.endsWith('"')) {
+                                text = text.slice(1, -1);
+                            }
                         }
-                        const decoded = text ? atob(text) : '[]';
+                    }
+                    if (!text) return [];
+                    try {
+                        const decoded = atob(text);
                         const all = JSON.parse(decoded || '[]');
                         if (currentEditingProductId) {
                             return all.filter(m => Number(m.id) !== Number(currentEditingProductId));
@@ -740,13 +759,6 @@
                 const clearRecipeRows = () => {
                     const container = recipeContainer();
                     if (!container) return;
-                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
-                        $(container).find('.recipe-component-select').each(function () {
-                            if ($(this).data('select2')) {
-                                $(this).select2('destroy');
-                            }
-                        });
-                    }
                     container.innerHTML = '';
                 };
 
@@ -772,23 +784,23 @@
                     const selectedCompId = item ? (item.component_product_id || item.id) : '';
                     const initialQty = item ? (item.quantity ?? 1) : 1;
 
-                    let optionsHtml = '<option value="">-- Cari & Pilih Bahan Baku --</option>';
+                    let optionsHtml = '<option value="">-- Pilih Bahan Baku --</option>';
                     if (rawMaterials.length === 0) {
                         optionsHtml = '<option value="">(Belum ada data bahan baku di tab Persediaan)</option>';
                     }
                     rawMaterials.forEach(mat => {
                         const isSel = String(mat.id) === String(selectedCompId) ? 'selected' : '';
-                        optionsHtml += `<option value="${mat.id}" data-cost="${mat.cost}" data-unit="${mat.unit}" ${isSel}>${mat.name} (${mat.sku}) - Rp ${Math.round(mat.cost).toLocaleString('id-ID')}/${mat.unit}</option>`;
+                        optionsHtml += `<option value="${mat.id}" data-cost="${mat.cost}" data-unit="${mat.unit}" ${isSel}>${mat.name} (${mat.sku}) — Rp ${Math.round(mat.cost).toLocaleString('id-ID')}/${mat.unit}</option>`;
                     });
 
                     row.innerHTML = `
                         <div class="flex-1 min-w-0">
-                            <select name="recipe_items[${rowIndex}][component_product_id]" required class="recipe-component-select w-full">
+                            <select name="recipe_items[${rowIndex}][component_product_id]" class="recipe-component-select w-full h-9 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
                                 ${optionsHtml}
                             </select>
                         </div>
                         <div class="flex items-center gap-1.5 w-full sm:w-36">
-                            <input type="number" name="recipe_items[${rowIndex}][quantity]" step="any" min="0.0001" required value="${initialQty}" placeholder="Takaran" class="recipe-qty-input w-20 h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-right text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                            <input type="number" name="recipe_items[${rowIndex}][quantity]" step="any" min="0.0001" value="${initialQty}" placeholder="Takaran" class="recipe-qty-input w-20 h-9 px-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 text-xs text-right text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500">
                             <span class="recipe-row-unit text-[11px] font-semibold text-slate-500 dark:text-slate-400 w-12 truncate">-</span>
                         </div>
                         <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-32">
@@ -805,26 +817,9 @@
                     const qty = row.querySelector('.recipe-qty-input');
                     const removeBtn = row.querySelector('.recipe-remove-btn');
 
-                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
-                        $(sel).select2({
-                            dropdownParent: $('#catalogModal'),
-                            placeholder: '-- Cari & Pilih Bahan Baku --',
-                            allowClear: true,
-                            width: '100%',
-                        }).on('change', () => {
-                            updateLiveCalculations();
-                        });
-                    } else {
-                        sel?.addEventListener('change', updateLiveCalculations);
-                    }
-
+                    sel?.addEventListener('change', updateLiveCalculations);
                     qty?.addEventListener('input', updateLiveCalculations);
                     removeBtn?.addEventListener('click', () => {
-                        if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
-                            if ($(sel).data('select2')) {
-                                $(sel).select2('destroy');
-                            }
-                        }
                         row.remove();
                         reindexRecipeRows();
                         updateLiveCalculations();
@@ -924,6 +919,7 @@
                     const nameLabel = document.getElementById('catalogProductNameLabel');
                     const nameInput = document.getElementById('catalogProductName');
                     const sellableCheck = document.getElementById('catalogProductIsSellable');
+                    const sellableHidden = document.getElementById('catalogProductIsSellableHidden');
                     const sellableWrapper = document.getElementById('catalogProductSellableCheckboxContainer');
                     const supplyNotice = document.getElementById('catalogSupplyNotice');
                     const hppCard = document.getElementById('catalogHppCard');
@@ -931,8 +927,10 @@
                     const recipeSec = recipeSection();
                     const unitContainer = document.getElementById('catalogProductUnitContainer');
                     const skuContainer = document.getElementById('catalogSkuContainer');
+                    const imageContainer = document.getElementById('catalogProductImageContainer');
 
                     if (isSupply) {
+                        if (imageContainer) imageContainer.classList.add('hidden');
                         if (unitContainer) unitContainer.classList.remove('hidden');
                         if (skuContainer) {
                             skuContainer.classList.remove('sm:col-span-2');
@@ -954,6 +952,7 @@
                         if (recipeSec) recipeSec.classList.add('hidden');
 
                         if (sellableCheck) sellableCheck.checked = false;
+                        if (sellableHidden) sellableHidden.value = '0';
 
                         if (isExplicitSupplyModal) {
                             if (sellableWrapper) sellableWrapper.classList.add('hidden');
@@ -963,6 +962,8 @@
                             if (supplyNotice) supplyNotice.classList.add('hidden');
                         }
                     } else {
+                        if (imageContainer) imageContainer.classList.remove('hidden');
+                        // Satuan TIDAK ada di Produk (hanya berlaku di persediaan bahan baku)
                         if (unitContainer) unitContainer.classList.add('hidden');
                         if (skuContainer) {
                             skuContainer.classList.remove('sm:col-span-1');
@@ -986,6 +987,7 @@
                         if (sellableWrapper) sellableWrapper.classList.remove('hidden');
                         if (supplyNotice) supplyNotice.classList.add('hidden');
                         if (sellableCheck) sellableCheck.checked = true;
+                        if (sellableHidden) sellableHidden.value = '1';
                     }
                 };
 
@@ -1038,14 +1040,6 @@
                     const el = modalEl();
                     if (!el || el.classList.contains('hidden')) return;
 
-                    if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
-                        $('.recipe-component-select').each(function () {
-                            if ($(this).data('select2')) {
-                                $(this).select2('close');
-                            }
-                        });
-                    }
-
                     el.classList.add('hidden');
                     document.body.style.overflow = '';
                     hideNewUnitBox();
@@ -1056,11 +1050,59 @@
                     lastTrigger = null;
                 };
 
+                // Product Image Handlers
+                const imageInput = () => document.getElementById('catalogProductImageInput');
+                const imagePreview = () => document.getElementById('catalogProductImagePreview');
+                const imagePlaceholder = () => document.getElementById('catalogProductImagePlaceholder');
+                const btnChooseImageText = () => document.getElementById('btnChooseProductImageText');
+                const btnRemoveImage = () => document.getElementById('btnRemoveProductImage');
+                const removeImageHidden = () => document.getElementById('catalogProductRemoveImage');
+
+                const resetProductImagePreview = () => {
+                    const input = imageInput();
+                    const prev = imagePreview();
+                    const ph = imagePlaceholder();
+                    const btnRem = btnRemoveImage();
+                    const txt = btnChooseImageText();
+                    const hidden = removeImageHidden();
+
+                    if (input) input.value = '';
+                    if (prev) {
+                        prev.src = '';
+                        prev.classList.add('hidden');
+                    }
+                    if (ph) ph.classList.remove('hidden');
+                    if (btnRem) btnRem.classList.add('hidden');
+                    if (txt) txt.textContent = 'Pilih Foto';
+                    if (hidden) hidden.value = '0';
+                };
+
+                const setProductImagePreview = (url) => {
+                    const prev = imagePreview();
+                    const ph = imagePlaceholder();
+                    const btnRem = btnRemoveImage();
+                    const txt = btnChooseImageText();
+                    const hidden = removeImageHidden();
+
+                    if (url && prev) {
+                        prev.src = url;
+                        prev.classList.remove('hidden');
+                        if (ph) ph.classList.add('hidden');
+                        if (btnRem) btnRem.classList.remove('hidden');
+                        if (txt) txt.textContent = 'Ganti Foto';
+                        if (hidden) hidden.value = '0';
+                    } else {
+                        resetProductImagePreview();
+                    }
+                };
+
                 const openCreate = (kind, trigger) => {
                     const form = productForm();
                     const catForm = categoryForm();
                     const el = modalEl();
                     if (!form || !catForm || !el) return;
+
+                    resetProductImagePreview();
 
                     if (kind === 'category') {
                         catForm.reset();
@@ -1084,7 +1126,10 @@
                         clearRecipeRows();
                         if (emptyHint()) emptyHint().classList.remove('hidden');
 
-                        const isSupply = trigger?.getAttribute('data-catalog-target') === 'supply' || trigger?.getAttribute('data-catalog-kind') === 'supply';
+                        const isSupply = trigger?.getAttribute('data-catalog-target') === 'supply'
+                            || trigger?.getAttribute('data-catalog-kind') === 'supply'
+                            || (!trigger && new URLSearchParams(window.location.search).get('tab') === 'supplies')
+                            || (new URLSearchParams(window.location.search).get('tab') === 'supplies' && trigger?.id === 'addCatalogBtn');
 
                         setValue(form, 'cost', '0');
                         setValue(form, 'cost_source', isSupply ? 'manual' : 'hpp');
@@ -1094,7 +1139,6 @@
                         if (recipeSection()) recipeSection().classList.toggle('hidden', isSupply);
                         const calcAtCreate = document.getElementById('catalogHppCalculatedAt');
                         if (calcAtCreate) calcAtCreate.textContent = '';
-                        updateLiveCalculations();
 
                         // Reset variant group checkboxes
                         document.querySelectorAll('.product-variant-group-checkbox').forEach(cb => {
@@ -1103,7 +1147,17 @@
 
                         if (isSupply) {
                             setValue(form, 'price', '0');
+                            const supplyCostInput = document.getElementById('catalogSupplyCostInput');
+                            if (supplyCostInput) supplyCostInput.value = '0';
+                        } else {
+                            // Produk (menu): sediakan 1 baris input bahan agar user langsung bisa input komposisi
+                            const rawMaterials = getRawMaterials();
+                            if (rawMaterials.length > 0) {
+                                addRecipeRow();
+                            }
                         }
+
+                        updateLiveCalculations();
 
                         const defaultUnit = isSupply ? 'gram' : (el.dataset.defaultUnit || 'pcs');
                         if (!form.elements.namedItem('unit').value) {
@@ -1137,6 +1191,8 @@
                 const openEdit = (kind, raw, trigger) => {
                     if (!raw) return;
 
+                    resetProductImagePreview();
+
                     if (kind === 'category') {
                         const catForm = categoryForm();
                         if (!catForm) return;
@@ -1165,6 +1221,10 @@
                     setValue(form, 'sku', raw.sku || '');
                     setValue(form, 'unit', raw.unit || '');
                     setValue(form, 'status', raw.status_raw || raw.status || 'active');
+
+                    if (raw.image_url) {
+                        setProductImagePreview(raw.image_url);
+                    }
 
                     if (kind === 'service') {
                         setValue(form, 'pricing_unit', raw.pricing_unit || '');
@@ -1362,14 +1422,24 @@
                         event.preventDefault();
                         const row = removeBtn.closest('.recipe-row');
                         if (row) {
-                            const sel = row.querySelector('.recipe-component-select');
-                            if (window.jQuery && typeof jQuery.fn.select2 === 'function' && sel && $(sel).data('select2')) {
-                                $(sel).select2('destroy');
-                            }
                             row.remove();
                             reindexRecipeRows();
                             updateLiveCalculations();
                         }
+                        return;
+                    }
+
+                    if (target.closest('#btnChooseProductImage')) {
+                        event.preventDefault();
+                        imageInput()?.click();
+                        return;
+                    }
+
+                    if (target.closest('#btnRemoveProductImage')) {
+                        event.preventDefault();
+                        resetProductImagePreview();
+                        const hidden = removeImageHidden();
+                        if (hidden) hidden.value = '1';
                         return;
                     }
 
@@ -1417,12 +1487,26 @@
                     const target = event.target;
                     if (!(target instanceof Element)) return;
 
+                    if (target.id === 'catalogProductImageInput' && (target instanceof HTMLInputElement)) {
+                        const file = target.files?.[0];
+                        if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                setProductImagePreview(e.target?.result);
+                            };
+                            reader.readAsDataURL(file);
+                        }
+                        return;
+                    }
+
                     if (target.id === 'catalogProductIsSellable') {
                         const isEdit = Boolean(currentEditingProductId);
                         const prefix = isEdit ? 'Edit' : 'Tambah';
                         const isService = productForm()?.elements.namedItem('kind')?.value === 'service';
                         if (!isService) {
                             const isSellable = (target instanceof HTMLInputElement) ? target.checked : true;
+                            const sellableHidden = document.getElementById('catalogProductIsSellableHidden');
+                            if (sellableHidden) sellableHidden.value = isSellable ? '1' : '0';
                             applySupplyMode(!isSellable, false);
                             setHeading(prefix, isSellable ? 'Produk' : 'Bahan Baku');
                             const skuInput = document.getElementById('catalogProductSku');
@@ -1528,6 +1612,37 @@
                     const form = event.target;
                     if (!(form instanceof HTMLFormElement)) return;
                     if (form.id !== 'catalogProductForm' && form.id !== 'catalogCategoryForm') return;
+
+                    if (form.id === 'catalogProductForm') {
+                        const supplyCostContainer = document.getElementById('catalogSupplyCostContainer');
+                        const isSupply = supplyCostContainer && !supplyCostContainer.classList.contains('hidden');
+                        const isSellableHidden = document.getElementById('catalogProductIsSellableHidden');
+                        const isSellableCheck = document.getElementById('catalogProductIsSellable');
+                        const priceInput = form.elements.namedItem('price');
+                        const costInput = form.elements.namedItem('cost');
+                        const supplyCostInput = document.getElementById('catalogSupplyCostInput');
+
+                        if (isSupply) {
+                            if (isSellableHidden) isSellableHidden.value = '0';
+                            if (priceInput) priceInput.value = '0';
+                            if (costInput && supplyCostInput) {
+                                costInput.value = supplyCostInput.value || '0';
+                            }
+                        } else {
+                            if (isSellableHidden) {
+                                isSellableHidden.value = (isSellableCheck && isSellableCheck.checked) ? '1' : '0';
+                            }
+                            // Clean up unselected recipe rows before submitting
+                            const emptyRows = form.querySelectorAll('.recipe-row');
+                            emptyRows.forEach(row => {
+                                const sel = row.querySelector('.recipe-component-select');
+                                if (!sel || !sel.value) {
+                                    row.remove();
+                                }
+                            });
+                            reindexRecipeRows();
+                        }
+                    }
 
                     form.querySelectorAll('button[type="submit"]').forEach((button) => {
                         button.disabled = true;

@@ -20,6 +20,8 @@ use Illuminate\Support\Carbon;
  * @property string $name
  * @property string $sku
  * @property string|null $barcode
+ * @property string|null $image_path
+ * @property-read string|null $image_url
  * @property int $price
  * @property string $kind
  * @property bool $is_sellable
@@ -50,11 +52,36 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ProductRecipeItem> $usedInRecipes
  * @property-read Collection<int, ProductCostHistory> $costHistories
  */
-#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'price', 'kind', 'is_sellable', 'cost', 'hpp', 'hpp_method', 'cost_source', 'hpp_overhead_fixed', 'hpp_overhead_percent', 'hpp_calculated_at', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
+#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'image_path', 'price', 'kind', 'is_sellable', 'cost', 'hpp', 'hpp_method', 'cost_source', 'hpp_overhead_fixed', 'hpp_overhead_percent', 'hpp_calculated_at', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
     use HasFactory, HasSyncMetadata;
+
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'image_url',
+    ];
+
+    /**
+     * Get the full URL to the product's image.
+     */
+    public function getImageUrlAttribute(): ?string
+    {
+        if (! $this->image_path) {
+            return null;
+        }
+
+        if (str_starts_with($this->image_path, 'http://') || str_starts_with($this->image_path, 'https://')) {
+            return $this->image_path;
+        }
+
+        return asset('storage/'.$this->image_path);
+    }
 
     /**
      * The model's default attribute values.

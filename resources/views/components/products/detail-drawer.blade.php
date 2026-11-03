@@ -44,6 +44,11 @@
         {{-- Drawer Scrollable Body --}}
         <div class="flex-1 overflow-y-auto p-5 space-y-5 text-xs sm:text-sm">
 
+            {{-- Product Image Banner --}}
+            <div id="detailImageContainer" class="hidden rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 h-44 bg-slate-100 dark:bg-slate-800">
+                <img id="detailItemImage" src="" alt="Foto Produk" class="w-full h-full object-cover">
+            </div>
+
             {{-- 1. Status & Basic Badges Grid --}}
             <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800/80 space-y-3">
                 <div class="flex items-center justify-between gap-2 flex-wrap pb-3 border-b border-slate-200/60 dark:border-slate-700/60">

@@ -55,19 +55,28 @@ class ProductRequest extends FormRequest
     {
         $isSellable = $this->has('is_sellable') ? $this->boolean('is_sellable') : true;
 
+        $rawRecipeItems = $this->input('recipe_items');
+        $cleanRecipeItems = null;
+        if (is_array($rawRecipeItems)) {
+            $filtered = array_values(array_filter($rawRecipeItems, function ($item) {
+                return is_array($item) && ! empty($item['component_product_id']) && (float) ($item['quantity'] ?? 0) > 0;
+            }));
+            $cleanRecipeItems = ! empty($filtered) ? $filtered : null;
+        }
+
         $this->merge([
+            'is_sellable' => $isSellable,
             'name' => is_string($this->input('name')) ? trim((string) $this->input('name')) : $this->input('name'),
             'sku' => $this->normalizeNullable('sku'),
             'barcode' => $this->normalizeNullable('barcode'),
-            'unit' => $this->normalizeNullable('unit'),
+            'unit' => $this->normalizeNullable('unit') ?? ($isSellable ? 'pcs' : 'gram'),
             'pricing_unit' => $this->normalizeNullable('pricing_unit'),
             'estimated_duration' => $this->normalizeNullable('estimated_duration'),
             'category_id' => in_array($this->input('category_id'), ['', 'all', null], true)
                 ? null
                 : $this->input('category_id'),
-            'price' => (! $isSellable && ($this->input('price') === null || $this->input('price') === ''))
-                ? 0
-                : $this->input('price'),
+            'price' => ! $isSellable ? 0 : ($this->input('price') ?? 0),
+            'recipe_items' => $cleanRecipeItems,
         ]);
     }
 
@@ -105,6 +114,8 @@ class ProductRequest extends FormRequest
                     fn ($query) => $query->where('business_id', $businessId)->where('status', '!=', 'deleted')
                 ),
             ],
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
+            'remove_image' => ['nullable', 'boolean'],
         ];
 
         if (! $this->isUpdate()) {
@@ -143,7 +154,7 @@ class ProductRequest extends FormRequest
             // Minimum stock may be negative — no `min:0` here on purpose.
             $rules['min_stock'] = ['nullable', 'numeric'];
             // INV-D02 — raw materials / supplies are tracked but not sold.
-            $rules['is_sellable'] = ['sometimes', 'boolean'];
+            $rules['is_sellable'] = ['required', 'boolean'];
 
             $rules['recipe_items'] = ['nullable', 'array'];
             $rules['recipe_items.*.component_product_id'] = [

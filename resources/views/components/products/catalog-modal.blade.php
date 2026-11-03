@@ -25,6 +25,7 @@
     data-business-type="{{ $businessType ?? 'unknown' }}"
     data-default-kind="{{ $defaultKind }}"
     data-default-unit="{{ $defaultUnit }}"
+    data-raw-materials="{{ base64_encode(json_encode($rawMaterialOptions ?? [])) }}"
     tabindex="-1"
 >
     <div class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-xs" data-close-catalog-modal></div>
@@ -54,6 +55,7 @@
                 data-store-url="{{ route('products.store') }}"
                 data-update-url-template="{{ route('products.update', ['productId' => '__ID__']) }}"
                 class="flex flex-col min-h-0 flex-1 overflow-hidden"
+                enctype="multipart/form-data"
                 novalidate
             >
                 @csrf
@@ -62,6 +64,46 @@
 
                 {{-- Scrollable Form Body --}}
                 <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+
+                {{-- Product Image Upload Area --}}
+                <div id="catalogProductImageContainer" class="flex items-center gap-4 p-3.5 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40">
+                    <div class="relative w-20 h-20 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center shrink-0 overflow-hidden group">
+                        <img id="catalogProductImagePreview" src="" alt="Preview" class="w-full h-full object-cover hidden">
+                        <div id="catalogProductImagePlaceholder" class="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                            <i data-lucide="image" class="w-6 h-6"></i>
+                            <span class="text-[10px] mt-1 font-medium">Foto</span>
+                        </div>
+                        <button
+                            type="button"
+                            id="btnRemoveProductImage"
+                            class="absolute top-1 right-1 p-1 rounded-md bg-rose-600 text-white shadow-xs opacity-90 hover:opacity-100 transition-opacity hidden cursor-pointer"
+                            title="Hapus Foto"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-0.5">Foto Menu / Produk</span>
+                        <p class="text-[11px] text-slate-400 dark:text-slate-500 mb-2">Format: JPG, PNG, WEBP (Maksimal 2MB).</p>
+                        <input
+                            type="file"
+                            id="catalogProductImageInput"
+                            name="image"
+                            accept="image/png,image/jpeg,image/webp,image/jpg"
+                            class="hidden"
+                        >
+                        <input type="hidden" name="remove_image" id="catalogProductRemoveImage" value="0">
+                        <button
+                            type="button"
+                            id="btnChooseProductImage"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+                        >
+                            <i data-lucide="upload" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <span id="btnChooseProductImageText">Pilih Foto</span>
+                        </button>
+                    </div>
+                </div>
 
                 <div>
                     <label for="catalogProductName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
@@ -453,12 +495,11 @@
                     </div>
 
                     {{-- Sellable toggle for regular products vs info notice for supplies --}}
+                    <input type="hidden" name="is_sellable" id="catalogProductIsSellableHidden" value="{{ old('is_sellable', '1') }}">
                     <div id="catalogProductSellableCheckboxContainer">
                         <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer">
-                            <input type="hidden" name="is_sellable" id="catalogProductIsSellableHidden" value="0">
                             <input
                                 id="catalogProductIsSellable"
-                                name="is_sellable"
                                 type="checkbox"
                                 value="1"
                                 @checked(old('is_sellable', '1') === '1' || old('is_sellable') === 1 || old('is_sellable') === true)

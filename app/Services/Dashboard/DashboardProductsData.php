@@ -130,7 +130,7 @@ class DashboardProductsData
             ->where('kind', 'product')
             ->where('is_sellable', false)
             ->orderBy('name')
-            ->get(['id', 'name', 'sku', 'cost', 'unit', 'is_sellable'])
+            ->get(['id', 'name', 'sku', 'cost', 'unit', 'is_sellable', 'image_path'])
             ->map(fn ($p) => [
                 'id' => (int) $p->id,
                 'name' => (string) $p->name,
@@ -138,6 +138,7 @@ class DashboardProductsData
                 'cost' => (float) $p->cost,
                 'unit' => (string) ($p->unit ?? 'pcs'),
                 'is_sellable' => (bool) $p->is_sellable,
+                'image_url' => $p->image_url,
             ])
             ->values()
             ->all();
@@ -416,6 +417,8 @@ class DashboardProductsData
             'name' => $product->name,
             'sku' => $product->sku,
             'barcode' => $product->barcode,
+            'image_path' => $product->image_path,
+            'image_url' => $product->image_url,
 
             'category_id' => $product->category_id,
             'category_name' => $categoryName,
@@ -482,6 +485,8 @@ class DashboardProductsData
             'id' => $service->id,
             'name' => $service->name,
             'sku' => $service->sku,
+            'image_path' => $service->image_path,
+            'image_url' => $service->image_url,
 
             'category_id' => $service->category_id,
             'category_name' => $categoryName,

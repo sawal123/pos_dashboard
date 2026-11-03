@@ -71,9 +71,13 @@
                         {{-- 1. Nama Produk --}}
                         <td class="py-3 px-4">
                             <div class="flex items-center gap-2.5">
-                                <div class="w-7 h-7 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                                    <i data-lucide="package" class="w-3.5 h-3.5"></i>
-                                </div>
+                                @if(!empty($product['image_url']))
+                                    <img src="{{ $product['image_url'] }}" alt="{{ $product['name'] }}" class="w-8 h-8 rounded-lg object-cover shrink-0 border border-slate-200/80 dark:border-slate-700/80">
+                                @else
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                        <i data-lucide="package" class="w-4 h-4"></i>
+                                    </div>
+                                @endif
                                 <div class="min-w-0">
                                     <p class="font-bold text-slate-900 dark:text-white truncate">{{ $product['name'] }}</p>
                                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Katalog Fisik</p>
