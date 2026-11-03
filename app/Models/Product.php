@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -165,5 +166,18 @@ class Product extends Model
     public function costHistories(): HasMany
     {
         return $this->hasMany(ProductCostHistory::class, 'product_id')->orderByDesc('id');
+    }
+
+    /**
+     * Variant groups assigned to this product.
+     *
+     * @return BelongsToMany<VariantGroup, $this>
+     */
+    public function variantGroups(): BelongsToMany
+    {
+        return $this->belongsToMany(VariantGroup::class, 'product_variant_group')
+            ->withPivot('sort_order')
+            ->orderByPivot('sort_order')
+            ->withTimestamps();
     }
 }

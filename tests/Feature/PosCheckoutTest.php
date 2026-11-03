@@ -15,6 +15,8 @@ use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\VariantGroup;
+use App\Models\VariantOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -414,6 +416,111 @@ class PosCheckoutTest extends TestCase
         $response->assertSee('Kopi Tubruk');
         $response->assertSee('15.000');
         $response->assertSee('3.000');
+    }
+
+    public function test_11_checkout_with_variants_adds_price_adjustment_and_deducts_variant_ingredient_stock(): void
+    {
+        [$business, $user, $outlet] = $this->setupTenant();
+        $this->openShift($business, $outlet);
+
+        // 1. Raw material ingredient (Biji Kopi)
+        $bijiKopi = $this->createProduct($business, [
+            'name' => 'Biji Kopi Arabica (Bahan)',
+            'sku' => 'RAW-BIJI-01',
+            'is_sellable' => false,
+            'stock' => 1000,
+            'cost' => 150,
+            'unit' => 'gr',
+        ]);
+
+        // 2. Variant Group & Option (Ekstra Shot)
+        $group = VariantGroup::create([
+            'business_id' => $business->id,
+            'name' => 'Ekstra Shot',
+            'selection_type' => 'single',
+            'is_required' => false,
+            'status' => 'active',
+        ]);
+
+        $option = VariantOption::create([
+            'business_id' => $business->id,
+            'variant_group_id' => $group->id,
+            'name' => '1 Shot Espresso',
+            'price_adjustment' => 5000,
+            'cost_adjustment' => 2000,
+            'ingredient_product_id' => $bijiKopi->id,
+            'ingredient_quantity' => 15, // 15gr per shot
+            'status' => 'active',
+        ]);
+
+        // 3. Sellable Product (Americano)
+        $americano = $this->createProduct($business, [
+            'name' => 'Americano',
+            'sku' => 'AMR-01',
+            'price' => 20000,
+            'cost' => 5000,
+            'stock' => 50,
+            'is_sellable' => true,
+        ]);
+        $americano->variantGroups()->attach($group->id, ['business_id' => $business->id]);
+
+        // 4. Checkout 2 Americano with Extra Shot
+        $clientSaleId = (string) Str::uuid();
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->postJson(route('pos.checkout'), [
+                'client_sale_id' => $clientSaleId,
+                'outlet_id' => $outlet->id,
+                'payment_method' => 'cash',
+                'cash_received' => 60000,
+                'items' => [
+                    [
+                        'product_id' => $americano->id,
+                        'quantity' => 2,
+                        'variant_option_ids' => [$option->id],
+                    ],
+                ],
+            ]);
+
+        $response->assertOk();
+        $response->assertJson([
+            'success' => true,
+            'sale' => [
+                'subtotal' => 50000, // (20.000 + 5.000) * 2 = 50.000
+                'total_amount' => 50000,
+                'change_amount' => 10000,
+            ],
+        ]);
+
+        // 5. Verify Sale & Sale Item snapshot
+        $sale = Sale::where('sync_id', $clientSaleId)->firstOrFail();
+        $this->assertSame(50000, (int) $sale->total_amount);
+        $this->assertCount(1, $sale->items);
+
+        $item = $sale->items->first();
+        $this->assertStringContainsString('1 Shot Espresso', (string) $item->variant_summary);
+        $this->assertIsArray($item->variants_snapshot);
+        $this->assertCount(1, $item->variants_snapshot);
+        $this->assertSame('1 Shot Espresso', $item->variants_snapshot[0]['option_name']);
+        $this->assertSame(5000, $item->variants_snapshot[0]['price_adjustment']);
+        $this->assertSame(25000, (int) $item->unit_price);
+        $this->assertSame(50000, (int) $item->line_total);
+
+        // 6. Verify main product stock deduction: 50 - 2 = 48
+        $this->assertSame(48.0, (float) $americano->fresh()->stock);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $americano->id,
+            'movement_type' => 'sale',
+            'quantity_change' => -2.0,
+        ]);
+
+        // 7. Verify variant ingredient stock deduction: 1000 - (2 * 15) = 970
+        $this->assertSame(970.0, (float) $bijiKopi->fresh()->stock);
+        $this->assertDatabaseHas('stock_movements', [
+            'product_id' => $bijiKopi->id,
+            'movement_type' => 'sale',
+            'quantity_change' => -30.0,
+        ]);
     }
 
     /**

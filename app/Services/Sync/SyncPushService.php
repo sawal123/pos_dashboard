@@ -794,6 +794,21 @@ class SyncPushService
             $fields['kind'] = $item['kind'];
         }
 
+        if (array_key_exists('variant_summary', $item) && $item['variant_summary'] !== null) {
+            $fields['variant_summary'] = (string) $item['variant_summary'];
+        }
+
+        if (array_key_exists('variants_snapshot', $item) && $item['variants_snapshot'] !== null) {
+            $snapshot = $item['variants_snapshot'];
+            if (is_string($snapshot)) {
+                $decoded = json_decode($snapshot, true);
+                $snapshot = is_array($decoded) ? $decoded : null;
+            }
+            if (is_array($snapshot)) {
+                $fields['variants_snapshot'] = $snapshot;
+            }
+        }
+
         return $fields;
     }
 

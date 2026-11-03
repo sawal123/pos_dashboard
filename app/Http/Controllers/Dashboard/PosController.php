@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Concerns\ResolvesActiveBusiness;
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Promo;
@@ -113,7 +114,7 @@ class PosController extends Controller
                     'shift_number' => $shift->shift_number,
                     'status' => $shift->status,
                     'opening_cash' => (int) $shift->opening_cash,
-                    'opened_at' => $shift->opened_at?->format('d/m/Y H:i'),
+                    'opened_at' => $shift->opened_at->format('d/m/Y H:i'),
                 ],
             ]);
         }
@@ -188,7 +189,7 @@ class PosController extends Controller
                 'shift_number' => $shift->shift_number,
                 'status' => $shift->status,
                 'opening_cash' => (int) $shift->opening_cash,
-                'opened_at' => $shift->opened_at?->format('d/m/Y H:i'),
+                'opened_at' => $shift->opened_at->format('d/m/Y H:i'),
             ],
             'summary' => $summary,
         ]);
@@ -279,6 +280,9 @@ class PosController extends Controller
                 Rule::exists('products', 'id')->where(fn ($q) => $q->where('business_id', $business->id)),
             ],
             'items.*.quantity' => ['required', 'numeric', 'min:0.001'],
+            'items.*.variant_option_ids' => ['nullable', 'array'],
+            'items.*.variant_option_ids.*' => ['integer'],
+            'items.*.variants' => ['nullable', 'array'],
         ]);
 
         $sale = $this->checkoutService->checkout(
@@ -294,7 +298,7 @@ class PosController extends Controller
                 'id' => $sale->id,
                 'sync_id' => $sale->sync_id,
                 'transaction_number' => $sale->transaction_number,
-                'sold_at' => $sale->sold_at?->format('d/m/Y H:i:s'),
+                'sold_at' => $sale->sold_at->format('d/m/Y H:i:s'),
                 'subtotal' => (int) $sale->subtotal,
                 'discount_amount' => (int) $sale->discount_amount,
                 'tax_amount' => (int) $sale->tax_amount,
@@ -303,13 +307,14 @@ class PosController extends Controller
                 'cash_received' => (int) $sale->cash_received,
                 'change_amount' => (int) $sale->change_amount,
                 'gross_profit' => (float) $sale->gross_profit,
-                'customer_name' => $sale->customer?->name ?? ($sale->customer_snapshot['name'] ?? null),
-                'outlet_name' => $sale->outlet?->name ?? 'Outlet',
+                'customer_name' => $sale->customer instanceof Customer ? $sale->customer->name : ($sale->customer_snapshot['name'] ?? null),
+                'outlet_name' => $sale->outlet instanceof Outlet ? $sale->outlet->name : 'Outlet',
                 'shift_number' => $sale->shift?->shift_number,
                 'items_count' => $sale->items->count(),
                 'items' => $sale->items->map(fn ($item) => [
                     'name' => $item->product_name,
                     'sku' => $item->product_sku,
+                    'variant_summary' => $item->variant_summary,
                     'quantity' => (float) $item->quantity,
                     'unit' => $item->unit,
                     'unit_price' => (int) $item->unit_price,

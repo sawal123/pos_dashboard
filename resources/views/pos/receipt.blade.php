@@ -112,6 +112,11 @@
                 <span>{{ $item->product_name }}</span>
                 <span>Rp {{ number_format($item->line_total, 0, ',', '.') }}</span>
             </div>
+            @if(!empty($item->variant_summary))
+                <div class="item-sub" style="font-size: 10px; color: #64748b; font-style: italic; margin-top: -2px; margin-bottom: 2px;">
+                    {{ $item->variant_summary }}
+                </div>
+            @endif
             <div class="item-sub">
                 {{ $item->quantity }} {{ $item->unit }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}
             </div>

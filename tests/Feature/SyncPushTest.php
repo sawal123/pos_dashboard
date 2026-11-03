@@ -9,6 +9,7 @@ use App\Models\Expense;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\Shift;
 use App\Models\Subscription;
 use App\Models\User;
@@ -728,5 +729,71 @@ class SyncPushTest extends TestCase
         $this->assertSame(1, $seq1);
         $this->assertSame(2, $seq2);
         $this->assertSame(3, $seq3);
+    }
+
+    public function test_push_sale_items_persists_variant_summary_and_snapshot(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $productSyncId = (string) Str::uuid();
+        $saleSyncId = (string) Str::uuid();
+        $saleItemSyncId = (string) Str::uuid();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'products' => [
+                        [
+                            'sync_id' => $productSyncId,
+                            'name' => 'Kopi Latte',
+                            'sku' => 'LATTE-01',
+                            'price' => 25000,
+                        ],
+                    ],
+                    'sales' => [
+                        [
+                            'sync_id' => $saleSyncId,
+                            'transaction_number' => 'TRX-VAR-01',
+                            'status' => 'completed',
+                            'subtotal' => 28000,
+                            'total_amount' => 28000,
+                            'sold_at' => now()->toIso8601String(),
+                        ],
+                    ],
+                    'sale_items' => [
+                        [
+                            'sync_id' => $saleItemSyncId,
+                            'sale_sync_id' => $saleSyncId,
+                            'product_sync_id' => $productSyncId,
+                            'product_name' => 'Kopi Latte',
+                            'product_sku' => 'LATTE-01',
+                            'unit_price' => 28000,
+                            'quantity' => 1,
+                            'line_total' => 28000,
+                            'variant_summary' => 'Less Sugar, Oat Milk (+Rp 3.000)',
+                            'variants_snapshot' => [
+                                ['name' => 'Less Sugar', 'price_adjustment' => 0],
+                                ['name' => 'Oat Milk', 'price_adjustment' => 3000],
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sale_items', [
+            'sync_id' => $saleItemSyncId,
+            'variant_summary' => 'Less Sugar, Oat Milk (+Rp 3.000)',
+        ]);
+
+        $item = SaleItem::where('sync_id', $saleItemSyncId)->first();
+        $this->assertNotNull($item);
+        $this->assertIsArray($item->variants_snapshot);
+        $this->assertCount(2, $item->variants_snapshot);
+        $this->assertSame('Oat Milk', $item->variants_snapshot[1]['name']);
     }
 }

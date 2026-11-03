@@ -14,6 +14,8 @@ use App\Models\SaleItem;
 use App\Models\Shift;
 use App\Models\Subscription;
 use App\Models\User;
+use App\Models\VariantGroup;
+use App\Models\VariantOption;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -259,5 +261,71 @@ class SyncPullTest extends TestCase
 
         $this->assertCount(5, $allPulled);
         $this->assertSame([$c1->sync_id, $p1->sync_id, $c2->sync_id, $p2->sync_id, $c3->sync_id], $allPulled);
+    }
+
+    public function test_pull_returns_variant_groups_and_product_variant_group_links(): void
+    {
+        $env = $this->setupPullEnvironment();
+
+        $milk = Product::create([
+            'business_id' => $env['business']->id,
+            'name' => 'Susu Fresh',
+            'sku' => 'ING-MILK',
+            'price' => 0,
+            'is_sellable' => false,
+            'stock' => 100,
+        ]);
+
+        $group = VariantGroup::create([
+            'business_id' => $env['business']->id,
+            'name' => 'Level Susu',
+            'selection_type' => 'single',
+            'is_required' => true,
+            'min_selection' => 1,
+            'max_selection' => 1,
+            'status' => 'active',
+        ]);
+
+        $option = VariantOption::create([
+            'business_id' => $env['business']->id,
+            'variant_group_id' => $group->id,
+            'name' => 'Extra Milk',
+            'price_adjustment' => 5000,
+            'cost_adjustment' => 2000,
+            'ingredient_product_id' => $milk->id,
+            'ingredient_quantity' => 100,
+            'is_default' => false,
+            'status' => 'active',
+        ]);
+
+        $coffee = Product::create([
+            'business_id' => $env['business']->id,
+            'name' => 'Kopi Latte',
+            'sku' => 'LATTE-01',
+            'price' => 25000,
+            'is_sellable' => true,
+        ]);
+
+        $coffee->variantGroups()->attach($group->id, ['business_id' => $env['business']->id, 'sort_order' => 1]);
+        $coffee->touch();
+
+        $res = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->getJson("/api/sync/pull?business_id={$env['business']->id}&device_identifier=DEV-A&after=0&limit=50");
+
+        $res->assertStatus(200);
+        $records = $res->json('data.records');
+
+        $vgRecord = collect($records)->firstWhere('entity', 'variant_groups');
+        $this->assertNotNull($vgRecord);
+        $this->assertSame($group->sync_id, $vgRecord['data']['sync_id']);
+        $this->assertSame('Level Susu', $vgRecord['data']['name']);
+        $this->assertCount(1, $vgRecord['data']['options']);
+        $this->assertSame('Extra Milk', $vgRecord['data']['options'][0]['name']);
+        $this->assertSame(5000, $vgRecord['data']['options'][0]['price_adjustment']);
+        $this->assertSame($milk->sync_id, $vgRecord['data']['options'][0]['ingredient_product_sync_id']);
+
+        $prodRecord = collect($records)->first(fn ($r) => $r['entity'] === 'products' && $r['data']['sync_id'] === $coffee->sync_id);
+        $this->assertNotNull($prodRecord);
+        $this->assertContains($group->sync_id, $prodRecord['data']['variant_group_sync_ids']);
     }
 }

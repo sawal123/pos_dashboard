@@ -3,6 +3,7 @@
     'categories' => [],
     'businessType' => null,
     'rawMaterialOptions' => [],
+    'variantGroupOptions' => [],
 ])
 
 @php
@@ -408,6 +409,45 @@
                         </span>
                     </label>
                     @error('is_sellable')<p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+
+                    {{-- Variant Groups Assignment (Template Varian) --}}
+                    @if(!empty($variantGroupOptions))
+                        <div id="catalogVariantGroupsSection" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <span class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                                        Template Varian yang Berlaku
+                                    </span>
+                                    <span class="block text-[11px] text-slate-500 dark:text-slate-400">
+                                        Pilih opsi modifikasi/varian yang dapat dipilih kasir untuk menu ini.
+                                    </span>
+                                </div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                                    {{ count($variantGroupOptions) }} template
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                                @foreach($variantGroupOptions as $vg)
+                                    <label class="flex items-center gap-2 p-2 rounded-lg border border-slate-200/80 dark:border-slate-700/80 bg-white dark:bg-slate-900 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition">
+                                        <input
+                                            type="checkbox"
+                                            name="variant_group_ids[]"
+                                            value="{{ $vg['id'] }}"
+                                            class="product-variant-group-checkbox w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                            data-variant-group-id="{{ $vg['id'] }}"
+                                        >
+                                        <div class="text-xs">
+                                            <span class="font-semibold text-slate-800 dark:text-slate-200 block">{{ $vg['name'] }}</span>
+                                            <span class="text-[10px] text-slate-400 block">
+                                                {{ $vg['selection_type'] === 'single' ? 'Pilihan Tunggal (Radio)' : 'Pilihan Ganda (Checkbox)' }}
+                                            </span>
+                                        </div>
+                                    </label>
+                                @endforeach
+                            </div>
+                            @error('variant_group_ids')<p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Service-only fields --}}

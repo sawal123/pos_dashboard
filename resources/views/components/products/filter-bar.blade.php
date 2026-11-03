@@ -11,17 +11,20 @@
     $catalogKind = match($activeTab) {
         'services' => 'service',
         'categories' => 'category',
+        'variants' => 'variant',
         default => 'product',
     };
     $btnLabel = match($activeTab) {
         'services' => 'Tambah Layanan',
         'categories' => 'Tambah Kategori',
+        'variants' => 'Tambah Template Varian',
         'supplies' => 'Tambah Bahan',
         default => 'Tambah Produk',
     };
     $placeholder = match($activeTab) {
         'services' => 'Cari layanan atau SKU...',
         'categories' => 'Cari nama kategori...',
+        'variants' => 'Cari nama template varian...',
         'supplies' => 'Cari bahan, SKU, atau barcode...',
         default => 'Cari produk, SKU, atau barcode...',
     };
@@ -58,7 +61,7 @@
         <div class="flex items-center gap-2 flex-wrap">
 
             {{-- Kategori Filter (Hanya untuk Products & Services) --}}
-            @if($activeTab !== 'categories')
+            @if($activeTab !== 'categories' && $activeTab !== 'variants')
                 <div class="min-w-[130px] flex-1 sm:flex-initial">
                     <select
                         id="filterCategory"
@@ -122,20 +125,33 @@
                 <span class="hidden sm:inline">Reset</span>
             </a>
 
-            {{-- DASH-15 — owner-only "add" action opens the catalog modal. --}}
+            {{-- DASH-15 — owner-only "add" action opens the catalog modal or variant group modal. --}}
             @if($canManage)
-                <button
-                    type="button"
-                    id="addCatalogBtn"
-                    data-open-catalog-modal
-                    data-catalog-mode="create"
-                    data-catalog-kind="{{ $catalogKind }}"
-                    data-catalog-target="{{ $activeTab === 'supplies' ? 'supply' : '' }}"
-                    class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                >
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span id="addCatalogBtnText">{{ $btnLabel }}</span>
-                </button>
+                @if($activeTab === 'variants')
+                    <button
+                        type="button"
+                        id="addVariantGroupBtn"
+                        data-open-variant-group-modal
+                        data-variant-group-mode="create"
+                        class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>{{ $btnLabel }}</span>
+                    </button>
+                @else
+                    <button
+                        type="button"
+                        id="addCatalogBtn"
+                        data-open-catalog-modal
+                        data-catalog-mode="create"
+                        data-catalog-kind="{{ $catalogKind }}"
+                        data-catalog-target="{{ $activeTab === 'supplies' ? 'supply' : '' }}"
+                        class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span id="addCatalogBtnText">{{ $btnLabel }}</span>
+                    </button>
+                @endif
             @endif
         </div>
     </div>
