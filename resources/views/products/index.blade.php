@@ -915,9 +915,6 @@
                     skuInput.dispatchEvent(new Event('change', { bubbles: true }));
                 };
 
-                document.getElementById('btnGenerateSkuLink')?.addEventListener('click', handleGenerateSku);
-                document.getElementById('btnGenerateSkuInline')?.addEventListener('click', handleGenerateSku);
-
                 const applySupplyMode = (isSupply, isExplicitSupplyModal = false) => {
                     const priceContainer = document.getElementById('catalogProductPriceContainer');
                     const supplyCostContainer = document.getElementById('catalogSupplyCostContainer');
@@ -991,33 +988,6 @@
                         if (sellableCheck) sellableCheck.checked = true;
                     }
                 };
-
-                const supplyCostInput = document.getElementById('catalogSupplyCostInput');
-                if (supplyCostInput) {
-                    supplyCostInput.addEventListener('input', () => {
-                        const costInput = document.getElementById('catalogProductCost');
-                        if (costInput) {
-                            costInput.value = supplyCostInput.value || '0';
-                            costInput.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    });
-                }
-
-                const sellableToggle = document.getElementById('catalogProductIsSellable');
-                sellableToggle?.addEventListener('change', () => {
-                    const isEdit = Boolean(currentEditingProductId);
-                    const prefix = isEdit ? 'Edit' : 'Tambah';
-                    const isService = productForm()?.elements.namedItem('kind')?.value === 'service';
-                    if (!isService) {
-                        const isSellable = sellableToggle.checked;
-                        applySupplyMode(!isSellable, false);
-                        setHeading(prefix, isSellable ? 'Produk' : 'Bahan Baku');
-                        const skuInput = document.getElementById('catalogProductSku');
-                        if (!isEdit && skuInput && (!skuInput.value || skuInput.value.startsWith('SKU-') || skuInput.value.startsWith('RAW-'))) {
-                            skuInput.value = generateRandomSku('product', isSellable);
-                        }
-                    }
-                });
 
                 const showProductForm = (form) => {
                     form.classList.remove('hidden');
@@ -1257,137 +1227,13 @@
                     }
                 };
 
-                document.addEventListener('click', (event) => {
-                    const target = event.target;
-                    if (!(target instanceof Element)) return;
-
-                    if (target.closest('[data-close-catalog-modal]')) {
-                        close();
-                        return;
-                    }
-
-                    const trigger = target.closest('[data-open-catalog-modal]');
-                    if (!trigger) return;
-
-                    event.preventDefault();
-                    const mode = trigger.getAttribute('data-catalog-mode') || 'create';
-                    const kind = trigger.getAttribute('data-catalog-kind') || 'product';
-
-                    if (mode === 'edit') {
-                        openEdit(kind, parseRaw(trigger), trigger);
-                    } else {
-                        openCreate(kind, trigger);
-                    }
-                });
-
-                document.addEventListener('keydown', (event) => {
-                    const el = modalEl();
-                    if (!el || el.classList.contains('hidden')) return;
-
-                    if (event.key === 'Escape') {
-                        event.preventDefault();
-                        close();
-                        return;
-                    }
-
-                    if (event.key !== 'Tab') return;
-
-                    const focusables = Array.from(el.querySelectorAll(focusableSelector));
-                    if (focusables.length === 0) return;
-
-                    const first = focusables[0];
-                    const last = focusables[focusables.length - 1];
-                    const activeIndex = focusables.indexOf(document.activeElement);
-
-                    if (event.shiftKey) {
-                        if (activeIndex <= 0) {
-                            event.preventDefault();
-                            last.focus({ preventScroll: true });
-                        }
-                        return;
-                    }
-
-                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
-                        event.preventDefault();
-                        first.focus({ preventScroll: true });
-                    }
-                });
-
-                // Prevent double submits: disable the button once a catalog form
-                // is submitted. Unique constraints also reject duplicates server-side.
-                document.addEventListener('submit', (event) => {
-                    const form = event.target;
-                    if (!(form instanceof HTMLFormElement)) return;
-                    if (form.id !== 'catalogProductForm' && form.id !== 'catalogCategoryForm') return;
-
-                    form.querySelectorAll('button[type="submit"]').forEach((button) => {
-                        button.disabled = true;
-                        const label = button.querySelector('[data-submit-label]');
-                        if (label) label.textContent = 'Menyimpan…';
-                    });
-                });
-
-                // HPP & Recipe event listeners
-                const addRecipeBtn = document.getElementById('catalogAddRecipeItemBtn');
-                if (addRecipeBtn) {
-                    addRecipeBtn.addEventListener('click', () => addRecipeRow());
-                }
-
-                const applyHppBtn = document.getElementById('catalogApplyHppBtn');
-                if (applyHppBtn) {
-                    applyHppBtn.addEventListener('click', () => {
-                        const form = productForm();
-                        const costInput = form?.elements.namedItem('cost');
-                        const hppMethodSelect = form?.elements.namedItem('hpp_method');
-                        if (!costInput) return;
-
-                        let targetHpp = currentHppCalculated;
-                        if (hppMethodSelect?.value === 'recipe') {
-                            const totalEstEl = document.getElementById('catalogRecipeTotalEstimate');
-                            const cleanText = totalEstEl?.textContent?.replace(/[^0-9]/g, '') || '0';
-                            targetHpp = parseFloat(cleanText) || 0;
-                        }
-
-                        costInput.value = targetHpp > 0 ? (targetHpp % 1 === 0 ? targetHpp : targetHpp.toFixed(2)) : '0';
-                        updateLiveCalculations();
-                    });
-                }
-
-                const hppMethodSelect = document.getElementById('catalogHppMethod');
-                if (hppMethodSelect) {
-                    hppMethodSelect.addEventListener('change', () => {
-                        const sec = recipeSection();
-                        const isSupply = document.getElementById('catalogSupplyCostContainer') && !document.getElementById('catalogSupplyCostContainer').classList.contains('hidden');
-                        if (sec && !isSupply) {
-                            sec.classList.remove('hidden');
-                        }
-                        updateLiveCalculations();
-                    });
-                }
-
-                const costSourceSelect = document.getElementById('catalogCostSource');
-                if (costSourceSelect) {
-                    costSourceSelect.addEventListener('change', updateLiveCalculations);
-                }
-
-                ['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) {
-                        el.addEventListener('input', updateLiveCalculations);
-                    }
-                });
-
-                // Dynamic Unit Handling
-                const unitSelect = document.getElementById('catalogProductUnit');
-                const inlineNewUnitBox = document.getElementById('inlineNewUnitBox');
-                const btnToggleNewUnitBox = document.getElementById('btnToggleNewUnitBox');
-                const newUnitInput = document.getElementById('newUnitInput');
-                const btnSaveNewUnit = document.getElementById('btnSaveNewUnit');
-                const btnCancelNewUnit = document.getElementById('btnCancelNewUnit');
-                const newUnitError = document.getElementById('newUnitError');
+                // Dynamic Unit Helpers
                 let lastValidUnit = 'pcs';
 
                 const showNewUnitBox = () => {
+                    const inlineNewUnitBox = document.getElementById('inlineNewUnitBox');
+                    const newUnitError = document.getElementById('newUnitError');
+                    const newUnitInput = document.getElementById('newUnitInput');
                     if (!inlineNewUnitBox) return;
                     inlineNewUnitBox.classList.remove('hidden');
                     if (newUnitError) newUnitError.classList.add('hidden');
@@ -1398,6 +1244,9 @@
                 };
 
                 hideNewUnitBox = () => {
+                    const inlineNewUnitBox = document.getElementById('inlineNewUnitBox');
+                    const newUnitError = document.getElementById('newUnitError');
+                    const unitSelect = document.getElementById('catalogProductUnit');
                     if (!inlineNewUnitBox) return;
                     inlineNewUnitBox.classList.add('hidden');
                     if (newUnitError) newUnitError.classList.add('hidden');
@@ -1406,31 +1255,20 @@
                     }
                 };
 
-                if (unitSelect) {
-                    unitSelect.addEventListener('change', () => {
-                        if (unitSelect.value === '__new__') {
-                            showNewUnitBox();
-                        } else {
-                            lastValidUnit = unitSelect.value;
-                        }
-                    });
-                }
-
-                if (btnToggleNewUnitBox) {
-                    btnToggleNewUnitBox.addEventListener('click', () => {
-                        if (inlineNewUnitBox && !inlineNewUnitBox.classList.contains('hidden')) {
-                            hideNewUnitBox();
-                        } else {
-                            showNewUnitBox();
-                        }
-                    });
-                }
-
-                if (btnCancelNewUnit) {
-                    btnCancelNewUnit.addEventListener('click', hideNewUnitBox);
-                }
+                const toggleNewUnitBox = () => {
+                    const inlineNewUnitBox = document.getElementById('inlineNewUnitBox');
+                    if (inlineNewUnitBox && !inlineNewUnitBox.classList.contains('hidden')) {
+                        hideNewUnitBox();
+                    } else {
+                        showNewUnitBox();
+                    }
+                };
 
                 const submitNewUnit = async () => {
+                    const newUnitInput = document.getElementById('newUnitInput');
+                    const unitSelect = document.getElementById('catalogProductUnit');
+                    const newUnitError = document.getElementById('newUnitError');
+                    const btnSaveNewUnit = document.getElementById('btnSaveNewUnit');
                     if (!newUnitInput || !unitSelect) return;
                     const val = newUnitInput.value.trim().toLowerCase();
                     if (!val) {
@@ -1489,21 +1327,222 @@
                     }
                 };
 
-                if (btnSaveNewUnit) {
-                    btnSaveNewUnit.addEventListener('click', submitNewUnit);
-                }
+                // Delegated Click Listener (Works across Livewire wire:navigate swaps)
+                document.addEventListener('click', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
 
-                if (newUnitInput) {
-                    newUnitInput.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
+                    if (target.closest('[data-close-catalog-modal]')) {
+                        close();
+                        return;
+                    }
+
+                    const trigger = target.closest('[data-open-catalog-modal]');
+                    if (trigger) {
+                        event.preventDefault();
+                        const mode = trigger.getAttribute('data-catalog-mode') || 'create';
+                        const kind = trigger.getAttribute('data-catalog-kind') || 'product';
+
+                        if (mode === 'edit') {
+                            openEdit(kind, parseRaw(trigger), trigger);
+                        } else {
+                            openCreate(kind, trigger);
+                        }
+                        return;
+                    }
+
+                    if (target.closest('#catalogAddRecipeItemBtn')) {
+                        event.preventDefault();
+                        addRecipeRow();
+                        return;
+                    }
+
+                    const removeBtn = target.closest('.recipe-remove-btn');
+                    if (removeBtn) {
+                        event.preventDefault();
+                        const row = removeBtn.closest('.recipe-row');
+                        if (row) {
+                            const sel = row.querySelector('.recipe-component-select');
+                            if (window.jQuery && typeof jQuery.fn.select2 === 'function' && sel && $(sel).data('select2')) {
+                                $(sel).select2('destroy');
+                            }
+                            row.remove();
+                            reindexRecipeRows();
+                            updateLiveCalculations();
+                        }
+                        return;
+                    }
+
+                    if (target.closest('#catalogApplyHppBtn')) {
+                        event.preventDefault();
+                        const form = productForm();
+                        const costInput = form?.elements.namedItem('cost');
+                        if (costInput) {
+                            const totalEstEl = document.getElementById('catalogRecipeTotalEstimate');
+                            const cleanText = totalEstEl?.textContent?.replace(/[^0-9]/g, '') || '0';
+                            const targetHpp = parseFloat(cleanText) || currentHppCalculated;
+                            costInput.value = targetHpp > 0 ? (targetHpp % 1 === 0 ? targetHpp : targetHpp.toFixed(2)) : '0';
+                            updateLiveCalculations();
+                        }
+                        return;
+                    }
+
+                    if (target.closest('#btnGenerateSkuLink') || target.closest('#btnGenerateSkuInline')) {
+                        event.preventDefault();
+                        handleGenerateSku();
+                        return;
+                    }
+
+                    if (target.closest('#btnToggleNewUnitBox')) {
+                        event.preventDefault();
+                        toggleNewUnitBox();
+                        return;
+                    }
+
+                    if (target.closest('#btnSaveNewUnit')) {
+                        event.preventDefault();
+                        submitNewUnit();
+                        return;
+                    }
+
+                    if (target.closest('#btnCancelNewUnit')) {
+                        event.preventDefault();
+                        hideNewUnitBox();
+                        return;
+                    }
+                });
+
+                // Delegated Change Listener (Works across Livewire wire:navigate swaps)
+                document.addEventListener('change', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+
+                    if (target.id === 'catalogProductIsSellable') {
+                        const isEdit = Boolean(currentEditingProductId);
+                        const prefix = isEdit ? 'Edit' : 'Tambah';
+                        const isService = productForm()?.elements.namedItem('kind')?.value === 'service';
+                        if (!isService) {
+                            const isSellable = (target instanceof HTMLInputElement) ? target.checked : true;
+                            applySupplyMode(!isSellable, false);
+                            setHeading(prefix, isSellable ? 'Produk' : 'Bahan Baku');
+                            const skuInput = document.getElementById('catalogProductSku');
+                            if (!isEdit && skuInput && (!skuInput.value || skuInput.value.startsWith('SKU-') || skuInput.value.startsWith('RAW-'))) {
+                                skuInput.value = generateRandomSku('product', isSellable);
+                            }
+                        }
+                        return;
+                    }
+
+                    if (target.id === 'catalogProductUnit') {
+                        if ((target instanceof HTMLSelectElement) && target.value === '__new__') {
+                            showNewUnitBox();
+                        } else if (target instanceof HTMLSelectElement) {
+                            lastValidUnit = target.value;
+                        }
+                        return;
+                    }
+
+                    if (target.id === 'catalogHppMethod') {
+                        const sec = recipeSection();
+                        const isSupply = document.getElementById('catalogSupplyCostContainer') && !document.getElementById('catalogSupplyCostContainer').classList.contains('hidden');
+                        if (sec && !isSupply) {
+                            sec.classList.remove('hidden');
+                        }
+                        updateLiveCalculations();
+                        return;
+                    }
+
+                    if (target.id === 'catalogCostSource' || target.classList.contains('recipe-component-select')) {
+                        updateLiveCalculations();
+                        return;
+                    }
+                });
+
+                // Delegated Input Listener (Works across Livewire wire:navigate swaps)
+                document.addEventListener('input', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof Element)) return;
+
+                    if (target.id === 'catalogSupplyCostInput') {
+                        const costInput = document.getElementById('catalogProductCost');
+                        if (costInput && (target instanceof HTMLInputElement)) {
+                            costInput.value = target.value || '0';
+                            costInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                        return;
+                    }
+
+                    if (['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].includes(target.id) || target.classList.contains('recipe-qty-input')) {
+                        updateLiveCalculations();
+                        return;
+                    }
+                });
+
+                document.addEventListener('keydown', (event) => {
+                    if (event.target && (event.target instanceof HTMLElement) && event.target.id === 'newUnitInput') {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
                             submitNewUnit();
-                        } else if (e.key === 'Escape') {
-                            e.preventDefault();
+                        } else if (event.key === 'Escape') {
+                            event.preventDefault();
                             hideNewUnitBox();
                         }
+                        return;
+                    }
+
+                    const el = modalEl();
+                    if (!el || el.classList.contains('hidden')) return;
+
+                    if (event.key === 'Escape') {
+                        event.preventDefault();
+                        close();
+                        return;
+                    }
+
+                    if (event.key !== 'Tab') return;
+
+                    const focusables = Array.from(el.querySelectorAll(focusableSelector));
+                    if (focusables.length === 0) return;
+
+                    const first = focusables[0];
+                    const last = focusables[focusables.length - 1];
+                    const activeIndex = focusables.indexOf(document.activeElement);
+
+                    if (event.shiftKey) {
+                        if (activeIndex <= 0) {
+                            event.preventDefault();
+                            last.focus({ preventScroll: true });
+                        }
+                        return;
+                    }
+
+                    if (activeIndex === -1 || activeIndex === focusables.length - 1) {
+                        event.preventDefault();
+                        first.focus({ preventScroll: true });
+                    }
+                });
+
+                // Prevent double submits: disable the button once a catalog form
+                // is submitted. Unique constraints also reject duplicates server-side.
+                document.addEventListener('submit', (event) => {
+                    const form = event.target;
+                    if (!(form instanceof HTMLFormElement)) return;
+                    if (form.id !== 'catalogProductForm' && form.id !== 'catalogCategoryForm') return;
+
+                    form.querySelectorAll('button[type="submit"]').forEach((button) => {
+                        button.disabled = true;
+                        const label = button.querySelector('[data-submit-label]');
+                        if (label) label.textContent = 'Menyimpan…';
                     });
-                }
+                });
+
+                document.addEventListener('livewire:navigated', () => {
+                    if (window.__catalogModalOpenOnError) {
+                        const kind = window.__catalogModalOpenOnError;
+                        window.__catalogModalOpenOnError = null;
+                        requestAnimationFrame(() => openCreate(kind, null));
+                    }
+                });
 
                 if (window.__catalogModalOpenOnError) {
                     const kind = window.__catalogModalOpenOnError;
