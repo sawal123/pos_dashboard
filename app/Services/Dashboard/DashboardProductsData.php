@@ -5,6 +5,7 @@ namespace App\Services\Dashboard;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Unit;
 use App\Models\VariantGroup;
 use App\Models\VariantOption;
 use Illuminate\Database\Eloquent\Builder;
@@ -159,6 +160,8 @@ class DashboardProductsData
             ->values()
             ->all();
 
+        $unitOptions = Unit::forBusiness($business)->pluck('name')->values()->all();
+
         return [
             'summary' => $summary,
             'tabCounts' => $tabCounts,
@@ -169,6 +172,7 @@ class DashboardProductsData
             'statuses' => $filterOptions['statuses'],
             'rawMaterialOptions' => $rawMaterialOptions,
             'variantGroupOptions' => $variantGroupOptions,
+            'unitOptions' => $unitOptions,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters, $activeTab),
@@ -710,6 +714,8 @@ class DashboardProductsData
             'hasAnyData' => false,
             'categories' => [],
             'statuses' => [],
+            'variantGroupOptions' => [],
+            'unitOptions' => Unit::DEFAULT_UNITS,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => [
                 'categories' => [],

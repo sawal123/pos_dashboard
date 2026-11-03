@@ -161,6 +161,16 @@ class Business extends Model
     }
 
     /**
+     * The measurement units belonging to the business.
+     *
+     * @return HasMany<Unit, $this>
+     */
+    public function units(): HasMany
+    {
+        return $this->hasMany(Unit::class);
+    }
+
+    /**
      * The customers belonging to the business.
      *
      * @return HasMany<Customer, $this>

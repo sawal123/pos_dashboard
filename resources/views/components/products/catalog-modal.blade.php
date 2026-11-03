@@ -4,6 +4,7 @@
     'businessType' => null,
     'rawMaterialOptions' => [],
     'variantGroupOptions' => [],
+    'unitOptions' => [],
 ])
 
 @php
@@ -165,17 +166,60 @@
                     </div>
 
                     <div>
-                        <label for="catalogProductUnit" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Satuan</label>
-                        <input
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="catalogProductUnit" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Satuan</label>
+                            <button
+                                type="button"
+                                id="btnToggleNewUnitBox"
+                                class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1 transition-colors"
+                            >
+                                <i data-lucide="plus" class="w-3 h-3"></i>
+                                <span>Tambah Satuan</span>
+                            </button>
+                        </div>
+                        <select
                             id="catalogProductUnit"
                             name="unit"
-                            type="text"
-                            maxlength="20"
-                            value="{{ old('unit') }}"
-                            placeholder="pcs"
-                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
+                            @php
+                                $selectedUnit = old('unit', $defaultUnit);
+                            @endphp
+                            @foreach($unitOptions as $unit)
+                                <option value="{{ $unit }}" @selected($selectedUnit === $unit)>{{ $unit }}</option>
+                            @endforeach
+                            <option value="__new__">+ Tambah Satuan Baru...</option>
+                        </select>
                         @error('unit')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+
+                        {{-- Inline Quick Add Satuan Box --}}
+                        <div id="inlineNewUnitBox" class="hidden mt-2 p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/30">
+                            <label for="newUnitInput" class="block text-[11px] font-medium text-slate-600 dark:text-slate-400 mb-1">Nama Satuan Baru (contoh: cup, box, porsi)</label>
+                            <div class="flex items-center gap-1.5">
+                                <input
+                                    type="text"
+                                    id="newUnitInput"
+                                    placeholder="Nama satuan..."
+                                    maxlength="30"
+                                    class="flex-1 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                <button
+                                    type="button"
+                                    id="btnSaveNewUnit"
+                                    class="h-8 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold inline-flex items-center gap-1 shrink-0 transition-colors shadow-xs"
+                                >
+                                    <span>Simpan</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    id="btnCancelNewUnit"
+                                    class="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 shrink-0 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                            </div>
+                            <p id="newUnitError" class="mt-1 text-xs text-rose-600 dark:text-rose-400 hidden"></p>
+                        </div>
                     </div>
                 </div>
 

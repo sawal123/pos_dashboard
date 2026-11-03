@@ -10,11 +10,13 @@ use App\Http\Requests\Dashboard\UpdateCatalogStatusRequest;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Unit;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\CatalogManagementService;
 use App\Services\Dashboard\DashboardProductsData;
 use App\Services\Inventory\HppService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -176,5 +178,42 @@ class ProductsController extends Controller
         return redirect()
             ->route('products.index', ['tab' => 'categories'])
             ->with('status', 'Status kategori diperbarui.');
+    }
+
+    public function storeUnit(Request $request): JsonResponse|RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:50'],
+            'symbol' => ['nullable', 'string', 'max:20'],
+        ]);
+
+        $name = strtolower(trim($validated['name']));
+
+        $unit = Unit::query()->firstOrCreate(
+            [
+                'business_id' => $business->id,
+                'name' => $name,
+            ],
+            [
+                'symbol' => $validated['symbol'] ?? null,
+                'status' => 'active',
+            ]
+        );
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'unit' => [
+                    'id' => $unit->id,
+                    'name' => $unit->name,
+                    'symbol' => $unit->symbol,
+                ],
+                'message' => 'Satuan berhasil ditambahkan.',
+            ]);
+        }
+
+        return back()->with('status', 'Satuan berhasil ditambahkan.');
     }
 }

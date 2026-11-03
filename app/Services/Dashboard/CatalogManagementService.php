@@ -8,6 +8,7 @@ use App\Models\Business;
 use App\Models\Category;
 use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
+use App\Models\Unit;
 use App\Services\Inventory\HppService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -84,6 +85,13 @@ class CatalogManagementService
         }
 
         $product = Product::create($attributes);
+
+        if (! empty($product->unit)) {
+            Unit::query()->firstOrCreate(
+                ['business_id' => $business->id, 'name' => strtolower(trim((string) $product->unit))],
+                ['status' => 'active']
+            );
+        }
 
         if (! empty($data['recipe_items']) && is_array($data['recipe_items'])) {
             /** @var list<array{component_product_id: int|string, quantity: float|string, note?: string|null}> $recipeItems */
@@ -168,6 +176,13 @@ class CatalogManagementService
         }
 
         $product->save();
+
+        if (! empty($product->unit)) {
+            Unit::query()->firstOrCreate(
+                ['business_id' => $product->business_id, 'name' => strtolower(trim((string) $product->unit))],
+                ['status' => 'active']
+            );
+        }
 
         if (array_key_exists('recipe_items', $data) && is_array($data['recipe_items'])) {
             /** @var list<array{component_product_id: int|string, quantity: float|string, note?: string|null}> $recipeItems */

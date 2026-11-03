@@ -163,6 +163,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::post('products/categories', [ProductsController::class, 'storeCategory'])
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('products.categories.store');
+    Route::post('products/units', [ProductsController::class, 'storeUnit'])
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.units.store');
     Route::patch('products/categories/{categoryId}', [ProductsController::class, 'updateCategory'])
         ->whereNumber('categoryId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

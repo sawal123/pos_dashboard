@@ -241,6 +241,7 @@
                 :business-type="$dashboardBusinessType ?? null"
                 :raw-material-options="$rawMaterialOptions ?? []"
                 :variant-group-options="$variantGroupOptions ?? []"
+                :unit-options="$unitOptions ?? []"
             />
 
             {{-- ==================== 8. VARIANT GROUP MODAL ==================== --}}
@@ -598,6 +599,7 @@
                 let lastTrigger = null;
                 let currentEditingProductId = null;
                 let currentHppCalculated = 0;
+                let hideNewUnitBox = () => {};
 
                 const modalEl = () => document.getElementById('catalogModal');
                 const productForm = () => document.getElementById('catalogProductForm');
@@ -823,7 +825,29 @@
                 const setValue = (form, name, value) => {
                     const field = form.elements.namedItem(name);
                     if (field) {
-                        field.value = value === null || value === undefined ? '' : value;
+                        const val = value === null || value === undefined ? '' : value;
+                        if (name === 'unit' && field.tagName === 'SELECT') {
+                            if (val) {
+                                const lowerVal = String(val).toLowerCase().trim();
+                                let option = Array.from(field.options).find(o => o.value.toLowerCase() === lowerVal);
+                                if (!option) {
+                                    option = document.createElement('option');
+                                    option.value = lowerVal;
+                                    option.textContent = lowerVal;
+                                    const newOpt = field.querySelector('option[value="__new__"]');
+                                    if (newOpt) {
+                                        field.insertBefore(option, newOpt);
+                                    } else {
+                                        field.appendChild(option);
+                                    }
+                                }
+                                field.value = option.value;
+                            } else {
+                                field.value = '';
+                            }
+                            return;
+                        }
+                        field.value = val;
                     }
                 };
 
@@ -1025,6 +1049,7 @@
 
                     el.classList.add('hidden');
                     document.body.style.overflow = '';
+                    hideNewUnitBox();
 
                     if (lastTrigger && document.contains(lastTrigger) && typeof lastTrigger.focus === 'function') {
                         lastTrigger.focus({ preventScroll: true });
@@ -1323,6 +1348,134 @@
                         el.addEventListener('input', updateLiveCalculations);
                     }
                 });
+
+                // Dynamic Unit Handling
+                const unitSelect = document.getElementById('catalogProductUnit');
+                const inlineNewUnitBox = document.getElementById('inlineNewUnitBox');
+                const btnToggleNewUnitBox = document.getElementById('btnToggleNewUnitBox');
+                const newUnitInput = document.getElementById('newUnitInput');
+                const btnSaveNewUnit = document.getElementById('btnSaveNewUnit');
+                const btnCancelNewUnit = document.getElementById('btnCancelNewUnit');
+                const newUnitError = document.getElementById('newUnitError');
+                let lastValidUnit = 'pcs';
+
+                const showNewUnitBox = () => {
+                    if (!inlineNewUnitBox) return;
+                    inlineNewUnitBox.classList.remove('hidden');
+                    if (newUnitError) newUnitError.classList.add('hidden');
+                    if (newUnitInput) {
+                        newUnitInput.value = '';
+                        newUnitInput.focus();
+                    }
+                };
+
+                hideNewUnitBox = () => {
+                    if (!inlineNewUnitBox) return;
+                    inlineNewUnitBox.classList.add('hidden');
+                    if (newUnitError) newUnitError.classList.add('hidden');
+                    if (unitSelect && unitSelect.value === '__new__') {
+                        unitSelect.value = lastValidUnit || 'pcs';
+                    }
+                };
+
+                if (unitSelect) {
+                    unitSelect.addEventListener('change', () => {
+                        if (unitSelect.value === '__new__') {
+                            showNewUnitBox();
+                        } else {
+                            lastValidUnit = unitSelect.value;
+                        }
+                    });
+                }
+
+                if (btnToggleNewUnitBox) {
+                    btnToggleNewUnitBox.addEventListener('click', () => {
+                        if (inlineNewUnitBox && !inlineNewUnitBox.classList.contains('hidden')) {
+                            hideNewUnitBox();
+                        } else {
+                            showNewUnitBox();
+                        }
+                    });
+                }
+
+                if (btnCancelNewUnit) {
+                    btnCancelNewUnit.addEventListener('click', hideNewUnitBox);
+                }
+
+                const submitNewUnit = async () => {
+                    if (!newUnitInput || !unitSelect) return;
+                    const val = newUnitInput.value.trim().toLowerCase();
+                    if (!val) {
+                        if (newUnitError) {
+                            newUnitError.textContent = 'Nama satuan tidak boleh kosong.';
+                            newUnitError.classList.remove('hidden');
+                        }
+                        return;
+                    }
+
+                    if (btnSaveNewUnit) btnSaveNewUnit.disabled = true;
+
+                    try {
+                        const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+                        const res = await fetch('{{ route('products.units.store') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': token,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ name: val }),
+                        });
+
+                        const data = await res.json();
+                        if (res.ok && data.success) {
+                            const unitName = data.unit.name;
+                            let opt = Array.from(unitSelect.options).find(o => o.value.toLowerCase() === unitName.toLowerCase());
+                            if (!opt) {
+                                opt = document.createElement('option');
+                                opt.value = unitName;
+                                opt.textContent = unitName;
+                                const newOpt = unitSelect.querySelector('option[value="__new__"]');
+                                if (newOpt) {
+                                    unitSelect.insertBefore(opt, newOpt);
+                                } else {
+                                    unitSelect.appendChild(opt);
+                                }
+                            }
+                            unitSelect.value = opt.value;
+                            lastValidUnit = opt.value;
+                            hideNewUnitBox();
+                        } else {
+                            if (newUnitError) {
+                                newUnitError.textContent = data.message || 'Gagal menyimpan satuan.';
+                                newUnitError.classList.remove('hidden');
+                            }
+                        }
+                    } catch (err) {
+                        if (newUnitError) {
+                            newUnitError.textContent = 'Terjadi kesalahan jaringan saat menyimpan satuan.';
+                            newUnitError.classList.remove('hidden');
+                        }
+                    } finally {
+                        if (btnSaveNewUnit) btnSaveNewUnit.disabled = false;
+                    }
+                };
+
+                if (btnSaveNewUnit) {
+                    btnSaveNewUnit.addEventListener('click', submitNewUnit);
+                }
+
+                if (newUnitInput) {
+                    newUnitInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            submitNewUnit();
+                        } else if (e.key === 'Escape') {
+                            e.preventDefault();
+                            hideNewUnitBox();
+                        }
+                    });
+                }
 
                 if (window.__catalogModalOpenOnError) {
                     const kind = window.__catalogModalOpenOnError;
