@@ -59,7 +59,10 @@ class PosCatalogData
             ->where('business_id', $business->id)
             ->where('status', 'active')
             ->where('is_sellable', true)
-            ->with('category:id,name')
+            ->with([
+                'category:id,name',
+                'variantGroups' => fn ($q) => $q->where('status', 'active')->with(['activeOptions.ingredientProduct'])->orderBy('sort_order'),
+            ])
             ->orderBy('name')
             ->get([
                 'id',
@@ -76,10 +79,31 @@ class PosCatalogData
                 'pricing_unit',
             ])
             ->map(function (Product $product): array {
+                $hasVariants = $product->relationLoaded('variantGroups') && $product->variantGroups->isNotEmpty();
+                $variantGroups = $hasVariants
+                    ? $product->variantGroups->map(fn ($g) => [
+                        'id' => (int) $g->id,
+                        'name' => (string) $g->name,
+                        'selection_type' => (string) $g->selection_type,
+                        'is_required' => (bool) $g->is_required,
+                        'min_selection' => (int) $g->min_selection,
+                        'max_selection' => $g->max_selection !== null ? (int) $g->max_selection : null,
+                        'options' => $g->activeOptions->map(fn ($o) => [
+                            'id' => (int) $o->id,
+                            'name' => (string) $o->name,
+                            'price_adjustment' => (int) $o->price_adjustment,
+                            'is_default' => (bool) $o->is_default,
+                            'has_ingredient' => ! empty($o->ingredient_product_id),
+                            'ingredient_name' => $o->ingredientProduct instanceof Product ? $o->ingredientProduct->name : null,
+                            'ingredient_quantity' => (float) $o->ingredient_quantity,
+                        ])->values()->all(),
+                    ])->values()->all()
+                    : [];
+
                 return [
                     'id' => (int) $product->id,
                     'category_id' => $product->category_id ? (int) $product->category_id : null,
-                    'category_name' => $product->category?->name ?? 'Tanpa Kategori',
+                    'category_name' => $product->category instanceof Category ? $product->category->name : 'Tanpa Kategori',
                     'name' => (string) $product->name,
                     'sku' => (string) $product->sku,
                     'barcode' => (string) ($product->barcode ?? ''),
@@ -92,6 +116,8 @@ class PosCatalogData
                     'pricing_unit' => (string) ($product->pricing_unit ?? 'pcs'),
                     'is_low_stock' => $product->kind === 'product' && (float) $product->stock <= (float) $product->min_stock,
                     'is_out_of_stock' => $product->kind === 'product' && (float) $product->stock <= 0,
+                    'has_variants' => $hasVariants,
+                    'variant_groups' => $variantGroups,
                 ];
             });
 

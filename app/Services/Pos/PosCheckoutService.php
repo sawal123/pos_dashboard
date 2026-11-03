@@ -15,6 +15,8 @@ use App\Models\SaleItem;
 use App\Models\SalePromotion;
 use App\Models\Shift;
 use App\Models\User;
+use App\Models\VariantGroup;
+use App\Models\VariantOption;
 use App\Services\Inventory\StockLedgerService;
 use App\Services\Promo\PromoEvaluator;
 use Illuminate\Database\Eloquent\Collection;
@@ -43,7 +45,12 @@ class PosCheckoutService
      *     promo_id?: int|null,
      *     note?: string|null,
      *     client_sale_id: string,
-     *     items: list<array{product_id: int, quantity: int|float}>
+     *     items: list<array{
+     *         product_id: int,
+     *         quantity: int|float,
+     *         variant_option_ids?: list<int|string>,
+     *         variants?: list<array<string, mixed>>
+     *     }>
      * }  $payload
      */
     public function checkout(
@@ -123,8 +130,8 @@ class PosCheckoutService
         }
 
         // 5. Validate Items List
-        $itemsData = $payload['items'] ?? [];
-        if (empty($itemsData) || ! is_array($itemsData)) {
+        $itemsData = $payload['items'];
+        if (empty($itemsData)) {
             throw ValidationException::withMessages([
                 'items' => 'Keranjang belanja tidak boleh kosong.',
             ]);
@@ -154,15 +161,51 @@ class PosCheckoutService
                 return $existing;
             }
 
+            // Extract all variant option IDs across all items
+            $allOptionIds = [];
+            foreach ($itemsData as $row) {
+                if (! empty($row['variant_option_ids'])) {
+                    foreach ($row['variant_option_ids'] as $oid) {
+                        $allOptionIds[] = (int) $oid;
+                    }
+                } elseif (! empty($row['variants'])) {
+                    foreach ($row['variants'] as $v) {
+                        if (! empty($v['option_id'])) {
+                            $allOptionIds[] = (int) $v['option_id'];
+                        }
+                    }
+                }
+            }
+            $allOptionIds = array_values(array_unique(array_filter($allOptionIds)));
+
+            /** @var Collection<int, VariantOption> $loadedOptions */
+            $loadedOptions = ! empty($allOptionIds)
+                ? VariantOption::query()
+                    ->where('business_id', $business->id)
+                    ->whereIn('id', $allOptionIds)
+                    ->where('status', '!=', 'deleted')
+                    ->with(['group', 'ingredientProduct'])
+                    ->get()
+                    ->keyBy('id')
+                : collect();
+
+            // Extract ingredient product IDs to lock together with sellable products
+            $ingredientProductIds = [];
+            foreach ($loadedOptions as $opt) {
+                if ($opt->ingredient_product_id) {
+                    $ingredientProductIds[] = (int) $opt->ingredient_product_id;
+                }
+            }
+
             // Extract and lock product IDs in deterministic order to prevent deadlocks
             $productIds = array_map(fn ($row) => (int) $row['product_id'], $itemsData);
-            sort($productIds);
-            $productIds = array_values(array_unique($productIds));
+            $allLockProductIds = array_values(array_unique(array_merge($productIds, $ingredientProductIds)));
+            sort($allLockProductIds);
 
             /** @var Collection<int, Product> $lockedProducts */
             $lockedProducts = Product::query()
                 ->where('business_id', $business->id)
-                ->whereIn('id', $productIds)
+                ->whereIn('id', $allLockProductIds)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -203,25 +246,84 @@ class PosCheckoutService
 
                 $unitPrice = (int) $product->price;
                 $unitCost = (float) $product->cost;
-                $lineTotal = (int) round($unitPrice * $qty);
-                $lineCost = round($unitCost * $qty, 2);
+
+                // Process selected variants for this line item
+                $selectedOptionIds = [];
+                if (! empty($row['variant_option_ids'])) {
+                    $selectedOptionIds = array_map('intval', $row['variant_option_ids']);
+                } elseif (! empty($row['variants'])) {
+                    $selectedOptionIds = array_map(fn ($v) => (int) ($v['option_id'] ?? 0), $row['variants']);
+                }
+                $selectedOptionIds = array_values(array_unique(array_filter($selectedOptionIds)));
+
+                $lineVariantPriceAdj = 0;
+                $lineVariantCostAdj = 0;
+                $lineVariantsSnapshot = [];
+                $summaryParts = [];
+                $lineVariantOptions = [];
+
+                foreach ($selectedOptionIds as $optId) {
+                    $opt = $loadedOptions->get($optId);
+                    if ($opt instanceof VariantOption) {
+                        $lineVariantPriceAdj += (int) $opt->price_adjustment;
+                        $lineVariantCostAdj += (int) $opt->cost_adjustment;
+                        $lineVariantOptions[] = $opt;
+
+                        $part = $opt->name;
+                        if ($opt->price_adjustment > 0) {
+                            $part .= ' (+'.number_format($opt->price_adjustment, 0, ',', '.').')';
+                        }
+                        $summaryParts[] = $part;
+
+                        $ingProd = $opt->ingredient_product_id ? $lockedProducts->get($opt->ingredient_product_id) : null;
+                        if ($ingProd instanceof Product && (float) $opt->ingredient_quantity > 0) {
+                            $lineVariantCostAdj += round((float) $ingProd->cost * (float) $opt->ingredient_quantity, 2);
+                        }
+
+                        $groupName = $opt->group instanceof VariantGroup ? $opt->group->name : 'Varian';
+                        $ingredientName = $ingProd instanceof Product
+                            ? $ingProd->name
+                            : ($opt->ingredientProduct instanceof Product ? $opt->ingredientProduct->name : null);
+
+                        $lineVariantsSnapshot[] = [
+                            'group_id' => $opt->variant_group_id,
+                            'group_name' => $groupName,
+                            'option_id' => $opt->id,
+                            'option_name' => $opt->name,
+                            'price_adjustment' => (int) $opt->price_adjustment,
+                            'cost_adjustment' => (int) $opt->cost_adjustment,
+                            'ingredient_product_id' => $opt->ingredient_product_id,
+                            'ingredient_name' => $ingredientName,
+                            'ingredient_quantity' => (float) $opt->ingredient_quantity,
+                        ];
+                    }
+                }
+
+                $variantSummary = ! empty($summaryParts) ? implode(', ', $summaryParts) : null;
+                $effectiveUnitPrice = $unitPrice + $lineVariantPriceAdj;
+                $effectiveUnitCost = $unitCost + $lineVariantCostAdj;
+                $lineTotal = (int) round($effectiveUnitPrice * $qty);
+                $lineCost = round($effectiveUnitCost * $qty, 2);
 
                 $subtotal += $lineTotal;
                 $costTotal += $lineCost;
 
                 $orderLines[] = [
                     'product' => $product,
-                    'unit_price' => $unitPrice,
-                    'unit_cost' => $unitCost,
+                    'unit_price' => $effectiveUnitPrice,
+                    'unit_cost' => $effectiveUnitCost,
                     'quantity' => $qty,
                     'line_total' => $lineTotal,
                     'line_cost' => $lineCost,
+                    'variant_summary' => $variantSummary,
+                    'variants_snapshot' => ! empty($lineVariantsSnapshot) ? $lineVariantsSnapshot : null,
+                    'variant_options' => $lineVariantOptions,
                 ];
 
                 $evaluatorLines[] = [
                     'product_id' => $product->id,
                     'category_id' => $product->category_id,
-                    'unit_price' => $unitPrice,
+                    'unit_price' => $effectiveUnitPrice,
                     'quantity' => $qty,
                     'line_total' => $lineTotal,
                 ];
@@ -263,7 +365,7 @@ class PosCheckoutService
 
             // 7. Calculate Final Total and Payment
             $totalAmount = max(0, $subtotal - $discountAmount);
-            $paymentMethod = (string) ($payload['payment_method'] ?? 'cash');
+            $paymentMethod = (string) $payload['payment_method'];
             $validMethods = ['cash', 'qris', 'transfer', 'debit'];
             if (! in_array($paymentMethod, $validMethods, true)) {
                 throw ValidationException::withMessages([
@@ -273,7 +375,7 @@ class PosCheckoutService
 
             $isCash = ($paymentMethod === 'cash');
             if ($isCash) {
-                $cashReceived = isset($payload['cash_received']) && $payload['cash_received'] !== ''
+                $cashReceived = isset($payload['cash_received'])
                     ? (int) $payload['cash_received']
                     : $totalAmount;
 
@@ -311,7 +413,7 @@ class PosCheckoutService
             $sale = new Sale([
                 'business_id' => $business->id,
                 'outlet_id' => $outlet->id,
-                'shift_id' => $shift?->id,
+                'shift_id' => $shift->id,
                 'customer_id' => $customer?->id,
                 'transaction_number' => $transactionNumber,
                 'status' => 'completed',
@@ -340,12 +442,14 @@ class PosCheckoutService
                 /** @var Product $product */
                 $product = $line['product'];
 
-                SaleItem::create([
+                $saleItem = SaleItem::create([
                     'business_id' => $business->id,
                     'sale_id' => $sale->id,
                     'product_id' => $product->id,
                     'product_name' => (string) $product->name,
                     'product_sku' => (string) $product->sku,
+                    'variant_summary' => $line['variant_summary'],
+                    'variants_snapshot' => $line['variants_snapshot'],
                     'unit_price' => $line['unit_price'],
                     'quantity' => $line['quantity'],
                     'line_total' => $line['line_total'],
@@ -374,6 +478,35 @@ class PosCheckoutService
                         user: $user,
                     );
                 }
+
+                // 12b. Stock Deduction for variant ingredients
+                if (! empty($line['variant_options'])) {
+                    foreach ($line['variant_options'] as $vOpt) {
+                        $ingProd = $vOpt->ingredient_product_id ? $lockedProducts->get($vOpt->ingredient_product_id) : null;
+                        if (! $ingProd instanceof Product) {
+                            $ingProd = $vOpt->ingredientProduct;
+                        }
+
+                        if ($ingProd instanceof Product && (float) $vOpt->ingredient_quantity > 0) {
+                            $deductIngredientQty = (float) $vOpt->ingredient_quantity * (float) $line['quantity'];
+                            $this->stockLedgerService->record(
+                                business: $business,
+                                product: $ingProd,
+                                type: StockMovementType::Sale,
+                                delta: -$deductIngredientQty,
+                                meta: [
+                                    'sale_sync_id' => (string) $sale->sync_id,
+                                    'reference_id' => $sale->transaction_number,
+                                    'category' => 'Bahan Baku Varian',
+                                    'note' => "Bahan varian '{$vOpt->name}' untuk {$product->name} (x{$line['quantity']}) #{$sale->transaction_number}",
+                                    'idempotency_key' => "pos-sale-variant:{$sale->sync_id}:{$saleItem->id}:{$ingProd->id}",
+                                    'occurred_at' => $now,
+                                ],
+                                user: $user,
+                            );
+                        }
+                    }
+                }
             }
 
             // 13. Create SalePromotion if applied
@@ -393,7 +526,7 @@ class PosCheckoutService
                 CashLedger::create([
                     'business_id' => $business->id,
                     'outlet_id' => $outlet->id,
-                    'shift_id' => $shift?->id,
+                    'shift_id' => $shift->id,
                     'type' => 'in',
                     'amount' => $totalAmount,
                     'category' => 'Penjualan',

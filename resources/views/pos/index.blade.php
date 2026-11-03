@@ -186,6 +186,54 @@
         </div>
     </div>
 
+    {{-- ==================== VARIANT SELECTOR MODAL ==================== --}}
+    <div id="variantSelectorModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
+        <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
+            {{-- Modal Header --}}
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30">
+                <div class="min-w-0 flex-1 pr-2">
+                    <h3 id="variantModalProductName" class="font-bold text-slate-900 dark:text-white text-base truncate">
+                        Pilih Varian
+                    </h3>
+                    <p id="variantModalBasePrice" class="text-xs text-slate-500 font-semibold">
+                        Rp 0
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    onclick="closeVariantModal()"
+                    class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 flex items-center justify-center transition-colors"
+                >
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            {{-- Groups and Options List --}}
+            <div id="variantModalGroupsContainer" class="p-4 overflow-y-auto space-y-4 max-h-[60vh]">
+                {{-- Dynamically populated --}}
+            </div>
+
+            {{-- Modal Footer --}}
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center justify-between gap-3">
+                <div>
+                    <span class="block text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total Item</span>
+                    <span id="variantModalTotalPrice" class="font-black text-base text-indigo-600 dark:text-indigo-400 tabular-nums">
+                        Rp 0
+                    </span>
+                </div>
+                <button
+                    type="button"
+                    id="addVariantToCartBtn"
+                    onclick="confirmVariantSelection()"
+                    class="px-5 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 flex items-center gap-2 transition"
+                >
+                    <i data-lucide="shopping-cart" class="w-4 h-4"></i>
+                    <span>Tambahkan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- ==================== PAYMENT MODAL ==================== --}}
     <div id="paymentModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
         <div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
@@ -646,7 +694,18 @@
             filtered.forEach(p => {
                 const card = document.createElement('div');
                 card.className = "p-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-500/60 dark:hover:border-indigo-500/60 hover:shadow-md transition-all cursor-pointer flex flex-col justify-between group active:scale-[0.98]";
-                card.onclick = () => addToCart(p.id);
+                card.onclick = () => {
+                    if (p.has_variants) {
+                        openVariantModal(p);
+                    } else {
+                        addToCart(p.id);
+                    }
+                };
+
+                let variantBadge = '';
+                if (p.has_variants) {
+                    variantBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">Varian</span>`;
+                }
 
                 let stockBadge = '';
                 if (p.kind === 'service') {
@@ -663,7 +722,7 @@
                     <div>
                         <div class="flex items-center justify-between gap-1 mb-1.5">
                             <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 truncate max-w-[100px]">${p.category_name}</span>
-                            ${stockBadge}
+                            <div class="flex items-center gap-1">${variantBadge}${stockBadge}</div>
                         </div>
                         <h4 class="font-bold text-xs md:text-sm text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 line-clamp-2 transition-colors">
                             ${p.name}
@@ -704,22 +763,189 @@
             } catch (e) {}
         }
 
-        function addToCart(productId) {
-            const product = ALL_PRODUCTS.find(p => p.id === productId);
-            if (!product) return;
+        // ==================== VARIANT SELECTOR MODAL ====================
+        let currentVariantProduct = null;
 
-            const existing = cart.find(item => item.product_id === productId);
+        function openVariantModal(product) {
+            currentVariantProduct = product;
+            document.getElementById('variantModalProductName').textContent = product.name;
+            document.getElementById('variantModalBasePrice').textContent = 'Harga dasar: ' + formatRp(product.price);
+
+            const container = document.getElementById('variantModalGroupsContainer');
+            container.innerHTML = '';
+
+            (product.variant_groups || []).forEach(group => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = "p-3 rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-2";
+
+                const isSingle = group.selection_type === 'single';
+                const requiredBadge = group.is_required
+                    ? `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400">Wajib</span>`
+                    : `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-500">Opsional</span>`;
+
+                let limitText = '';
+                if (!isSingle && group.max_selection) {
+                    limitText = `<span class="text-[10px] text-slate-400">(Maks. ${group.max_selection})</span>`;
+                }
+
+                groupDiv.innerHTML = `
+                    <div class="flex items-center justify-between pb-1.5 border-b border-slate-200/60 dark:border-slate-700/60">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-xs text-slate-900 dark:text-white">${group.name}</span>
+                            ${limitText}
+                        </div>
+                        ${requiredBadge}
+                    </div>
+                    <div class="space-y-1.5 options-group-list" data-group-id="${group.id}" data-required="${group.is_required ? '1' : '0'}" data-type="${group.selection_type}" data-max="${group.max_selection || ''}">
+                        ${(group.options || []).map((opt, idx) => {
+                            const isChecked = opt.is_default || (isSingle && group.is_required && idx === 0);
+                            const priceAdjText = opt.price_adjustment > 0 ? `+${formatRp(opt.price_adjustment)}` : '';
+
+                            return `
+                                <label class="flex items-center justify-between p-2 rounded-xl border border-slate-200/70 dark:border-slate-700/70 bg-white dark:bg-slate-900 cursor-pointer hover:border-indigo-400 dark:hover:border-indigo-600 transition text-xs">
+                                    <div class="flex items-center gap-2">
+                                        <input
+                                            type="${isSingle ? 'radio' : 'checkbox'}"
+                                            name="var_group_${group.id}"
+                                            value="${opt.id}"
+                                            data-price-adj="${opt.price_adjustment || 0}"
+                                            data-opt-name="${opt.name}"
+                                            data-group-name="${group.name}"
+                                            data-ing-id="${opt.ingredient_product_id || ''}"
+                                            data-ing-qty="${opt.ingredient_quantity || 0}"
+                                            ${isChecked ? 'checked' : ''}
+                                            onchange="handleVariantOptionChange(this)"
+                                            class="w-4 h-4 text-indigo-600 focus:ring-indigo-500 rounded ${isSingle ? '' : 'rounded-md'} border-slate-300 dark:border-slate-600"
+                                        >
+                                        <span class="font-medium text-slate-800 dark:text-slate-200">${opt.name}</span>
+                                    </div>
+                                    ${priceAdjText ? `<span class="font-bold text-[11px] text-indigo-600 dark:text-indigo-400 tabular-nums">${priceAdjText}</span>` : ''}
+                                </label>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+                container.appendChild(groupDiv);
+            });
+
+            updateVariantModalPrice();
+            document.getElementById('variantSelectorModal').classList.remove('hidden');
+            if (typeof window.initIcons === 'function') window.initIcons();
+        }
+
+        function closeVariantModal() {
+            document.getElementById('variantSelectorModal').classList.add('hidden');
+            currentVariantProduct = null;
+        }
+
+        function handleVariantOptionChange(input) {
+            const groupList = input.closest('.options-group-list');
+            if (!groupList) return;
+
+            const isSingle = groupList.dataset.type === 'single';
+            if (!isSingle) {
+                const max = parseInt(groupList.dataset.max, 10);
+                if (max > 0) {
+                    const checkedBoxes = groupList.querySelectorAll('input[type="checkbox"]:checked');
+                    if (checkedBoxes.length > max) {
+                        input.checked = false;
+                        showToast('warning', `Maksimal pilihan untuk varian ini adalah ${max}.`);
+                    }
+                }
+            }
+
+            updateVariantModalPrice();
+        }
+
+        function updateVariantModalPrice() {
+            if (!currentVariantProduct) return;
+
+            let totalAdj = 0;
+            let canAdd = true;
+
+            const groupLists = document.querySelectorAll('#variantModalGroupsContainer .options-group-list');
+            groupLists.forEach(gl => {
+                const isRequired = gl.dataset.required === '1';
+                const checked = gl.querySelectorAll('input:checked');
+                if (isRequired && checked.length === 0) {
+                    canAdd = false;
+                }
+                checked.forEach(cb => {
+                    totalAdj += parseInt(cb.dataset.priceAdj || '0', 10);
+                });
+            });
+
+            const total = (currentVariantProduct.price || 0) + totalAdj;
+            document.getElementById('variantModalTotalPrice').textContent = formatRp(total);
+
+            const addBtn = document.getElementById('addVariantToCartBtn');
+            if (addBtn) addBtn.disabled = !canAdd;
+        }
+
+        function confirmVariantSelection() {
+            if (!currentVariantProduct) return;
+
+            const selectedOptionIds = [];
+            const variantsSnapshot = [];
+            const summaryParts = [];
+            let totalAdj = 0;
+
+            const checkedInputs = document.querySelectorAll('#variantModalGroupsContainer input:checked');
+            checkedInputs.forEach(cb => {
+                const optId = parseInt(cb.value, 10);
+                const priceAdj = parseInt(cb.dataset.priceAdj || '0', 10);
+                const optName = cb.dataset.optName;
+                const groupName = cb.dataset.groupName;
+                const ingId = cb.dataset.ingId ? parseInt(cb.dataset.ingId, 10) : null;
+                const ingQty = cb.dataset.ingQty ? parseFloat(cb.dataset.ingQty) : 0;
+
+                selectedOptionIds.push(optId);
+                totalAdj += priceAdj;
+
+                let part = optName;
+                if (priceAdj > 0) {
+                    part += ` (+${formatRp(priceAdj)})`;
+                }
+                summaryParts.push(part);
+
+                variantsSnapshot.push({
+                    group_name: groupName,
+                    option_id: optId,
+                    option_name: optName,
+                    price_adjustment: priceAdj,
+                    ingredient_product_id: ingId,
+                    ingredient_quantity: ingQty
+                });
+            });
+
+            const variantSummary = summaryParts.join(', ');
+            const unitPrice = currentVariantProduct.price + totalAdj;
+
+            addToCartWithVariants(currentVariantProduct, selectedOptionIds, variantsSnapshot, variantSummary, unitPrice);
+            closeVariantModal();
+        }
+
+        function addToCartWithVariants(product, optionIds, variantsSnapshot, variantSummary, unitPrice) {
+            const lineKey = product.id + '::' + [...optionIds].sort((a,b)=>a-b).join('-');
+            const existing = cart.find(item => (item.line_id || String(item.product_id)) === lineKey);
+
             if (existing) {
                 existing.quantity += 1;
             } else {
                 cart.push({
+                    line_id: lineKey,
                     product_id: product.id,
                     name: product.name,
                     sku: product.sku,
-                    unit_price: product.price,
+                    unit_price: unitPrice,
+                    base_price: product.price,
                     unit: product.unit,
                     kind: product.kind,
-                    quantity: 1
+                    quantity: 1,
+                    variant_option_ids: optionIds,
+                    variants: variantsSnapshot,
+                    variant_summary: variantSummary
                 });
             }
 
@@ -728,8 +954,43 @@
             evaluateCartPromo();
         }
 
-        function updateCartQuantity(productId, delta) {
-            const idx = cart.findIndex(item => item.product_id === productId);
+        function addToCart(productId) {
+            const product = ALL_PRODUCTS.find(p => p.id === productId);
+            if (!product) return;
+
+            if (product.has_variants) {
+                openVariantModal(product);
+                return;
+            }
+
+            const lineKey = String(product.id);
+            const existing = cart.find(item => (item.line_id || String(item.product_id)) === lineKey);
+            if (existing) {
+                existing.quantity += 1;
+            } else {
+                cart.push({
+                    line_id: lineKey,
+                    product_id: product.id,
+                    name: product.name,
+                    sku: product.sku,
+                    unit_price: product.price,
+                    base_price: product.price,
+                    unit: product.unit,
+                    kind: product.kind,
+                    quantity: 1,
+                    variant_option_ids: [],
+                    variants: [],
+                    variant_summary: null
+                });
+            }
+
+            saveCartToStorage();
+            renderCart();
+            evaluateCartPromo();
+        }
+
+        function updateCartQuantity(lineId, delta) {
+            const idx = cart.findIndex(item => (item.line_id || String(item.product_id)) === String(lineId));
             if (idx === -1) return;
 
             cart[idx].quantity += delta;
@@ -742,8 +1003,8 @@
             evaluateCartPromo();
         }
 
-        function removeFromCart(productId) {
-            cart = cart.filter(item => item.product_id !== productId);
+        function removeFromCart(lineId) {
+            cart = cart.filter(item => (item.line_id || String(item.product_id)) !== String(lineId));
             saveCartToStorage();
             renderCart();
             evaluateCartPromo();
@@ -785,6 +1046,7 @@
             let totalItems = 0;
 
             cart.forEach(item => {
+                const lineId = item.line_id || String(item.product_id);
                 const lineTotal = item.unit_price * item.quantity;
                 subtotal += lineTotal;
                 totalItems += item.quantity;
@@ -795,6 +1057,7 @@
                 row.innerHTML = `
                     <div class="min-w-0 flex-1">
                         <h5 class="font-bold text-slate-800 dark:text-slate-100 truncate">${item.name}</h5>
+                        ${item.variant_summary ? `<div class="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium truncate">${item.variant_summary}</div>` : ''}
                         <div class="text-[11px] text-slate-400">
                             ${formatRp(item.unit_price)} / ${item.unit}
                         </div>
@@ -803,7 +1066,7 @@
                     <div class="flex items-center gap-1.5 shrink-0">
                         <button
                             type="button"
-                            onclick="updateCartQuantity(${item.product_id}, -1)"
+                            onclick="updateCartQuantity('${lineId}', -1)"
                             class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center font-bold text-xs transition-colors"
                         >
                             -
@@ -813,7 +1076,7 @@
                         </span>
                         <button
                             type="button"
-                            onclick="updateCartQuantity(${item.product_id}, 1)"
+                            onclick="updateCartQuantity('${lineId}', 1)"
                             class="w-6 h-6 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center font-bold text-xs transition-colors"
                         >
                             +
@@ -824,7 +1087,7 @@
                         <div class="font-bold text-slate-900 dark:text-white">${formatRp(lineTotal)}</div>
                         <button
                             type="button"
-                            onclick="removeFromCart(${item.product_id})"
+                            onclick="removeFromCart('${lineId}')"
                             class="text-[10px] text-rose-500 hover:underline"
                         >
                             Hapus
@@ -1018,7 +1281,9 @@
                 note: note,
                 items: cart.map(item => ({
                     product_id: item.product_id,
-                    quantity: item.quantity
+                    quantity: item.quantity,
+                    variant_option_ids: item.variant_option_ids || [],
+                    variants: item.variants || []
                 }))
             };
 
@@ -1082,10 +1347,13 @@
             itemsContainer.innerHTML = '';
             (sale.items || []).forEach(it => {
                 const itemDiv = document.createElement('div');
-                itemDiv.className = 'flex justify-between';
+                itemDiv.className = 'flex justify-between items-start';
                 itemDiv.innerHTML = `
-                    <div class="truncate max-w-[190px]">${it.name} x${it.quantity}</div>
-                    <div>${formatRp(it.line_total)}</div>
+                    <div class="max-w-[190px]">
+                        <div class="truncate font-medium text-slate-800 dark:text-slate-200">${it.name} x${it.quantity}</div>
+                        ${it.variant_summary ? `<div class="text-[9px] text-slate-500 italic max-w-[190px] leading-tight">${it.variant_summary}</div>` : ''}
+                    </div>
+                    <div class="font-bold tabular-nums text-right">${formatRp(it.line_total)}</div>
                 `;
                 itemsContainer.appendChild(itemDiv);
             });
