@@ -167,10 +167,10 @@
     </div>
 </div>
 
-{{-- Template Raw Materials data for Javascript (base64 encoded to avoid leaking names into plain text assertions) --}}
-<div id="variantRawMaterialsData" data-raw-materials="{{ base64_encode(json_encode($rawMaterials)) }}" class="hidden"></div>
-
+{{-- Template Raw Materials data for Javascript --}}
 <script>
+window.__RAW_MATERIALS__ = @json($rawMaterials);
+
 (function() {
     const modal = document.getElementById('variantGroupModal');
     const form = document.getElementById('variantGroupForm');
@@ -188,15 +188,7 @@
 
     if (!modal || !form || !optionsContainer) return;
 
-    let rawMaterials = [];
-    const rawDataEl = document.getElementById('variantRawMaterialsData');
-    if (rawDataEl && rawDataEl.dataset.rawMaterials) {
-        try {
-            rawMaterials = JSON.parse(decodeURIComponent(escape(atob(rawDataEl.dataset.rawMaterials))));
-        } catch (_) {
-            rawMaterials = [];
-        }
-    }
+    const rawMaterials = window.__RAW_MATERIALS__ || [];
 
     function buildIngredientOptions(selectedId = null) {
         let html = '<option value="">-- Tanpa Bahan (Hanya Pilihan Kasir) --</option>';
