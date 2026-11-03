@@ -689,15 +689,15 @@
                     // Calculated HPP display
                     const hppDisplayEl = document.getElementById('catalogHppCalculatedDisplay');
                     let effectiveHpp = currentHppCalculated;
-                    if (hppMethod === 'recipe') {
+                    if (hppMethod === 'recipe' || recipeMaterialsSubtotal > 0) {
                         effectiveHpp = totalRecipeHpp;
                     }
                     if (hppDisplayEl) {
                         hppDisplayEl.textContent = formatRupiahVal(effectiveHpp);
                     }
 
-                    // If cost_source is 'hpp', auto-sync cost input with effective HPP!
-                    if (costSource === 'hpp' && costInput) {
+                    // If cost_source is 'hpp' or recipe has materials, auto-sync cost input with effective HPP!
+                    if ((costSource === 'hpp' || recipeMaterialsSubtotal > 0) && costInput) {
                         costInput.value = effectiveHpp > 0 ? (effectiveHpp % 1 === 0 ? effectiveHpp : effectiveHpp.toFixed(2)) : '0';
                     }
 
@@ -754,6 +754,15 @@
                     const container = recipeContainer();
                     if (!container) return;
 
+                    const hppMethodSelect = document.getElementById('catalogHppMethod');
+                    if (hppMethodSelect && hppMethodSelect.value !== 'recipe') {
+                        hppMethodSelect.value = 'recipe';
+                    }
+                    const costSourceSelect = document.getElementById('catalogCostSource');
+                    if (costSourceSelect && !item) {
+                        costSourceSelect.value = 'hpp';
+                    }
+
                     const rowIndex = container.querySelectorAll('.recipe-row').length;
                     const rawMaterials = getRawMaterials();
 
@@ -764,6 +773,9 @@
                     const initialQty = item ? (item.quantity ?? 1) : 1;
 
                     let optionsHtml = '<option value="">-- Cari & Pilih Bahan Baku --</option>';
+                    if (rawMaterials.length === 0) {
+                        optionsHtml = '<option value="">(Belum ada data bahan baku di tab Persediaan)</option>';
+                    }
                     rawMaterials.forEach(mat => {
                         const isSel = String(mat.id) === String(selectedCompId) ? 'selected' : '';
                         optionsHtml += `<option value="${mat.id}" data-cost="${mat.cost}" data-unit="${mat.unit}" ${isSel}>${mat.name} (${mat.sku}) - Rp ${Math.round(mat.cost).toLocaleString('id-ID')}/${mat.unit}</option>`;
@@ -920,8 +932,15 @@
                     const hppCard = document.getElementById('catalogHppCard');
                     const variantSec = document.getElementById('catalogVariantGroupsSection');
                     const recipeSec = recipeSection();
+                    const unitContainer = document.getElementById('catalogProductUnitContainer');
+                    const skuContainer = document.getElementById('catalogSkuContainer');
 
                     if (isSupply) {
+                        if (unitContainer) unitContainer.classList.remove('hidden');
+                        if (skuContainer) {
+                            skuContainer.classList.remove('sm:col-span-2');
+                            skuContainer.classList.add('sm:col-span-1');
+                        }
                         if (priceContainer) priceContainer.classList.add('hidden');
                         if (supplyCostContainer) supplyCostContainer.classList.remove('hidden');
                         if (priceInput) {
@@ -947,6 +966,15 @@
                             if (supplyNotice) supplyNotice.classList.add('hidden');
                         }
                     } else {
+                        if (unitContainer) unitContainer.classList.add('hidden');
+                        if (skuContainer) {
+                            skuContainer.classList.remove('sm:col-span-1');
+                            skuContainer.classList.add('sm:col-span-2');
+                        }
+                        const unitSelect = document.getElementById('catalogProductUnit');
+                        if (unitSelect && (!unitSelect.value || unitSelect.value === '__new__')) {
+                            unitSelect.value = 'pcs';
+                        }
                         if (priceContainer) priceContainer.classList.remove('hidden');
                         if (supplyCostContainer) supplyCostContainer.classList.add('hidden');
                         if (priceInput) {
@@ -957,6 +985,7 @@
                         if (nameInput) nameInput.placeholder = 'Nama produk...';
                         if (hppCard) hppCard.classList.remove('hidden');
                         if (variantSec) variantSec.classList.remove('hidden');
+                        if (recipeSec) recipeSec.classList.remove('hidden');
                         if (sellableWrapper) sellableWrapper.classList.remove('hidden');
                         if (supplyNotice) supplyNotice.classList.add('hidden');
                         if (sellableCheck) sellableCheck.checked = true;
@@ -1088,11 +1117,11 @@
                         const isSupply = trigger?.getAttribute('data-catalog-target') === 'supply' || trigger?.getAttribute('data-catalog-kind') === 'supply';
 
                         setValue(form, 'cost', '0');
-                        setValue(form, 'cost_source', 'manual');
-                        setValue(form, 'hpp_method', 'average');
+                        setValue(form, 'cost_source', isSupply ? 'manual' : 'hpp');
+                        setValue(form, 'hpp_method', isSupply ? 'average' : 'recipe');
                         setValue(form, 'hpp_overhead_fixed', '0');
                         setValue(form, 'hpp_overhead_percent', '0');
-                        if (recipeSection()) recipeSection().classList.add('hidden');
+                        if (recipeSection()) recipeSection().classList.toggle('hidden', isSupply);
                         const calcAtCreate = document.getElementById('catalogHppCalculatedAt');
                         if (calcAtCreate) calcAtCreate.textContent = '';
                         updateLiveCalculations();
@@ -1194,11 +1223,10 @@
                             if (emptyHint()) emptyHint().classList.remove('hidden');
                         }
 
-                        const isRecipe = (raw.hpp_method === 'recipe');
-                        if (recipeSection()) recipeSection().classList.toggle('hidden', !isRecipe);
-
                         const isSellable = raw.is_sellable !== false && raw.is_sellable !== 0;
                         const isSupply = !isSellable;
+
+                        if (recipeSection()) recipeSection().classList.toggle('hidden', isSupply);
 
                         // Pre-check variant groups
                         const selectedGroupIds = (raw.variant_group_ids || []).map(String);
@@ -1328,10 +1356,10 @@
                 const hppMethodSelect = document.getElementById('catalogHppMethod');
                 if (hppMethodSelect) {
                     hppMethodSelect.addEventListener('change', () => {
-                        const isRecipe = hppMethodSelect.value === 'recipe';
                         const sec = recipeSection();
-                        if (sec) {
-                            sec.classList.toggle('hidden', !isRecipe);
+                        const isSupply = document.getElementById('catalogSupplyCostContainer') && !document.getElementById('catalogSupplyCostContainer').classList.contains('hidden');
+                        if (sec && !isSupply) {
+                            sec.classList.remove('hidden');
                         }
                         updateLiveCalculations();
                     });

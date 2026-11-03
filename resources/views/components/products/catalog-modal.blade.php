@@ -127,7 +127,7 @@
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
+                    <div id="catalogSkuContainer" class="sm:col-span-2">
                         <div class="flex items-center justify-between mb-1.5">
                             <label for="catalogProductSku" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">
                                 SKU <span id="catalogProductSkuHint" class="font-normal text-slate-400">(wajib)</span>
@@ -165,7 +165,7 @@
                         @error('sku')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
 
-                    <div>
+                    <div id="catalogProductUnitContainer" class="hidden">
                         <div class="flex items-center justify-between mb-1.5">
                             <label for="catalogProductUnit" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Satuan</label>
                             <button
@@ -285,8 +285,8 @@
                                     name="cost_source"
                                     class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
-                                    <option value="manual" @selected(old('cost_source', 'manual') === 'manual')>Manual (Ditentukan Sendiri)</option>
-                                    <option value="hpp" @selected(old('cost_source') === 'hpp')>Otomatis Ikuti HPP</option>
+                                    <option value="hpp" @selected(old('cost_source', 'hpp') === 'hpp')>Otomatis Ikuti HPP</option>
+                                    <option value="manual" @selected(old('cost_source') === 'manual')>Manual (Ditentukan Sendiri)</option>
                                 </select>
                                 <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
                                     Pilih apakah harga modal acuan diisi manual atau otomatis diperbarui oleh HPP.
@@ -305,9 +305,9 @@
                                     name="hpp_method"
                                     class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 >
-                                    <option value="average" @selected(old('hpp_method', 'average') === 'average')>Rata-rata Tertimbang (Moving Avg)</option>
+                                    <option value="recipe" @selected(old('hpp_method', 'recipe') === 'recipe')>Resep / Komposisi Bahan (BOM)</option>
+                                    <option value="average" @selected(old('hpp_method') === 'average')>Rata-rata Tertimbang (Moving Avg)</option>
                                     <option value="last_purchase" @selected(old('hpp_method') === 'last_purchase')>Harga Pembelian Terakhir</option>
-                                    <option value="recipe" @selected(old('hpp_method') === 'recipe')>Resep / Komposisi Bahan (BOM)</option>
                                     <option value="none" @selected(old('hpp_method') === 'none')>Tidak Dihitung</option>
                                 </select>
                                 @error('hpp_method')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
@@ -335,8 +335,8 @@
                             </div>
                         </div>
 
-                        {{-- Recipe Builder Section (Shown only when hpp_method === 'recipe') --}}
-                        <div id="catalogRecipeSection" class="pt-3 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3 hidden">
+                        {{-- Recipe Builder Section --}}
+                        <div id="catalogRecipeSection" class="pt-3 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3">
                             <div class="flex items-center justify-between gap-2">
                                 <div>
                                     <span class="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">

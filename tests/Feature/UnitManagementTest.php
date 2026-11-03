@@ -142,6 +142,21 @@ class UnitManagementTest extends TestCase
         $response->assertSee('Tambah Satuan');
     }
 
+    public function test_07_catalog_modal_contains_recipe_section_and_unit_container_configured(): void
+    {
+        [$business, $user] = $this->actingAsRole('owner');
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('products.index', ['tab' => 'products']));
+
+        $response->assertOk();
+        $response->assertSee('catalogRecipeSection', false);
+        $response->assertSee('Komposisi Bahan Baku (Resep)');
+        $response->assertSee('catalogProductUnitContainer', false);
+        $response->assertSee('catalogAddRecipeItemBtn', false);
+    }
+
     /**
      * @return array{0: Business, 1: User}
      */
