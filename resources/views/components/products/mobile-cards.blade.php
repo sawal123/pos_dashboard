@@ -71,9 +71,15 @@
                                 <span class="font-mono">{{ $product['sku'] }}</span> · {{ $product['category_name'] }}
                             </p>
                         </div>
-                        <span class="font-extrabold text-sm text-slate-900 dark:text-white tabular-nums shrink-0">
-                            {{ $formattedPrice }}
-                        </span>
+                        @if(! ($product['is_sellable'] ?? true))
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
+                                Non-Jual
+                            </span>
+                        @else
+                            <span class="font-extrabold text-sm text-slate-900 dark:text-white tabular-nums shrink-0">
+                                {{ $formattedPrice }}
+                            </span>
+                        @endif
                     </div>
 
                     <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">

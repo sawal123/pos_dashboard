@@ -121,11 +121,15 @@
 
                         {{-- 5. Harga Jual & Margin --}}
                         <td class="py-3 px-4 text-right tabular-nums">
-                            <span class="font-bold text-slate-900 dark:text-white block">{{ $formattedPrice }}</span>
-                            @if(isset($product['margin_percent']))
-                                <span class="block text-[10px] font-semibold {{ (float)$product['margin_percent'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                    Margin {{ number_format($product['margin_percent'], 1) }}%
-                                </span>
+                            @if(! ($product['is_sellable'] ?? true))
+                                <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">Non-Jual</span>
+                            @else
+                                <span class="font-bold text-slate-900 dark:text-white block">{{ $formattedPrice }}</span>
+                                @if(isset($product['margin_percent']))
+                                    <span class="block text-[10px] font-semibold {{ (float)$product['margin_percent'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                        Margin {{ number_format($product['margin_percent'], 1) }}%
+                                    </span>
+                                @endif
                             @endif
                         </td>
 

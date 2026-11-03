@@ -127,6 +127,7 @@ class DashboardProductsData
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
+            ->where('is_sellable', false)
             ->orderBy('name')
             ->get(['id', 'name', 'sku', 'cost', 'unit', 'is_sellable'])
             ->map(fn ($p) => [

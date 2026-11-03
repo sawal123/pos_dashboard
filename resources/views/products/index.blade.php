@@ -882,13 +882,87 @@
                 document.getElementById('btnGenerateSkuLink')?.addEventListener('click', handleGenerateSku);
                 document.getElementById('btnGenerateSkuInline')?.addEventListener('click', handleGenerateSku);
 
+                const applySupplyMode = (isSupply, isExplicitSupplyModal = false) => {
+                    const priceContainer = document.getElementById('catalogProductPriceContainer');
+                    const supplyCostContainer = document.getElementById('catalogSupplyCostContainer');
+                    const supplyCostInput = document.getElementById('catalogSupplyCostInput');
+                    const priceInput = document.getElementById('catalogProductPrice');
+                    const costInput = document.getElementById('catalogProductCost');
+                    const nameLabel = document.getElementById('catalogProductNameLabel');
+                    const nameInput = document.getElementById('catalogProductName');
+                    const sellableCheck = document.getElementById('catalogProductIsSellable');
+                    const sellableWrapper = document.getElementById('catalogProductSellableCheckboxContainer');
+                    const supplyNotice = document.getElementById('catalogSupplyNotice');
+                    const hppCard = document.getElementById('catalogHppCard');
+                    const variantSec = document.getElementById('catalogVariantGroupsSection');
+                    const recipeSec = recipeSection();
+
+                    if (isSupply) {
+                        if (priceContainer) priceContainer.classList.add('hidden');
+                        if (supplyCostContainer) supplyCostContainer.classList.remove('hidden');
+                        if (priceInput) {
+                            priceInput.required = false;
+                            priceInput.value = '0';
+                        }
+                        if (supplyCostInput && costInput) {
+                            supplyCostInput.value = costInput.value || '0';
+                        }
+                        if (nameLabel) nameLabel.textContent = 'Nama Bahan Baku';
+                        if (nameInput) nameInput.placeholder = 'Contoh: Biji Kopi, Susu UHT, Gula Cair, Paper Cup...';
+                        if (hppCard) hppCard.classList.add('hidden');
+                        if (variantSec) variantSec.classList.add('hidden');
+                        if (recipeSec) recipeSec.classList.add('hidden');
+
+                        if (sellableCheck) sellableCheck.checked = false;
+
+                        if (isExplicitSupplyModal) {
+                            if (sellableWrapper) sellableWrapper.classList.add('hidden');
+                            if (supplyNotice) supplyNotice.classList.remove('hidden');
+                        } else {
+                            if (sellableWrapper) sellableWrapper.classList.remove('hidden');
+                            if (supplyNotice) supplyNotice.classList.add('hidden');
+                        }
+                    } else {
+                        if (priceContainer) priceContainer.classList.remove('hidden');
+                        if (supplyCostContainer) supplyCostContainer.classList.add('hidden');
+                        if (priceInput) {
+                            priceInput.required = true;
+                            if (priceInput.value === '0') priceInput.value = '';
+                        }
+                        if (nameLabel) nameLabel.textContent = 'Nama Produk';
+                        if (nameInput) nameInput.placeholder = 'Nama produk...';
+                        if (hppCard) hppCard.classList.remove('hidden');
+                        if (variantSec) variantSec.classList.remove('hidden');
+                        if (sellableWrapper) sellableWrapper.classList.remove('hidden');
+                        if (supplyNotice) supplyNotice.classList.add('hidden');
+                        if (sellableCheck) sellableCheck.checked = true;
+                    }
+                };
+
+                const supplyCostInput = document.getElementById('catalogSupplyCostInput');
+                if (supplyCostInput) {
+                    supplyCostInput.addEventListener('input', () => {
+                        const costInput = document.getElementById('catalogProductCost');
+                        if (costInput) {
+                            costInput.value = supplyCostInput.value || '0';
+                            costInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    });
+                }
+
                 const sellableToggle = document.getElementById('catalogProductIsSellable');
                 sellableToggle?.addEventListener('change', () => {
                     const isEdit = Boolean(currentEditingProductId);
                     const prefix = isEdit ? 'Edit' : 'Tambah';
                     const isService = productForm()?.elements.namedItem('kind')?.value === 'service';
                     if (!isService) {
-                        setHeading(prefix, sellableToggle.checked ? 'Produk' : 'Bahan Baku');
+                        const isSellable = sellableToggle.checked;
+                        applySupplyMode(!isSellable, false);
+                        setHeading(prefix, isSellable ? 'Produk' : 'Bahan Baku');
+                        const skuInput = document.getElementById('catalogProductSku');
+                        if (!isEdit && skuInput && (!skuInput.value || skuInput.value.startsWith('SKU-') || skuInput.value.startsWith('RAW-'))) {
+                            skuInput.value = generateRandomSku('product', isSellable);
+                        }
                     }
                 });
 
@@ -998,17 +1072,10 @@
                         if (calcAtCreate) calcAtCreate.textContent = '';
                         updateLiveCalculations();
 
-                        const sellableCreate = document.getElementById('catalogProductIsSellable');
-                        if (sellableCreate) sellableCreate.checked = !isSupply;
-
                         // Reset variant group checkboxes
                         document.querySelectorAll('.product-variant-group-checkbox').forEach(cb => {
                             cb.checked = false;
                         });
-                        const variantSecCreate = document.getElementById('catalogVariantGroupsSection');
-                        if (variantSecCreate) {
-                            variantSecCreate.classList.toggle('hidden', isSupply);
-                        }
 
                         if (isSupply) {
                             setValue(form, 'price', '0');
@@ -1029,6 +1096,7 @@
                         }
 
                         applyKind(form, kind, false);
+                        applySupplyMode(isSupply, isSupply);
                         showProductForm(form);
                         if (kind === 'service') {
                             setHeading('Tambah', 'Layanan');
@@ -1105,25 +1173,22 @@
                         if (recipeSection()) recipeSection().classList.toggle('hidden', !isRecipe);
 
                         const isSellable = raw.is_sellable !== false && raw.is_sellable !== 0;
-                        const sellableEdit = document.getElementById('catalogProductIsSellable');
-                        if (sellableEdit) {
-                            sellableEdit.checked = isSellable;
-                        }
+                        const isSupply = !isSellable;
 
                         // Pre-check variant groups
                         const selectedGroupIds = (raw.variant_group_ids || []).map(String);
                         document.querySelectorAll('.product-variant-group-checkbox').forEach(cb => {
                             cb.checked = selectedGroupIds.includes(String(cb.value));
                         });
-                        const variantSecEdit = document.getElementById('catalogVariantGroupsSection');
-                        if (variantSecEdit) {
-                            variantSecEdit.classList.toggle('hidden', !isSellable);
-                        }
 
                         updateLiveCalculations();
 
                         applyKind(form, kind, true);
-                        const isSupply = !isSellable;
+                        applySupplyMode(isSupply, isSupply);
+                        const supplyCostInput = document.getElementById('catalogSupplyCostInput');
+                        if (supplyCostInput) {
+                            supplyCostInput.value = raw.cost ?? '0';
+                        }
                         setHeading('Edit', kind === 'service' ? 'Layanan' : (isSupply ? 'Bahan Baku' : 'Produk'));
                         open(trigger);
                     }
@@ -1250,16 +1315,6 @@
                 const costSourceSelect = document.getElementById('catalogCostSource');
                 if (costSourceSelect) {
                     costSourceSelect.addEventListener('change', updateLiveCalculations);
-                }
-
-                const sellableCheck = document.getElementById('catalogProductIsSellable');
-                if (sellableCheck) {
-                    sellableCheck.addEventListener('change', () => {
-                        const variantSec = document.getElementById('catalogVariantGroupsSection');
-                        if (variantSec) {
-                            variantSec.classList.toggle('hidden', !sellableCheck.checked);
-                        }
-                    });
                 }
 
                 ['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].forEach(id => {

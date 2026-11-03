@@ -63,6 +63,9 @@ class CatalogManagementService
         } else {
             $attributes['barcode'] = $this->text($data['barcode'] ?? null);
             $attributes['is_sellable'] = $this->sellable($data['is_sellable'] ?? true);
+            if (! $attributes['is_sellable']) {
+                $attributes['price'] = 0;
+            }
             $attributes['cost'] = $this->money($data['cost'] ?? 0);
             $attributes['hpp'] = $this->money($data['cost'] ?? 0);
             $attributes['cost_source'] = $data['cost_source'] ?? CostSource::Manual->value;
@@ -126,6 +129,10 @@ class CatalogManagementService
             $product->is_sellable = array_key_exists('is_sellable', $data)
                 ? $this->sellable($data['is_sellable'])
                 : (bool) $product->is_sellable;
+
+            if (! $product->is_sellable) {
+                $product->price = 0;
+            }
 
             if (array_key_exists('cost_source', $data) && in_array($data['cost_source'], CostSource::values(), true)) {
                 $product->cost_source = $data['cost_source'];

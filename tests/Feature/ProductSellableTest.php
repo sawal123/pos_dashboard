@@ -73,14 +73,14 @@ class ProductSellableTest extends TestCase
             ->get(route('products.index', ['tab' => 'products']));
         $sellable->assertOk();
         $sellable->assertSee('Kopi Susu');
-        $sellable->assertDontSee('Susu UHT');
+        $this->assertStringNotContainsString('data-name="Susu UHT"', $sellable->getContent());
 
         $supplies = $this->actingAs($user)
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('products.index', ['tab' => 'supplies']));
         $supplies->assertOk();
         $supplies->assertSee('Susu UHT');
-        $supplies->assertDontSee('Kopi Susu');
+        $this->assertStringNotContainsString('data-name="Kopi Susu"', $supplies->getContent());
     }
 
     public function test_04_pull_payload_includes_is_sellable(): void
@@ -138,6 +138,67 @@ class ProductSellableTest extends TestCase
 
         $response->assertStatus(200);
         $this->assertDatabaseCount('sale_items', 1);
+    }
+
+    public function test_07_creating_supply_redirects_to_supplies_tab_and_forces_zero_price(): void
+    {
+        [$business, $user] = $this->actingAsRole('owner');
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('products.store'), [
+                'kind' => 'product',
+                'name' => 'Kopi',
+                'sku' => 'RAW-RHPDQ5',
+                'cost' => 200,
+                'stock' => 9000,
+                'min_stock' => 100,
+                'unit' => 'gram',
+                'is_sellable' => '0',
+                'status' => 'active',
+            ]);
+
+        $response->assertRedirect(route('products.index', ['tab' => 'supplies']));
+        $response->assertSessionHas('status', 'Bahan baku berhasil ditambahkan.');
+
+        $product = Product::query()->where('business_id', $business->id)->where('sku', 'RAW-RHPDQ5')->firstOrFail();
+        $this->assertFalse((bool) $product->is_sellable);
+        $this->assertSame(0, $product->price);
+        $this->assertEquals('200.00', $product->cost);
+        $this->assertEquals('9000.000', $product->stock);
+    }
+
+    public function test_08_owner_can_convert_product_to_supply_and_price_is_reset_to_zero(): void
+    {
+        [$business, $user] = $this->actingAsRole('owner');
+
+        $product = Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Kopi',
+            'sku' => 'RAW-RHPDQ5',
+            'price' => 200,
+            'cost' => 0,
+            'stock' => 9000,
+            'unit' => 'gram',
+            'is_sellable' => true,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->patch(route('products.update', ['productId' => $product->id]), [
+                'name' => 'Kopi',
+                'sku' => 'RAW-RHPDQ5',
+                'cost' => 200,
+                'is_sellable' => '0',
+            ]);
+
+        $response->assertRedirect(route('products.index', ['tab' => 'supplies']));
+        $response->assertSessionHas('status', 'Bahan baku berhasil diperbarui.');
+
+        $product->refresh();
+        $this->assertFalse((bool) $product->is_sellable);
+        $this->assertSame(0, $product->price);
+        $this->assertEquals('200.00', $product->cost);
     }
 
     /**

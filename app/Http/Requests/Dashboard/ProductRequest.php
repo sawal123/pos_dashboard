@@ -53,6 +53,8 @@ class ProductRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $isSellable = $this->has('is_sellable') ? $this->boolean('is_sellable') : true;
+
         $this->merge([
             'name' => is_string($this->input('name')) ? trim((string) $this->input('name')) : $this->input('name'),
             'sku' => $this->normalizeNullable('sku'),
@@ -63,6 +65,9 @@ class ProductRequest extends FormRequest
             'category_id' => in_array($this->input('category_id'), ['', 'all', null], true)
                 ? null
                 : $this->input('category_id'),
+            'price' => (! $isSellable && ($this->input('price') === null || $this->input('price') === ''))
+                ? 0
+                : $this->input('price'),
         ]);
     }
 

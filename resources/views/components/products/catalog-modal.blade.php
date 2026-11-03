@@ -63,7 +63,9 @@
                 <div class="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
 
                 <div>
-                    <label for="catalogProductName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Nama</label>
+                    <label for="catalogProductName" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                        <span id="catalogProductNameLabel">Nama Produk</span>
+                    </label>
                     <input
                         id="catalogProductName"
                         name="name"
@@ -71,6 +73,7 @@
                         required
                         maxlength="255"
                         value="{{ old('name') }}"
+                        placeholder="Nama produk..."
                         class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     >
                     @error('name')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
@@ -92,7 +95,7 @@
                         @error('category_id')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
 
-                    <div>
+                    <div id="catalogProductPriceContainer">
                         <label for="catalogProductPrice" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Harga Jual (Rp)</label>
                         <input
                             id="catalogProductPrice"
@@ -105,6 +108,20 @@
                             class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         >
                         @error('price')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div id="catalogSupplyCostContainer" class="hidden">
+                        <label for="catalogSupplyCostInput" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Harga Beli / Modal per Satuan (Rp)</label>
+                        <input
+                            id="catalogSupplyCostInput"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value="0"
+                            placeholder="Contoh: 200"
+                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                        <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Biaya modal per unit (cth: Rp 200/gram) untuk resep & inventori.</p>
                     </div>
                 </div>
 
@@ -179,7 +196,7 @@
                     </div>
 
                     {{-- HPP & Modal Card --}}
-                    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-4">
+                    <div id="catalogHppCard" class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 p-4 space-y-4">
                         <div class="flex items-center justify-between gap-2 border-b border-slate-200/80 dark:border-slate-700/80 pb-3">
                             <div class="flex items-center gap-2">
                                 <div class="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
@@ -391,23 +408,38 @@
                         </div>
                     </div>
 
-                    <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer">
-                        <input type="hidden" name="is_sellable" value="0">
-                        <input
-                            id="catalogProductIsSellable"
-                            name="is_sellable"
-                            type="checkbox"
-                            value="1"
-                            @checked(old('is_sellable', '1') === '1' || old('is_sellable') === 1 || old('is_sellable') === true)
-                            class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                        >
-                        <span class="text-xs text-slate-600 dark:text-slate-300">
-                            <span class="block font-semibold text-slate-800 dark:text-slate-200">Dijual di POS</span>
-                            <span class="block text-[11px] text-slate-500 dark:text-slate-400">
-                                Lepaskan centang untuk bahan baku / persediaan yang dilacak stoknya tetapi tidak dijual.
+                    {{-- Sellable toggle for regular products vs info notice for supplies --}}
+                    <div id="catalogProductSellableCheckboxContainer">
+                        <label class="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 cursor-pointer">
+                            <input type="hidden" name="is_sellable" id="catalogProductIsSellableHidden" value="0">
+                            <input
+                                id="catalogProductIsSellable"
+                                name="is_sellable"
+                                type="checkbox"
+                                value="1"
+                                @checked(old('is_sellable', '1') === '1' || old('is_sellable') === 1 || old('is_sellable') === true)
+                                class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            >
+                            <span class="text-xs text-slate-600 dark:text-slate-300">
+                                <span class="block font-semibold text-slate-800 dark:text-slate-200">Dijual di POS</span>
+                                <span class="block text-[11px] text-slate-500 dark:text-slate-400">
+                                    Lepaskan centang untuk bahan baku / persediaan yang dilacak stoknya tetapi tidak dijual.
+                                </span>
                             </span>
-                        </span>
-                    </label>
+                        </label>
+                    </div>
+
+                    <div id="catalogSupplyNotice" class="hidden p-3.5 rounded-xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/70 dark:bg-indigo-950/40 flex items-start gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                            <i data-lucide="package" class="w-4 h-4"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <span class="block text-xs font-bold text-indigo-950 dark:text-indigo-200">Bahan Baku / Persediaan (Non-Jual)</span>
+                            <span class="block text-[11px] text-indigo-700/90 dark:text-indigo-300/80 leading-relaxed mt-0.5">
+                                Item ini dilacak stoknya untuk resep menu dan inventori gudang. Item ini <strong>tidak dijual langsung di kasir (POS)</strong>.
+                            </span>
+                        </div>
+                    </div>
                     @error('is_sellable')<p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
 
                     {{-- Variant Groups Assignment (Template Varian) --}}
