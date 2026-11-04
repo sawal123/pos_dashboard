@@ -180,6 +180,7 @@ class PosCatalogData
 
         return [
             'business' => $business,
+            'isGrosir' => $business->normalizedBusinessType() === 'grosir',
             'outlets' => $outlets,
             'activeOutlet' => $activeOutlet,
             'currentShift' => $currentShift,

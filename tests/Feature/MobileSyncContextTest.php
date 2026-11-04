@@ -553,4 +553,18 @@ class MobileSyncContextTest extends TestCase
 
         $response->assertStatus(200);
     }
+
+    public function test_context_includes_catalog_capabilities_with_product_barcode_v1(): void
+    {
+        [$user, $token] = $this->userWithMobileToken();
+
+        $business = Business::factory()->create();
+        $user->businesses()->attach($business, ['role' => 'owner']);
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/mobile/context');
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('data.businesses.0.catalog_capabilities.product_barcode_v1', true);
+    }
 }

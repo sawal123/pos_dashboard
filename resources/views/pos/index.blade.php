@@ -31,6 +31,20 @@
                             </kbd>
                         </div>
                     </div>
+
+                    @if($isGrosir ?? false)
+                        {{-- Scan Barcode Button for Grosir --}}
+                        <button
+                            type="button"
+                            id="btnOpenPosScanner"
+                            onclick="window.openPosScanner()"
+                            class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-xs md:text-sm shadow-sm transition-all shrink-0 cursor-pointer"
+                            title="Scan Barcode / QR dengan Kamera"
+                        >
+                            <i data-lucide="scan" class="w-4 h-4"></i>
+                            <span class="hidden sm:inline">Scan</span>
+                        </button>
+                    @endif
                 </div>
 
                 {{-- Category Filter Pills --}}
@@ -634,6 +648,45 @@
 
         const ALL_PRODUCTS = @json($products);
         const ALL_PROMOS = @json($promos);
+
+        function handleScannedCode(rawCode) {
+            if (!rawCode) return;
+            const code = String(rawCode).trim();
+            if (!code) return;
+
+            // Search exact match against barcode or sku in ALL_PRODUCTS
+            const found = ALL_PRODUCTS.find(p => {
+                const pBarcode = (p.barcode || '').trim();
+                const pSku = (p.sku || '').trim();
+                return pBarcode === code || pSku === code;
+            });
+
+            if (!found) {
+                showToast('error', `Produk dengan kode "${code}" tidak ditemukan.`);
+                return;
+            }
+
+            if (found.is_out_of_stock) {
+                showToast('warning', `Stok produk "${found.name}" habis.`);
+                return;
+            }
+
+            // If product has variants, open variant modal
+            if (found.has_variants) {
+                openVariantModal(found);
+            } else {
+                addToCart(found.id);
+                showToast('success', `"${found.name}" ditambahkan ke keranjang.`);
+            }
+        }
+
+        window.openPosScanner = function() {
+            if (window.CameraScanner) {
+                window.CameraScanner.open((code) => {
+                    handleScannedCode(code);
+                });
+            }
+        };
 
         // State Management
         let cart = [];
@@ -1628,4 +1681,6 @@
             });
         });
     </script>
+    {{-- Reusable Camera Scanner Modal --}}
+    <x-ui.camera-scanner-modal />
 </x-layouts::pos>

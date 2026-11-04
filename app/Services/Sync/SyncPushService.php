@@ -17,6 +17,7 @@ use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\SyncRequest;
 use App\Models\User;
+use App\Services\Catalog\ProductCodeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,7 @@ class SyncPushService
 {
     public function __construct(
         private readonly SyncAuthorizationPolicy $authorizationPolicy,
+        private readonly ProductCodeService $productCodeService = new ProductCodeService(),
     ) {}
 
     /**
@@ -108,6 +110,11 @@ class SyncPushService
                         'server_sync_version' => $e->serverVersion,
                     ],
                 ],
+            ], 409);
+        } catch (SyncDataConflictException $e) {
+            return response()->json([
+                'message' => 'Sync data conflict.',
+                'code' => 'SYNC_DATA_CONFLICT',
             ], 409);
         } catch (SyncStateRequiredException $e) {
             return response()->json([
@@ -260,11 +267,58 @@ class SyncPushService
                 unset($semantic['stock']);
             }
 
+            $barcodeAction = $item['barcode_action'] ?? null;
+            $hasBarcode = array_key_exists('barcode', $item);
+            $rawBarcode = $hasBarcode && is_string($item['barcode']) ? trim((string) $item['barcode']) : null;
+            $rawBarcode = ($rawBarcode === '') ? null : $rawBarcode;
+
+            if ($record instanceof Product) {
+                if ($barcodeAction === 'clear') {
+                    $finalBarcode = null;
+                } elseif ($barcodeAction === 'set') {
+                    $finalBarcode = $rawBarcode;
+                } else {
+                    // Legacy payload (no barcode_action)
+                    if ($rawBarcode !== null) {
+                        $finalBarcode = $rawBarcode;
+                    } else {
+                        // Crucial: preserve existing barcode on server for legacy mobile clients!
+                        $finalBarcode = $record->barcode;
+                    }
+                }
+            } else {
+                // New product creation
+                if ($barcodeAction === 'clear') {
+                    throw new SyncIntegrityViolationException('products', $syncId, 'clear_on_create_not_allowed');
+                } elseif ($barcodeAction === 'set' || $rawBarcode !== null) {
+                    $finalBarcode = $rawBarcode;
+                } else {
+                    $finalBarcode = null;
+                }
+            }
+
+            $sku = trim((string) $item['sku']);
+            $ignoreId = $record instanceof Product ? $record->id : null;
+
+            // Check SKU cross-conflict with other products
+            $skuConflict = $this->productCodeService->checkSkuConflict($business->id, $sku, $ignoreId);
+            if ($skuConflict !== null) {
+                throw new SyncDataConflictException($skuConflict);
+            }
+
+            // Check barcode conflict if barcode is set
+            if ($finalBarcode !== null && $finalBarcode !== '') {
+                $barcodeConflict = $this->productCodeService->checkBarcodeConflict($business->id, $finalBarcode, $ignoreId);
+                if ($barcodeConflict !== null) {
+                    throw new SyncDataConflictException($barcodeConflict);
+                }
+            }
+
             $attributes = array_merge([
                 'category_id' => $categoryId,
                 'name' => (string) $item['name'],
-                'sku' => (string) $item['sku'],
-                'barcode' => isset($item['barcode']) ? (string) $item['barcode'] : null,
+                'sku' => $sku,
+                'barcode' => $finalBarcode,
                 'price' => (int) $item['price'],
                 'status' => (string) ($item['status'] ?? 'active'),
             ], $semantic);

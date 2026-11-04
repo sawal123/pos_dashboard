@@ -269,16 +269,30 @@
                 {{-- Product-only fields --}}
                 <div data-catalog-field="product" class="space-y-4">
                     <div>
-                        <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Barcode</label>
-                        <input
-                            id="catalogProductBarcode"
-                            name="barcode"
-                            type="text"
-                            maxlength="255"
-                            value="{{ old('barcode') }}"
-                            placeholder="Scan atau ketik barcode..."
-                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                        >
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Barcode</label>
+                            <span class="text-[11px] text-slate-400">Barcode kemasan atau kode scan produk</span>
+                        </div>
+                        <div class="relative flex items-center">
+                            <input
+                                id="catalogProductBarcode"
+                                name="barcode"
+                                type="text"
+                                maxlength="255"
+                                value="{{ old('barcode') }}"
+                                placeholder="Scan atau ketik barcode..."
+                                class="w-full h-10 pl-3 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                            <button
+                                type="button"
+                                id="btnScanBarcodeForm"
+                                onclick="window.CameraScanner?.open(code => { const el = document.getElementById('catalogProductBarcode'); if (el) { el.value = code; el.dispatchEvent(new Event('input')); } })"
+                                title="Pindai barcode dengan kamera"
+                                class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            >
+                                <i data-lucide="camera" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                         @error('barcode')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
 

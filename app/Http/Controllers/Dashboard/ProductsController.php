@@ -13,13 +13,16 @@ use App\Models\Product;
 use App\Models\Unit;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Catalog\ProductCodeService;
 use App\Services\Dashboard\CatalogManagementService;
 use App\Services\Dashboard\DashboardProductsData;
 use App\Services\Inventory\HppService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -215,5 +218,96 @@ class ProductsController extends Controller
         }
 
         return back()->with('status', 'Satuan berhasil ditambahkan.');
+    }
+
+    public function generateQr(Request $request, int $productId): JsonResponse|RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $product = Product::query()
+            ->where('business_id', $business->id)
+            ->whereKey($productId)
+            ->firstOrFail();
+
+        /** @var ProductCodeService $codeService */
+        $codeService = app(ProductCodeService::class);
+        $product = $codeService->assignBarcode($product);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'product_id' => $product->id,
+                'barcode' => $product->barcode,
+                'message' => 'Kode produk berhasil dibuat.',
+            ]);
+        }
+
+        return back()->with('status', 'Kode produk dan QR berhasil dibuat.');
+    }
+
+    public function qrPreview(Request $request, int $productId): JsonResponse|Response
+    {
+        $business = $this->activeBusiness($request);
+
+        $product = Product::query()
+            ->where('business_id', $business->id)
+            ->whereKey($productId)
+            ->firstOrFail();
+
+        if (empty($product->barcode)) {
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Produk belum memiliki kode barcode/QR.',
+                ], 404);
+            }
+            abort(404, 'Produk belum memiliki barcode.');
+        }
+
+        /** @var ProductCodeService $codeService */
+        $codeService = app(ProductCodeService::class);
+        $svg = $codeService->renderQrSvg((string) $product->barcode, 280);
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'product_id' => $product->id,
+                'name' => $product->name,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'svg' => $svg,
+                'download_url' => route('products.qr-download', ['productId' => $product->id]),
+            ]);
+        }
+
+        return response($svg, 200, [
+            'Content-Type' => 'image/svg+xml',
+        ]);
+    }
+
+    public function qrDownload(Request $request, int $productId): Response
+    {
+        $business = $this->activeBusiness($request);
+
+        $product = Product::query()
+            ->where('business_id', $business->id)
+            ->whereKey($productId)
+            ->firstOrFail();
+
+        if (empty($product->barcode)) {
+            abort(404, 'Produk belum memiliki barcode.');
+        }
+
+        /** @var ProductCodeService $codeService */
+        $codeService = app(ProductCodeService::class);
+        $png = $codeService->renderLabelPng($product, 240);
+
+        $filename = 'label-' . Str::slug($product->name ?: 'product') . '-' . Str::slug($product->barcode) . '.png';
+
+        return response($png, 200, [
+            'Content-Type' => 'image/png',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Content-Length' => strlen($png),
+        ]);
     }
 }

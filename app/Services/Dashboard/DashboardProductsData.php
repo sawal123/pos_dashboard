@@ -175,6 +175,8 @@ class DashboardProductsData
             'variantGroupOptions' => $variantGroupOptions,
             'unitOptions' => $unitOptions,
             'hasCloudAccess' => $business->hasCloudAccess(),
+            'isGrosir' => $business->normalizedBusinessType() === 'grosir',
+            'is_grosir' => $business->normalizedBusinessType() === 'grosir',
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters, $activeTab),
@@ -723,6 +725,8 @@ class DashboardProductsData
             'variantGroupOptions' => [],
             'unitOptions' => Unit::DEFAULT_UNITS,
             'hasCloudAccess' => false,
+            'isGrosir' => false,
+            'is_grosir' => false,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => [
                 'categories' => [],

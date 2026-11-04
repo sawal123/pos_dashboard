@@ -198,11 +198,11 @@
         @elseif($items->total() > 0)
             @if($activeTab === 'products')
                 <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
-                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
+                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" :is-grosir="$isGrosir ?? false" />
                 </div>
             @elseif($activeTab === 'supplies')
                 <div id="panelSupplies" role="tabpanel" aria-labelledby="tabSupplies" class="catalog-panel space-y-4">
-                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
+                    <x-products.product-table :products="$items" :can-manage="$canManageCatalog" :is-grosir="$isGrosir ?? false" />
                 </div>
             @elseif($activeTab === 'services')
                 <div id="panelServices" role="tabpanel" aria-labelledby="tabServices" class="catalog-panel space-y-4">
@@ -225,6 +225,7 @@
                         :items="$items"
                         :active-tab="$activeTab === 'supplies' ? 'products' : $activeTab"
                         :can-manage="$canManageCatalog"
+                        :is-grosir="$isGrosir ?? false"
                     />
                 </div>
             @endif
@@ -308,6 +309,10 @@
                 :raw-materials="$rawMaterialOptions ?? []"
             />
         @endif
+
+        {{-- ==================== 9. QR PREVIEW & SCANNER MODALS ==================== --}}
+        <x-products.qr-preview-modal />
+        <x-ui.camera-scanner-modal />
 
     </main>
 
@@ -433,11 +438,17 @@
                 document.getElementById('detailItemSku').textContent = itemData.sku || '-';
 
                 const barcodeContainer = document.getElementById('detailBarcodeContainer');
+                const viewQrBtn = document.getElementById('detailItemViewQrBtn');
                 if (!isService && itemData.barcode) {
                     barcodeContainer.classList.remove('hidden');
                     document.getElementById('detailItemBarcode').textContent = itemData.barcode;
+                    if (viewQrBtn) {
+                        viewQrBtn.classList.remove('hidden');
+                        viewQrBtn.onclick = () => openQrModal(itemData.id);
+                    }
                 } else {
                     barcodeContainer.classList.add('hidden');
+                    if (viewQrBtn) viewQrBtn.classList.add('hidden');
                 }
                 document.getElementById('detailItemCategory').textContent = itemData.category_name || '-';
 

@@ -66,6 +66,7 @@ class SyncPushRequest extends FormRequest
             'changes.products.*.name' => ['required', 'string', 'max:255'],
             'changes.products.*.sku' => ['required', 'string', 'max:255'],
             'changes.products.*.barcode' => ['nullable', 'string', 'max:255'],
+            'changes.products.*.barcode_action' => ['sometimes', 'nullable', 'string', 'in:set,clear'],
             'changes.products.*.price' => ['required', 'integer', 'min:0'],
             'changes.products.*.kind' => ['sometimes', 'string', 'in:product,service'],
             'changes.products.*.cost' => ['sometimes', 'numeric', 'min:0'],
@@ -220,6 +221,41 @@ class SyncPushRequest extends FormRequest
                 $unknownKeys = array_diff(array_keys($changes), $allowedKeys);
                 if (! empty($unknownKeys)) {
                     $v->errors()->add('changes', 'The changes payload contains unsupported entity types.');
+                }
+
+                if (isset($changes['products']) && is_array($changes['products'])) {
+                    foreach ($changes['products'] as $idx => $prod) {
+                        if (! is_array($prod)) {
+                            continue;
+                        }
+
+                        $action = $prod['barcode_action'] ?? null;
+                        $hasBarcode = array_key_exists('barcode', $prod);
+                        $barcodeVal = $prod['barcode'] ?? null;
+                        $barcodeStr = is_string($barcodeVal) ? trim($barcodeVal) : null;
+
+                        if ($action === 'clear') {
+                            if ($barcodeStr !== null && $barcodeStr !== '') {
+                                $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field must be null when barcode_action is clear.");
+                            }
+                        } elseif ($action === 'set') {
+                            if ($barcodeStr === null || $barcodeStr === '') {
+                                $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field is required when barcode_action is set.");
+                            } elseif (mb_strlen($barcodeVal) > 255) {
+                                $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field must not exceed 255 characters.");
+                            } elseif (preg_match('/[\x00-\x1F\x7F]/', (string) $barcodeVal)) {
+                                $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field contains invalid control characters.");
+                            }
+                        } else {
+                            if ($barcodeVal !== null) {
+                                if (mb_strlen((string) $barcodeVal) > 255) {
+                                    $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field must not exceed 255 characters.");
+                                } elseif (preg_match('/[\x00-\x1F\x7F]/', (string) $barcodeVal)) {
+                                    $v->errors()->add("changes.products.{$idx}.barcode", "The changes.products.{$idx}.barcode field contains invalid control characters.");
+                                }
+                            }
+                        }
+                    }
                 }
             }
         });

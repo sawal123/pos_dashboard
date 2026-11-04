@@ -1,6 +1,7 @@
 @props([
     'products' => [],
     'canManage' => false,
+    'isGrosir' => false,
 ])
 
 @php
@@ -94,6 +95,31 @@
                                 <div class="font-mono text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
                                     <i data-lucide="barcode" class="w-3 h-3 text-slate-400"></i>
                                     <span>{{ $product['barcode'] }}</span>
+                                </div>
+                            @endif
+                            @if($isGrosir)
+                                <div class="mt-1 flex items-center gap-1">
+                                    @if(!empty($product['barcode']))
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 transition-colors"
+                                            onclick="openQrModal({{ $product['id'] }})"
+                                            title="Lihat QR Code"
+                                        >
+                                            <i data-lucide="qr-code" class="w-3 h-3"></i>
+                                            <span>Lihat QR</span>
+                                        </button>
+                                    @elseif($canManage)
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200/60 dark:border-emerald-800/60 transition-colors"
+                                            onclick="generateQrCode({{ $product['id'] }})"
+                                            title="Buat Kode & QR"
+                                        >
+                                            <i data-lucide="plus" class="w-3 h-3"></i>
+                                            <span>Buat Kode & QR</span>
+                                        </button>
+                                    @endif
                                 </div>
                             @endif
                         </td>

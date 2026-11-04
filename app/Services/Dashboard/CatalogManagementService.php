@@ -11,6 +11,7 @@ use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Unit;
+use App\Services\Catalog\ProductCodeService;
 use App\Services\Inventory\HppService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
@@ -66,8 +67,13 @@ class CatalogManagementService
             $attributes['min_quantity'] = $this->quantity($data['min_quantity'] ?? 0);
             $attributes['estimated_duration'] = $this->text($data['estimated_duration'] ?? null);
         } else {
-            $attributes['barcode'] = $this->text($data['barcode'] ?? null);
-            $attributes['is_sellable'] = $this->sellable($data['is_sellable'] ?? true);
+            $barcode = $this->text($data['barcode'] ?? null);
+            $sellable = $this->sellable($data['is_sellable'] ?? true);
+            if ($barcode === null && $sellable && $business->normalizedBusinessType() === 'grosir') {
+                $barcode = app(ProductCodeService::class)->generateInternalBarcode($business);
+            }
+            $attributes['barcode'] = $barcode;
+            $attributes['is_sellable'] = $sellable;
             if (! $attributes['is_sellable']) {
                 $attributes['price'] = 0;
             }
@@ -144,7 +150,9 @@ class CatalogManagementService
                 $product->sku = $sku;
             }
         } else {
-            $product->barcode = $this->text($data['barcode'] ?? null);
+            if (array_key_exists('barcode', $data)) {
+                $product->barcode = $this->text($data['barcode']);
+            }
             $product->is_sellable = array_key_exists('is_sellable', $data)
                 ? $this->sellable($data['is_sellable'])
                 : (bool) $product->is_sellable;

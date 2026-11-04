@@ -91,6 +91,9 @@ class MobileContextController extends Controller
                 'name' => $business->name,
                 'role' => $role,
                 'sync_capabilities' => $this->syncAuthorizationPolicy->capabilities($user, $business),
+                'catalog_capabilities' => [
+                    'product_barcode_v1' => true,
+                ],
                 // DASH-14 — additive/optional business type: canonical value
                 // (`cafe` | `laundry` | `grosir`) or null when not determined.
                 // Existing keys are unchanged; legacy clients can ignore it.

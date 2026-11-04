@@ -8,9 +8,11 @@ use App\Models\Business;
 use App\Models\Product;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Catalog\ProductCodeService;
 use App\Services\Dashboard\CatalogManagementService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 /**
  * Validation + authorization for creating and updating a catalog item
@@ -194,6 +196,46 @@ class ProductRequest extends FormRequest
             'is_sellable.boolean' => 'Penanda bahan baku tidak valid.',
             'variant_group_ids.prohibited' => 'Fitur varian menu khusus untuk bisnis yang berlangganan paket Cloud.',
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $business = $this->activeBusiness();
+            if ($business === null) {
+                return;
+            }
+
+            /** @var ProductCodeService $codeService */
+            $codeService = app(ProductCodeService::class);
+            $productId = $this->isUpdate() ? (int) $this->route('productId') : null;
+
+            $barcode = $this->input('barcode');
+            if (is_string($barcode) && trim($barcode) !== '') {
+                $formatErr = $codeService->validateCode($barcode, 'barcode');
+                if ($formatErr !== null) {
+                    $validator->errors()->add('barcode', $formatErr);
+                } else {
+                    $conflictErr = $codeService->checkBarcodeConflict($business->id, $barcode, $productId);
+                    if ($conflictErr !== null) {
+                        $validator->errors()->add('barcode', $conflictErr);
+                    }
+                }
+            }
+
+            $sku = $this->input('sku');
+            if (is_string($sku) && trim($sku) !== '') {
+                $formatErr = $codeService->validateCode($sku, 'SKU');
+                if ($formatErr !== null) {
+                    $validator->errors()->add('sku', $formatErr);
+                } else {
+                    $conflictErr = $codeService->checkSkuConflict($business->id, $sku, $productId);
+                    if ($conflictErr !== null) {
+                        $validator->errors()->add('sku', $conflictErr);
+                    }
+                }
+            }
+        });
     }
 
     private function isUpdate(): bool

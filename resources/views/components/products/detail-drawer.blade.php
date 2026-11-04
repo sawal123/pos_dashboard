@@ -70,7 +70,18 @@
                     </div>
                     <div id="detailBarcodeContainer">
                         <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Barcode</span>
-                        <span id="detailItemBarcode" class="font-mono font-semibold text-slate-800 dark:text-slate-200">-</span>
+                        <div class="flex items-center gap-2">
+                            <span id="detailItemBarcode" class="font-mono font-semibold text-slate-800 dark:text-slate-200">-</span>
+                            <button
+                                type="button"
+                                id="detailItemViewQrBtn"
+                                class="hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                                title="Lihat QR Code"
+                            >
+                                <i data-lucide="qr-code" class="w-3 h-3"></i>
+                                <span>QR</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-span-2">
                         <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Kategori</span>
