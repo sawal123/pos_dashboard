@@ -16,6 +16,27 @@ class SyncPushRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     * Sanitizes non-UUID promo_sync_id to null so valid sales are never rejected.
+     */
+    protected function prepareForValidation(): void
+    {
+        $changes = $this->input('changes');
+        if (is_array($changes) && isset($changes['sales']) && is_array($changes['sales'])) {
+            $uuidRegex = '/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i';
+            foreach ($changes['sales'] as $index => $sale) {
+                if (is_array($sale) && array_key_exists('promo_sync_id', $sale)) {
+                    $promoSyncId = $sale['promo_sync_id'];
+                    if (empty($promoSyncId) || ! is_string($promoSyncId) || ! preg_match($uuidRegex, $promoSyncId)) {
+                        $changes['sales'][$index]['promo_sync_id'] = null;
+                    }
+                }
+            }
+            $this->merge(['changes' => $changes]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, array<int, string>>
