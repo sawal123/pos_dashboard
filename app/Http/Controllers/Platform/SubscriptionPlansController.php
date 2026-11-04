@@ -119,6 +119,8 @@ class SubscriptionPlansController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:1000'],
             'is_active' => ['required', 'boolean'],
+            'features' => ['nullable', 'array'],
+            'features.*' => ['nullable', 'string', 'max:255'],
             'code' => ['prohibited'],
             'billing_period' => ['prohibited'],
             'currency' => ['prohibited'],
@@ -128,10 +130,15 @@ class SubscriptionPlansController extends Controller
             ? $validated['description']
             : null;
 
-        DB::transaction(function () use ($request, $plan, $service, $validated, $description, $auditLogger): void {
+        $features = isset($validated['features']) && is_array($validated['features'])
+            ? array_values(array_filter(array_map('trim', $validated['features']), fn ($f) => $f !== ''))
+            : null;
+
+        DB::transaction(function () use ($request, $plan, $service, $validated, $description, $features, $auditLogger): void {
             $before = [
                 'name' => $plan->name,
                 'description' => $plan->description,
+                'features' => $plan->features,
                 'is_active' => (bool) $plan->is_active,
             ];
 
@@ -140,12 +147,14 @@ class SubscriptionPlansController extends Controller
                 (string) $validated['name'],
                 $description,
                 (bool) $validated['is_active'],
+                $features,
             );
             $plan->refresh();
 
             $after = [
                 'name' => $plan->name,
                 'description' => $plan->description,
+                'features' => $plan->features,
                 'is_active' => (bool) $plan->is_active,
             ];
 

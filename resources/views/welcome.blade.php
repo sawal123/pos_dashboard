@@ -155,6 +155,15 @@
             .pricing-features li { display:flex; align-items:center; gap:9px; }
             .pricing-features svg { flex:0 0 auto; color:var(--blue); }
             .pricing-card.featured .pricing-features svg { color:var(--lime); }
+            .pricing-card form { width:100%; margin:0; display:flex; }
+            .pricing-card .pricing-btn { display:inline-flex; align-items:center; justify-content:center; width:100%; padding:14px 22px; border-radius:999px; font-size:14px; font-weight:700; font-family:inherit; text-decoration:none; transition:all .2s ease; margin-top:24px; cursor:pointer; box-sizing:border-box; border:none; line-height:1.2; text-align:center; }
+            .pricing-card .pricing-btn:hover { transform:translateY(-2px); }
+            .pricing-card .pricing-btn-free { color:var(--navy); background:#f1f5f9; border:1px solid #cbd5e1; }
+            .pricing-card .pricing-btn-free:hover { background:#e2e8f0; color:var(--navy); }
+            .pricing-card .pricing-btn-monthly { color:#ffffff; background:var(--blue); box-shadow:0 8px 20px rgba(35,89,204,.25); }
+            .pricing-card .pricing-btn-monthly:hover { background:#1b47a8; color:#ffffff; box-shadow:0 10px 24px rgba(35,89,204,.35); }
+            .pricing-card.featured .pricing-btn-yearly { color:var(--navy); background:var(--lime); box-shadow:0 10px 24px rgba(136,178,47,.3); }
+            .pricing-card.featured .pricing-btn-yearly:hover { background:#a6db39; color:var(--navy); box-shadow:0 12px 28px rgba(136,178,47,.4); }
             .cta { overflow:hidden; position:relative; padding:74px 70px; color:white; background:var(--blue); border-radius:25px; }
             .cta::before,.cta::after { position:absolute; width:250px; height:250px; border:1px solid rgba(255,255,255,.18); border-radius:50%; content:''; }
             .cta::before { top:-150px; right:-45px; }
@@ -248,6 +257,11 @@
                     <h2>Pilih paket yang paling pas untuk bisnis Anda.</h2>
                     <p>Mulai gratis secara offline atau aktifkan paket Cloud untuk sinkronisasi otomatis dan web dashboard.</p>
                 </div>
+                @if($errors->has('checkout'))
+                    <div style="max-width:600px; margin:0 auto 24px; padding:12px 18px; background:#fef2f2; border:1px solid #fecaca; border-radius:12px; color:#991b1b; font-size:13px; text-align:center;">
+                        {{ $errors->first('checkout') }}
+                    </div>
+                @endif
                 <div class="pricing-grid">
                     @forelse($pricingCards as $card)
                         <article class="pricing-card {{ $card['is_featured'] ? 'featured' : '' }}">
@@ -268,14 +282,30 @@
                                     </li>
                                 @endforeach
                             </ul>
-                            @if (Route::has('register'))
+                            @if(!empty($card['is_free']))
                                 <a
-                                    href="{{ route('register') }}"
-                                    class="{{ $card['cta_style'] }}"
-                                    style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center; {{ $card['is_featured'] ? 'background:var(--lime); color:var(--navy); font-weight:700;' : '' }}"
+                                    href="{{ auth()->check() ? route('dashboard') : (Route::has('register') ? route('register') : '#') }}"
+                                    class="{{ $card['btn_class'] }}"
                                 >
-                                    {{ $card['cta_label'] }}
+                                    {{ auth()->check() ? 'Buka Dashboard' : $card['cta_label'] }}
                                 </a>
+                            @else
+                                @auth
+                                    <form method="POST" action="{{ route('subscriptions.checkout') }}">
+                                        @csrf
+                                        <input type="hidden" name="billing_period" value="{{ $card['period_key'] ?? 'monthly' }}">
+                                        <button type="submit" class="{{ $card['btn_class'] }}">
+                                            {{ $card['cta_label'] }}
+                                        </button>
+                                    </form>
+                                @else
+                                    <a
+                                        href="{{ Route::has('register') ? route('register', ['plan' => $card['code'], 'period' => $card['period_key']]) : route('login') }}"
+                                        class="{{ $card['btn_class'] }}"
+                                    >
+                                        {{ $card['cta_label'] }}
+                                    </a>
+                                @endauth
                             @endif
                         </article>
                     @empty

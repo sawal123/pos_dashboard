@@ -22,8 +22,10 @@ class LandingPricingService
      *     price_period: string,
      *     features: list<string>,
      *     is_featured: bool,
+     *     is_free: bool,
+     *     period_key: string|null,
      *     cta_label: string,
-     *     cta_style: string,
+     *     btn_class: string,
      * }>
      */
     public function cards(): Collection
@@ -78,6 +80,16 @@ class LandingPricingService
             ? 'Rp ' . number_format($price->price_minor, 0, ',', '.')
             : 'Rp 0';
 
+        $features = ! empty($plan?->features) && is_array($plan->features)
+            ? $plan->features
+            : [
+                'Aplikasi POS kasir offline cepat',
+                'Transaksi &amp; cetak struk tanpa internet',
+                'Katalog produk &amp; kategori lokal',
+                'Hitung HPP &amp; pantau stok bahan',
+                '1 perangkat kasir lokal',
+            ];
+
         return [
             'code' => Subscription::PLAN_FREE,
             'name' => $plan?->name ?? 'Paket Free',
@@ -86,16 +98,12 @@ class LandingPricingService
             'description' => $plan?->description ?: 'Mulai operasional kasir offline mandiri tanpa biaya langganan.',
             'price_formatted' => $priceFormatted,
             'price_period' => '/ selamanya',
-            'features' => [
-                'Aplikasi POS kasir offline cepat',
-                'Transaksi &amp; cetak struk tanpa internet',
-                'Katalog produk &amp; kategori lokal',
-                'Hitung HPP &amp; pantau stok bahan',
-                '1 perangkat kasir lokal',
-            ],
+            'features' => $features,
             'is_featured' => false,
+            'is_free' => true,
+            'period_key' => null,
             'cta_label' => 'Mulai Gratis',
-            'cta_style' => 'button button-light',
+            'btn_class' => 'pricing-btn pricing-btn-free',
         ];
     }
 
@@ -106,6 +114,18 @@ class LandingPricingService
     {
         $monthly = $plan->prices->firstWhere('billing_period', 'monthly');
         $yearly = $plan->prices->firstWhere('billing_period', 'yearly');
+
+        $features = ! empty($plan->features) && is_array($plan->features)
+            ? $plan->features
+            : [
+                'Semua fitur Paket Free',
+                'Sinkronisasi Cloud otomatis &amp; real-time',
+                'Dashboard operasional &amp; laba rugi',
+                'Varian Menu (Cup, Sugar, Level)',
+                'Hingga 5 perangkat kasir terhubung',
+                'Manajemen Promo &amp; Diskon kasir',
+                'Backup &amp; restore data cloud aman',
+            ];
 
         $cards = [];
 
@@ -119,21 +139,21 @@ class LandingPricingService
             'description' => $plan->description ?: 'Mulai dari paket fleksibel untuk operasional yang terus bergerak.',
             'price_formatted' => $monthlyAmount,
             'price_period' => $monthly ? '/ bulan' : '',
-            'features' => [
-                'Semua fitur Paket Free',
-                'Sinkronisasi Cloud otomatis',
-                'Dashboard operasional &amp; laba rugi',
-                'Varian Menu (Cup, Sugar, Level)',
-                'Hingga 5 perangkat kasir',
-                'Manajemen Promo &amp; Diskon',
-            ],
+            'features' => $features,
             'is_featured' => false,
+            'is_free' => false,
+            'period_key' => 'monthly',
             'cta_label' => 'Pilih Bulanan',
-            'cta_style' => 'button button-light',
+            'btn_class' => 'pricing-btn pricing-btn-monthly',
         ];
 
         // Yearly Card (Featured)
         $yearlyAmount = $yearly ? 'Rp ' . number_format($yearly->price_minor, 0, ',', '.') : 'Segera hadir';
+        $yearlyFeatures = array_values(array_unique(array_merge([
+            'Lebih hemat 2 bulan langganan',
+            'Prioritas sinkronisasi Cloud',
+        ], $features)));
+
         $cards[] = [
             'code' => $plan->code,
             'name' => "{$plan->name} Yearly",
@@ -142,17 +162,12 @@ class LandingPricingService
             'description' => 'Lebih praktis untuk bisnis yang ingin fokus tumbuh sepanjang tahun.',
             'price_formatted' => $yearlyAmount,
             'price_period' => $yearly ? '/ tahun' : '',
-            'features' => [
-                'Semua fitur Cloud Bulanan',
-                'Lebih hemat 2 bulan langganan',
-                'Prioritas sinkronisasi Cloud',
-                'Dashboard operasional &amp; laba rugi',
-                'Varian Menu &amp; Multi-device (5 unit)',
-                'Backup &amp; restore data cloud aman',
-            ],
+            'features' => $yearlyFeatures,
             'is_featured' => true,
+            'is_free' => false,
+            'period_key' => 'yearly',
             'cta_label' => 'Mulai Berlangganan',
-            'cta_style' => 'button',
+            'btn_class' => 'pricing-btn pricing-btn-yearly',
         ];
 
         return $cards;
@@ -163,6 +178,15 @@ class LandingPricingService
      */
     private function buildCustomPlanCards(SubscriptionPlan $plan): array
     {
+        $features = ! empty($plan->features) && is_array($plan->features)
+            ? $plan->features
+            : [
+                'Semua fitur dasar POS',
+                'Dukungan fitur paket ' . $plan->name,
+                'Akses Cloud &amp; sinkronisasi',
+                'Dukungan multi-perangkat',
+            ];
+
         if ($plan->prices->isEmpty()) {
             return [[
                 'code' => $plan->code,
@@ -172,14 +196,12 @@ class LandingPricingService
                 'description' => $plan->description ?: 'Paket langganan khusus untuk bisnis Anda.',
                 'price_formatted' => 'Hubungi Kami',
                 'price_period' => '',
-                'features' => [
-                    'Fitur paket ' . $plan->name,
-                    'Akses Cloud &amp; sinkronisasi',
-                    'Dukungan multi-perangkat',
-                ],
+                'features' => $features,
                 'is_featured' => false,
+                'is_free' => false,
+                'period_key' => null,
                 'cta_label' => 'Pilih Paket',
-                'cta_style' => 'button button-light',
+                'btn_class' => 'pricing-btn pricing-btn-monthly',
             ]];
         }
 
@@ -197,15 +219,12 @@ class LandingPricingService
                 'description' => $plan->description ?: 'Paket langganan untuk bisnis Anda.',
                 'price_formatted' => 'Rp ' . number_format($price->price_minor, 0, ',', '.'),
                 'price_period' => $periodSuffix,
-                'features' => [
-                    'Semua fitur dasar POS',
-                    'Dukungan fitur paket ' . $plan->name,
-                    'Akses Cloud &amp; sinkronisasi',
-                    'Dukungan multi-perangkat',
-                ],
+                'features' => $features,
                 'is_featured' => $isYearly,
+                'is_free' => false,
+                'period_key' => $price->billing_period,
                 'cta_label' => 'Pilih Paket',
-                'cta_style' => $isYearly ? 'button' : 'button button-light',
+                'btn_class' => $isYearly ? 'pricing-btn pricing-btn-yearly' : 'pricing-btn pricing-btn-monthly',
             ];
         }
 

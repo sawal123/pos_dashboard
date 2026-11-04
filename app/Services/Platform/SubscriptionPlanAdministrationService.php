@@ -61,12 +61,14 @@ class SubscriptionPlanAdministrationService
         string $name,
         ?string $description,
         bool $isActive,
+        ?array $features = null,
     ): SubscriptionPlan {
-        return DB::transaction(function () use ($code, $name, $description, $isActive): SubscriptionPlan {
+        return DB::transaction(function () use ($code, $name, $description, $isActive, $features): SubscriptionPlan {
             return SubscriptionPlan::create([
                 'code' => $code,
                 'name' => $name,
                 'description' => $description,
+                'features' => $features,
                 'is_active' => $isActive,
             ]);
         });
@@ -77,14 +79,21 @@ class SubscriptionPlanAdministrationService
         string $name,
         ?string $description,
         bool $isActive,
+        ?array $features = null,
     ): SubscriptionPlan {
-        return DB::transaction(function () use ($plan, $name, $description, $isActive): SubscriptionPlan {
+        return DB::transaction(function () use ($plan, $name, $description, $isActive, $features): SubscriptionPlan {
             // `code` is immutable and deliberately absent from the payload.
-            $plan->forceFill([
+            $data = [
                 'name' => $name,
                 'description' => $description,
                 'is_active' => $isActive,
-            ])->save();
+            ];
+
+            if ($features !== null) {
+                $data['features'] = $features;
+            }
+
+            $plan->forceFill($data)->save();
 
             return $plan;
         });

@@ -144,6 +144,62 @@
                     @error('description')<p class="mt-1 text-[11px] text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
 
+                {{-- Keunggulan / Fitur Paket (Tampil di Landing Page) --}}
+                <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                                Keunggulan &amp; Fitur Paket (Tampil di Landing Page)
+                            </label>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500">
+                                Tambah, ubah teks, atau hapus poin keunggulan paket ini. Poin ini langsung dirender di kartu landing page.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onclick="addFeatureInput()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 transition-colors cursor-pointer"
+                        >
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Tambah Keunggulan</span>
+                        </button>
+                    </div>
+
+                    <div id="features-container" class="space-y-2">
+                        @php
+                            $featuresList = old('features', $plan->features ?? []);
+                            if (!is_array($featuresList) || empty($featuresList)) {
+                                $featuresList = $plan->code === 'cloud' 
+                                    ? ['Semua fitur Paket Free', 'Sinkronisasi Cloud otomatis & real-time', 'Web Dashboard analitik laba rugi', 'Varian Menu (Cup, Sugar, Level)', 'Hingga 5 perangkat kasir terhubung', 'Manajemen Promo & Diskon kasir', 'Backup & restore data cloud aman']
+                                    : ['Aplikasi POS kasir offline cepat', 'Transaksi & cetak struk tanpa internet', 'Katalog produk & kategori lokal', 'Hitung HPP & pantau stok bahan baku', '1 perangkat kasir lokal'];
+                            }
+                        @endphp
+                        @foreach($featuresList as $feature)
+                            <div class="feature-item flex items-center gap-2">
+                                <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                </span>
+                                <input
+                                    type="text"
+                                    name="features[]"
+                                    value="{{ $feature }}"
+                                    placeholder="Tulis keunggulan paket..."
+                                    maxlength="255"
+                                    class="flex-1 px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                />
+                                <button
+                                    type="button"
+                                    onclick="removeFeatureItem(this)"
+                                    class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                    title="Hapus keunggulan ini"
+                                >
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
                 <label class="flex items-center gap-2.5 cursor-pointer">
                     <input type="hidden" name="is_active" value="0" />
                     <input
@@ -278,4 +334,44 @@
         @endforeach
 
     </div>
+
+    <script>
+        function addFeatureInput(value = '') {
+            const container = document.getElementById('features-container');
+            const div = document.createElement('div');
+            div.className = 'feature-item flex items-center gap-2';
+            div.innerHTML = `
+                <span class="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                </span>
+                <input
+                    type="text"
+                    name="features[]"
+                    value="${value}"
+                    placeholder="Tulis keunggulan paket..."
+                    maxlength="255"
+                    class="flex-1 px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                    type="button"
+                    onclick="removeFeatureItem(this)"
+                    class="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    title="Hapus keunggulan ini"
+                >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            `;
+            container.appendChild(div);
+            if (window.lucide) {
+                window.lucide.createIcons({ scope: div });
+            }
+        }
+
+        function removeFeatureItem(btn) {
+            const item = btn.closest('.feature-item');
+            if (item) {
+                item.remove();
+            }
+        }
+    </script>
 </x-layouts::platform>

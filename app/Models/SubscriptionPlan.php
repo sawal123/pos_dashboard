@@ -22,13 +22,14 @@ use Illuminate\Support\Carbon;
  * @property string $code
  * @property string $name
  * @property string|null $description
+ * @property array<string>|null $features
  * @property bool $is_active
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, SubscriptionPlanPrice> $prices
  * @property-read Collection<int, SubscriptionPlanPrice> $activePrices
  */
-#[Fillable(['code', 'name', 'description', 'is_active'])]
+#[Fillable(['code', 'name', 'description', 'features', 'is_active'])]
 class SubscriptionPlan extends Model
 {
     /** @use HasFactory<SubscriptionPlanFactory> */
@@ -43,6 +44,7 @@ class SubscriptionPlan extends Model
     {
         return [
             'is_active' => 'boolean',
+            'features' => 'array',
         ];
     }
 
