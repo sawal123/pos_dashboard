@@ -39,6 +39,24 @@ final class LandingPageTest extends TestCase
             ->assertSee('Rp 49.000')
             ->assertSee('Rp 490.000')
             ->assertSee('Cloud Monthly')
-            ->assertSee('Cloud Yearly');
+            ->assertSee('Cloud Yearly')
+            ->assertSee('Paket Free')
+            ->assertSee('Rp 0');
+    }
+
+    public function test_landing_page_displays_custom_free_plan_name_when_seeded(): void
+    {
+        SubscriptionPlan::factory()->create([
+            'code' => Subscription::PLAN_FREE,
+            'name' => 'Paket Kasir Gratis',
+            'description' => 'Khusus UMKM mandiri',
+            'is_active' => true,
+        ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('Paket Kasir Gratis')
+            ->assertSee('Khusus UMKM mandiri')
+            ->assertSee('Rp 0');
     }
 }

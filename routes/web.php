@@ -46,6 +46,7 @@ use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SeoController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
+use App\Models\SubscriptionPlan;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Subscription\PremiumPolicy;
 use App\Services\Subscription\PremiumPricing;
@@ -74,14 +75,20 @@ use Illuminate\Support\Facades\Schema;
 */
 Route::get('/', function (PremiumPricing $pricing) {
     $prices = collect();
+    $freePlan = null;
+    $cloudPlan = null;
 
     if (Schema::hasTable('subscription_plans') && Schema::hasTable('subscription_plan_prices')) {
         $prices = collect($pricing->periodsFor(Subscription::PLAN_CLOUD))->keyBy('period');
+        $freePlan = SubscriptionPlan::with('prices')->where('code', Subscription::PLAN_FREE)->first();
+        $cloudPlan = SubscriptionPlan::with('prices')->where('code', Subscription::PLAN_CLOUD)->first();
     }
 
     return view('welcome', [
         'monthlyPrice' => $prices->get('monthly'),
         'yearlyPrice' => $prices->get('yearly'),
+        'freePlan' => $freePlan,
+        'cloudPlan' => $cloudPlan,
     ]);
 })->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');

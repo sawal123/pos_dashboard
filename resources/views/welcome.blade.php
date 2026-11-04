@@ -138,19 +138,19 @@
             .audience-card span { display:inline-block; margin-bottom:42px; color:inherit; opacity:.58; font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; }
             .audience-card h3 { margin:0; font-family:'Space Grotesk',system-ui,sans-serif; font-size:23px; letter-spacing:-.05em; }
             .pricing-section { padding-top:0; }
-            .pricing-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; max-width:850px; }
-            .pricing-card { position:relative; padding:30px; border:1px solid var(--line); border-radius:20px; background:white; box-shadow:0 16px 32px rgba(26,86,138,.06); }
+            .pricing-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; max-width:1160px; margin:0 auto; }
+            .pricing-card { display:flex; flex-direction:column; position:relative; padding:32px 28px; border:1px solid var(--line); border-radius:20px; background:white; box-shadow:0 16px 32px rgba(26,86,138,.06); }
             .pricing-card.featured { color:white; background:var(--navy); border-color:var(--navy); box-shadow:0 22px 42px rgba(12,28,49,.18); }
-            .pricing-card .badge { display:inline-flex; padding:6px 10px; color:#49657f; background:#edf4ff; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+            .pricing-card .badge { display:inline-flex; width:fit-content; padding:6px 12px; color:#49657f; background:#edf4ff; border-radius:999px; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
             .pricing-card.featured .badge { color:var(--navy); background:var(--lime); }
-            .pricing-card h3 { margin:22px 0 7px; font-family:'Space Grotesk',system-ui,sans-serif; font-size:26px; letter-spacing:-.05em; }
+            .pricing-card h3 { margin:20px 0 7px; font-family:'Space Grotesk',system-ui,sans-serif; font-size:25px; letter-spacing:-.05em; }
             .pricing-card p { min-height:42px; margin:0; color:var(--muted); font-size:13px; line-height:1.6; }
             .pricing-card.featured p { color:rgba(221,236,249,.7); }
-            .price-line { display:flex; align-items:baseline; gap:8px; margin:25px 0 22px; }
-            .price-amount { font-family:'Space Grotesk',system-ui,sans-serif; font-size:clamp(30px,4vw,43px); font-weight:600; letter-spacing:-.06em; }
+            .price-line { display:flex; align-items:baseline; gap:8px; margin:22px 0 20px; }
+            .price-amount { font-family:'Space Grotesk',system-ui,sans-serif; font-size:clamp(28px,3.5vw,38px); font-weight:600; letter-spacing:-.06em; }
             .price-period { color:var(--muted); font-size:12px; font-weight:600; }
             .pricing-card.featured .price-period { color:rgba(221,236,249,.62); }
-            .pricing-features { display:grid; gap:11px; margin:0; padding:0; list-style:none; color:#49657f; font-size:13px; }
+            .pricing-features { flex:1; display:grid; gap:11px; margin:0; padding:0; list-style:none; color:#49657f; font-size:13px; }
             .pricing-card.featured .pricing-features { color:rgba(221,236,249,.82); }
             .pricing-features li { display:flex; align-items:center; gap:9px; }
             .pricing-features svg { flex:0 0 auto; color:var(--blue); }
@@ -166,6 +166,7 @@
             .footer { display:flex; align-items:center; justify-content:space-between; padding:32px 0 40px; color:#7790a7; font-size:12px; }
             .footer .brand { color:var(--ink); font-size:17px; }
             .footer-links { display:flex; gap:22px; }
+            @media (max-width:980px) { .pricing-grid { grid-template-columns:1fr; max-width:540px; margin:0 auto; } }
             @media (max-width:920px) { .hero-content { grid-template-columns:1fr; gap:32px; padding-top:65px; } .hero-copy { max-width:700px; } .dashboard-stage { max-width:680px; margin:0 auto; width:100%; } .features { grid-template-columns:repeat(2,1fr); } .split-section { grid-template-columns:1fr; gap:45px; } }
             @media (max-width:680px) { .shell { width:min(100% - 28px,1160px); } .hero-links { display:none; } .hero-actions .button-light { display:none; } .hero-content { min-height:0; padding:55px 0 88px; } .hero-copy h1 { font-size:clamp(42px,14vw,64px); } .hero-copy p { font-size:15px; } .dashboard-stage { padding:15px 0 26px; transform:scale(.98); } .dashboard-body { grid-template-columns:86px 1fr; } .dashboard-sidebar { padding-left:7px; padding-right:7px; } .dashboard-main { padding:14px; } .metric-row { gap:6px; } .metric { padding:9px; } .metric strong { font-size:13px; } .float-tag.top { right:-4px; } .float-tag.bottom { left:0; } .trust-strip { grid-template-columns:1fr; gap:15px; padding:24px 0; } .section { padding:76px 0; } .section-heading { margin-bottom:32px; } .features,.workflow,.audience,.pricing-grid { grid-template-columns:1fr; } .feature { min-height:0; } .feature-icon { margin-bottom:32px; } .workflow-card::after { display:none; } .cta { padding:45px 28px; border-radius:18px; } .cta-content { align-items:flex-start; flex-direction:column; } .footer { align-items:flex-start; flex-direction:column; gap:20px; } }
         </style>
@@ -242,8 +243,34 @@
             </section>
 
             <section id="harga" class="shell section pricing-section">
-                <div class="section-heading"><span class="eyebrow">Paket yang sederhana</span><h2>Pilih ritme kerja yang paling pas untuk bisnis Anda.</h2><p>Harga ditampilkan langsung dari paket aktif NexaPOS dan dapat diperbarui oleh pemilik platform.</p></div>
+                <div class="section-heading">
+                    <span class="eyebrow">Paket yang sederhana</span>
+                    <h2>Pilih paket yang paling pas untuk bisnis Anda.</h2>
+                    <p>Mulai gratis secara offline atau aktifkan paket Cloud untuk sinkronisasi otomatis dan web dashboard.</p>
+                </div>
                 <div class="pricing-grid">
+                    {{-- Paket Free --}}
+                    <article class="pricing-card">
+                        <span class="badge" style="background:#eaf8f1; color:#0d7a42;">Gratis Selamanya</span>
+                        <h3>{{ $freePlan?->name ?? 'Paket Free' }}</h3>
+                        <p>{{ $freePlan?->description ?: 'Mulai operasional kasir offline mandiri tanpa biaya langganan.' }}</p>
+                        <div class="price-line">
+                            <span class="price-amount">Rp 0</span>
+                            <span class="price-period">/ selamanya</span>
+                        </div>
+                        <ul class="pricing-features">
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Aplikasi POS kasir offline cepat</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Transaksi &amp; cetak struk tanpa internet</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Katalog produk &amp; kategori lokal</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Hitung HPP &amp; pantau stok bahan</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>1 perangkat kasir lokal</li>
+                        </ul>
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}" class="button button-light" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center;">Mulai Gratis</a>
+                        @endif
+                    </article>
+
+                    {{-- Cloud Monthly --}}
                     <article class="pricing-card">
                         <span class="badge">Bulanan</span>
                         <h3>Cloud Monthly</h3>
@@ -256,10 +283,22 @@
                                 <span class="price-amount">Segera hadir</span>
                             @endif
                         </div>
-                        <ul class="pricing-features"><li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Sinkronisasi Cloud</li><li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dashboard operasional</li></ul>
+                        <ul class="pricing-features">
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Semua fitur Paket Free</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Sinkronisasi Cloud otomatis</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dashboard operasional &amp; laba rugi</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Varian Menu (Cup, Sugar, Level)</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Hingga 5 perangkat kasir</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Manajemen Promo &amp; Diskon</li>
+                        </ul>
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}" class="button button-light" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center;">Pilih Bulanan</a>
+                        @endif
                     </article>
+
+                    {{-- Cloud Yearly (Featured) --}}
                     <article class="pricing-card featured">
-                        <span class="badge">Tahunan</span>
+                        <span class="badge">Hemat 2 Bulan • Rekomendasi</span>
                         <h3>Cloud Yearly</h3>
                         <p>Lebih praktis untuk bisnis yang ingin fokus tumbuh sepanjang tahun.</p>
                         <div class="price-line">
@@ -270,7 +309,17 @@
                                 <span class="price-amount">Segera hadir</span>
                             @endif
                         </div>
-                        <ul class="pricing-features"><li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Semua fitur Cloud</li><li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Periode lebih panjang</li></ul>
+                        <ul class="pricing-features">
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Semua fitur Cloud Bulanan</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Lebih hemat 2 bulan langganan</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Prioritas sinkronisasi Cloud</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dashboard operasional &amp; laba rugi</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Varian Menu &amp; Multi-device (5 unit)</li>
+                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Backup &amp; restore data cloud aman</li>
+                        </ul>
+                        @if (Route::has('register'))
+                            <a href="{{ route('register') }}" class="button" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center; background:var(--lime); color:var(--navy); font-weight:700;">Mulai Berlangganan</a>
+                        @endif
                     </article>
                 </div>
             </section>
