@@ -1,4 +1,8 @@
 <x-layouts::platform :title="'Paket: ' . $plan->name">
+    @php
+        $isFree = $plan->code === 'free';
+        $isCloud = $plan->code === 'cloud';
+    @endphp
     <div class="space-y-6">
 
         {{-- Flash Notification --}}
@@ -23,8 +27,8 @@
         {{-- Header --}}
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs">
             <div class="flex items-center gap-4">
-                <span class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
-                    <i data-lucide="cloud" class="w-7 h-7"></i>
+                <span class="w-14 h-14 rounded-2xl bg-gradient-to-br {{ $isFree ? 'from-emerald-600 to-teal-700' : 'from-indigo-600 to-purple-700' }} text-white flex items-center justify-center font-black text-lg shrink-0 shadow-xs">
+                    <i data-lucide="{{ $isFree ? 'sparkles' : 'cloud' }}" class="w-7 h-7"></i>
                 </span>
                 <div class="space-y-1.5">
                     <div class="flex items-center gap-2 flex-wrap">
@@ -49,33 +53,35 @@
             </div>
         </div>
 
-        {{-- Checkout Readiness --}}
-        @php
-            $isReady = (bool) ($readiness['ready'] ?? false);
-        @endphp
-        <div class="p-5 rounded-2xl border shadow-xs {{ $isReady ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800' }}">
-            <div class="flex items-start gap-3">
-                <span class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {{ $isReady ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400' }}">
-                    <i data-lucide="{{ $isReady ? 'check-circle' : 'alert-triangle' }}" class="w-5 h-5"></i>
-                </span>
-                <div class="space-y-1.5 min-w-0">
-                    <h2 class="text-sm font-bold {{ $isReady ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300' }}">
-                        {{ $isReady ? 'Checkout siap' : 'Checkout belum siap' }}
-                    </h2>
-                    @if($isReady)
-                        <p class="text-[11px] text-emerald-700 dark:text-emerald-400">
-                            Paket Cloud aktif dengan harga Bulanan &amp; Tahunan yang valid, dan Midtrans sudah dikonfigurasi.
-                        </p>
-                    @else
-                        <ul class="list-disc list-inside space-y-0.5 text-[11px] text-amber-700 dark:text-amber-400">
-                            @foreach($readiness['reasons'] as $reason)
-                                <li>{{ $reason }}</li>
-                            @endforeach
-                        </ul>
-                    @endif
+        {{-- Checkout Readiness (hanya berlaku untuk paket kanonik Cloud berbayar) --}}
+        @if($isCloud)
+            @php
+                $isReady = (bool) ($readiness['ready'] ?? false);
+            @endphp
+            <div class="p-5 rounded-2xl border shadow-xs {{ $isReady ? 'bg-emerald-50/70 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800' : 'bg-amber-50/70 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800' }}">
+                <div class="flex items-start gap-3">
+                    <span class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {{ $isReady ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400' : 'bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400' }}">
+                        <i data-lucide="{{ $isReady ? 'check-circle' : 'alert-triangle' }}" class="w-5 h-5"></i>
+                    </span>
+                    <div class="space-y-1.5 min-w-0">
+                        <h2 class="text-sm font-bold {{ $isReady ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300' }}">
+                            {{ $isReady ? 'Checkout siap' : 'Checkout belum siap' }}
+                        </h2>
+                        @if($isReady)
+                            <p class="text-[11px] text-emerald-700 dark:text-emerald-400">
+                                Paket Cloud aktif dengan harga Bulanan &amp; Tahunan yang valid, dan Midtrans sudah dikonfigurasi.
+                            </p>
+                        @else
+                            <ul class="list-disc list-inside space-y-0.5 text-[11px] text-amber-700 dark:text-amber-400">
+                                @foreach($readiness['reasons'] as $reason)
+                                    <li>{{ $reason }}</li>
+                                @endforeach
+                            </ul>
+                        @endif
+                    </div>
                 </div>
             </div>
-        </div>
+        @endif
 
         {{-- Plan Detail Form --}}
         <div class="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs p-6 space-y-5">
@@ -85,7 +91,7 @@
                 </span>
                 <div>
                     <h2 class="text-sm font-bold text-slate-900 dark:text-white">Detail Paket</h2>
-                    <p class="text-[11px] text-slate-400 dark:text-slate-500">Nama, deskripsi, dan ketersediaan paket Cloud.</p>
+                    <p class="text-[11px] text-slate-400 dark:text-slate-500">Nama, deskripsi, dan ketersediaan paket {{ $plan->name }}.</p>
                 </div>
             </div>
 
@@ -94,7 +100,7 @@
                 action="{{ route('platform.subscription-plans.update', $plan) }}"
                 class="space-y-4"
                 data-confirm-if-unchecked="#plan_is_active"
-                data-confirm-message="{{ 'Nonaktifkan paket '.$plan->name.'? Checkout akan menjadi tidak siap sampai paket diaktifkan kembali.' }}"
+                data-confirm-message="{{ 'Nonaktifkan paket '.$plan->name.'?' }}"
             >
                 @csrf
                 @method('PATCH')
@@ -148,7 +154,7 @@
                         class="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-indigo-600 focus:ring-indigo-500"
                         @checked(old('is_active', $plan->is_active))
                     />
-                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Paket aktif (dapat dibeli)</span>
+                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Paket aktif</span>
                 </label>
                 @error('is_active')<p class="text-[11px] text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
 
@@ -194,7 +200,13 @@
                 <div class="flex items-center justify-between text-[11px]">
                     <span class="text-slate-400 dark:text-slate-500">Harga saat ini</span>
                     @if($price)
-                        <span class="font-bold text-slate-900 dark:text-white">Rp {{ number_format($price->price_minor, 0, ',', '.') }} {{ $suffix }}</span>
+                        <span class="font-bold text-slate-900 dark:text-white">
+                            @if($price->price_minor === 0)
+                                Rp 0 <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">(Gratis)</span>
+                            @else
+                                Rp {{ number_format($price->price_minor, 0, ',', '.') }} {{ $suffix }}
+                            @endif
+                        </span>
                     @else
                         <span class="text-slate-400 dark:text-slate-500 italic">Belum ditetapkan</span>
                     @endif
@@ -219,11 +231,11 @@
                                 id="{{ $period }}_price"
                                 name="price_minor"
                                 type="number"
-                                min="1"
+                                min="{{ $isCloud ? 1 : 0 }}"
                                 step="1"
                                 inputmode="numeric"
                                 value="{{ old('price_minor', $price?->price_minor) }}"
-                                placeholder="cth: {{ $period === 'monthly' ? '49000' : '490000' }}"
+                                placeholder="cth: {{ $isFree ? '0' : ($period === 'monthly' ? '49000' : '490000') }}"
                                 class="w-full px-3 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 required
                             />

@@ -30,9 +30,67 @@ class SubscriptionPlansController extends Controller
     public function index(SubscriptionPlanAdministrationService $service): View
     {
         return view('platform.subscription-plans.index', [
-            'plans' => $service->canonicalPlans(),
+            'plans' => $service->allPlans(),
             'readiness' => $service->checkoutReadiness(),
         ]);
+    }
+
+    public function store(
+        Request $request,
+        SubscriptionPlanAdministrationService $service,
+        PlatformAuditLogger $auditLogger,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:50', 'regex:/^[a-z0-9_-]+$/', 'unique:subscription_plans,code'],
+            'name' => ['required', 'string', 'max:100'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'is_active' => ['required', 'boolean'],
+        ], [
+            'code.regex' => 'Kode paket hanya boleh berisi huruf kecil, angka, tanda hubung (-), dan garis bawah (_).',
+            'code.unique' => 'Kode paket sudah digunakan.',
+        ]);
+
+        $code = strtolower(trim((string) $validated['code']));
+        $description = isset($validated['description']) && is_string($validated['description']) && $validated['description'] !== ''
+            ? $validated['description']
+            : null;
+
+        $plan = DB::transaction(function () use ($request, $code, $validated, $description, $service, $auditLogger): SubscriptionPlan {
+            $plan = $service->createPlan(
+                $code,
+                (string) $validated['name'],
+                $description,
+                (bool) $validated['is_active'],
+            );
+
+            /** @var User $actor */
+            $actor = $request->user();
+
+            $auditLogger->record(
+                actor: $actor,
+                action: PlatformAuditAction::SUBSCRIPTION_PLAN_CREATED,
+                targetType: PlatformAuditAction::TARGET_SUBSCRIPTION_PLAN,
+                targetId: $plan->id,
+                targetLabel: $plan->name,
+                businessId: null,
+                before: null,
+                after: [
+                    'code' => $plan->code,
+                    'name' => $plan->name,
+                    'description' => $plan->description,
+                    'is_active' => (bool) $plan->is_active,
+                ],
+                metadata: [
+                    'code' => $plan->code,
+                ],
+            );
+
+            return $plan;
+        });
+
+        return redirect()
+            ->route('platform.subscription-plans.show', $plan)
+            ->with('status', 'Paket berhasil dibuat.');
     }
 
     public function show(
@@ -40,8 +98,6 @@ class SubscriptionPlansController extends Controller
         SubscriptionPlanAdministrationService $service,
         PremiumPolicy $policy,
     ): View {
-        $this->ensureCanonical($plan, $policy);
-
         $plan->load('prices');
 
         return view('platform.subscription-plans.show', [
@@ -49,6 +105,7 @@ class SubscriptionPlansController extends Controller
             'prices' => $plan->prices->keyBy('billing_period'),
             'readiness' => $service->checkoutReadiness(),
             'billingPeriods' => $policy->billingPeriods(),
+            'isCanonical' => $plan->code === $policy->planCode(),
         ]);
     }
 
@@ -56,11 +113,8 @@ class SubscriptionPlansController extends Controller
         Request $request,
         SubscriptionPlan $plan,
         SubscriptionPlanAdministrationService $service,
-        PremiumPolicy $policy,
         PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
-        $this->ensureCanonical($plan, $policy);
-
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'description' => ['nullable', 'string', 'max:1000'],
@@ -125,11 +179,11 @@ class SubscriptionPlansController extends Controller
         PremiumPolicy $policy,
         PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
-        $this->ensureCanonical($plan, $policy);
+        $minPrice = $plan->code === $policy->planCode() ? 1 : 0;
 
         $validated = $request->validate([
             'billing_period' => ['required', 'string', Rule::in($policy->billingPeriods())],
-            'price_minor' => ['required', 'integer', 'min:1', 'max:1000000000'],
+            'price_minor' => ['required', 'integer', "min:{$minPrice}", 'max:1000000000'],
             'is_active' => ['required', 'boolean'],
             'code' => ['prohibited'],
             'currency' => ['prohibited'],
@@ -202,10 +256,10 @@ class SubscriptionPlansController extends Controller
         PremiumPolicy $policy,
         PlatformAuditLogger $auditLogger,
     ): RedirectResponse {
-        $this->ensureCanonical($plan, $policy);
+        $minPrice = $plan->code === $policy->planCode() ? 1 : 0;
 
         $validated = $request->validate([
-            'price_minor' => ['required', 'integer', 'min:1', 'max:1000000000'],
+            'price_minor' => ['required', 'integer', "min:{$minPrice}", 'max:1000000000'],
             'is_active' => ['required', 'boolean'],
             'code' => ['prohibited'],
             'billing_period' => ['prohibited'],
@@ -262,11 +316,6 @@ class SubscriptionPlansController extends Controller
         return redirect()
             ->route('platform.subscription-plans.show', $plan)
             ->with('status', $this->priceLabel($price->billing_period).' berhasil diperbarui.');
-    }
-
-    private function ensureCanonical(SubscriptionPlan $plan, PremiumPolicy $policy): void
-    {
-        abort_unless($plan->code === $policy->planCode(), 404);
     }
 
     private function priceLabel(string $period): string

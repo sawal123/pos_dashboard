@@ -201,17 +201,87 @@ class PlatformPremiumPricingTest extends TestCase
         $this->assertSame(Subscription::PLAN_CLOUD, $plan->fresh()->code);
     }
 
-    public function test_non_canonical_plan_is_not_found(): void
+    public function test_admin_can_view_and_update_custom_plan(): void
     {
-        $other = SubscriptionPlan::factory()->create(['code' => 'premium', 'name' => 'Premium']);
+        $other = SubscriptionPlan::factory()->create(['code' => 'free', 'name' => 'Paket Free']);
 
         $this->actingAs($this->admin())
             ->get(route('platform.subscription-plans.show', $other))
-            ->assertNotFound();
+            ->assertOk()
+            ->assertSee('Paket Free');
 
         $this->actingAs($this->admin())
-            ->patch(route('platform.subscription-plans.update', $other), ['name' => 'X', 'is_active' => '1'])
-            ->assertNotFound();
+            ->patch(route('platform.subscription-plans.update', $other), [
+                'name' => 'Paket Free Updated',
+                'description' => 'Gratis selamanya',
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('platform.subscription-plans.show', $other));
+
+        $other->refresh();
+        $this->assertSame('Paket Free Updated', $other->name);
+        $this->assertSame('Gratis selamanya', $other->description);
+    }
+
+    public function test_platform_admin_can_create_new_subscription_plan(): void
+    {
+        $this->actingAs($this->admin())
+            ->post(route('platform.subscription-plans.store'), [
+                'code' => 'free',
+                'name' => 'Paket Free',
+                'description' => 'Akses POS offline gratis selamanya',
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $plan = SubscriptionPlan::query()->where('code', 'free')->first();
+        $this->assertNotNull($plan);
+        $this->assertSame('Paket Free', $plan->name);
+        $this->assertSame('Akses POS offline gratis selamanya', $plan->description);
+        $this->assertTrue($plan->is_active);
+    }
+
+    public function test_create_plan_validates_code_uniqueness_and_format(): void
+    {
+        SubscriptionPlan::factory()->create(['code' => 'free', 'name' => 'Free']);
+
+        // Duplicate code
+        $this->actingAs($this->admin())
+            ->post(route('platform.subscription-plans.store'), [
+                'code' => 'free',
+                'name' => 'Free 2',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('code');
+
+        // Invalid characters in code
+        $this->actingAs($this->admin())
+            ->post(route('platform.subscription-plans.store'), [
+                'code' => 'FREE PLAN!',
+                'name' => 'Free Plan',
+                'is_active' => '1',
+            ])
+            ->assertSessionHasErrors('code');
+    }
+
+    public function test_admin_can_create_zero_price_for_free_plan(): void
+    {
+        $freePlan = SubscriptionPlan::factory()->create(['code' => 'free', 'name' => 'Paket Free']);
+
+        $this->actingAs($this->admin())
+            ->post(route('platform.subscription-plans.prices.store', $freePlan), [
+                'billing_period' => 'monthly',
+                'price_minor' => 0,
+                'is_active' => '1',
+            ])
+            ->assertRedirect(route('platform.subscription-plans.show', $freePlan));
+
+        $this->assertDatabaseHas('subscription_plan_prices', [
+            'subscription_plan_id' => $freePlan->id,
+            'billing_period' => 'monthly',
+            'price_minor' => 0,
+            'is_active' => true,
+        ]);
     }
 
     // ============================================================

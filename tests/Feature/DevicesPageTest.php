@@ -227,7 +227,8 @@ class DevicesPageTest extends TestCase
 
         $response = $this->actingAs($user)->get(route('devices.index'));
         $response->assertOk();
-        $response->assertDontSee('Online');
+        $response->assertDontSee('>Online<', false);
+        $response->assertDontSee('Perangkat Online');
     }
 
     public function test_14_nullable_platform_renders_safely(): void

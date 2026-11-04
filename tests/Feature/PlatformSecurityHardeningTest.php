@@ -314,21 +314,23 @@ class PlatformSecurityHardeningTest extends TestCase
     }
 
     /**
-     * 17. IDOR Protection: Non-canonical plan access returns 404.
+     * 17. Platform Admin can manage custom & free plans; unknown plan ID returns 404.
      */
-    public function test_non_canonical_plan_access_returns_404(): void
+    public function test_custom_plan_access_is_allowed_and_unknown_plan_returns_404(): void
     {
         $admin = User::factory()->platformAdmin()->create();
 
-        $nonCloudPlan = SubscriptionPlan::create([
+        $freePlan = SubscriptionPlan::create([
             'name' => 'Free Plan',
             'code' => Subscription::PLAN_FREE,
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($admin)->get("/platform/subscription-plans/{$nonCloudPlan->id}");
+        $response = $this->actingAs($admin)->get("/platform/subscription-plans/{$freePlan->id}");
+        $response->assertOk();
 
-        $response->assertNotFound();
+        $unknownResponse = $this->actingAs($admin)->get('/platform/subscription-plans/999999');
+        $unknownResponse->assertNotFound();
     }
 
     /**

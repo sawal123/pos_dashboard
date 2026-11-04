@@ -30,6 +30,19 @@ class SubscriptionPlanAdministrationService
     ) {}
 
     /**
+     * All subscription plans with their prices.
+     *
+     * @return Collection<int, SubscriptionPlan>
+     */
+    public function allPlans(): Collection
+    {
+        return SubscriptionPlan::query()
+            ->with('prices')
+            ->orderBy('id')
+            ->get();
+    }
+
+    /**
      * The canonical paid plan(s) with their prices. Never arbitrary plans.
      *
      * @return Collection<int, SubscriptionPlan>
@@ -43,14 +56,28 @@ class SubscriptionPlanAdministrationService
             ->get();
     }
 
+    public function createPlan(
+        string $code,
+        string $name,
+        ?string $description,
+        bool $isActive,
+    ): SubscriptionPlan {
+        return DB::transaction(function () use ($code, $name, $description, $isActive): SubscriptionPlan {
+            return SubscriptionPlan::create([
+                'code' => $code,
+                'name' => $name,
+                'description' => $description,
+                'is_active' => $isActive,
+            ]);
+        });
+    }
+
     public function updatePlan(
         SubscriptionPlan $plan,
         string $name,
         ?string $description,
         bool $isActive,
     ): SubscriptionPlan {
-        $this->ensureCanonical($plan);
-
         return DB::transaction(function () use ($plan, $name, $description, $isActive): SubscriptionPlan {
             // `code` is immutable and deliberately absent from the payload.
             $plan->forceFill([
@@ -72,7 +99,6 @@ class SubscriptionPlanAdministrationService
         int $priceMinor,
         bool $isActive,
     ): SubscriptionPlanPrice {
-        $this->ensureCanonical($plan);
         $this->ensureSupportedPeriod($billingPeriod);
 
         return DB::transaction(function () use ($plan, $billingPeriod, $priceMinor, $isActive): SubscriptionPlanPrice {
@@ -138,8 +164,8 @@ class SubscriptionPlanAdministrationService
     {
         $plan = SubscriptionPlan::query()->find($price->subscription_plan_id);
 
-        if ($plan === null || $plan->code !== $this->policy->planCode()) {
-            throw new InvalidArgumentException('Only prices of the canonical Premium plan can be managed here.');
+        if ($plan === null) {
+            throw new InvalidArgumentException('Plan not found for this price.');
         }
 
         $this->ensureSupportedPeriod($price->billing_period);

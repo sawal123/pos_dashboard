@@ -478,8 +478,11 @@ Route::prefix('platform')
             ->middleware('throttle:platform-admin-mutations')
             ->name('subscriptions.inactivate');
 
-        // ADMIN-06 — Premium Plan & Pricing Management (canonical Cloud only).
+        // ADMIN-06 — Subscription Plan & Pricing Management.
         Route::get('subscription-plans', [PlatformSubscriptionPlansController::class, 'index'])->name('subscription-plans.index');
+        Route::post('subscription-plans', [PlatformSubscriptionPlansController::class, 'store'])
+            ->middleware('throttle:platform-admin-mutations')
+            ->name('subscription-plans.store');
         Route::get('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'show'])->name('subscription-plans.show');
         Route::patch('subscription-plans/{plan}', [PlatformSubscriptionPlansController::class, 'update'])
             ->middleware('throttle:platform-admin-mutations')

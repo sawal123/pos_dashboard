@@ -37,6 +37,8 @@ class PlatformAuditAction
     public const USER_DELETED = 'user.deleted';
 
     // Premium plan actions
+    public const SUBSCRIPTION_PLAN_CREATED = 'subscription_plan.created';
+
     public const SUBSCRIPTION_PLAN_UPDATED = 'subscription_plan.updated';
 
     // Pricing actions
@@ -100,6 +102,7 @@ class PlatformAuditAction
             self::PAYMENT_DELETED => 'Pembayaran Dihapus',
             self::USER_UPDATED => 'Pengguna Diperbarui',
             self::USER_DELETED => 'Pengguna Dihapus',
+            self::SUBSCRIPTION_PLAN_CREATED => 'Paket Langganan Dibuat',
             self::SUBSCRIPTION_PLAN_UPDATED => 'Paket Langganan Diperbarui',
             self::SUBSCRIPTION_PRICE_CREATED => 'Harga Paket Dibuat',
             self::SUBSCRIPTION_PRICE_UPDATED => 'Harga Paket Diperbarui',
@@ -136,6 +139,7 @@ class PlatformAuditAction
             self::PAYMENT_DELETED => self::label(self::PAYMENT_DELETED),
             self::USER_UPDATED => self::label(self::USER_UPDATED),
             self::USER_DELETED => self::label(self::USER_DELETED),
+            self::SUBSCRIPTION_PLAN_CREATED => self::label(self::SUBSCRIPTION_PLAN_CREATED),
             self::SUBSCRIPTION_PLAN_UPDATED => self::label(self::SUBSCRIPTION_PLAN_UPDATED),
             self::SUBSCRIPTION_PRICE_CREATED => self::label(self::SUBSCRIPTION_PRICE_CREATED),
             self::SUBSCRIPTION_PRICE_UPDATED => self::label(self::SUBSCRIPTION_PRICE_UPDATED),
