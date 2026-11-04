@@ -17,7 +17,7 @@ class SyncPushRequest extends FormRequest
 
     /**
      * Prepare the data for validation.
-     * Sanitizes non-UUID promo_sync_id to null so valid sales are never rejected.
+     * Sanitizes non-UUID promo_sync_id by unsetting it so valid sales are never rejected.
      */
     protected function prepareForValidation(): void
     {
@@ -28,7 +28,7 @@ class SyncPushRequest extends FormRequest
                 if (is_array($sale) && array_key_exists('promo_sync_id', $sale)) {
                     $promoSyncId = $sale['promo_sync_id'];
                     if (empty($promoSyncId) || ! is_string($promoSyncId) || ! preg_match($uuidRegex, $promoSyncId)) {
-                        $changes['sales'][$index]['promo_sync_id'] = null;
+                        unset($changes['sales'][$index]['promo_sync_id']);
                     }
                 }
             }
@@ -113,7 +113,7 @@ class SyncPushRequest extends FormRequest
             'changes.sales.*.status' => ['sometimes', 'string'],
             'changes.sales.*.subtotal' => ['required', 'integer', 'min:0'],
             'changes.sales.*.discount_amount' => ['sometimes', 'integer', 'min:0'],
-            'changes.sales.*.promo_sync_id' => ['nullable', 'uuid'],
+            'changes.sales.*.promo_sync_id' => ['sometimes', 'nullable', 'uuid'],
             'changes.sales.*.tax_amount' => ['sometimes', 'integer', 'min:0'],
             'changes.sales.*.total_amount' => ['required', 'integer', 'min:0'],
             'changes.sales.*.payment_method' => ['nullable', 'string', 'max:50'],

@@ -796,4 +796,38 @@ class SyncPushTest extends TestCase
         $this->assertCount(2, $item->variants_snapshot);
         $this->assertSame('Oat Milk', $item->variants_snapshot[1]['name']);
     }
+
+    public function test_push_sale_with_non_uuid_promo_sync_id_is_sanitized_to_null(): void
+    {
+        $env = $this->setupSyncEnvironment();
+
+        $saleSyncId = (string) Str::uuid();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'sales' => [
+                        [
+                            'sync_id' => $saleSyncId,
+                            'transaction_number' => 'TRX-PROMO-01',
+                            'status' => 'completed',
+                            'subtotal' => 50000,
+                            'total_amount' => 50000,
+                            'promo_sync_id' => 'local-promo-1730700000-xyz',
+                            'sold_at' => now()->toIso8601String(),
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+
+        $this->assertDatabaseHas('sales', [
+            'sync_id' => $saleSyncId,
+            'promo_sync_id' => null,
+        ]);
+    }
 }
