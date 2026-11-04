@@ -4,10 +4,12 @@ namespace App\Services\Dashboard;
 
 use App\Enums\CostSource;
 use App\Enums\HppMethod;
+use App\Enums\StockMovementType;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
+use App\Models\StockMovement;
 use App\Models\Unit;
 use App\Services\Inventory\HppService;
 use Illuminate\Http\UploadedFile;
@@ -177,6 +179,28 @@ class CatalogManagementService
 
             $product->unit = $this->text($data['unit'] ?? null) ?? 'pcs';
             $product->min_stock = $this->quantity($data['min_stock'] ?? 0);
+
+            if (array_key_exists('stock', $data) && $data['stock'] !== null && $data['stock'] !== '') {
+                $newStock = (float) $data['stock'];
+                $oldStock = (float) $product->stock;
+                if (abs($newStock - $oldStock) >= 0.001) {
+                    $product->stock = $this->quantity($newStock);
+
+                    $movement = new StockMovement([
+                        'business_id' => $product->business_id,
+                        'product_id' => $product->id,
+                        'movement_type' => StockMovementType::Adjustment->value,
+                        'quantity_change' => $this->quantity($newStock - $oldStock),
+                        'stock_before' => $this->quantity($oldStock),
+                        'stock_after' => $this->quantity($newStock),
+                        'note' => 'Penyesuaian stok via edit produk',
+                        'occurred_at' => Carbon::now(),
+                    ]);
+                    $userId = auth()->id();
+                    $movement->user_id = is_numeric($userId) ? (int) $userId : null;
+                    $movement->save();
+                }
+            }
 
             $sku = $this->text($data['sku'] ?? null);
             if ($sku !== null) {

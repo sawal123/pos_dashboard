@@ -863,11 +863,6 @@
                         group.classList.toggle('hidden', group.getAttribute('data-catalog-field') !== kind);
                     });
 
-                    const createGroup = form.querySelector('[data-catalog-field="product-create"]');
-                    if (createGroup) {
-                        createGroup.classList.toggle('hidden', editing || kind !== 'product');
-                    }
-
                     const skuHint = document.getElementById('catalogProductSkuHint');
                     if (skuHint) {
                         skuHint.textContent = kind === 'service' ? '(opsional)' : '(wajib)';
@@ -1173,6 +1168,15 @@
                             skuInput.value = generateRandomSku(kind, !isSupply);
                         }
 
+                        const stockLabel = document.getElementById('catalogProductStockLabel');
+                        const stockHint = document.getElementById('catalogProductStockHint');
+                        if (stockLabel) {
+                            stockLabel.textContent = isSupply ? 'Stok Awal Bahan' : 'Stok Awal';
+                        }
+                        if (stockHint) {
+                            stockHint.textContent = 'Stok awal barang (dapat berupa pecahan atau negatif).';
+                        }
+
                         applyKind(form, kind, false);
                         applySupplyMode(isSupply, isSupply);
                         showProductForm(form);
@@ -1235,11 +1239,24 @@
                         currentHppCalculated = parseFloat(raw.hpp) || 0;
                         setValue(form, 'barcode', raw.barcode || '');
                         setValue(form, 'cost', raw.cost ?? '0');
+                        setValue(form, 'stock', raw.stock !== null && raw.stock !== undefined ? (parseFloat(raw.stock) || 0) : '0');
                         setValue(form, 'min_stock', raw.min_stock ?? '0');
                         setValue(form, 'cost_source', raw.cost_source || 'manual');
                         setValue(form, 'hpp_method', raw.hpp_method || 'average');
                         setValue(form, 'hpp_overhead_fixed', raw.hpp_overhead_fixed ?? '0');
                         setValue(form, 'hpp_overhead_percent', raw.hpp_overhead_percent ?? '0');
+
+                        const isSellable = raw.is_sellable !== false && raw.is_sellable !== 0;
+                        const isSupply = !isSellable;
+
+                        const stockLabel = document.getElementById('catalogProductStockLabel');
+                        const stockHint = document.getElementById('catalogProductStockHint');
+                        if (stockLabel) {
+                            stockLabel.textContent = isSupply ? 'Stok Bahan Baku' : 'Stok Produk';
+                        }
+                        if (stockHint) {
+                            stockHint.textContent = 'Jumlah stok saat ini. Ubah nilai untuk menambah atau menyesuaikan stok.';
+                        }
 
                         const calcAtEdit = document.getElementById('catalogHppCalculatedAt');
                         if (calcAtEdit) {
@@ -1252,9 +1269,6 @@
                         } else {
                             if (emptyHint()) emptyHint().classList.remove('hidden');
                         }
-
-                        const isSellable = raw.is_sellable !== false && raw.is_sellable !== 0;
-                        const isSupply = !isSellable;
 
                         if (recipeSection()) recipeSection().classList.toggle('hidden', isSupply);
 

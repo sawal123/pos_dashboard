@@ -467,8 +467,10 @@
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div data-catalog-field="product-create">
-                            <label for="catalogProductStock" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Stok Awal</label>
+                        <div id="catalogProductStockContainer">
+                            <label for="catalogProductStock" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                                <span id="catalogProductStockLabel">Stok Awal</span>
+                            </label>
                             <input
                                 id="catalogProductStock"
                                 name="stock"
@@ -477,7 +479,7 @@
                                 value="{{ old('stock', 0) }}"
                                 class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
-                            <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Stok awal dapat negatif. Perubahan berikutnya melalui pergerakan stok.</p>
+                            <p id="catalogProductStockHint" class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Stok awal barang (dapat berupa pecahan atau negatif).</p>
                             @error('stock')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                         </div>
                         <div>

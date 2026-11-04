@@ -241,7 +241,7 @@ class ProductsCrudTest extends TestCase
         $this->assertSame(1, Product::where('business_id', $businessA->id)->where('sku', 'SHARED-1')->count());
     }
 
-    public function test_14_update_never_overwrites_movement_driven_stock_or_creates_movements(): void
+    public function test_14_update_can_adjust_product_stock_and_records_movement(): void
     {
         [$business] = $this->actingAsRole('owner');
         $product = Product::factory()->create([
@@ -267,9 +267,23 @@ class ProductsCrudTest extends TestCase
         $this->assertSame(15000, $product->price);
         $this->assertSame('6000.00', $product->cost);
         $this->assertSame('3.000', $product->min_stock);
-        // Stock is authoritative via movements — the catalog form cannot set it.
-        $this->assertSame('7.000', $product->stock);
-        $this->assertSame(0, StockMovement::where('business_id', $business->id)->count());
+        // Stock is updated and an adjustment movement is recorded
+        $this->assertSame('999.000', $product->stock);
+        $this->assertSame(1, StockMovement::where('business_id', $business->id)->count());
+
+        $movement = StockMovement::where('business_id', $business->id)->firstOrFail();
+        $this->assertSame('992.000', $movement->quantity_change);
+        $this->assertSame('7.000', $movement->stock_before);
+        $this->assertSame('999.000', $movement->stock_after);
+
+        // When stock is unchanged in a subsequent update, no new movement is created
+        $this->patch(route('products.update', ['productId' => $product->id]), [
+            'name' => 'Nama Baru Lagi',
+            'sku' => 'UPD-1',
+            'price' => 16000,
+            'stock' => '999.000',
+        ]);
+        $this->assertSame(1, StockMovement::where('business_id', $business->id)->count());
     }
 
     public function test_15_update_a_service_field_set(): void

@@ -120,8 +120,6 @@ class ProductRequest extends FormRequest
 
         if (! $this->isUpdate()) {
             $rules['kind'] = ['required', 'string', Rule::in(CatalogManagementService::KINDS)];
-            // Initial stock is optional and may be negative.
-            $rules['stock'] = ['nullable', 'numeric'];
         }
 
         if ($kind === 'service') {
@@ -151,6 +149,7 @@ class ProductRequest extends FormRequest
             $rules['hpp_overhead_fixed'] = ['nullable', 'numeric', 'min:0'];
             $rules['hpp_overhead_percent'] = ['nullable', 'numeric', 'min:0', 'max:1000'];
             $rules['unit'] = ['nullable', 'string', 'max:20'];
+            $rules['stock'] = ['nullable', 'numeric'];
             // Minimum stock may be negative — no `min:0` here on purpose.
             $rules['min_stock'] = ['nullable', 'numeric'];
             // INV-D02 — raw materials / supplies are tracked but not sold.
