@@ -298,7 +298,7 @@ class PosController extends Controller
                 'id' => $sale->id,
                 'sync_id' => $sale->sync_id,
                 'transaction_number' => $sale->transaction_number,
-                'sold_at' => $sale->sold_at->format('d/m/Y H:i:s'),
+                'sold_at' => $sale->sold_at->copy()->setTimezone(config('app.timezone', 'Asia/Jakarta'))->format('d/m/Y H:i:s'),
                 'subtotal' => (int) $sale->subtotal,
                 'discount_amount' => (int) $sale->discount_amount,
                 'tax_amount' => (int) $sale->tax_amount,

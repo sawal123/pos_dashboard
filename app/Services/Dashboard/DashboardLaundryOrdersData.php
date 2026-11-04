@@ -255,7 +255,7 @@ class DashboardLaundryOrdersData
      */
     private function applyDateFilter(Builder $query, string $date, array $filters): void
     {
-        $tz = config('app.timezone', 'UTC');
+        $tz = config('app.timezone', 'Asia/Jakarta');
         $today = Carbon::now($tz)->startOfDay();
 
         match ($date) {
@@ -387,10 +387,11 @@ class DashboardLaundryOrdersData
             'customer_name' => $this->customerName($sale),
             'customer_phone' => $this->customerPhone($sale),
             'outlet_name' => $this->outletName($sale),
+            $tz = config('app.timezone', 'Asia/Jakarta');
             'sold_at' => $this->formatDateTime($sale->sold_at),
-            'sold_at_raw' => $sale->sold_at->format('Y-m-d H:i:s'),
+            'sold_at_raw' => $sale->sold_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'estimated_completed_at' => $this->formatDateTime($estimated),
-            'estimated_completed_at_raw' => $estimated?->format('Y-m-d H:i:s'),
+            'estimated_completed_at_raw' => $estimated?->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'order_status_raw' => $orderStatusRaw,
             'order_status' => $this->presentOrderStatus($orderStatusRaw),
             'order_status_category' => $this->orderStatusCategory($orderStatusRaw),
@@ -561,7 +562,8 @@ class DashboardLaundryOrdersData
             return null;
         }
 
-        $carbon = Carbon::instance($date);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $carbon = Carbon::instance($date)->setTimezone($tz);
         $carbon->setLocale('id');
 
         return $carbon->translatedFormat('d M Y - H:i');

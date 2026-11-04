@@ -120,7 +120,7 @@ class DashboardTransactionsData
      */
     private function applyDateFilter(Builder $query, string $date, array $filters): void
     {
-        $tz = config('app.timezone', 'UTC');
+        $tz = config('app.timezone', 'Asia/Jakarta');
         $now = Carbon::now($tz);
         $today = $now->copy()->startOfDay();
 
@@ -301,7 +301,8 @@ class DashboardTransactionsData
         $shiftName = $sale->shift !== null ? $sale->shift->shift_number : '-';
 
         // Date presentation
-        $soldAtCarbon = Carbon::parse($sale->sold_at);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $soldAtCarbon = Carbon::parse($sale->sold_at)->setTimezone($tz);
         $soldAt = $this->formatDisplayDate($soldAtCarbon);
         $soldAtRaw = $soldAtCarbon->format('Y-m-d H:i:s');
 
@@ -491,7 +492,8 @@ class DashboardTransactionsData
             return null;
         }
 
-        $carbon = Carbon::parse($date);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $carbon = Carbon::parse($date)->setTimezone($tz);
         $carbon->setLocale('id');
 
         return $carbon->translatedFormat('d M Y H:i');

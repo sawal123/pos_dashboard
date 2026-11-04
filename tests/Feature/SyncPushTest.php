@@ -830,4 +830,38 @@ class SyncPushTest extends TestCase
             'promo_sync_id' => null,
         ]);
     }
+
+    public function test_sync_push_aligns_utc_timestamps_to_app_timezone(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $saleSyncId = (string) Str::uuid();
+
+        // Mobile sends UTC ISO string 09:11:00Z (which corresponds to 16:11:00 in Asia/Jakarta UTC+7)
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'sales' => [
+                        [
+                            'sync_id' => $saleSyncId,
+                            'transaction_number' => 'TRX-TZ-01',
+                            'status' => 'completed',
+                            'subtotal' => 25000,
+                            'total_amount' => 25000,
+                            'sold_at' => '2026-11-04T09:11:00.000Z',
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+
+        $sale = Sale::where('sync_id', $saleSyncId)->first();
+        $this->assertNotNull($sale);
+
+        // When formatted in Asia/Jakarta, it should display 16:11
+        $this->assertSame('16:11', $sale->sold_at->setTimezone('Asia/Jakarta')->format('H:i'));
+    }
 }

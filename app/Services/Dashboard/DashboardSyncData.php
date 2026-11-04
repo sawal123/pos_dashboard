@@ -244,7 +244,8 @@ class DashboardSyncData
             return null;
         }
 
-        $c = Carbon::instance($date);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $c = Carbon::instance($date)->setTimezone($tz);
         $c->setLocale('id');
 
         return $c->translatedFormat('d M Y · H:i');

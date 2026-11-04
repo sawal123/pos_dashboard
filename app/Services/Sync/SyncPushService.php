@@ -351,8 +351,8 @@ class SyncPushService
                 'status' => (string) ($item['status'] ?? 'open'),
                 'opening_cash' => (int) ($item['opening_cash'] ?? 0),
                 'closing_cash' => isset($item['closing_cash']) ? (int) $item['closing_cash'] : null,
-                'opened_at' => Carbon::parse((string) $item['opened_at']),
-                'closed_at' => isset($item['closed_at']) ? Carbon::parse((string) $item['closed_at']) : null,
+                'opened_at' => $this->parseSyncTimestamp($item['opened_at']),
+                'closed_at' => isset($item['closed_at']) ? $this->parseSyncTimestamp($item['closed_at']) : null,
                 'notes' => isset($item['notes']) ? (string) $item['notes'] : null,
             ];
 
@@ -429,7 +429,7 @@ class SyncPushService
                     : null,
                 'tax_amount' => (int) ($item['tax_amount'] ?? 0),
                 'total_amount' => (int) $item['total_amount'],
-                'sold_at' => Carbon::parse((string) $item['sold_at']),
+                'sold_at' => $this->parseSyncTimestamp($item['sold_at']),
             ], $payment, $snapshots);
 
             $sale = null;
@@ -612,7 +612,7 @@ class SyncPushService
                 'description' => (string) $item['description'],
                 'amount' => (int) $item['amount'],
                 'status' => (string) ($item['status'] ?? 'recorded'),
-                'occurred_at' => Carbon::parse((string) $item['occurred_at']),
+                'occurred_at' => $this->parseSyncTimestamp($item['occurred_at']),
                 'notes' => isset($item['notes']) ? (string) $item['notes'] : null,
             ];
 
@@ -683,7 +683,11 @@ class SyncPushService
             $fields['payment_status'] = (string) $item['payment_status'];
         }
 
-        foreach (['paid_at', 'cash_received', 'change_amount'] as $key) {
+        if (array_key_exists('paid_at', $item) && $item['paid_at'] !== null) {
+            $fields['paid_at'] = $this->parseSyncTimestamp($item['paid_at']);
+        }
+
+        foreach (['cash_received', 'change_amount'] as $key) {
             if (array_key_exists($key, $item) && $item[$key] !== null) {
                 $fields[$key] = $item[$key];
             }
@@ -708,7 +712,11 @@ class SyncPushService
             $fields['gross_profit'] = $item['gross_profit'];
         }
 
-        foreach (['order_status', 'estimated_completed_at', 'note'] as $key) {
+        if (array_key_exists('estimated_completed_at', $item)) {
+            $fields['estimated_completed_at'] = $this->parseSyncTimestamp($item['estimated_completed_at']);
+        }
+
+        foreach (['order_status', 'note'] as $key) {
             if (array_key_exists($key, $item)) {
                 $fields[$key] = $item[$key] !== null ? $item[$key] : null;
             }
@@ -861,7 +869,7 @@ class SyncPushService
                 'note' => isset($item['note']) ? (string) $item['note'] : null,
                 'reference_id' => isset($item['reference_id']) ? (string) $item['reference_id'] : null,
                 'sale_sync_id' => isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : null,
-                'occurred_at' => Carbon::parse((string) $item['occurred_at']),
+                'occurred_at' => $this->parseSyncTimestamp($item['occurred_at']),
                 'shift_id' => $shiftId,
             ];
 
@@ -967,7 +975,7 @@ class SyncPushService
                 'category' => isset($item['category']) ? (string) $item['category'] : null,
                 'note' => isset($item['note']) ? (string) $item['note'] : null,
                 'sale_sync_id' => isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : null,
-                'occurred_at' => Carbon::parse((string) $item['occurred_at']),
+                'occurred_at' => $this->parseSyncTimestamp($item['occurred_at']),
             ];
 
             if ($record instanceof StockMovement) {
@@ -1272,5 +1280,19 @@ class SyncPushService
         }
 
         return $ranks[$status];
+    }
+
+    /**
+     * Parse an incoming sync timestamp and align it with the application timezone.
+     */
+    protected function parseSyncTimestamp(mixed $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $tz = config('app.timezone', 'Asia/Jakarta');
+
+        return Carbon::parse((string) $value)->setTimezone($tz);
     }
 }

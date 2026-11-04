@@ -272,7 +272,7 @@ class DashboardCashData
      */
     private function applyDateFilter(Builder $query, string $date, array $filters): void
     {
-        $tz = config('app.timezone', 'UTC');
+        $tz = config('app.timezone', 'Asia/Jakarta');
         $now = Carbon::now($tz);
         $today = $now->copy()->startOfDay();
 
@@ -388,8 +388,9 @@ class DashboardCashData
             'is_reversible' => $ledger->isManuallyReversible() && $ledger->reversal === null,
             'is_correction' => $ledger->reverses_ledger_id !== null
                 || in_array($ledger->category, [CashLedger::CATEGORY_REVERSAL, CashLedger::CATEGORY_EXPENSE_VOID], true),
-            'occurred_at_raw' => $ledger->occurred_at->format('Y-m-d H:i:s'),
-            'occurred_at' => $ledger->occurred_at->translatedFormat('d M Y · H:i'),
+            $tz = config('app.timezone', 'Asia/Jakarta');
+            'occurred_at_raw' => $ledger->occurred_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
+            'occurred_at' => $ledger->occurred_at->copy()->setTimezone($tz)->translatedFormat('d M Y · H:i'),
             'outlet_id' => (int) $ledger->outlet_id,
             'outlet_name' => $ledger->outlet !== null ? $ledger->outlet->name : '-',
             'shift_number' => $ledger->shift !== null ? $ledger->shift->shift_number : null,
@@ -426,8 +427,9 @@ class DashboardCashData
             // be voided. Voiding is idempotent server-side; the UI simply does
             // not offer it once the expense is no longer recorded.
             'is_voidable' => $statusRaw === 'recorded',
-            'occurred_at_raw' => $expense->occurred_at->format('Y-m-d H:i:s'),
-            'occurred_at' => $expense->occurred_at->translatedFormat('d M Y · H:i'),
+            $tz = config('app.timezone', 'Asia/Jakarta');
+            'occurred_at_raw' => $expense->occurred_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
+            'occurred_at' => $expense->occurred_at->copy()->setTimezone($tz)->translatedFormat('d M Y · H:i'),
             'notes' => $expense->notes !== null ? (string) $expense->notes : null,
             'paid_from_cash' => $expense->cashLedger !== null,
             'cash_ledger_id' => $expense->cashLedger !== null ? (int) $expense->cashLedger->id : null,

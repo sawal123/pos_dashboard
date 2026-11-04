@@ -147,7 +147,8 @@ class DashboardStockHistoryData
      */
     private function presentMovement(StockMovement $movement): array
     {
-        $occurredAt = Carbon::instance($movement->occurred_at);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $occurredAt = Carbon::instance($movement->occurred_at)->setTimezone($tz);
         $occurredAt->setLocale('id');
 
         $product = $movement->product;

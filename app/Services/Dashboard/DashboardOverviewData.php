@@ -23,7 +23,7 @@ class DashboardOverviewData
      */
     public function get(?Business $currentBusiness, string $period = '7d', bool $hasCloudAccess = false): array
     {
-        $tz = (string) config('app.timezone', 'UTC');
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
         $now = Carbon::now($tz);
         $currentDateFormatted = $this->formatIndonesianDate($now, 'l, d F Y');
 
@@ -437,7 +437,8 @@ class DashboardOverviewData
                 $outletName = $sale->outlet->name;
             }
 
-            $soldAtCarbon = Carbon::parse($sale->sold_at);
+            $tz = (string) config('app.timezone', 'Asia/Jakarta');
+            $soldAtCarbon = Carbon::parse($sale->sold_at)->setTimezone($tz);
 
             return [
                 'id' => $sale->id,

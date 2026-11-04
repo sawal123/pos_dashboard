@@ -98,7 +98,7 @@
         @endif
         <div class="meta" style="margin-top: 4px;">
             No: {{ $sale->transaction_number }}<br>
-            Waktu: {{ $sale->sold_at?->format('d/m/Y H:i:s') }}<br>
+            Waktu: {{ $sale->sold_at?->copy()->setTimezone(config('app.timezone', 'Asia/Jakarta'))->format('d/m/Y H:i:s') }}<br>
             Kasir: {{ $sale->shift ? 'Shift '.$sale->shift->shift_number : 'Web Kasir' }}
             @if($sale->customer)
                 <br>Pelanggan: {{ $sale->customer->name }}

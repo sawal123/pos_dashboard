@@ -240,13 +240,14 @@ class DashboardCustomersData
      */
     private function presentTransaction(Sale $sale): array
     {
+        $tz = config('app.timezone', 'Asia/Jakarta');
         $soldAt = $sale->sold_at;
 
         return [
             'id' => (int) $sale->id,
             'transaction_number' => (string) $sale->transaction_number,
             'sold_at' => $this->formatDateTime($soldAt),
-            'sold_at_raw' => $soldAt->format('Y-m-d H:i:s'),
+            'sold_at_raw' => $soldAt->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'total_amount' => (int) $sale->total_amount,
             'payment_method_raw' => $sale->payment_method,
             'payment_method' => $this->presentPaymentMethod($sale->payment_method),
@@ -318,7 +319,8 @@ class DashboardCustomersData
         }
 
         try {
-            $carbon = Carbon::parse((string) $date);
+            $tz = config('app.timezone', 'Asia/Jakarta');
+            $carbon = Carbon::parse((string) $date)->setTimezone($tz);
         } catch (\Throwable) {
             return null;
         }
