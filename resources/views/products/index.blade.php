@@ -121,9 +121,15 @@
             >
                 <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
                 <span>Template Varian</span>
-                <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'variants' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
-                    {{ $tabCounts['variants'] ?? 0 }}
-                </span>
+                @unless($hasCloudAccess ?? false)
+                    <span class="px-1.5 py-0.5 rounded-full text-[9px] bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-extrabold uppercase tracking-wide">
+                        Cloud
+                    </span>
+                @else
+                    <span class="px-1.5 py-0.5 rounded-full text-[10px] {{ $activeTab === 'variants' ? 'bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} tabular-nums">
+                        {{ $tabCounts['variants'] ?? 0 }}
+                    </span>
+                @endunless
             </a>
         </div>
 
@@ -134,10 +140,62 @@
             :active-tab="$activeTab"
             :current-filters="$filters"
             :can-manage="$canManageCatalog"
+            :has-cloud-access="$hasCloudAccess ?? false"
         />
 
         {{-- ==================== 4. DATA LIST / EMPTY STATE ==================== --}}
-        @if($items->total() > 0)
+        @if($activeTab === 'variants' && !($hasCloudAccess ?? false))
+            <div id="panelVariants" role="tabpanel" aria-labelledby="tabVariants" class="catalog-panel space-y-4">
+                <div class="rounded-2xl border border-amber-200/80 dark:border-amber-900/60 bg-gradient-to-br from-amber-50/60 via-white to-indigo-50/40 dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/30 p-6 md:p-8 text-center max-w-2xl mx-auto shadow-xs space-y-5">
+                    <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 mx-auto shadow-inner">
+                        <i data-lucide="crown" class="w-7 h-7"></i>
+                    </div>
+                    <div class="space-y-2">
+                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/80 dark:text-amber-300">
+                            Khusus Pelanggan Paket Cloud
+                        </span>
+                        <h3 class="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                            Template Varian Menu (Khusus Paket Cloud)
+                        </h3>
+                        <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-lg mx-auto">
+                            Fitur varian memungkinkan kasir memilih opsi kustomisasi produk (seperti ukuran Regular/Large, level gula, topping tambahan, dan suhu) dengan penyesuaian harga otomatis saat transaksi di POS.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left pt-2">
+                        <div class="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1">
+                                <i data-lucide="layers" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                <span>Multi Topping</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Pilihan tunggal (radio) atau pilihan ganda (checkbox).</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1">
+                                <i data-lucide="tag" class="w-3.5 h-3.5 text-emerald-500"></i>
+                                <span>Harga Dinamis</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Penambahan biaya otomatis per opsi varian yang dipilih.</p>
+                        </div>
+                        <div class="p-3 rounded-xl bg-white/80 dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-white mb-1">
+                                <i data-lucide="smartphone" class="w-3.5 h-3.5 text-purple-500"></i>
+                                <span>Popup di POS</span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Kasir langsung disuguhkan popup varian saat klik menu.</p>
+                        </div>
+                    </div>
+                    <div class="pt-2">
+                        <a
+                            href="{{ route('subscriptions.index') }}"
+                            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95"
+                        >
+                            <i data-lucide="sparkles" class="w-4 h-4"></i>
+                            <span>Berlangganan Paket Cloud Sekarang</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        @elseif($items->total() > 0)
             @if($activeTab === 'products')
                 <div id="panelProducts" role="tabpanel" aria-labelledby="tabProducts" class="catalog-panel space-y-4">
                     <x-products.product-table :products="$items" :can-manage="$canManageCatalog" />
@@ -242,6 +300,7 @@
                 :raw-material-options="$rawMaterialOptions ?? []"
                 :variant-group-options="$variantGroupOptions ?? []"
                 :unit-options="$unitOptions ?? []"
+                :has-cloud-access="$hasCloudAccess ?? false"
             />
 
             {{-- ==================== 8. VARIANT GROUP MODAL ==================== --}}

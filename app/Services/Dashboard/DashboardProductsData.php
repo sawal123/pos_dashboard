@@ -174,6 +174,7 @@ class DashboardProductsData
             'rawMaterialOptions' => $rawMaterialOptions,
             'variantGroupOptions' => $variantGroupOptions,
             'unitOptions' => $unitOptions,
+            'hasCloudAccess' => $business->hasCloudAccess(),
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => $filterOptions,
             'currentFilters' => $this->sanitizeFilters($filters, $activeTab),
@@ -721,6 +722,7 @@ class DashboardProductsData
             'statuses' => [],
             'variantGroupOptions' => [],
             'unitOptions' => Unit::DEFAULT_UNITS,
+            'hasCloudAccess' => false,
             'filters' => $this->sanitizeFilters($filters, $activeTab),
             'filterOptions' => [
                 'categories' => [],

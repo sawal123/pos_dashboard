@@ -355,6 +355,46 @@ class VariantManagementTest extends TestCase
         $response->assertSee('Level Es');
     }
 
+    public function test_free_account_cannot_create_variant_group(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        Subscription::factory()->free()->create(['business_id' => $business->id]);
+        $business->users()->attach($user->id, ['role' => 'owner']);
+
+        $this->actingAs($user)->withSession(['dashboard.current_business_id' => $business->id]);
+
+        $response = $this->post(route('products.variant-groups.store'), [
+            'name' => 'Topping Free',
+            'selection_type' => 'single',
+            'options' => [['name' => 'Opsi 1']],
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertDatabaseMissing('variant_groups', ['name' => 'Topping Free']);
+    }
+
+    public function test_free_account_cannot_assign_variant_groups_to_product(): void
+    {
+        $user = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        Subscription::factory()->free()->create(['business_id' => $business->id]);
+        $business->users()->attach($user->id, ['role' => 'owner']);
+
+        $this->actingAs($user)->withSession(['dashboard.current_business_id' => $business->id]);
+
+        $response = $this->post(route('products.store'), [
+            'kind' => 'product',
+            'name' => 'Kopi Free',
+            'sku' => 'KPS-FREE-1',
+            'price' => 15000,
+            'is_sellable' => 1,
+            'variant_group_ids' => [1, 2],
+        ]);
+
+        $response->assertRedirect(route('dashboard'));
+    }
+
     /**
      * @return array{0: Business, 1: User}
      */

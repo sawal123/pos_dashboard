@@ -5,6 +5,7 @@
     'rawMaterialOptions' => [],
     'variantGroupOptions' => [],
     'unitOptions' => [],
+    'hasCloudAccess' => true,
 ])
 
 @php
@@ -530,7 +531,22 @@
                     @error('is_sellable')<p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
 
                     {{-- Variant Groups Assignment (Template Varian) --}}
-                    @if(!empty($variantGroupOptions))
+                    @if(!($hasCloudAccess ?? false))
+                        <div id="catalogVariantGroupsSection" class="p-3.5 rounded-xl border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                                        <i data-lucide="crown" class="w-3.5 h-3.5"></i>
+                                    </span>
+                                    <span class="text-xs font-bold text-slate-800 dark:text-slate-200">Template Varian (Khusus Cloud)</span>
+                                </div>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300">PRO</span>
+                            </div>
+                            <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                Fitur kustomisasi varian menu (topping, ukuran, level rasa) khusus untuk bisnis yang berlangganan paket Cloud.
+                            </p>
+                        </div>
+                    @elseif(!empty($variantGroupOptions))
                         <div id="catalogVariantGroupsSection" class="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/40 space-y-2.5">
                             <div class="flex items-center justify-between">
                                 <div>

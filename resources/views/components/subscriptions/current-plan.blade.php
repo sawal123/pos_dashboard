@@ -58,6 +58,45 @@
         @endforeach
     </dl>
 
+    @if(!$cloudActive)
+        <div class="p-4 rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-br from-indigo-50/60 via-purple-50/30 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 space-y-3">
+            <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-400">
+                <i data-lucide="crown" class="w-4 h-4 shrink-0"></i>
+                <h3 class="text-xs font-bold uppercase tracking-wider">Manfaat Berlangganan Paket Cloud</h3>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-700 dark:text-slate-300">
+                <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 text-[10px] font-bold">✓</span>
+                    <div>
+                        <strong class="font-semibold text-slate-900 dark:text-white">Varian Menu &amp; Topping:</strong>
+                        <span class="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5">Kustomisasi produk dengan opsi ukuran, level rasa, dan topping dengan penyesuaian harga otomatis di POS.</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 text-[10px] font-bold">✓</span>
+                    <div>
+                        <strong class="font-semibold text-slate-900 dark:text-white">Sinkronisasi Cloud Real-time:</strong>
+                        <span class="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5">Hubungkan hingga 5 perangkat kasir offline/online sekaligus dengan sinkronisasi otomatis.</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 text-[10px] font-bold">✓</span>
+                    <div>
+                        <strong class="font-semibold text-slate-900 dark:text-white">Web Dashboard &amp; Analitik Usaha:</strong>
+                        <span class="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5">Kelola resep HPP otomatis, kalkulasi laba rugi, dan kelola inventori persediaan dari browser.</span>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2.5">
+                    <span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 text-[10px] font-bold">✓</span>
+                    <div>
+                        <strong class="font-semibold text-slate-900 dark:text-white">Backup Cloud Otomatis &amp; Aman:</strong>
+                        <span class="text-slate-500 dark:text-slate-400 block text-[11px] mt-0.5">Data penjualan aman tersimpan di cloud, tidak takut hilang saat pergantian HP/tablet.</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+
     @unless($subscription['has_subscription'] ?? false)
         <p class="text-xs text-slate-500 dark:text-slate-400">
             Belum ada data langganan untuk bisnis ini. Selama belum ada, akses sinkronisasi Cloud tidak tersedia.

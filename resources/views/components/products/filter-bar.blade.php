@@ -4,6 +4,7 @@
     'currentFilters' => [],
     'activeTab' => 'products',
     'canManage' => false,
+    'hasCloudAccess' => true,
 ])
 
 @php
@@ -128,16 +129,26 @@
             {{-- DASH-15 — owner-only "add" action opens the catalog modal or variant group modal. --}}
             @if($canManage)
                 @if($activeTab === 'variants')
-                    <button
-                        type="button"
-                        id="addVariantGroupBtn"
-                        data-open-variant-group-modal
-                        data-variant-group-mode="create"
-                        class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>{{ $btnLabel }}</span>
-                    </button>
+                    @if($hasCloudAccess)
+                        <button
+                            type="button"
+                            id="addVariantGroupBtn"
+                            data-open-variant-group-modal
+                            data-variant-group-mode="create"
+                            class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer"
+                        >
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>{{ $btnLabel }}</span>
+                        </button>
+                    @else
+                        <a
+                            href="{{ route('subscriptions.index') }}"
+                            class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                        >
+                            <i data-lucide="crown" class="w-4 h-4"></i>
+                            <span>Upgrade Cloud</span>
+                        </a>
+                    @endif
                 @else
                     <button
                         type="button"

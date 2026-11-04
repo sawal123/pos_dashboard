@@ -21,6 +21,13 @@ class VariantGroupController extends Controller
     public function store(VariantGroupRequest $request): RedirectResponse
     {
         $business = $this->activeBusiness($request);
+
+        if (! $business->hasCloudAccess()) {
+            return redirect()
+                ->route('products.index', ['tab' => 'variants'])
+                ->withErrors(['Fitur varian menu khusus untuk bisnis yang berlangganan paket Cloud.']);
+        }
+
         $group = $this->variantService->createGroup($business, $request->validated());
 
         return redirect()
@@ -31,6 +38,12 @@ class VariantGroupController extends Controller
     public function update(VariantGroupRequest $request, int $groupId): RedirectResponse
     {
         $business = $this->activeBusiness($request);
+
+        if (! $business->hasCloudAccess()) {
+            return redirect()
+                ->route('products.index', ['tab' => 'variants'])
+                ->withErrors(['Fitur varian menu khusus untuk bisnis yang berlangganan paket Cloud.']);
+        }
 
         $group = VariantGroup::query()
             ->where('business_id', $business->id)
@@ -47,6 +60,12 @@ class VariantGroupController extends Controller
     public function destroy(Request $request, int $groupId): RedirectResponse
     {
         $business = $this->activeBusiness($request);
+
+        if (! $business->hasCloudAccess()) {
+            return redirect()
+                ->route('products.index', ['tab' => 'variants'])
+                ->withErrors(['Fitur varian menu khusus untuk bisnis yang berlangganan paket Cloud.']);
+        }
 
         $group = VariantGroup::query()
             ->where('business_id', $business->id)

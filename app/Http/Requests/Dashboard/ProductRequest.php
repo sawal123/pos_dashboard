@@ -107,16 +107,21 @@ class ProductRequest extends FormRequest
                 'max:255',
                 Rule::unique('products', 'barcode')->where('business_id', $businessId)->ignore($productId),
             ],
-            'variant_group_ids' => ['nullable', 'array'],
-            'variant_group_ids.*' => [
+            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
+            'remove_image' => ['nullable', 'boolean'],
+        ];
+
+        if ($business && ! $business->hasCloudAccess()) {
+            $rules['variant_group_ids'] = ['prohibited'];
+        } else {
+            $rules['variant_group_ids'] = ['nullable', 'array'];
+            $rules['variant_group_ids.*'] = [
                 'integer',
                 Rule::exists('variant_groups', 'id')->where(
                     fn ($query) => $query->where('business_id', $businessId)->where('status', '!=', 'deleted')
                 ),
-            ],
-            'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
-            'remove_image' => ['nullable', 'boolean'],
-        ];
+            ];
+        }
 
         if (! $this->isUpdate()) {
             $rules['kind'] = ['required', 'string', Rule::in(CatalogManagementService::KINDS)];
@@ -187,6 +192,7 @@ class ProductRequest extends FormRequest
             'min_quantity.min' => 'Minimum quantity tidak boleh negatif.',
             'stock.numeric' => 'Stok awal harus berupa angka.',
             'is_sellable.boolean' => 'Penanda bahan baku tidak valid.',
+            'variant_group_ids.prohibited' => 'Fitur varian menu khusus untuk bisnis yang berlangganan paket Cloud.',
         ];
     }
 

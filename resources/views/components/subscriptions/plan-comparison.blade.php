@@ -31,6 +31,10 @@
                     <i data-lucide="x" class="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400"></i>
                     <span>Tidak mendapat akses sinkronisasi Cloud.</span>
                 </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="x" class="w-4 h-4 shrink-0 text-rose-500 dark:text-rose-400"></i>
+                    <span>Fitur Varian Menu (opsi ukuran, level rasa &amp; topping) tidak tersedia.</span>
+                </li>
             </ul>
         </div>
 
@@ -46,7 +50,11 @@
             <ul class="space-y-2 text-xs text-slate-600 dark:text-slate-300">
                 <li class="flex items-start gap-2">
                     <i data-lucide="refresh-cw" class="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400"></i>
-                    <span>Sinkronisasi Cloud tersedia hanya selama subscription benar-benar aktif.</span>
+                    <span>Sinkronisasi Cloud multi-perangkat tersedia selama subscription aktif.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                    <i data-lucide="layers" class="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400"></i>
+                    <span>Fitur Varian Menu &amp; opsi topping kustom dengan penyesuaian harga di POS.</span>
                 </li>
                 <li class="flex items-start gap-2">
                     <i data-lucide="shield-check" class="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400"></i>
