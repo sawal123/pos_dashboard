@@ -249,78 +249,40 @@
                     <p>Mulai gratis secara offline atau aktifkan paket Cloud untuk sinkronisasi otomatis dan web dashboard.</p>
                 </div>
                 <div class="pricing-grid">
-                    {{-- Paket Free --}}
-                    <article class="pricing-card">
-                        <span class="badge" style="background:#eaf8f1; color:#0d7a42;">Gratis Selamanya</span>
-                        <h3>{{ $freePlan?->name ?? 'Paket Free' }}</h3>
-                        <p>{{ $freePlan?->description ?: 'Mulai operasional kasir offline mandiri tanpa biaya langganan.' }}</p>
-                        <div class="price-line">
-                            <span class="price-amount">Rp 0</span>
-                            <span class="price-period">/ selamanya</span>
-                        </div>
-                        <ul class="pricing-features">
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Aplikasi POS kasir offline cepat</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Transaksi &amp; cetak struk tanpa internet</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Katalog produk &amp; kategori lokal</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Hitung HPP &amp; pantau stok bahan</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>1 perangkat kasir lokal</li>
-                        </ul>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="button button-light" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center;">Mulai Gratis</a>
-                        @endif
-                    </article>
-
-                    {{-- Cloud Monthly --}}
-                    <article class="pricing-card">
-                        <span class="badge">Bulanan</span>
-                        <h3>Cloud Monthly</h3>
-                        <p>Mulai dari paket fleksibel untuk operasional yang terus bergerak.</p>
-                        <div class="price-line">
-                            @if($monthlyPrice)
-                                <span class="price-amount">{{ $monthlyPrice['currency'] === 'IDR' ? 'Rp' : $monthlyPrice['currency'] }} {{ number_format($monthlyPrice['price_minor'], 0, ',', '.') }}</span>
-                                <span class="price-period">/ bulan</span>
-                            @else
-                                <span class="price-amount">Segera hadir</span>
+                    @forelse($pricingCards as $card)
+                        <article class="pricing-card {{ $card['is_featured'] ? 'featured' : '' }}">
+                            <span class="badge" @if(!empty($card['badge_style'])) style="{{ $card['badge_style'] }}" @endif>{{ $card['badge'] }}</span>
+                            <h3>{{ $card['name'] }}</h3>
+                            <p>{{ $card['description'] }}</p>
+                            <div class="price-line">
+                                <span class="price-amount">{{ $card['price_formatted'] }}</span>
+                                @if(!empty($card['price_period']))
+                                    <span class="price-period">{{ $card['price_period'] }}</span>
+                                @endif
+                            </div>
+                            <ul class="pricing-features">
+                                @foreach($card['features'] as $feature)
+                                    <li>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>
+                                        <span>{!! $feature !!}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            @if (Route::has('register'))
+                                <a
+                                    href="{{ route('register') }}"
+                                    class="{{ $card['cta_style'] }}"
+                                    style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center; {{ $card['is_featured'] ? 'background:var(--lime); color:var(--navy); font-weight:700;' : '' }}"
+                                >
+                                    {{ $card['cta_label'] }}
+                                </a>
                             @endif
+                        </article>
+                    @empty
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 48px 24px; border: 1px dashed var(--line); border-radius: 20px;">
+                            <p style="color: var(--muted); margin: 0;">Belum ada paket langganan yang aktif saat ini.</p>
                         </div>
-                        <ul class="pricing-features">
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Semua fitur Paket Free</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Sinkronisasi Cloud otomatis</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dashboard operasional &amp; laba rugi</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Varian Menu (Cup, Sugar, Level)</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Hingga 5 perangkat kasir</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Manajemen Promo &amp; Diskon</li>
-                        </ul>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="button button-light" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center;">Pilih Bulanan</a>
-                        @endif
-                    </article>
-
-                    {{-- Cloud Yearly (Featured) --}}
-                    <article class="pricing-card featured">
-                        <span class="badge">Hemat 2 Bulan • Rekomendasi</span>
-                        <h3>Cloud Yearly</h3>
-                        <p>Lebih praktis untuk bisnis yang ingin fokus tumbuh sepanjang tahun.</p>
-                        <div class="price-line">
-                            @if($yearlyPrice)
-                                <span class="price-amount">{{ $yearlyPrice['currency'] === 'IDR' ? 'Rp' : $yearlyPrice['currency'] }} {{ number_format($yearlyPrice['price_minor'], 0, ',', '.') }}</span>
-                                <span class="price-period">/ tahun</span>
-                            @else
-                                <span class="price-amount">Segera hadir</span>
-                            @endif
-                        </div>
-                        <ul class="pricing-features">
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Semua fitur Cloud Bulanan</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Lebih hemat 2 bulan langganan</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Prioritas sinkronisasi Cloud</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dashboard operasional &amp; laba rugi</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Varian Menu &amp; Multi-device (5 unit)</li>
-                            <li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Backup &amp; restore data cloud aman</li>
-                        </ul>
-                        @if (Route::has('register'))
-                            <a href="{{ route('register') }}" class="button" style="display:flex; width:100%; justify-content:center; margin-top:24px; text-align:center; background:var(--lime); color:var(--navy); font-weight:700;">Mulai Berlangganan</a>
-                        @endif
-                    </article>
+                    @endforelse
                 </div>
             </section>
 

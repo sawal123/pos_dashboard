@@ -48,6 +48,7 @@ use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Subscription\LandingPricingService;
 use App\Services\Subscription\PremiumPolicy;
 use App\Services\Subscription\PremiumPricing;
 use Illuminate\Support\Facades\Route;
@@ -73,22 +74,9 @@ use Illuminate\Support\Facades\Schema;
 | A denied browser request is redirected back to `dashboard`, so an expired
 | owner is never locked out of seeing their status or renewing.
 */
-Route::get('/', function (PremiumPricing $pricing) {
-    $prices = collect();
-    $freePlan = null;
-    $cloudPlan = null;
-
-    if (Schema::hasTable('subscription_plans') && Schema::hasTable('subscription_plan_prices')) {
-        $prices = collect($pricing->periodsFor(Subscription::PLAN_CLOUD))->keyBy('period');
-        $freePlan = SubscriptionPlan::with('prices')->where('code', Subscription::PLAN_FREE)->first();
-        $cloudPlan = SubscriptionPlan::with('prices')->where('code', Subscription::PLAN_CLOUD)->first();
-    }
-
+Route::get('/', function (LandingPricingService $landingPricing) {
     return view('welcome', [
-        'monthlyPrice' => $prices->get('monthly'),
-        'yearlyPrice' => $prices->get('yearly'),
-        'freePlan' => $freePlan,
-        'cloudPlan' => $cloudPlan,
+        'pricingCards' => $landingPricing->cards(),
     ]);
 })->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
