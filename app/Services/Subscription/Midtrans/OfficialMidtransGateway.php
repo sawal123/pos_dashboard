@@ -30,6 +30,9 @@ final class OfficialMidtransGateway implements MidtransGateway
                 'first_name' => $user->name,
                 'email' => $user->email,
             ],
+            'callbacks' => [
+                'finish' => route('midtrans.finish'),
+            ],
             'custom_field1' => (string) $payment->id,
             'custom_field2' => (string) $business->id,
             'custom_field3' => $payment->plan.':'.$payment->billing_period,
