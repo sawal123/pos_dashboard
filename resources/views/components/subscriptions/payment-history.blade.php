@@ -134,7 +134,10 @@
                                         <form
                                             method="POST"
                                             action="{{ route('subscriptions.payments.cancel', ['paymentId' => $payment->id]) }}"
-                                            onsubmit="return confirm('Apakah Anda yakin ingin membatalkan transaksi ini?');"
+                                            data-confirm-title="Batalkan Transaksi Pembayaran"
+                                            data-confirm-message="Apakah Anda yakin ingin membatalkan transaksi pembayaran ini?"
+                                            data-confirm-button="Ya, Batalkan"
+                                            data-confirm-variant="danger"
                                             class="inline"
                                         >
                                             @csrf
@@ -220,7 +223,10 @@
                             <form
                                 method="POST"
                                 action="{{ route('subscriptions.payments.cancel', ['paymentId' => $payment->id]) }}"
-                                onsubmit="return confirm('Apakah Anda yakin ingin membatalkan transaksi ini?');"
+                                data-confirm-title="Batalkan Transaksi Pembayaran"
+                                data-confirm-message="Apakah Anda yakin ingin membatalkan transaksi pembayaran ini?"
+                                data-confirm-button="Ya, Batalkan"
+                                data-confirm-variant="danger"
                                 class="{{ !empty($payment->redirect_url) ? '' : 'w-full' }}"
                             >
                                 @csrf
@@ -245,3 +251,4 @@
         @endif
     @endif
 </section>
+

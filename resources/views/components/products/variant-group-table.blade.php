@@ -121,7 +121,10 @@
                                     <form
                                         method="POST"
                                         action="{{ route('products.variant-groups.destroy', ['groupId' => $group['id']]) }}"
-                                        onsubmit="return confirm('Apakah Anda yakin ingin menghapus template varian {{ addslashes($group['name']) }}? Template ini akan dilepas dari semua produk yang menggunakannya.')"
+                                        data-confirm-title="Hapus Template Varian"
+                                        data-confirm-message="Apakah Anda yakin ingin menghapus template varian {{ addslashes($group['name']) }}? Template ini akan dilepas dari semua produk yang menggunakannya."
+                                        data-confirm-button="Hapus Template"
+                                        data-confirm-variant="danger"
                                         class="inline"
                                     >
                                         @csrf
@@ -205,7 +208,10 @@
                     <form
                         method="POST"
                         action="{{ route('products.variant-groups.destroy', ['groupId' => $group['id']]) }}"
-                        onsubmit="return confirm('Apakah Anda yakin ingin menghapus template varian ini?')"
+                        data-confirm-title="Hapus Template Varian"
+                        data-confirm-message="Apakah Anda yakin ingin menghapus template varian ini? Template akan dilepas dari produk terkait."
+                        data-confirm-button="Hapus Template"
+                        data-confirm-variant="danger"
                         class="inline"
                     >
                         @csrf

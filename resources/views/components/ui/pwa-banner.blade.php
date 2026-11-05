@@ -229,7 +229,11 @@
             hideInstallCard(true);
             return choiceResult.outcome;
         } else {
-            alert('Aplikasi NexaPOS dapat dipasang melalui menu browser (ikon Install/Pasang Aplikasi di address bar).');
+            if (typeof showToast === 'function') {
+                showToast('info', 'Aplikasi NexaPOS dapat dipasang melalui menu browser (ikon Install/Pasang Aplikasi di address bar).');
+            } else {
+                console.info('Aplikasi NexaPOS dapat dipasang melalui menu browser.');
+            }
             return null;
         }
     };

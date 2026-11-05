@@ -275,11 +275,24 @@
         }
         window.toggleNexabot = toggleNexabot;
 
-        function clearNexabotHistory() {
-            if (confirm('Bersihkan riwayat percakapan NexaBot?')) {
+        async function clearNexabotHistory() {
+            const ok = typeof window.confirmAction === 'function'
+                ? await window.confirmAction({
+                    title: 'Bersihkan Percakapan',
+                    message: 'Bersihkan riwayat percakapan NexaBot? Riwayat percakapan pada sesi ini akan dihapus.',
+                    confirmText: 'Bersihkan',
+                    variant: 'warning',
+                    icon: 'trash-2'
+                })
+                : true;
+
+            if (ok) {
                 chatHistory = [];
                 sessionStorage.removeItem(STORAGE_KEY);
                 renderMessages();
+                if (typeof showToast === 'function') {
+                    showToast('info', 'Riwayat percakapan NexaBot telah dibersihkan.');
+                }
             }
         }
         window.clearNexabotHistory = clearNexabotHistory;

@@ -1612,9 +1612,24 @@
             // Clear Cart Button
             const clearCartBtn = document.getElementById('clearCartBtn');
             if (clearCartBtn) {
-                clearCartBtn.addEventListener('click', () => {
-                    if (cart.length > 0 && confirm('Kosongkan semua item dalam keranjang pesanan?')) {
+                clearCartBtn.addEventListener('click', async () => {
+                    if (cart.length === 0) return;
+
+                    const ok = typeof window.confirmAction === 'function'
+                        ? await window.confirmAction({
+                            title: 'Kosongkan Keranjang',
+                            message: 'Kosongkan semua item dalam keranjang pesanan kasir?',
+                            confirmText: 'Kosongkan',
+                            variant: 'danger',
+                            icon: 'trash-2'
+                        })
+                        : true;
+
+                    if (ok) {
                         clearCart();
+                        if (typeof showToast === 'function') {
+                            showToast('info', 'Keranjang pesanan telah dikosongkan.');
+                        }
                     }
                 });
             }

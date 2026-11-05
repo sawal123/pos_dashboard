@@ -184,3 +184,4 @@ class SubscriptionPaymentHistoryTest extends TestCase
         $this->assertSame(SubscriptionPayment::STATUS_PENDING, $paymentB->status);
     }
 }
+

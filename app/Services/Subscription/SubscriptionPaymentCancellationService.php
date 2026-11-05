@@ -45,7 +45,12 @@ final class SubscriptionPaymentCancellationService
                     $verified = ['order_id' => $payment->provider_order_id, 'gross_amount' => $payment->amount, 'transaction_status' => 'cancel'];
                 } else {
                     // The customer may have selected a method while cancellation was in flight.
-                    $verified = $this->cancelCore($url, $key, $payment);
+                    $latest = $this->client($key)->get($url.'/status');
+                    $latest->throw();
+                    $verified = $this->validateStatus($latest->json(), $payment);
+                    if ($verified['transaction_status'] === 'pending') {
+                        $verified = $this->cancelCore($url, $key, $payment);
+                    }
                 }
             } else {
                 $status->throw();

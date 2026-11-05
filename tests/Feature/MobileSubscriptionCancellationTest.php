@@ -96,6 +96,27 @@ class MobileSubscriptionCancellationTest extends TestCase
         $this->assertSame('pending', $payment->refresh()->status);
     }
 
+    public function test_snap_race_does_not_cancel_a_payment_that_has_just_settled(): void
+    {
+        $payment = $this->payment();
+        Http::fakeSequence()->push(['status_code' => '404'], 404)
+            ->push(['errors' => ['Transaction is on progress']], 400)
+            ->push($this->providerStatus($payment, 'settlement'));
+        $this->postJson('/api/mobile/subscription/payments/'.$payment->id.'/cancel')
+            ->assertStatus(409)->assertJsonPath('data.status', 'paid');
+        Http::assertSentCount(3);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), '/v2/') && str_ends_with($request->url(), '/cancel'));
+    }
+
+    public function test_non_mobile_token_is_rejected(): void
+    {
+        $payment = $this->payment();
+        $user = $payment->user;
+        $this->withToken($user->createToken('web', ['web'])->plainTextToken)
+            ->postJson('/api/mobile/subscription/payments/'.$payment->id.'/cancel')->assertForbidden();
+        Http::assertNothingSent();
+    }
+
     public function test_other_business_payment_is_hidden_and_cashier_cannot_cancel(): void
     {
         $payment = $this->payment(Business::ROLE_CASHIER);

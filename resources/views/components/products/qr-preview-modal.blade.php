@@ -122,8 +122,18 @@
         if (modal) modal.classList.add('hidden');
     }
 
-    function generateQrCode(productId) {
-        if (!confirm('Buat kode barcode dan QR untuk produk ini sekarang?')) {
+    async function generateQrCode(productId) {
+        const ok = typeof window.confirmAction === 'function'
+            ? await window.confirmAction({
+                title: 'Generate Kode QR & Barcode',
+                message: 'Buat kode barcode dan QR untuk produk ini sekarang?',
+                confirmText: 'Buat Kode',
+                variant: 'primary',
+                icon: 'sparkles'
+            })
+            : true;
+
+        if (!ok) {
             return;
         }
 
@@ -156,7 +166,7 @@
             if (typeof showToast === 'function') {
                 showToast('error', err.message || 'Gagal membuat kode QR');
             } else {
-                alert(err.message || 'Gagal membuat kode QR');
+                console.error(err);
             }
         });
     }
