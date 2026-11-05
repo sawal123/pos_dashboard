@@ -37,6 +37,11 @@ class SubscriptionPaymentHistoryTest extends TestCase
                 return null;
             }
 
+            public function checkTransactionStatus(string $orderId): ?MidtransNotificationResult
+            {
+                return null;
+            }
+
             public function cancelTransaction(string $orderId): bool
             {
                 return true;
@@ -182,6 +187,54 @@ class SubscriptionPaymentHistoryTest extends TestCase
 
         $paymentB->refresh();
         $this->assertSame(SubscriptionPayment::STATUS_PENDING, $paymentB->status);
+    }
+
+    public function test_user_can_sync_pending_payment_status(): void
+    {
+        [$user, $business] = $this->createBusinessWithOwner();
+
+        $payment = SubscriptionPayment::create([
+            'business_id' => $business->id,
+            'user_id' => $user->id,
+            'provider' => SubscriptionPayment::PROVIDER_MIDTRANS,
+            'provider_order_id' => 'pdash-sync-test-01',
+            'plan' => 'cloud',
+            'billing_period' => 'monthly',
+            'currency' => 'IDR',
+            'amount' => 49000,
+            'status' => SubscriptionPayment::STATUS_PENDING,
+            'expires_at' => now()->addMinutes(30),
+        ]);
+
+        $this->app->instance(MidtransGateway::class, new class implements MidtransGateway {
+            public function isConfigured(): bool { return true; }
+            public function createSnapTransaction(SubscriptionPayment $payment, Business $business, User $user): MidtransSnapResponse {
+                return new MidtransSnapResponse('t', 'u');
+            }
+            public function verifyNotification(array $payload): ?MidtransNotificationResult { return null; }
+            public function checkTransactionStatus(string $orderId): ?MidtransNotificationResult {
+                return new MidtransNotificationResult(
+                    orderId: $orderId,
+                    transactionStatus: 'settlement',
+                    fraudStatus: 'accept',
+                    transactionId: 'trx-12345',
+                    paymentType: 'bank_transfer',
+                    payload: ['status_code' => '200'],
+                );
+            }
+            public function cancelTransaction(string $orderId): bool { return true; }
+        });
+
+        $response = $this->actingAs($user)
+            ->withSession(['current_business_id' => $business->id])
+            ->post(route('subscriptions.payments.sync', ['paymentId' => $payment->id]));
+
+        $response->assertRedirect();
+        $response->assertSessionHas('status');
+
+        $payment->refresh();
+        $this->assertSame(SubscriptionPayment::STATUS_PAID, $payment->status);
+        $this->assertSame('trx-12345', $payment->provider_transaction_id);
     }
 }
 

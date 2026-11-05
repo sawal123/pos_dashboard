@@ -428,6 +428,11 @@ final class FakeMidtransGateway implements MidtransGateway
         );
     }
 
+    public function checkTransactionStatus(string $orderId): ?MidtransNotificationResult
+    {
+        return null;
+    }
+
     public function cancelTransaction(string $orderId): bool
     {
         return true;

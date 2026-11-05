@@ -8,6 +8,7 @@ use App\Models\SubscriptionPayment;
 use App\Models\User;
 use App\Services\Dashboard\DashboardSubscriptionData;
 use App\Services\Subscription\Midtrans\MidtransGateway;
+use App\Services\Subscription\MidtransWebhookService;
 use App\Services\Subscription\MobileSubscriptionPlanCatalog;
 use App\Services\Subscription\PremiumPolicy;
 use App\Services\Subscription\PricingUnavailableException;
@@ -35,6 +36,7 @@ class SubscriptionsController extends Controller
         private readonly SubscriptionCheckoutService $checkout,
         private readonly PremiumPolicy $policy,
         private readonly MidtransGateway $midtrans,
+        private readonly MidtransWebhookService $webhookService,
     ) {}
 
     public function index(Request $request): View
@@ -48,6 +50,22 @@ class SubscriptionsController extends Controller
 
         // Reuse the existing owner-only rule without modifying BusinessPolicy.
         Gate::forUser($request->user())->authorize('update', $currentBusiness);
+
+        // Auto-sync any recent pending Midtrans payments for this business
+        $pendingPayments = SubscriptionPayment::query()
+            ->where('business_id', $currentBusiness->id)
+            ->where('provider', SubscriptionPayment::PROVIDER_MIDTRANS)
+            ->where('status', SubscriptionPayment::STATUS_PENDING)
+            ->where('created_at', '>=', now()->subHours(48))
+            ->get();
+
+        foreach ($pendingPayments as $pending) {
+            try {
+                $this->webhookService->syncPaymentStatus($pending);
+            } catch (\Throwable) {
+                // Silently continue if gateway status check is temporarily unreachable
+            }
+        }
 
         $readiness = $this->checkout->readiness();
 
@@ -162,5 +180,45 @@ class SubscriptionsController extends Controller
         }
 
         return back()->with('status', 'Transaksi pembayaran berhasil dibatalkan.');
+    }
+
+    public function syncPayment(Request $request, int $paymentId): RedirectResponse
+    {
+        /** @var Business|null $currentBusiness */
+        $currentBusiness = $request->attributes->get('dashboard_business');
+
+        if (! $currentBusiness instanceof Business) {
+            abort(403);
+        }
+
+        Gate::forUser($request->user())->authorize('update', $currentBusiness);
+
+        $payment = SubscriptionPayment::query()
+            ->where('business_id', $currentBusiness->id)
+            ->whereKey($paymentId)
+            ->firstOrFail();
+
+        try {
+            $this->webhookService->syncPaymentStatus($payment);
+            $payment->refresh();
+        } catch (\Throwable $e) {
+            return back()->withErrors([
+                'sync' => 'Gagal memeriksa status pembayaran ke Midtrans: '.$e->getMessage(),
+            ]);
+        }
+
+        if ($payment->status === SubscriptionPayment::STATUS_PAID) {
+            return back()->with('status', 'Pembayaran berhasil dikonfirmasi! Paket Cloud Anda telah aktif.');
+        }
+
+        if ($payment->status === SubscriptionPayment::STATUS_CANCELLED) {
+            return back()->with('status', 'Status transaksi di Midtrans: Dibatalkan.');
+        }
+
+        if ($payment->status === SubscriptionPayment::STATUS_EXPIRED) {
+            return back()->with('status', 'Status transaksi di Midtrans: Kadaluwarsa.');
+        }
+
+        return back()->with('status', 'Status pembayaran saat ini masih Menunggu Pembayaran di Midtrans.');
     }
 }

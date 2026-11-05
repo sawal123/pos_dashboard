@@ -100,6 +100,42 @@ final class OfficialMidtransGateway implements MidtransGateway
         return hash_equals($expected, $signature);
     }
 
+    public function checkTransactionStatus(string $orderId): ?MidtransNotificationResult
+    {
+        $orderId = trim($orderId);
+        if (! $this->isConfigured() || $orderId === '') {
+            return null;
+        }
+
+        try {
+            $this->configureSdk();
+            $status = Transaction::status($orderId);
+            $verified = $this->objectToArray($status);
+
+            $transactionStatus = $this->stringValue($verified['transaction_status'] ?? null);
+
+            if ($transactionStatus === '') {
+                return null;
+            }
+
+            return new MidtransNotificationResult(
+                orderId: $orderId,
+                transactionStatus: $transactionStatus,
+                fraudStatus: $this->nullableString($verified['fraud_status'] ?? null),
+                transactionId: $this->nullableString($verified['transaction_id'] ?? null),
+                paymentType: $this->nullableString($verified['payment_type'] ?? null),
+                payload: $verified,
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Midtrans checkTransactionStatus failed', [
+                'order_id' => $orderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
     public function cancelTransaction(string $orderId): bool
     {
         if (! $this->isConfigured() || trim($orderId) === '') {

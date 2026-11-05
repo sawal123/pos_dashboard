@@ -133,6 +133,21 @@
                                         @endif
                                         <form
                                             method="POST"
+                                            action="{{ route('subscriptions.payments.sync', ['paymentId' => $payment->id]) }}"
+                                            class="inline"
+                                        >
+                                            @csrf
+                                            <button
+                                                type="submit"
+                                                class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                                title="Periksa status pembayaran dari Midtrans"
+                                            >
+                                                <i data-lucide="refresh-cw" class="w-3 h-3 text-indigo-500"></i>
+                                                <span>Cek Status</span>
+                                            </button>
+                                        </form>
+                                        <form
+                                            method="POST"
                                             action="{{ route('subscriptions.payments.cancel', ['paymentId' => $payment->id]) }}"
                                             data-confirm-title="Batalkan Transaksi Pembayaran"
                                             data-confirm-message="Apakah Anda yakin ingin membatalkan transaksi pembayaran ini?"
@@ -217,9 +232,23 @@
                                     target="_blank"
                                     class="flex-1 py-2 text-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors"
                                 >
-                                    Bayar Sekarang
+                                    Bayar
                                 </a>
                             @endif
+                            <form
+                                method="POST"
+                                action="{{ route('subscriptions.payments.sync', ['paymentId' => $payment->id]) }}"
+                                class="flex-1"
+                            >
+                                @csrf
+                                <button
+                                    type="submit"
+                                    class="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs flex items-center justify-center gap-1 cursor-pointer"
+                                >
+                                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-indigo-500"></i>
+                                    <span>Cek Status</span>
+                                </button>
+                            </form>
                             <form
                                 method="POST"
                                 action="{{ route('subscriptions.payments.cancel', ['paymentId' => $payment->id]) }}"
@@ -227,12 +256,12 @@
                                 data-confirm-message="Apakah Anda yakin ingin membatalkan transaksi pembayaran ini?"
                                 data-confirm-button="Ya, Batalkan"
                                 data-confirm-variant="danger"
-                                class="{{ !empty($payment->redirect_url) ? '' : 'w-full' }}"
+                                class="flex-1"
                             >
                                 @csrf
                                 <button
                                     type="submit"
-                                    class="w-full px-3 py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-semibold text-xs"
+                                    class="w-full py-2 rounded-xl border border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 font-semibold text-xs"
                                 >
                                     Batalkan
                                 </button>

@@ -4,21 +4,27 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\SubscriptionPayment;
+use App\Services\Subscription\MidtransWebhookService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 final class MidtransRedirectController extends Controller
 {
+    public function __construct(
+        private readonly MidtransWebhookService $webhookService,
+    ) {}
+
     /**
      * Handle the browser redirect after a successful Snap payment.
      *
-     * This endpoint is intentionally read-only. The browser redirect is not
-     * trusted as proof of payment; the Midtrans webhook is responsible for
-     * verifying the transaction and activating the subscription.
+     * We actively query Midtrans server-to-server to verify the official status
+     * and activate the subscription immediately, even if the webhook was not received.
      */
     public function finish(Request $request): JsonResponse|View
     {
+        $this->syncIfPending($request);
+
         return $this->paymentStatus($request, expectedStatus: SubscriptionPayment::STATUS_PAID);
     }
 
@@ -27,7 +33,26 @@ final class MidtransRedirectController extends Controller
      */
     public function failed(Request $request): JsonResponse|View
     {
+        $this->syncIfPending($request);
+
         return $this->paymentStatus($request);
+    }
+
+    private function syncIfPending(Request $request): void
+    {
+        $orderId = trim((string) $request->query('order_id', ''));
+        if ($orderId === '') {
+            return;
+        }
+
+        $payment = SubscriptionPayment::query()
+            ->where('provider', SubscriptionPayment::PROVIDER_MIDTRANS)
+            ->where('provider_order_id', $orderId)
+            ->first();
+
+        if ($payment !== null && $payment->status === SubscriptionPayment::STATUS_PENDING) {
+            $this->webhookService->syncPaymentStatus($payment);
+        }
     }
 
     private function paymentStatus(Request $request, ?string $expectedStatus = null): JsonResponse|View

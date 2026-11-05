@@ -31,6 +31,25 @@ final class MidtransWebhookService
         return $this->applyVerifiedNotification($notification);
     }
 
+    /**
+     * Actively query Midtrans server-to-server and sync the payment's latest status.
+     * Works even if the inbound webhook was never received (e.g. localhost/firewall).
+     */
+    public function syncPaymentStatus(SubscriptionPayment $payment): MidtransWebhookResult
+    {
+        if ($payment->provider !== SubscriptionPayment::PROVIDER_MIDTRANS || empty($payment->provider_order_id)) {
+            return MidtransWebhookResult::unknownOrder();
+        }
+
+        $notification = $this->gateway->checkTransactionStatus($payment->provider_order_id);
+
+        if ($notification === null) {
+            return MidtransWebhookResult::invalid();
+        }
+
+        return $this->applyVerifiedNotification($notification);
+    }
+
     public function applyVerifiedNotification(MidtransNotificationResult $notification): MidtransWebhookResult
     {
         $payment = DB::transaction(function () use ($notification): ?SubscriptionPayment {

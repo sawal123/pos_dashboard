@@ -17,5 +17,7 @@ interface MidtransGateway
      */
     public function verifyNotification(array $payload): ?MidtransNotificationResult;
 
+    public function checkTransactionStatus(string $orderId): ?MidtransNotificationResult;
+
     public function cancelTransaction(string $orderId): bool;
 }
