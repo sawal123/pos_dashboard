@@ -282,3 +282,4 @@ class ProductCodeService
         return $pngData;
     }
 }
+

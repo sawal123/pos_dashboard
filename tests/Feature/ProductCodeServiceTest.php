@@ -124,3 +124,4 @@ class ProductCodeServiceTest extends TestCase
         $this->assertSame("\x89PNG\r\n\x1a\n", substr($png, 0, 8));
     }
 }
+

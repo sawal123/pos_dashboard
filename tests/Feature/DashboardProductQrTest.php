@@ -285,3 +285,4 @@ class DashboardProductQrTest extends TestCase
         $this->assertSame('Nama Baru', $updated->name);
     }
 }
+

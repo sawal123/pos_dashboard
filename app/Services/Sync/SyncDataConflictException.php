@@ -13,3 +13,4 @@ class SyncDataConflictException extends Exception
         parent::__construct($message);
     }
 }
+
