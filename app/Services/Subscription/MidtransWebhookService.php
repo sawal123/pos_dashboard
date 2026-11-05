@@ -4,6 +4,7 @@ namespace App\Services\Subscription;
 
 use App\Models\SubscriptionPayment;
 use App\Services\Subscription\Midtrans\MidtransGateway;
+use App\Services\Subscription\Midtrans\MidtransNotificationResult;
 use App\Services\Subscription\Midtrans\MidtransPaymentStatusMapper;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,11 @@ final class MidtransWebhookService
             return MidtransWebhookResult::invalid();
         }
 
+        return $this->applyVerifiedNotification($notification);
+    }
+
+    public function applyVerifiedNotification(MidtransNotificationResult $notification): MidtransWebhookResult
+    {
         $payment = DB::transaction(function () use ($notification): ?SubscriptionPayment {
             /** @var SubscriptionPayment|null $payment */
             $payment = SubscriptionPayment::query()

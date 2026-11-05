@@ -70,6 +70,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->middleware('throttle:subscription-checkout');
     Route::get('/mobile/subscription/payments', [MobileSubscriptionPaymentsController::class, 'index']);
     Route::get('/mobile/subscription/payments/{payment}', [MobileSubscriptionPaymentsController::class, 'show']);
+    Route::post('/mobile/subscription/payments/{payment}/cancel', [MobileSubscriptionPaymentsController::class, 'cancel'])->middleware('throttle:subscription-checkout');
 
     // PREM-D03 — private cloud backup snapshots (upload/list/detail/download).
     Route::post('/mobile/backups', [CloudBackupController::class, 'store']);

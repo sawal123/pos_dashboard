@@ -100,6 +100,22 @@ final class OfficialMidtransGateway implements MidtransGateway
         return hash_equals($expected, $signature);
     }
 
+    public function cancelTransaction(string $orderId): bool
+    {
+        if (! $this->isConfigured() || trim($orderId) === '') {
+            return false;
+        }
+
+        try {
+            $this->configureSdk();
+            Transaction::cancel($orderId);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     private function configureSdk(): void
     {
         $this->loadSdkWhenAutoloadIsUnavailable();

@@ -23,6 +23,13 @@
             </div>
         @endif
 
+        @if (session('error') || $errors->has('cancel'))
+            <div role="alert" class="rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-4 flex items-start gap-3">
+                <i data-lucide="alert-circle" class="w-5 h-5 shrink-0 text-rose-600 dark:text-rose-400"></i>
+                <p class="text-sm text-rose-800 dark:text-rose-200">{{ session('error') ?? $errors->first('cancel') }}</p>
+            </div>
+        @endif
+
         <x-subscriptions.current-plan :subscription="$subscription" />
 
         <x-subscriptions.subscription-status :subscription="$subscription" />
@@ -33,6 +40,8 @@
             :readiness="$checkoutReadiness"
             :subscription="$subscription"
         />
+
+        <x-subscriptions.payment-history :payments="$payments ?? null" />
 
         <x-subscriptions.plan-comparison :subscription="$subscription" />
 

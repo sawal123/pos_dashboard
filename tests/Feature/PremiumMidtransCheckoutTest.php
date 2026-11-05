@@ -427,4 +427,9 @@ final class FakeMidtransGateway implements MidtransGateway
             payload: $payload,
         );
     }
+
+    public function cancelTransaction(string $orderId): bool
+    {
+        return true;
+    }
 }

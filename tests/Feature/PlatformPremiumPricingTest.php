@@ -735,4 +735,9 @@ final class PlatformPricingFakeMidtransGateway implements MidtransGateway
     {
         return null;
     }
+
+    public function cancelTransaction(string $orderId): bool
+    {
+        return true;
+    }
 }

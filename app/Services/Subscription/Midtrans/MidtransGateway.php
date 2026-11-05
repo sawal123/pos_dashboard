@@ -16,4 +16,6 @@ interface MidtransGateway
      * @param  array<string, mixed>  $payload
      */
     public function verifyNotification(array $payload): ?MidtransNotificationResult;
+
+    public function cancelTransaction(string $orderId): bool;
 }

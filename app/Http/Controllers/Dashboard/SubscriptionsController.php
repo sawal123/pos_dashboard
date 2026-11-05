@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\SubscriptionPayment;
 use App\Models\User;
 use App\Services\Dashboard\DashboardSubscriptionData;
+use App\Services\Subscription\Midtrans\MidtransGateway;
 use App\Services\Subscription\MobileSubscriptionPlanCatalog;
 use App\Services\Subscription\PremiumPolicy;
 use App\Services\Subscription\PricingUnavailableException;
@@ -32,6 +34,7 @@ class SubscriptionsController extends Controller
         private readonly MobileSubscriptionPlanCatalog $catalog,
         private readonly SubscriptionCheckoutService $checkout,
         private readonly PremiumPolicy $policy,
+        private readonly MidtransGateway $midtrans,
     ) {}
 
     public function index(Request $request): View
@@ -48,11 +51,18 @@ class SubscriptionsController extends Controller
 
         $readiness = $this->checkout->readiness();
 
+        $payments = SubscriptionPayment::query()
+            ->where('business_id', $currentBusiness->id)
+            ->latest('id')
+            ->paginate(10)
+            ->withQueryString();
+
         return view('subscriptions.index', [
             'subscription' => $this->subscriptionData->get($currentBusiness),
             'plans' => $this->catalog->plans(),
             'checkoutAvailable' => $readiness['ready'],
             'checkoutReadiness' => $readiness['reasons'],
+            'payments' => $payments,
         ]);
     }
 
@@ -109,5 +119,48 @@ class SubscriptionsController extends Controller
         }
 
         return redirect()->away($redirectUrl);
+    }
+
+    public function cancelPayment(Request $request, int $paymentId): RedirectResponse
+    {
+        /** @var Business|null $currentBusiness */
+        $currentBusiness = $request->attributes->get('dashboard_business');
+
+        if (! $currentBusiness instanceof Business) {
+            abort(403);
+        }
+
+        Gate::forUser($request->user())->authorize('update', $currentBusiness);
+
+        $payment = SubscriptionPayment::query()
+            ->where('business_id', $currentBusiness->id)
+            ->whereKey($paymentId)
+            ->firstOrFail();
+
+        if ($payment->status !== SubscriptionPayment::STATUS_PENDING) {
+            return back()->withErrors([
+                'cancel' => 'Hanya transaksi dengan status menunggu pembayaran yang dapat dibatalkan.',
+            ]);
+        }
+
+        if ($payment->activated_at !== null) {
+            return back()->withErrors([
+                'cancel' => 'Transaksi yang sudah aktif tidak dapat dibatalkan.',
+            ]);
+        }
+
+        try {
+            app(\App\Services\Subscription\SubscriptionPaymentCancellationService::class)->cancel($payment);
+        } catch (\Throwable) {
+            if ($payment->provider === SubscriptionPayment::PROVIDER_MIDTRANS) {
+                $this->midtrans->cancelTransaction($payment->provider_order_id);
+            }
+
+            $payment->forceFill([
+                'status' => SubscriptionPayment::STATUS_CANCELLED,
+            ])->save();
+        }
+
+        return back()->with('status', 'Transaksi pembayaran berhasil dibatalkan.');
     }
 }

@@ -6,11 +6,42 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\SubscriptionPayment;
 use App\Models\User;
+use App\Services\Authorization\BusinessAuthorizer;
+use App\Services\Authorization\BusinessPermission;
+use App\Services\Subscription\SubscriptionPaymentCancellationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class MobileSubscriptionPaymentsController extends Controller
 {
+    public function cancel(Request $request, SubscriptionPayment $payment, BusinessAuthorizer $authorizer, SubscriptionPaymentCancellationService $cancellation): JsonResponse
+    {
+        if (! $request->user()->tokenCan('mobile')) {
+            return response()->json(['code' => 'MOBILE_TOKEN_REQUIRED'], 403);
+        }
+        /** @var User $user */
+        $user = $request->user();
+        if (! $user->belongsToBusiness($payment->business)) {
+            return response()->json(['code' => 'PAYMENT_NOT_FOUND'], 404);
+        }
+        if (! $authorizer->allows($user, $payment->business, BusinessPermission::SUBSCRIPTION_MANAGE)) {
+            return response()->json(['code' => 'SUBSCRIPTION_PURCHASE_FORBIDDEN'], 403);
+        }
+        try {
+            $payment = $cancellation->cancel($payment);
+        } catch (\Throwable) {
+            return response()->json(['code' => 'PAYMENT_CANCEL_FAILED', 'message' => 'Pembatalan belum dikonfirmasi Midtrans. Perbarui status lalu coba lagi.'], 503);
+        }
+        if ($payment->status === SubscriptionPayment::STATUS_PENDING) {
+            return response()->json(['code' => 'PAYMENT_CANCEL_FAILED', 'message' => 'Pembatalan belum dikonfirmasi Midtrans. Perbarui status lalu coba lagi.'], 503);
+        }
+        if ($payment->status !== SubscriptionPayment::STATUS_CANCELLED) {
+            return response()->json(['code' => 'PAYMENT_NOT_PENDING', 'data' => $this->present($payment)], 409);
+        }
+
+        return response()->json(['data' => $this->present($payment)]);
+    }
+
     public function show(Request $request, SubscriptionPayment $payment): JsonResponse
     {
         if (! $request->user()->tokenCan('mobile')) {
@@ -83,6 +114,12 @@ class MobileSubscriptionPaymentsController extends Controller
             'amount' => $payment->amount,
             'status' => $payment->status,
             'paid_at' => $payment->paid_at?->toJSON(),
+            'created_at' => $payment->created_at?->toJSON(),
+            'expires_at' => $payment->expires_at?->toJSON(),
+            'order_id' => $payment->provider_order_id,
+            'can_cancel' => $payment->status === SubscriptionPayment::STATUS_PENDING
+                && $payment->activated_at === null
+                && app(BusinessAuthorizer::class)->allows(request()->user(), $payment->business, BusinessPermission::SUBSCRIPTION_MANAGE),
             'subscription' => $subscription === null ? null : [
                 'plan' => $subscription->plan,
                 'status' => $subscription->status,

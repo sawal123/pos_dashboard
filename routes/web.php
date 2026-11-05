@@ -401,6 +401,11 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ])
         ->name('subscriptions.checkout');
 
+    Route::post('subscription/payments/{paymentId}/cancel', [SubscriptionsController::class, 'cancelPayment'])
+        ->whereNumber('paymentId')
+        ->middleware('business.permission:'.BusinessPermission::SUBSCRIPTION_MANAGE)
+        ->name('subscriptions.payments.cancel');
+
     // DASH-14 — owner-only business profile / business type setup.
     Route::get('business-settings', [BusinessSettingsController::class, 'edit'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
