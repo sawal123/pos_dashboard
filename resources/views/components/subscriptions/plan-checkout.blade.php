@@ -77,6 +77,7 @@
                     <form method="POST" action="{{ route('subscriptions.checkout') }}">
                         @csrf
                         <input type="hidden" name="billing_period" value="{{ $period }}">
+                        <input type="hidden" name="allow_renewal" value="1">
                         <button
                             type="submit"
                             @disabled(! $purchasable)

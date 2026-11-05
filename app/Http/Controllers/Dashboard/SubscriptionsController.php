@@ -105,6 +105,13 @@ class SubscriptionsController extends Controller
 
         Gate::forUser($user)->authorize('update', $currentBusiness);
 
+        // Prevent accidental re-purchases when Cloud is already active, unless explicit renewal from dashboard
+        if ($currentBusiness->hasCloudAccess() && ! $request->boolean('allow_renewal')) {
+            return back()->withErrors([
+                'checkout' => 'Bisnis Anda sudah memiliki Paket Cloud yang aktif.',
+            ]);
+        }
+
         $validated = $request->validate([
             'billing_period' => ['required', 'string', Rule::in($this->policy->billingPeriods())],
         ]);

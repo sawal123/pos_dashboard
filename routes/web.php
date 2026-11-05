@@ -48,9 +48,11 @@ use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
 use App\Models\SubscriptionPlan;
 use App\Services\Authorization\BusinessPermission;
+use App\Services\Dashboard\DashboardBusinessContext;
 use App\Services\Subscription\LandingPricingService;
 use App\Services\Subscription\PremiumPolicy;
 use App\Services\Subscription\PremiumPricing;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -74,9 +76,26 @@ use Illuminate\Support\Facades\Schema;
 | A denied browser request is redirected back to `dashboard`, so an expired
 | owner is never locked out of seeing their status or renewing.
 */
-Route::get('/', function (LandingPricingService $landingPricing) {
+Route::get('/', function (Request $request, LandingPricingService $landingPricing, DashboardBusinessContext $businessContext) {
+    $user = $request->user();
+    $currentBusiness = null;
+    $hasCloudAccess = false;
+    $activePlan = null;
+
+    if ($user !== null) {
+        $currentBusiness = $businessContext->current($user);
+        if ($currentBusiness !== null) {
+            $hasCloudAccess = $businessContext->hasCloudAccess($currentBusiness);
+            $subscription = $currentBusiness->subscription;
+            $activePlan = $hasCloudAccess ? Subscription::PLAN_CLOUD : ($subscription?->isFree() ? Subscription::PLAN_FREE : null);
+        }
+    }
+
     return view('welcome', [
         'pricingCards' => $landingPricing->cards(),
+        'currentBusiness' => $currentBusiness,
+        'hasCloudAccess' => $hasCloudAccess,
+        'activePlan' => $activePlan,
     ]);
 })->name('home');
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');

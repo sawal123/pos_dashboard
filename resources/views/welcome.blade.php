@@ -164,6 +164,12 @@
             .pricing-card .pricing-btn-monthly:hover { background:#1b47a8; color:#ffffff; box-shadow:0 10px 24px rgba(35,89,204,.35); }
             .pricing-card.featured .pricing-btn-yearly { color:var(--navy); background:var(--lime); box-shadow:0 10px 24px rgba(136,178,47,.3); }
             .pricing-card.featured .pricing-btn-yearly:hover { background:#a6db39; color:var(--navy); box-shadow:0 12px 28px rgba(136,178,47,.4); }
+            .pricing-card .badge-active { color:#0369a1; background:#e0f2fe; border:1px solid #bae6fd; font-weight:700; }
+            .pricing-card.featured .badge-active { color:#1e293b; background:#fef08a; border:1px solid #fde047; font-weight:800; }
+            .pricing-card .pricing-btn-disabled { opacity:.6; cursor:default; background:#f1f5f9; color:#64748b; border:1px solid #cbd5e1; pointer-events:none; }
+            .pricing-card .pricing-btn-disabled:hover { transform:none; }
+            .pricing-card.active-plan-card { border-color:#3288df; }
+            .pricing-card.featured.active-plan-card { border-color:var(--lime); }
             .cta { overflow:hidden; position:relative; padding:74px 70px; color:white; background:var(--blue); border-radius:25px; }
             .cta::before,.cta::after { position:absolute; width:250px; height:250px; border:1px solid rgba(255,255,255,.18); border-radius:50%; content:''; }
             .cta::before { top:-150px; right:-45px; }
@@ -186,8 +192,12 @@
                 <a href="{{ route('home') }}" class="brand" aria-label="NexaPOS beranda"><span class="brand-mark">N</span><span>NexaPOS</span></a>
                 <div class="hero-links"><a class="nav-link" href="#fitur">Fitur</a><a class="nav-link" href="#harga">Harga</a><a class="nav-link" href="#cara-kerja">Cara kerja</a><a class="nav-link" href="#bisnis">Untuk bisnis</a></div>
                 <div class="hero-actions">
-                    @if (Route::has('login'))<a class="button button-light" href="{{ route('login') }}">Masuk</a>@endif
-                    @if (Route::has('register'))<a class="button button-primary" href="{{ route('register') }}">Mulai sekarang <span aria-hidden="true">↗</span></a>@endif
+                    @auth
+                        <a class="button button-primary" href="{{ route('dashboard') }}">Dashboard <span aria-hidden="true">↗</span></a>
+                    @else
+                        @if (Route::has('login'))<a class="button button-light" href="{{ route('login') }}">Masuk</a>@endif
+                        @if (Route::has('register'))<a class="button button-primary" href="{{ route('register') }}">Mulai sekarang <span aria-hidden="true">↗</span></a>@endif
+                    @endauth
                 </div>
             </nav>
 
@@ -197,8 +207,12 @@
                     <h1>Bisnis rapi. <span>Keputusan cepat.</span></h1>
                     <p>NexaPOS menyatukan penjualan, stok, outlet, laporan, dan operasional harian agar Anda bisa fokus mengembangkan bisnis—bukan mengejar data.</p>
                     <div class="actions">
-                        @if (Route::has('register'))<a class="button button-primary" href="{{ route('register') }}">Bangun alur kerja Anda <span aria-hidden="true">↗</span></a>
-                        @elseif (Route::has('login'))<a class="button button-primary" href="{{ route('login') }}">Masuk ke dashboard <span aria-hidden="true">↗</span></a>@endif
+                        @auth
+                            <a class="button button-primary" href="{{ route('dashboard') }}">Buka Dashboard <span aria-hidden="true">↗</span></a>
+                        @else
+                            @if (Route::has('register'))<a class="button button-primary" href="{{ route('register') }}">Bangun alur kerja Anda <span aria-hidden="true">↗</span></a>
+                            @elseif (Route::has('login'))<a class="button button-primary" href="{{ route('login') }}">Masuk ke dashboard <span aria-hidden="true">↗</span></a>@endif
+                        @endauth
                         <a class="button button-light" href="#fitur">Lihat fitur</a>
                     </div>
                     <div class="hero-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dibuat untuk operasional bisnis Indonesia</div>
@@ -264,8 +278,21 @@
                 @endif
                 <div class="pricing-grid">
                     @forelse($pricingCards as $card)
-                        <article class="pricing-card {{ $card['is_featured'] ? 'featured' : '' }}">
-                            <span class="badge" @if(!empty($card['badge_style'])) style="{{ $card['badge_style'] }}" @endif>{{ $card['badge'] }}</span>
+                        @php
+                            $isCardFree = !empty($card['is_free']);
+                            $isCardCloud = ($card['code'] ?? '') === \App\Models\Subscription::PLAN_CLOUD;
+                            $isCurrentActivePlan = auth()->check() && (
+                                ($hasCloudAccess && $isCardCloud) ||
+                                (!$hasCloudAccess && $isCardFree)
+                            );
+                        @endphp
+                        <article class="pricing-card {{ $card['is_featured'] ? 'featured' : '' }} {{ $isCurrentActivePlan ? 'active-plan-card' : '' }}">
+                            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                                <span class="badge" @if(!empty($card['badge_style'])) style="{{ $card['badge_style'] }}" @endif>{{ $card['badge'] }}</span>
+                                @if($isCurrentActivePlan)
+                                    <span class="badge badge-active">✓ Paket Aktif</span>
+                                @endif
+                            </div>
                             <h3>{{ $card['name'] }}</h3>
                             <p>{{ $card['description'] }}</p>
                             <div class="price-line">
@@ -282,22 +309,43 @@
                                     </li>
                                 @endforeach
                             </ul>
-                            @if(!empty($card['is_free']))
-                                <a
-                                    href="{{ auth()->check() ? route('dashboard') : (Route::has('register') ? route('register') : '#') }}"
-                                    class="{{ $card['btn_class'] }}"
-                                >
-                                    {{ auth()->check() ? 'Buka Dashboard' : $card['cta_label'] }}
-                                </a>
+                            @if(auth()->check())
+                                @if($hasCloudAccess)
+                                    {{-- Pengguna sudah berlangganan Paket Cloud Aktif --}}
+                                    @if($isCardFree)
+                                        <span class="{{ $card['btn_class'] }} pricing-btn-disabled">
+                                            Paket Dasar
+                                        </span>
+                                    @else
+                                        <a href="{{ route('dashboard') }}" class="{{ $card['btn_class'] }}">
+                                            Buka Dashboard
+                                        </a>
+                                    @endif
+                                @else
+                                    {{-- Pengguna masih berada di Paket Free --}}
+                                    @if($isCardFree)
+                                        <a href="{{ route('dashboard') }}" class="{{ $card['btn_class'] }}">
+                                            Buka Dashboard
+                                        </a>
+                                    @else
+                                        <form method="POST" action="{{ route('subscriptions.checkout') }}">
+                                            @csrf
+                                            <input type="hidden" name="billing_period" value="{{ $card['period_key'] ?? 'monthly' }}">
+                                            <button type="submit" class="{{ $card['btn_class'] }}">
+                                                {{ $card['cta_label'] }}
+                                            </button>
+                                        </form>
+                                    @endif
+                                @endif
                             @else
-                                @auth
-                                    <form method="POST" action="{{ route('subscriptions.checkout') }}">
-                                        @csrf
-                                        <input type="hidden" name="billing_period" value="{{ $card['period_key'] ?? 'monthly' }}">
-                                        <button type="submit" class="{{ $card['btn_class'] }}">
-                                            {{ $card['cta_label'] }}
-                                        </button>
-                                    </form>
+                                {{-- Pengunjung Guest / Belum Login --}}
+                                @if($isCardFree)
+                                    <a
+                                        href="{{ Route::has('register') ? route('register') : route('login') }}"
+                                        class="{{ $card['btn_class'] }}"
+                                    >
+                                        {{ $card['cta_label'] }}
+                                    </a>
                                 @else
                                     <a
                                         href="{{ Route::has('register') ? route('register', ['plan' => $card['code'], 'period' => $card['period_key']]) : route('login') }}"
@@ -305,7 +353,7 @@
                                     >
                                         {{ $card['cta_label'] }}
                                     </a>
-                                @endauth
+                                @endif
                             @endif
                         </article>
                     @empty
@@ -316,9 +364,40 @@
                 </div>
             </section>
 
-            <section class="shell" style="padding-bottom:76px;"><div class="cta"><div class="cta-content"><div><span class="eyebrow">Mulai dari langkah pertama</span><h2>Jadikan operasional lebih ringan hari ini.</h2></div>@if (Route::has('register'))<a class="button button-primary" href="{{ route('register') }}">Buat akun NexaPOS <span aria-hidden="true">↗</span></a>@elseif (Route::has('login'))<a class="button button-primary" href="{{ route('login') }}">Masuk ke NexaPOS <span aria-hidden="true">↗</span></a>@endif</div></div></section>
+            <section class="shell" style="padding-bottom:76px;">
+                <div class="cta">
+                    <div class="cta-content">
+                        <div>
+                            <span class="eyebrow">Mulai dari langkah pertama</span>
+                            <h2>Jadikan operasional lebih ringan hari ini.</h2>
+                        </div>
+                        @auth
+                            <a class="button button-primary" href="{{ route('dashboard') }}">Buka Dashboard <span aria-hidden="true">↗</span></a>
+                        @else
+                            @if (Route::has('register'))
+                                <a class="button button-primary" href="{{ route('register') }}">Buat akun NexaPOS <span aria-hidden="true">↗</span></a>
+                            @elseif (Route::has('login'))
+                                <a class="button button-primary" href="{{ route('login') }}">Masuk ke NexaPOS <span aria-hidden="true">↗</span></a>
+                            @endif
+                        @endauth
+                    </div>
+                </div>
+            </section>
         </main>
 
-        <footer class="shell footer"><a href="{{ route('home') }}" class="brand"><span class="brand-mark">N</span><span>NexaPOS</span></a><div class="footer-links"><a href="#fitur">Fitur</a><a href="#cara-kerja">Cara kerja</a>@if (Route::has('login'))<a href="{{ route('login') }}">Masuk</a>@endif</div><span>&copy; {{ date('Y') }} NexaPOS</span></footer>
+        <footer class="shell footer">
+            <a href="{{ route('home') }}" class="brand"><span class="brand-mark">N</span><span>NexaPOS</span></a>
+            <div class="footer-links">
+                <a href="#fitur">Fitur</a>
+                <a href="#harga">Harga</a>
+                <a href="#cara-kerja">Cara kerja</a>
+                @auth
+                    <a href="{{ route('dashboard') }}">Dashboard</a>
+                @else
+                    @if (Route::has('login'))<a href="{{ route('login') }}">Masuk</a>@endif
+                @endauth
+            </div>
+            <span>&copy; {{ date('Y') }} NexaPOS</span>
+        </footer>
     </body>
 </html>
