@@ -23,12 +23,21 @@
         <p class="text-xs text-slate-400 dark:text-slate-500 max-w-sm mx-auto mt-1 mb-4 leading-normal">
             Coba ubah pencarian atau filter yang digunakan.
         </p>
-        <a
-            href="{{ route('transactions.index') }}"
-            class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-        >
-            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
-            <span>Reset Filter</span>
-        </a>
+        <div class="flex flex-wrap items-center justify-center gap-2">
+            <a
+                href="{{ route('transactions.index') }}"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                <span>Reset Filter</span>
+            </a>
+            <a
+                href="{{ route('transactions.index', ['date' => 'all']) }}"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+                <i data-lucide="calendar-range" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400"></i>
+                <span>Lihat Semua Tanggal</span>
+            </a>
+        </div>
     </div>
 @endif

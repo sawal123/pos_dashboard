@@ -601,7 +601,7 @@ class TransactionsPageTest extends TestCase
         ]);
 
         $this->actingAs($user);
-        $response = $this->get(route('transactions.index'));
+        $response = $this->get(route('transactions.index', ['date' => 'all']));
         $response->assertOk();
 
         $content = $response->getContent();
@@ -610,6 +610,110 @@ class TransactionsPageTest extends TestCase
         $this->assertNotFalse($latestPos);
         $this->assertNotFalse($earlierPos);
         $this->assertLessThan($earlierPos, $latestPos, 'Latest transaction should appear first');
+    }
+
+    public function test_transactions_page_defaults_to_today_filter(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-TODAY-ONLY',
+            'subtotal' => 120000,
+            'total_amount' => 120000,
+            'sold_at' => now(),
+        ]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-3DAYS-AGO',
+            'subtotal' => 80000,
+            'total_amount' => 80000,
+            'sold_at' => now()->subDays(3),
+        ]);
+
+        $this->actingAs($user);
+
+        // Default visit without query params must filter to Today ('today')
+        $defaultResponse = $this->get(route('transactions.index'));
+        $defaultResponse->assertOk();
+        $defaultResponse->assertSee('TRX-TODAY-ONLY');
+        $defaultResponse->assertDontSee('TRX-3DAYS-AGO');
+        $defaultResponse->assertSee('Rp 120.000');
+        $defaultResponse->assertSee('id="flatpickrDateRange"', false);
+        $defaultResponse->assertSee('<option value="today" selected>', false);
+
+        // Explicit date=all shows all historical transactions
+        $allResponse = $this->get(route('transactions.index', ['date' => 'all']));
+        $allResponse->assertOk();
+        $allResponse->assertSee('TRX-TODAY-ONLY');
+        $allResponse->assertSee('TRX-3DAYS-AGO');
+        $allResponse->assertSee('Rp 200.000');
+    }
+
+    public function test_custom_date_range_and_single_day_flatpickr_filter_accurately(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $tz = config('app.timezone', 'Asia/Jakarta');
+        $now = now($tz);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-DAY-0',
+            'subtotal' => 50000,
+            'total_amount' => 50000,
+            'sold_at' => $now->copy()->setTime(14, 0),
+        ]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-DAY-2',
+            'subtotal' => 75000,
+            'total_amount' => 75000,
+            'sold_at' => $now->copy()->subDays(2)->setTime(11, 30),
+        ]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-DAY-5',
+            'subtotal' => 90000,
+            'total_amount' => 90000,
+            'sold_at' => $now->copy()->subDays(5)->setTime(16, 15),
+        ]);
+
+        $this->actingAs($user);
+
+        // Single day selection via Flatpickr (start_date === end_date)
+        $day2Ymd = $now->copy()->subDays(2)->format('Y-m-d');
+        $singleDayResponse = $this->get(route('transactions.index', [
+            'date' => 'custom',
+            'start_date' => $day2Ymd,
+            'end_date' => $day2Ymd,
+        ]));
+        $singleDayResponse->assertOk();
+        $singleDayResponse->assertSee('TRX-DAY-2');
+        $singleDayResponse->assertDontSee('TRX-DAY-0');
+        $singleDayResponse->assertDontSee('TRX-DAY-5');
+        $singleDayResponse->assertSee('Rp 75.000');
+
+        // Multi-day range selection via Flatpickr
+        $rangeResponse = $this->get(route('transactions.index', [
+            'date' => 'custom',
+            'start_date' => $now->copy()->subDays(5)->format('Y-m-d'),
+            'end_date' => $day2Ymd,
+        ]));
+        $rangeResponse->assertOk();
+        $rangeResponse->assertSee('TRX-DAY-2');
+        $rangeResponse->assertSee('TRX-DAY-5');
+        $rangeResponse->assertDontSee('TRX-DAY-0');
+        $rangeResponse->assertSee('Rp 165.000');
     }
 
     // ============================================================

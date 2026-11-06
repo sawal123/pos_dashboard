@@ -7,7 +7,9 @@
 
 @php
     $cf = $currentFilters;
-    $isCustomDate = ($cf['date'] ?? 'all') === 'custom';
+    $selectedDate = $cf['date'] ?? 'today';
+    $isCustomDate = $selectedDate === 'custom';
+    $todayYmd = \Carbon\Carbon::now(config('app.timezone', 'Asia/Jakarta'))->format('Y-m-d');
 @endphp
 
 <div class="p-4 sm:p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs space-y-3.5">
@@ -58,9 +60,9 @@
             </div>
         </div>
 
-        {{-- Bottom Row: Select Filters & Reset Filter --}}
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-            {{-- 1. Tanggal --}}
+        {{-- Bottom Row: Select Filters, Flatpickr Date Range & Reset Filter --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1.05fr_1.45fr_1.05fr_1fr_1fr_1.05fr_auto] gap-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+            {{-- 1. Periode Tanggal --}}
             <div>
                 <label for="filterDate" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Tanggal</label>
                 <select
@@ -68,15 +70,41 @@
                     name="date"
                     class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                 >
-                    <option value="all" @selected(($cf['date'] ?? 'all') === 'all')>Semua Tanggal</option>
-                    <option value="today" @selected(($cf['date'] ?? '') === 'today')>Hari Ini</option>
-                    <option value="7days" @selected(($cf['date'] ?? '') === '7days')>7 Hari</option>
-                    <option value="30days" @selected(($cf['date'] ?? '') === '30days')>30 Hari</option>
-                    <option value="custom" @selected(($cf['date'] ?? '') === 'custom')>Periode Kustom</option>
+                    <option value="today" @selected($selectedDate === 'today')>Hari Ini</option>
+                    <option value="7days" @selected($selectedDate === '7days')>7 Hari</option>
+                    <option value="30days" @selected($selectedDate === '30days')>30 Hari</option>
+                    <option value="all" @selected($selectedDate === 'all')>Semua Tanggal</option>
+                    <option value="custom" @selected($selectedDate === 'custom')>Periode Kustom</option>
                 </select>
             </div>
 
-            {{-- 2. Outlet --}}
+            {{-- 2. Flatpickr Date / Range Picker --}}
+            <div id="customDateRangeContainer">
+                <label for="flatpickrDateRange" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Pilih Tanggal</label>
+                <div class="relative">
+                    <i data-lucide="calendar-days" class="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input
+                        type="text"
+                        id="flatpickrDateRange"
+                        data-today="{{ $todayYmd }}"
+                        placeholder="Pilih tanggal / rentang..."
+                        readonly
+                        class="w-full pl-8 pr-7 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    />
+                    <button
+                        type="button"
+                        id="clearFlatpickrBtn"
+                        title="Reset ke Hari Ini"
+                        class="{{ $isCustomDate ? '' : 'hidden' }} absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    >
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+                <input type="hidden" id="filterStartDate" name="start_date" value="{{ $cf['start_date'] ?? '' }}" />
+                <input type="hidden" id="filterEndDate" name="end_date" value="{{ $cf['end_date'] ?? '' }}" />
+            </div>
+
+            {{-- 3. Outlet --}}
             <div>
                 <label for="filterOutlet" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Outlet</label>
                 <select
@@ -93,7 +121,7 @@
                 </select>
             </div>
 
-            {{-- 3. Metode Pembayaran --}}
+            {{-- 4. Metode Pembayaran --}}
             <div>
                 <label for="filterPaymentMethod" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Metode</label>
                 <select
@@ -120,7 +148,7 @@
                 </select>
             </div>
 
-            {{-- 4. Status Pembayaran --}}
+            {{-- 5. Status Pembayaran --}}
             <div>
                 <label for="filterPaymentStatus" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Status Bayar</label>
                 <select
@@ -134,7 +162,7 @@
                 </select>
             </div>
 
-            {{-- 5. Status Transaksi --}}
+            {{-- 6. Status Transaksi --}}
             <div>
                 <label for="filterTransactionStatus" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Status Transaksi</label>
                 <select
@@ -155,11 +183,11 @@
                 </select>
             </div>
 
-            {{-- 6. Actions: Apply & Reset --}}
+            {{-- 7. Actions: Apply & Reset --}}
             <div class="flex items-end gap-1.5">
                 <button
                     type="submit"
-                    class="flex-1 py-1.5 px-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    class="flex-1 py-1.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 whitespace-nowrap"
                 >
                     <i data-lucide="search" class="w-3 h-3"></i>
                     <span>Terapkan</span>
@@ -172,34 +200,6 @@
                 >
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400"></i>
                 </a>
-            </div>
-        </div>
-
-        {{-- Custom Date Range Inputs (Only shown when "Periode Kustom" is selected) --}}
-        <div id="customDateRangeContainer" class="{{ $isCustomDate ? '' : 'hidden' }} pt-2.5 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-3">
-            <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1.5">
-                <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-500"></i>
-                <span>Rentang Tanggal:</span>
-            </span>
-            <div class="flex items-center gap-2">
-                <label for="filterStartDate" class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Mulai</label>
-                <input
-                    type="date"
-                    id="filterStartDate"
-                    name="start_date"
-                    value="{{ $cf['start_date'] ?? '' }}"
-                    class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-            </div>
-            <div class="flex items-center gap-2">
-                <label for="filterEndDate" class="text-[11px] font-medium text-slate-500 dark:text-slate-400">Selesai</label>
-                <input
-                    type="date"
-                    id="filterEndDate"
-                    name="end_date"
-                    value="{{ $cf['end_date'] ?? '' }}"
-                    class="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
             </div>
         </div>
     </form>

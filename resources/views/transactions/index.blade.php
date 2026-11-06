@@ -114,22 +114,153 @@
             }
             root.dataset.transactionsInitialized = 'true';
 
-            // Custom date range toggle (local UI only — server-side filtering on submit)
+            // Flatpickr & Date Preset Sync (server-side filtering on submit)
             const filterDate = document.getElementById('filterDate');
-            const customDateRangeContainer = document.getElementById('customDateRangeContainer');
+            const flatpickrInput = document.getElementById('flatpickrDateRange');
+            const filterStartDate = document.getElementById('filterStartDate');
+            const filterEndDate = document.getElementById('filterEndDate');
+            const clearFlatpickrBtn = document.getElementById('clearFlatpickrBtn');
 
-            function syncCustomDateVisibility() {
-                if (!customDateRangeContainer || !filterDate) return;
+            function parseYmdLocal(ymd) {
+                if (!ymd || typeof ymd !== 'string') return null;
+                const parts = ymd.split('-').map(Number);
+                if (parts.length !== 3 || parts.some(isNaN)) return null;
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+
+            function formatYmdLocal(dateObj) {
+                if (!(dateObj instanceof Date) || isNaN(dateObj.getTime())) return '';
+                const y = dateObj.getFullYear();
+                const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const d = String(dateObj.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            function updateClearBtnVisibility() {
+                if (!clearFlatpickrBtn || !filterDate) return;
                 if (filterDate.value === 'custom') {
-                    customDateRangeContainer.classList.remove('hidden');
+                    clearFlatpickrBtn.classList.remove('hidden');
                 } else {
-                    customDateRangeContainer.classList.add('hidden');
+                    clearFlatpickrBtn.classList.add('hidden');
                 }
             }
 
+            if (window.__transactionsFlatpickr) {
+                try {
+                    window.__transactionsFlatpickr.destroy();
+                } catch (_) {}
+                window.__transactionsFlatpickr = null;
+            }
+
+            let fpInstance = null;
+            let isProgrammaticDateSync = false;
+
+            if (flatpickrInput && typeof flatpickr !== 'undefined') {
+                const idLocale = (flatpickr.l10ns && flatpickr.l10ns.id)
+                    ? Object.assign({}, flatpickr.l10ns.id, { rangeSeparator: ' - ' })
+                    : { rangeSeparator: ' - ' };
+
+                fpInstance = flatpickr(flatpickrInput, {
+                    mode: 'range',
+                    dateFormat: 'd M Y',
+                    locale: idLocale,
+                    allowInput: false,
+                    disableMobile: true,
+                    onChange: function(selectedDates) {
+                        if (isProgrammaticDateSync) return;
+                        if (selectedDates.length >= 1) {
+                            if (filterDate) {
+                                filterDate.value = 'custom';
+                            }
+                            const startStr = formatYmdLocal(selectedDates[0]);
+                            const endStr = formatYmdLocal(selectedDates[1] || selectedDates[0]);
+                            if (filterStartDate) filterStartDate.value = startStr;
+                            if (filterEndDate) filterEndDate.value = endStr;
+                            updateClearBtnVisibility();
+                        }
+                    },
+                    onClose: function(selectedDates, _dateStr, instance) {
+                        if (isProgrammaticDateSync) return;
+                        if (selectedDates.length === 1 && filterDate && filterDate.value === 'custom') {
+                            const singleYmd = formatYmdLocal(selectedDates[0]);
+                            if (filterStartDate) filterStartDate.value = singleYmd;
+                            if (filterEndDate) filterEndDate.value = singleYmd;
+                            isProgrammaticDateSync = true;
+                            instance.setDate([selectedDates[0]], false);
+                            isProgrammaticDateSync = false;
+                        }
+                    }
+                });
+
+                window.__transactionsFlatpickr = fpInstance;
+            }
+
+            function syncPresetToFlatpickr(preset, openOnCustomEmpty = false) {
+                if (!fpInstance || !flatpickrInput) return;
+                const todayBase = parseYmdLocal(flatpickrInput.dataset.today) || new Date();
+                isProgrammaticDateSync = true;
+
+                if (preset === 'today') {
+                    fpInstance.setDate([todayBase], false);
+                    if (filterStartDate) filterStartDate.value = '';
+                    if (filterEndDate) filterEndDate.value = '';
+                } else if (preset === '7days') {
+                    const start = new Date(todayBase);
+                    start.setDate(start.getDate() - 6);
+                    fpInstance.setDate([start, todayBase], false);
+                    if (filterStartDate) filterStartDate.value = '';
+                    if (filterEndDate) filterEndDate.value = '';
+                } else if (preset === '30days') {
+                    const start = new Date(todayBase);
+                    start.setDate(start.getDate() - 29);
+                    fpInstance.setDate([start, todayBase], false);
+                    if (filterStartDate) filterStartDate.value = '';
+                    if (filterEndDate) filterEndDate.value = '';
+                } else if (preset === 'all') {
+                    fpInstance.clear(false);
+                    if (filterStartDate) filterStartDate.value = '';
+                    if (filterEndDate) filterEndDate.value = '';
+                } else if (preset === 'custom') {
+                    const sDate = filterStartDate ? parseYmdLocal(filterStartDate.value) : null;
+                    const eDate = filterEndDate ? parseYmdLocal(filterEndDate.value) : null;
+                    if (sDate && eDate) {
+                        if (formatYmdLocal(sDate) === formatYmdLocal(eDate)) {
+                            fpInstance.setDate([sDate], false);
+                        } else {
+                            fpInstance.setDate([sDate, eDate], false);
+                        }
+                    } else if (sDate) {
+                        fpInstance.setDate([sDate], false);
+                    } else if (eDate) {
+                        fpInstance.setDate([eDate], false);
+                    } else {
+                        fpInstance.clear(false);
+                        if (openOnCustomEmpty) {
+                            setTimeout(() => fpInstance.open(), 20);
+                        }
+                    }
+                }
+
+                isProgrammaticDateSync = false;
+                updateClearBtnVisibility();
+            }
+
             if (filterDate) {
-                filterDate.addEventListener('change', syncCustomDateVisibility);
-                syncCustomDateVisibility();
+                filterDate.addEventListener('change', () => {
+                    syncPresetToFlatpickr(filterDate.value, true);
+                });
+                syncPresetToFlatpickr(filterDate.value, false);
+            }
+
+            if (clearFlatpickrBtn) {
+                clearFlatpickrBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (filterDate) {
+                        filterDate.value = 'today';
+                    }
+                    syncPresetToFlatpickr('today', false);
+                });
             }
 
             // Detail Drawer Elements

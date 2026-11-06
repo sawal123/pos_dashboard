@@ -73,8 +73,8 @@ class DashboardTransactionsData
             });
         }
 
-        // Date filter
-        $date = isset($filters['date']) ? (string) $filters['date'] : 'all';
+        // Date filter (defaults to 'today')
+        $date = isset($filters['date']) && $filters['date'] !== '' ? (string) $filters['date'] : 'today';
         $this->applyDateFilter($query, $date, $filters);
 
         // Outlet filter — uses outlet_id (stable key)
@@ -428,7 +428,7 @@ class DashboardTransactionsData
     {
         return [
             'q' => isset($filters['q']) ? (string) $filters['q'] : '',
-            'date' => isset($filters['date']) ? (string) $filters['date'] : 'all',
+            'date' => isset($filters['date']) && $filters['date'] !== '' ? (string) $filters['date'] : 'today',
             'start_date' => isset($filters['start_date']) ? (string) $filters['start_date'] : '',
             'end_date' => isset($filters['end_date']) ? (string) $filters['end_date'] : '',
             'outlet_id' => isset($filters['outlet_id']) ? (string) $filters['outlet_id'] : '',
