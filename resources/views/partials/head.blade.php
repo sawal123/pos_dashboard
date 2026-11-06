@@ -13,9 +13,8 @@
 <script data-navigate-once>
     (function () {
         try {
-            const stored = localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance');
-            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            const isDark = stored === 'dark' || (!stored && prefersDark);
+            const stored = localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance') || 'light';
+            const isDark = stored === 'dark';
             if (isDark) {
                 document.documentElement.classList.add('dark');
                 document.documentElement.classList.remove('light');

@@ -160,19 +160,28 @@
                 // Theme Management
                 function applyTheme(theme) {
                     const isDark = theme === 'dark';
+                    const targetTheme = isDark ? 'dark' : 'light';
                     const html = document.documentElement;
 
                     html.classList.toggle('dark', isDark);
                     html.classList.toggle('light', !isDark);
 
                     try {
-                        localStorage.setItem('nexa-theme', isDark ? 'dark' : 'light');
-                        localStorage.setItem('flux.appearance', isDark ? 'dark' : 'light');
+                        localStorage.setItem('nexa-theme', targetTheme);
+                        localStorage.setItem('flux.appearance', targetTheme);
                     } catch (e) {}
 
-                    if (window.Flux && typeof window.Flux.applyAppearance === 'function') {
+                    if (window.Flux) {
                         try {
-                            window.Flux.applyAppearance(isDark ? 'dark' : 'light');
+                            if (typeof window.Flux.applyAppearance === 'function') {
+                                window.Flux.applyAppearance(targetTheme);
+                            }
+                            if ('appearance' in window.Flux) {
+                                window.Flux.appearance = targetTheme;
+                            }
+                            if ('dark' in window.Flux) {
+                                window.Flux.dark = isDark;
+                            }
                         } catch (e) {}
                     }
 
@@ -183,8 +192,17 @@
                 }
                 window.applyTheme = applyTheme;
 
-                const storedTheme = localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance') || 'light';
-                applyTheme(storedTheme);
+                function getStoredTheme() {
+                    try {
+                        const nexa = localStorage.getItem('nexa-theme');
+                        if (nexa === 'dark' || nexa === 'light') return nexa;
+                        const flux = localStorage.getItem('flux.appearance');
+                        if (flux === 'dark' || flux === 'light') return flux;
+                    } catch (e) {}
+                    return 'light';
+                }
+
+                applyTheme(getStoredTheme());
 
                 const themeToggleBtn = document.getElementById('themeToggleBtn');
                 if (themeToggleBtn) {

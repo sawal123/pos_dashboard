@@ -135,22 +135,48 @@
 
                 function applyTheme(theme) {
                     const isDark = theme === 'dark';
+                    const targetTheme = isDark ? 'dark' : 'light';
                     htmlEl.classList.toggle('dark', isDark);
                     htmlEl.classList.toggle('light', !isDark);
                     if (moonIcon) moonIcon.style.display = isDark ? 'inline' : 'none';
                     if (sunIcon) sunIcon.style.display = isDark ? 'none' : 'inline';
                     try {
-                        localStorage.setItem('nexa-theme', theme);
+                        localStorage.setItem('nexa-theme', targetTheme);
+                        localStorage.setItem('flux.appearance', targetTheme);
                     } catch (e) {}
+                    if (window.Flux) {
+                        try {
+                            if (typeof window.Flux.applyAppearance === 'function') {
+                                window.Flux.applyAppearance(targetTheme);
+                            }
+                            if ('appearance' in window.Flux) {
+                                window.Flux.appearance = targetTheme;
+                            }
+                            if ('dark' in window.Flux) {
+                                window.Flux.dark = isDark;
+                            }
+                        } catch (e) {}
+                    }
+                }
+
+                function getStoredTheme() {
+                    try {
+                        const nexa = localStorage.getItem('nexa-theme');
+                        if (nexa === 'dark' || nexa === 'light') return nexa;
+                        const flux = localStorage.getItem('flux.appearance');
+                        if (flux === 'dark' || flux === 'light') return flux;
+                    } catch (e) {}
+                    return 'light';
                 }
 
                 if (themeToggleBtn) {
                     themeToggleBtn.addEventListener('click', function () {
-                        applyTheme(htmlEl.classList.contains('dark') ? 'light' : 'dark');
+                        const isDark = htmlEl.classList.contains('dark');
+                        applyTheme(isDark ? 'light' : 'dark');
                     });
                 }
 
-                applyTheme(htmlEl.classList.contains('dark') ? 'dark' : 'light');
+                applyTheme(getStoredTheme());
             })();
         </script>
 
