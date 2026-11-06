@@ -1609,7 +1609,11 @@
         }
 
         // ==================== EVENT LISTENERS & SHORTCUTS ====================
-        document.addEventListener('DOMContentLoaded', () => {
+        function initPosPage() {
+            const productGrid = document.getElementById('productGrid');
+            if (!productGrid || productGrid.dataset.posInitialized === '1') return;
+            productGrid.dataset.posInitialized = '1';
+
             loadCartFromStorage();
             renderCatalog();
             renderCart();
@@ -1715,35 +1719,47 @@
                 cashInput.addEventListener('input', calculateCashChange);
             }
 
-            // Keyboard Shortcuts
-            document.addEventListener('keydown', (e) => {
-                const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-                const isEditing = activeTag === 'input' || activeTag === 'textarea';
+            // Keyboard Shortcuts (attached once globally, only active while on POS page)
+            if (!window.__posShortcutsBound) {
+                window.__posShortcutsBound = true;
+                document.addEventListener('keydown', (e) => {
+                    if (!document.getElementById('productGrid')) return;
+                    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+                    const isEditing = activeTag === 'input' || activeTag === 'textarea';
 
-                // F2: Checkout
-                if (e.key === 'F2') {
-                    e.preventDefault();
-                    openPaymentModal();
-                }
-
-                // Esc: Close Modal
-                if (e.key === 'Escape') {
-                    closePaymentModal();
-                    closeSuccessModal();
-                    closeOpenShiftModal();
-                    closeCloseShiftModal();
-                }
-
-                // '/' Focus search
-                if (e.key === '/' && !isEditing) {
-                    e.preventDefault();
-                    if (searchInput) {
-                        searchInput.focus();
-                        searchInput.select();
+                    // F2: Checkout
+                    if (e.key === 'F2') {
+                        e.preventDefault();
+                        openPaymentModal();
                     }
-                }
-            });
-        });
+
+                    // Esc: Close Modal
+                    if (e.key === 'Escape') {
+                        closePaymentModal();
+                        closeSuccessModal();
+                        closeOpenShiftModal();
+                        closeCloseShiftModal();
+                    }
+
+                    // '/' Focus search
+                    if (e.key === '/' && !isEditing) {
+                        e.preventDefault();
+                        const currentSearchInput = document.getElementById('catalogSearchInput');
+                        if (currentSearchInput) {
+                            currentSearchInput.focus();
+                            currentSearchInput.select();
+                        }
+                    }
+                });
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPosPage);
+        } else {
+            initPosPage();
+        }
+        document.addEventListener('livewire:navigated', initPosPage);
     </script>
     {{-- Reusable Camera Scanner Modal --}}
     <x-ui.camera-scanner-modal />

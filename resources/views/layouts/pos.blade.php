@@ -112,11 +112,12 @@
                 <button
                     type="button"
                     id="themeToggleBtn"
-                    class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                    aria-label="Ganti Tema"
+                    class="inline-flex items-center justify-center p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-xs cursor-pointer"
+                    aria-label="Ganti mode tampilan tema"
+                    title="Mode Tampilan"
                 >
-                    <i data-lucide="moon" id="moonIcon" class="w-4 h-4 hidden"></i>
-                    <i data-lucide="sun" id="sunIcon" class="w-4 h-4 hidden"></i>
+                    <i data-lucide="moon" id="moonIcon" class="w-4 h-4 hidden dark:inline"></i>
+                    <i data-lucide="sun" id="sunIcon" class="w-4 h-4 inline dark:hidden"></i>
                 </button>
 
                 {{-- Dashboard Link --}}
@@ -185,10 +186,11 @@
                         } catch (e) {}
                     }
 
+                    // Reset any stale inline display style so Tailwind classes (hidden dark:inline / inline dark:hidden) take priority
                     const moonIcon = document.getElementById('moonIcon');
                     const sunIcon = document.getElementById('sunIcon');
-                    if (moonIcon) moonIcon.style.display = isDark ? 'inline' : 'none';
-                    if (sunIcon) sunIcon.style.display = isDark ? 'none' : 'inline';
+                    if (moonIcon) moonIcon.style.display = '';
+                    if (sunIcon) sunIcon.style.display = '';
                 }
                 window.applyTheme = applyTheme;
 
@@ -201,15 +203,22 @@
                     } catch (e) {}
                     return 'light';
                 }
+                window.getStoredTheme = getStoredTheme;
 
-                applyTheme(getStoredTheme());
+                function bindPosHeaderControls() {
+                    applyTheme(getStoredTheme());
+                    initIcons();
 
-                const themeToggleBtn = document.getElementById('themeToggleBtn');
-                if (themeToggleBtn) {
-                    themeToggleBtn.addEventListener('click', () => {
-                        const isDark = document.documentElement.classList.contains('dark');
-                        applyTheme(isDark ? 'light' : 'dark');
-                    });
+                    const themeToggleBtn = document.getElementById('themeToggleBtn');
+                    if (themeToggleBtn && !themeToggleBtn.dataset.themeBound) {
+                        themeToggleBtn.dataset.themeBound = '1';
+                        themeToggleBtn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const isDark = document.documentElement.classList.contains('dark');
+                            applyTheme(isDark ? 'light' : 'dark');
+                        });
+                    }
                 }
 
                 // Live Clock
@@ -219,7 +228,10 @@
                     const now = new Date();
                     clockEl.textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                 }
-                setInterval(updateClock, 1000);
+                if (window.__posClockInterval) {
+                    clearInterval(window.__posClockInterval);
+                }
+                window.__posClockInterval = setInterval(updateClock, 1000);
                 updateClock();
 
                 // Toast System
@@ -264,9 +276,12 @@
                 }
                 window.showToast = showToast;
 
-                document.addEventListener('DOMContentLoaded', () => {
-                    initIcons();
-                });
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', bindPosHeaderControls);
+                } else {
+                    bindPosHeaderControls();
+                }
+                document.addEventListener('livewire:navigated', bindPosHeaderControls);
             })();
         </script>
     </body>

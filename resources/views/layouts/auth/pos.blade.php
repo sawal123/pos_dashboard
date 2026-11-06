@@ -129,17 +129,16 @@
             // ========== THEME TOGGLE (shares the dashboard 'nexa-theme' key) ==========
             (function () {
                 const htmlEl = document.documentElement;
-                const themeToggleBtn = document.getElementById('themeToggleBtn');
-                const moonIcon = document.getElementById('moonIcon');
-                const sunIcon = document.getElementById('sunIcon');
 
                 function applyTheme(theme) {
                     const isDark = theme === 'dark';
                     const targetTheme = isDark ? 'dark' : 'light';
                     htmlEl.classList.toggle('dark', isDark);
                     htmlEl.classList.toggle('light', !isDark);
-                    if (moonIcon) moonIcon.style.display = isDark ? 'inline' : 'none';
-                    if (sunIcon) sunIcon.style.display = isDark ? 'none' : 'inline';
+                    const moonIcon = document.getElementById('moonIcon');
+                    const sunIcon = document.getElementById('sunIcon');
+                    if (moonIcon) moonIcon.style.display = '';
+                    if (sunIcon) sunIcon.style.display = '';
                     try {
                         localStorage.setItem('nexa-theme', targetTheme);
                         localStorage.setItem('flux.appearance', targetTheme);
@@ -169,14 +168,22 @@
                     return 'light';
                 }
 
-                if (themeToggleBtn) {
-                    themeToggleBtn.addEventListener('click', function () {
-                        const isDark = htmlEl.classList.contains('dark');
-                        applyTheme(isDark ? 'light' : 'dark');
-                    });
+                function bindAuthThemeToggle() {
+                    applyTheme(getStoredTheme());
+                    const themeToggleBtn = document.getElementById('themeToggleBtn');
+                    if (themeToggleBtn && !themeToggleBtn.dataset.themeBound) {
+                        themeToggleBtn.dataset.themeBound = '1';
+                        themeToggleBtn.addEventListener('click', function (e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const isDark = htmlEl.classList.contains('dark');
+                            applyTheme(isDark ? 'light' : 'dark');
+                        });
+                    }
                 }
 
-                applyTheme(getStoredTheme());
+                bindAuthThemeToggle();
+                document.addEventListener('livewire:navigated', bindAuthThemeToggle);
             })();
         </script>
 

@@ -56,6 +56,9 @@ class PosPageTest extends TestCase
         $response->assertSee('Kopi Americano');
         $response->assertSee('Pesanan Kasir');
         $response->assertSee('Cabang Utama');
+        $response->assertSee('id="themeToggleBtn"', false);
+        $response->assertSee('id="moonIcon" class="w-4 h-4 hidden dark:inline"', false);
+        $response->assertSee('id="sunIcon" class="w-4 h-4 inline dark:hidden"', false);
     }
 
     public function test_04_cashier_can_visit_pos_page(): void
