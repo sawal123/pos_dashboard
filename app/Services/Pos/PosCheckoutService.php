@@ -340,7 +340,8 @@ class PosCheckoutService
                     ->first();
 
                 if ($promo instanceof Promo && $promo->status === PromoStatus::Active->value) {
-                    $result = $this->promoEvaluator->evaluate($promo, $subtotal, $evaluatorLines, $now);
+                    $promoCustomerId = $customer instanceof Customer ? (int) $customer->id : null;
+                    $result = $this->promoEvaluator->evaluate($promo, $subtotal, $evaluatorLines, $now, $promoCustomerId);
                     if ($result['eligible']) {
                         // Check usage limit total if defined
                         $limitExceeded = false;
@@ -351,6 +352,19 @@ class PosCheckoutService
                                 ->count();
 
                             if ($usedCount >= (int) $promo->usage_limit_total) {
+                                $limitExceeded = true;
+                            }
+                        }
+
+                        if (! $limitExceeded && $promo->usage_limit_per_customer !== null && $customer instanceof Customer) {
+                            $usedByCustomer = SalePromotion::query()
+                                ->where('sale_promotions.business_id', $business->id)
+                                ->where('sale_promotions.promo_id', $promo->id)
+                                ->join('sales', 'sales.id', '=', 'sale_promotions.sale_id')
+                                ->where('sales.customer_id', $customer->id)
+                                ->count();
+
+                            if ($usedByCustomer >= (int) $promo->usage_limit_per_customer) {
                                 $limitExceeded = true;
                             }
                         }

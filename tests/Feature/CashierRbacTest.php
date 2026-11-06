@@ -67,12 +67,16 @@ class CashierRbacTest extends TestCase
         $this->assertRoutesStatus(self::ADMIN_ROUTES, 403);
     }
 
-    public function test_cashier_can_access_only_limited_operational_pages(): void
+    public function test_cashier_can_access_only_pos_and_is_redirected_from_dashboard(): void
     {
         $business = Business::factory()->create();
         $this->actingAsRole($business, 'cashier');
 
-        $this->assertRoutesStatus(self::OPERATIONAL_ROUTES, 200);
+        $this->get(route('pos.index'))->assertOk();
+        $this->get(route('dashboard'))->assertRedirect(route('pos.index'));
+
+        $forbiddenOperational = array_values(array_filter(self::OPERATIONAL_ROUTES, fn (string $r): bool => $r !== 'dashboard'));
+        $this->assertRoutesStatus($forbiddenOperational, 403);
         $this->assertRoutesStatus(self::ANALYTICS_ROUTES, 403);
         $this->assertRoutesStatus(self::ADMIN_ROUTES, 403);
     }
@@ -181,17 +185,21 @@ class CashierRbacTest extends TestCase
     public function test_sidebar_mirrors_the_permission_matrix(): void
     {
         $business = Business::factory()->create();
-        $this->actingAsRole($business, 'cashier');
+        $this->actingAsRole($business, 'member');
 
+        $member = $this->get(route('dashboard'));
+        $member->assertOk();
+        $member->assertSee(route('transactions.index'), false);
+        $member->assertSee(route('reports.index'), false);
+        $member->assertDontSee(route('users.index'), false);
+        $member->assertDontSee(route('devices.index'), false);
+        $member->assertDontSee(route('sync.index'), false);
+        $member->assertDontSee(route('subscriptions.index'), false);
+
+        $cashierBusiness = Business::factory()->create();
+        $this->actingAsRole($cashierBusiness, 'cashier');
         $cashier = $this->get(route('dashboard'));
-        $cashier->assertOk();
-        $cashier->assertSee(route('transactions.index'), false);
-        $cashier->assertDontSee(route('reports.index'), false);
-        $cashier->assertDontSee(route('outlets.index'), false);
-        $cashier->assertDontSee(route('users.index'), false);
-        $cashier->assertDontSee(route('devices.index'), false);
-        $cashier->assertDontSee(route('sync.index'), false);
-        $cashier->assertDontSee(route('subscriptions.index'), false);
+        $cashier->assertRedirect(route('pos.index'));
 
         $ownerBusiness = Business::factory()->create();
         $this->actingAsRole($ownerBusiness, 'owner');

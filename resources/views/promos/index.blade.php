@@ -10,7 +10,7 @@
                 </nav>
                 <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Promo</h1>
                 <p class="text-xs md:text-sm text-slate-500 dark:text-slate-400 mt-1">
-                    Atur potongan harga yang tersinkron ke POS dan divalidasi ulang oleh server.
+                    Atur potongan harga yang berlaku untuk seluruh cabang toko ini dan tersinkron otomatis ke POS.
                 </p>
             </div>
             @if($canManagePromos ?? false)
@@ -102,7 +102,11 @@
                                         <p class="font-medium">{{ $promo['scope'] }}</p>
                                         @if(!empty($promo['targets']) && $promo['scope_raw'] !== 'all')
                                             <p class="text-[11px] text-slate-400 font-normal">
-                                                {{ count($promo['targets']) }} {{ $promo['scope_raw'] === 'product' ? 'Produk' : 'Kategori' }}
+                                                {{ count($promo['targets']) }} {{ $promo['scope_raw'] === 'product' ? 'Produk' : ($promo['scope_raw'] === 'customer' ? 'Pelanggan' : 'Kategori') }}
+                                            </p>
+                                        @elseif($promo['scope_raw'] === 'customer')
+                                            <p class="text-[11px] text-emerald-600 dark:text-emerald-400 font-normal">
+                                                Semua Pelanggan
                                             </p>
                                         @endif
                                     </td>
@@ -157,7 +161,7 @@
         @endif
 
         @if($canManagePromos ?? false)
-            <x-promos.promo-modal :products="$products" :categories="$categories" />
+            <x-promos.promo-modal :products="$products" :categories="$categories" :customers="$customers" />
         @endif
     </main>
 
@@ -266,6 +270,26 @@
                     });
 
                     initSelect2('Pilih kategori...');
+                    if (typeof window.jQuery !== 'undefined') {
+                        window.jQuery(targetSelect).val(normalizedIds).trigger('change');
+                    }
+                } else if (scope === 'customer') {
+                    if (targetGroup) targetGroup.classList.remove('hidden');
+                    if (targetLabel) targetLabel.textContent = 'Target Pelanggan';
+                    if (targetHint) targetHint.textContent = 'Pilih satu atau lebih pelanggan khusus, atau kosongkan untuk berlaku bagi semua pelanggan terdaftar di toko ini.';
+
+                    targetSelect.innerHTML = '';
+                    (modalData.customers || []).forEach((customer) => {
+                        const opt = document.createElement('option');
+                        opt.value = customer.id;
+                        opt.textContent = customer.name + (customer.phone ? ` (${customer.phone})` : '');
+                        if (normalizedIds.includes(String(customer.id))) {
+                            opt.selected = true;
+                        }
+                        targetSelect.appendChild(opt);
+                    });
+
+                    initSelect2('Pilih pelanggan (kosongkan jika semua pelanggan)...');
                     if (typeof window.jQuery !== 'undefined') {
                         window.jQuery(targetSelect).val(normalizedIds).trigger('change');
                     }

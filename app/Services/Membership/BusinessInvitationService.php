@@ -328,9 +328,9 @@ class BusinessInvitationService
      */
     private function assertRoleAllowed(string $role): void
     {
-        if ($role !== BusinessInvitation::ROLE_MEMBER) {
+        if (! in_array($role, BusinessInvitation::ROLES, true)) {
             throw ValidationException::withMessages([
-                'role' => 'Peran undangan yang didukung saat ini hanya Anggota.',
+                'role' => 'Peran undangan yang didukung adalah Anggota atau Kasir.',
             ]);
         }
     }

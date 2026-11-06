@@ -127,16 +127,9 @@ final class BusinessPermission
             ],
             Business::ROLE_CASHIER => [
                 self::DASHBOARD_VIEW,
-                self::TRANSACTIONS_VIEW,
-                self::PRODUCTS_VIEW,
-                self::STOCK_VIEW,
-                self::CASH_VIEW,
-                self::SHIFTS_VIEW,
-                self::CUSTOMERS_VIEW,
-                self::LAUNDRY_VIEW,
+                self::POS_SELL,
                 self::SYNC_PUSH_CASHIER_SAFE,
                 self::SYNC_PULL,
-                self::POS_SELL,
             ],
         ];
     }

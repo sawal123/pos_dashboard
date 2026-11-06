@@ -10,12 +10,15 @@ enum PromoScope: string
 
     case Category = 'category';
 
+    case Customer = 'customer';
+
     public function label(): string
     {
         return match ($this) {
             self::All => 'Semua Item',
             self::Product => 'Produk Tertentu',
             self::Category => 'Kategori Tertentu',
+            self::Customer => 'Khusus Pelanggan',
         };
     }
 

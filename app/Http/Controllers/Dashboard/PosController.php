@@ -208,6 +208,11 @@ class PosController extends Controller
                 'integer',
                 Rule::exists('promos', 'id')->where(fn ($q) => $q->where('business_id', $business->id)),
             ],
+            'customer_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('customers', 'id')->where(fn ($q) => $q->where('business_id', $business->id)),
+            ],
             'subtotal' => ['required', 'integer', 'min:0'],
             'lines' => ['required', 'array'],
             'lines.*.product_id' => ['required', 'integer'],
@@ -236,7 +241,8 @@ class PosController extends Controller
         }
         unset($line);
 
-        $result = $this->promoEvaluator->evaluate($promo, (int) $validated['subtotal'], $lines, Carbon::now());
+        $customerId = ! empty($validated['customer_id']) ? (int) $validated['customer_id'] : null;
+        $result = $this->promoEvaluator->evaluate($promo, (int) $validated['subtotal'], $lines, Carbon::now(), $customerId);
 
         return response()->json($result);
     }

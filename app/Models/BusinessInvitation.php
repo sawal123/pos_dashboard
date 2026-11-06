@@ -46,8 +46,14 @@ use Illuminate\Support\Str;
 ])]
 class BusinessInvitation extends Model
 {
-    /** The only role an invitation may grant in DASH-10B1. */
     public const ROLE_MEMBER = Business::ROLE_MEMBER;
+
+    public const ROLE_CASHIER = Business::ROLE_CASHIER;
+
+    public const ROLES = [
+        self::ROLE_MEMBER,
+        self::ROLE_CASHIER,
+    ];
 
     public const STATUS_PENDING = 'pending';
 
@@ -182,6 +188,7 @@ class BusinessInvitation extends Model
     {
         return match ($this->role) {
             self::ROLE_MEMBER => 'Anggota',
+            self::ROLE_CASHIER => 'Kasir',
             default => ucwords(str_replace(['_', '-'], ' ', $this->role)),
         };
     }

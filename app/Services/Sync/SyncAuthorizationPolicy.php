@@ -259,8 +259,14 @@ final class SyncAuthorizationPolicy
                 ];
             }
 
+            $customerId = null;
+            if (! empty($sale['customer_sync_id'])) {
+                $customerSyncId = (string) $sale['customer_sync_id'];
+                $customerId = Customer::where('business_id', $business->id)->where('sync_id', $customerSyncId)->value('id');
+            }
+
             $at = Carbon::parse((string) ($sale['sold_at'] ?? now()));
-            $result = app(PromoEvaluator::class)->evaluate($promo, $subtotal, $lines, $at);
+            $result = app(PromoEvaluator::class)->evaluate($promo, $subtotal, $lines, $at, $customerId);
 
             if (! $result['eligible']) {
                 $violations[] = $this->violation('sales', 'upsert', $result['reason'] ?? 'promo_not_eligible');
@@ -280,6 +286,20 @@ final class SyncAuthorizationPolicy
                     ->count();
 
                 if ($used + 1 > (int) $limit) {
+                    $violations[] = $this->violation('sales', 'upsert', 'promo_usage_limit_exceeded');
+                }
+            }
+
+            $limitPerCust = $promo->usage_limit_per_customer;
+
+            if ($limitPerCust !== null && $customerId !== null) {
+                $usedCust = SalePromotion::where('sale_promotions.business_id', $business->id)
+                    ->where('sale_promotions.promo_id', $promo->id)
+                    ->join('sales', 'sales.id', '=', 'sale_promotions.sale_id')
+                    ->where('sales.customer_id', $customerId)
+                    ->count();
+
+                if ($usedCust + 1 > (int) $limitPerCust) {
                     $violations[] = $this->violation('sales', 'upsert', 'promo_usage_limit_exceeded');
                 }
             }

@@ -47,13 +47,34 @@
                     @enderror
                 </div>
 
-                <input type="hidden" name="role" value="member">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">
+                        Pilih Peran
+                    </label>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 cursor-pointer bg-white dark:bg-slate-950 transition-colors">
+                            <input type="radio" name="role" value="member" {{ old('role', 'member') === 'member' ? 'checked' : '' }} class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-900 dark:text-white">Anggota</span>
+                                <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Operasional & laporan dashboard</span>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 dark:hover:border-indigo-500/50 cursor-pointer bg-white dark:bg-slate-950 transition-colors">
+                            <input type="radio" name="role" value="cashier" {{ old('role') === 'cashier' ? 'checked' : '' }} class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <span class="block text-xs font-bold text-slate-900 dark:text-white">Kasir</span>
+                                <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">Akses khusus POS kasir & sinkronisasi</span>
+                            </div>
+                        </label>
+                    </div>
+                    @error('role')
+                        <p class="mt-1.5 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3">
                     <p class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                        Undangan dikirim sebagai peran <span class="font-semibold">Anggota</span>.
-                        Setelah bergabung, pemilik dapat mengubah perannya menjadi
-                        <span class="font-semibold">Kasir</span> melalui aksi “Ubah Peran”.
+                        Pengguna dengan peran <span class="font-semibold">Kasir</span> difokuskan untuk operasional penjualan (POS) dan sinkronisasi perangkat kasir.
                     </p>
                 </div>
 

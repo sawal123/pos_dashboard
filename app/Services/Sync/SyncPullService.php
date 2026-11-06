@@ -323,7 +323,7 @@ class SyncPullService
             ->where('sync_sequence', '<=', $serverSequence)
             ->orderBy('sync_sequence', 'asc')
             ->limit($fetchLimit)
-            ->with(['targets.product', 'targets.category'])
+            ->with(['targets.product', 'targets.category', 'targets.customer'])
             ->get();
 
         foreach ($promos as $promo) {
@@ -350,9 +350,12 @@ class SyncPullService
                     'is_stackable' => (bool) $promo->is_stackable,
                     'status' => $promo->status,
                     'targets' => $promo->targets->map(static function ($target): array {
-                        $targetSyncId = $target->target_type === 'product'
-                            ? $target->product?->sync_id
-                            : $target->category?->sync_id;
+                        $targetSyncId = match ($target->target_type) {
+                            'product' => $target->product?->sync_id,
+                            'category' => $target->category?->sync_id,
+                            'customer' => $target->customer?->sync_id,
+                            default => null,
+                        };
 
                         return [
                             'target_type' => $target->target_type,

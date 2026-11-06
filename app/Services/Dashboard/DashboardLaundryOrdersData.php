@@ -381,13 +381,14 @@ class DashboardLaundryOrdersData
             && $orderStatusRaw !== self::STATUS_DONE
             && ! $isCancelled;
 
+        $tz = config('app.timezone', 'Asia/Jakarta');
+
         $order = [
             'id' => (int) $sale->id,
             'transaction_number' => (string) $sale->transaction_number,
             'customer_name' => $this->customerName($sale),
             'customer_phone' => $this->customerPhone($sale),
             'outlet_name' => $this->outletName($sale),
-            $tz = config('app.timezone', 'Asia/Jakarta');
             'sold_at' => $this->formatDateTime($sale->sold_at),
             'sold_at_raw' => $sale->sold_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'estimated_completed_at' => $this->formatDateTime($estimated),

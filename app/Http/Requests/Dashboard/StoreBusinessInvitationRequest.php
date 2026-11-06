@@ -36,7 +36,7 @@ class StoreBusinessInvitationRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:255'],
-            'role' => ['required', 'string', Rule::in([BusinessInvitation::ROLE_MEMBER])],
+            'role' => ['required', 'string', Rule::in(BusinessInvitation::ROLES)],
         ];
     }
 
@@ -56,7 +56,7 @@ class StoreBusinessInvitationRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'role.in' => 'Peran undangan yang didukung saat ini hanya Anggota.',
+            'role.in' => 'Peran undangan yang didukung adalah Anggota atau Kasir.',
         ];
     }
 }

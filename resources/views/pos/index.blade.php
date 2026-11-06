@@ -1193,6 +1193,9 @@
                 line_total: item.unit_price * item.quantity
             }));
 
+            const customerSelect = document.getElementById('cartCustomerSelect');
+            const customerId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+
             try {
                 const res = await fetch(POS_CONFIG.promoPreviewUrl, {
                     method: 'POST',
@@ -1203,6 +1206,7 @@
                     },
                     body: JSON.stringify({
                         promo_id: Number(promoId),
+                        customer_id: customerId,
                         subtotal: subtotal,
                         lines: lines
                     })
@@ -1214,8 +1218,14 @@
                     document.getElementById('cartDiscountLabel').textContent = 'HEMAT ' + formatRp(data.discount);
                 } else {
                     appliedDiscount = 0;
-                    if (data.reason === 'promo_min_purchase') {
+                    if (data.reason === 'promo_customer_required') {
+                        showToast('info', 'Promo ini khusus untuk pelanggan terdaftar. Silakan pilih pelanggan di atas.');
+                    } else if (data.reason === 'promo_customer_mismatch') {
+                        showToast('info', 'Pelanggan yang dipilih tidak memenuhi syarat untuk promo khusus ini.');
+                    } else if (data.reason === 'promo_min_purchase') {
                         showToast('info', 'Subtotal belum mencapai syarat minimal promo ini.');
+                    } else if (data.reason === 'promo_target_mismatch') {
+                        showToast('info', 'Item belanja tidak memenuhi target promo ini.');
                     }
                 }
             } catch (e) {
@@ -1607,6 +1617,12 @@
             const promoSelect = document.getElementById('cartPromoSelect');
             if (promoSelect) {
                 promoSelect.addEventListener('change', evaluateCartPromo);
+            }
+
+            // Customer change
+            const customerSelect = document.getElementById('cartCustomerSelect');
+            if (customerSelect) {
+                customerSelect.addEventListener('change', evaluateCartPromo);
             }
 
             // Clear Cart Button

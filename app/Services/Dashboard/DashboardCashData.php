@@ -371,6 +371,8 @@ class DashboardCashData
             default => ucwords(str_replace('_', ' ', $categoryRaw)),
         };
 
+        $tz = config('app.timezone', 'Asia/Jakarta');
+
         return [
             'id' => (int) $ledger->id,
             'type_raw' => $typeRaw,
@@ -388,7 +390,6 @@ class DashboardCashData
             'is_reversible' => $ledger->isManuallyReversible() && $ledger->reversal === null,
             'is_correction' => $ledger->reverses_ledger_id !== null
                 || in_array($ledger->category, [CashLedger::CATEGORY_REVERSAL, CashLedger::CATEGORY_EXPENSE_VOID], true),
-            $tz = config('app.timezone', 'Asia/Jakarta');
             'occurred_at_raw' => $ledger->occurred_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'occurred_at' => $ledger->occurred_at->copy()->setTimezone($tz)->translatedFormat('d M Y · H:i'),
             'outlet_id' => (int) $ledger->outlet_id,
@@ -415,6 +416,8 @@ class DashboardCashData
             ? $categoryRaw
             : 'Tanpa Kategori';
 
+        $tz = config('app.timezone', 'Asia/Jakarta');
+
         return [
             'id' => (int) $expense->id,
             'description' => (string) $expense->description,
@@ -427,7 +430,6 @@ class DashboardCashData
             // be voided. Voiding is idempotent server-side; the UI simply does
             // not offer it once the expense is no longer recorded.
             'is_voidable' => $statusRaw === 'recorded',
-            $tz = config('app.timezone', 'Asia/Jakarta');
             'occurred_at_raw' => $expense->occurred_at->copy()->setTimezone($tz)->format('Y-m-d H:i:s'),
             'occurred_at' => $expense->occurred_at->copy()->setTimezone($tz)->translatedFormat('d M Y · H:i'),
             'notes' => $expense->notes !== null ? (string) $expense->notes : null,

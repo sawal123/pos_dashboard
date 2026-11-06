@@ -7,6 +7,7 @@ use App\Enums\PromoScope;
 use App\Enums\PromoStatus;
 use App\Models\Business;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Promo;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -37,6 +38,7 @@ class DashboardPromosData
                 'summary' => $this->emptySummary(),
                 'products' => [],
                 'categories' => [],
+                'customers' => [],
                 'currentFilters' => $currentFilters,
                 'hasAnyPromo' => false,
             ];
@@ -82,6 +84,7 @@ class DashboardPromosData
             'summary' => $summary,
             'products' => $this->productOptions($businessId),
             'categories' => $this->categoryOptions($businessId),
+            'customers' => $this->customerOptions($businessId),
             'currentFilters' => $currentFilters,
             'hasAnyPromo' => $summary['total'] > 0,
         ];
@@ -157,6 +160,23 @@ class DashboardPromosData
             ->map(static fn (Category $category): array => [
                 'id' => (int) $category->id,
                 'name' => (string) $category->name,
+            ])->values()->all();
+    }
+
+    /**
+     * @return array<int, array{id: int, name: string, phone?: string}>
+     */
+    private function customerOptions(int $businessId): array
+    {
+        return Customer::query()
+            ->where('business_id', $businessId)
+            ->where('status', '!=', 'deleted')
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone'])
+            ->map(static fn (Customer $customer): array => [
+                'id' => (int) $customer->id,
+                'name' => (string) $customer->name,
+                'phone' => (string) ($customer->phone ?? ''),
             ])->values()->all();
     }
 

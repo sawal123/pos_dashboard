@@ -45,4 +45,12 @@ class PromoTarget extends Model
     {
         return $this->belongsTo(Category::class, 'target_id');
     }
+
+    /**
+     * @return BelongsTo<Customer, $this>
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class, 'target_id');
+    }
 }

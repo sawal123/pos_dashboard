@@ -22,7 +22,7 @@ final class PromoEvaluator
      * @param  list<array{product_id: int|string|null, category_id?: int|string|null, unit_price?: int|float|string, quantity?: int|float|string, line_total?: int|float|string}>  $lines
      * @return array{eligible: bool, discount: int, reason: string|null}
      */
-    public function evaluate(Promo $promo, int $subtotal, array $lines, CarbonInterface $at): array
+    public function evaluate(Promo $promo, int $subtotal, array $lines, CarbonInterface $at, ?int $customerId = null): array
     {
         if ((string) $promo->status !== PromoStatus::Active->value) {
             return $this->ineligible('promo_inactive');
@@ -56,9 +56,30 @@ final class PromoEvaluator
             return $this->ineligible('promo_min_purchase');
         }
 
+        if ((string) $promo->scope === PromoScope::Customer->value) {
+            if ($customerId === null) {
+                return $this->ineligible('promo_customer_required');
+            }
+
+            $targets = $promo->relationLoaded('targets')
+                ? $promo->targets
+                : $promo->targets()->get();
+
+            $customerTargets = $targets->filter(
+                static fn ($target): bool => (string) $target->target_type === PromoScope::Customer->value
+            );
+
+            if ($customerTargets->isNotEmpty()) {
+                $allowedCustomerIds = $customerTargets->pluck('target_id')->map(static fn ($id): int => (int) $id)->all();
+                if (! in_array((int) $customerId, $allowedCustomerIds, true)) {
+                    return $this->ineligible('promo_customer_mismatch');
+                }
+            }
+        }
+
         $matching = $this->matchingLines($promo, $lines);
 
-        if ((string) $promo->scope !== PromoScope::All->value && $matching === []) {
+        if ((string) $promo->scope !== PromoScope::All->value && (string) $promo->scope !== PromoScope::Customer->value && $matching === []) {
             return $this->ineligible('promo_target_mismatch');
         }
 
@@ -80,7 +101,7 @@ final class PromoEvaluator
      */
     private function matchingLines(Promo $promo, array $lines): array
     {
-        if ((string) $promo->scope === PromoScope::All->value) {
+        if ((string) $promo->scope === PromoScope::All->value || (string) $promo->scope === PromoScope::Customer->value) {
             return $lines;
         }
 

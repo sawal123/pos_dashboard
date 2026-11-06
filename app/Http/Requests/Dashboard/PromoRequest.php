@@ -6,11 +6,15 @@ use App\Enums\PromoDiscountType;
 use App\Enums\PromoScope;
 use App\Enums\PromoStatus;
 use App\Models\Business;
+use App\Models\Category;
+use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Promo;
 use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class PromoRequest extends FormRequest
 {
@@ -100,7 +104,7 @@ class PromoRequest extends FormRequest
             'is_stackable' => ['boolean'],
             'status' => ['required', 'string', Rule::in(PromoStatus::values())],
             'targets' => ['nullable', 'array'],
-            'targets.*.type' => ['required_with:targets', 'string', Rule::in([PromoScope::Product->value, PromoScope::Category->value])],
+            'targets.*.type' => ['required_with:targets', 'string', Rule::in([PromoScope::Product->value, PromoScope::Category->value, PromoScope::Customer->value])],
             'targets.*.id' => ['required_with:targets', 'integer'],
         ];
 
@@ -109,6 +113,51 @@ class PromoRequest extends FormRequest
         }
 
         return $rules;
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $v): void {
+            $business = $this->activeBusiness();
+            if ($business === null) {
+                return;
+            }
+
+            $targets = $this->input('targets');
+            if (! is_array($targets)) {
+                return;
+            }
+
+            foreach ($targets as $i => $target) {
+                if (! is_array($target)) {
+                    continue;
+                }
+
+                $type = $target['type'] ?? null;
+                $id = isset($target['id']) ? (int) $target['id'] : null;
+
+                if (! $id) {
+                    continue;
+                }
+
+                if ($type === PromoScope::Customer->value) {
+                    $exists = Customer::query()->where('business_id', $business->id)->where('id', $id)->exists();
+                    if (! $exists) {
+                        $v->errors()->add("targets.{$i}.id", 'Pelanggan yang dipilih tidak valid atau bukan milik bisnis ini.');
+                    }
+                } elseif ($type === PromoScope::Product->value) {
+                    $exists = Product::query()->where('business_id', $business->id)->where('id', $id)->exists();
+                    if (! $exists) {
+                        $v->errors()->add("targets.{$i}.id", 'Produk yang dipilih tidak valid atau bukan milik bisnis ini.');
+                    }
+                } elseif ($type === PromoScope::Category->value) {
+                    $exists = Category::query()->where('business_id', $business->id)->where('id', $id)->exists();
+                    if (! $exists) {
+                        $v->errors()->add("targets.{$i}.id", 'Kategori yang dipilih tidak valid atau bukan milik bisnis ini.');
+                    }
+                }
+            }
+        });
     }
 
     /**

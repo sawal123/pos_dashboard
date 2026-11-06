@@ -236,11 +236,11 @@ class BusinessInvitationTest extends TestCase
         $this->assertSame(0, BusinessInvitation::count());
     }
 
-    public function test_only_member_role_can_be_invited(): void
+    public function test_only_allowed_roles_can_be_invited(): void
     {
         [$owner, $business] = $this->makeOwnerWithBusiness();
 
-        foreach (['owner', 'cashier'] as $role) {
+        foreach (['owner', 'supervisor', 'admin'] as $role) {
             $this->actingAs($owner)
                 ->withSession(['dashboard.current_business_id' => $business->id])
                 ->post(route('users.invitations.store'), ['email' => 'role@example.com', 'role' => $role])
@@ -248,6 +248,27 @@ class BusinessInvitationTest extends TestCase
         }
 
         $this->assertSame(0, BusinessInvitation::count());
+    }
+
+    public function test_owner_can_invite_cashier_role(): void
+    {
+        Mail::fake();
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+
+        $response = $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->post(route('users.invitations.store'), [
+                'email' => 'cashier@example.com',
+                'role' => BusinessInvitation::ROLE_CASHIER,
+            ]);
+
+        $response->assertRedirect(route('users.index'));
+        $response->assertSessionHas('status');
+
+        $invitation = BusinessInvitation::firstOrFail();
+        $this->assertSame('cashier@example.com', $invitation->email);
+        $this->assertSame(BusinessInvitation::ROLE_CASHIER, $invitation->role);
+        $this->assertSame('Kasir', $invitation->roleLabel());
     }
 
     // ============================================================

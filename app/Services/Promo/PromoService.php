@@ -156,6 +156,10 @@ final class PromoService
         $firstIds = $first->targets()->pluck('target_id')->map(static fn ($id): int => (int) $id)->all();
         $secondIds = $second->targets()->pluck('target_id')->map(static fn ($id): int => (int) $id)->all();
 
+        if ($firstIds === [] || $secondIds === []) {
+            return true;
+        }
+
         return array_intersect($firstIds, $secondIds) !== [];
     }
 

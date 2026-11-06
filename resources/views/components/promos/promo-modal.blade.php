@@ -1,6 +1,7 @@
 @props([
     'products' => [],
     'categories' => [],
+    'customers' => [],
 ])
 
 @php
@@ -18,6 +19,7 @@
                 <div>
                     <span id="promoModalSubtitle" class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tambah</span>
                     <h2 id="promoModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white">Promo</h2>
+                    <p class="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium">Berlaku untuk semua cabang dari toko ini</p>
                 </div>
                 <button type="button" data-close-promo-modal class="p-2 rounded-xl text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Tutup">
                     <i data-lucide="x" class="w-4 h-4"></i>
@@ -100,7 +102,8 @@
                 <script id="promoModalData" type="application/json">
                     {
                         "products": @json($products),
-                        "categories": @json($categories)
+                        "categories": @json($categories),
+                        "customers": @json($customers)
                     }
                 </script>
 
