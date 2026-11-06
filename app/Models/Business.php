@@ -21,6 +21,9 @@ use Illuminate\Support\Carbon;
  * @property string|null $business_type
  * @property bool $tax_enabled
  * @property float $tax_rate
+ * @property string $cashier_pin
+ * @property int $default_opening_cash
+ * @property bool $auto_open_shift
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
@@ -42,7 +45,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
-#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate'])]
+#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift'])]
 class Business extends Model
 {
     /** Membership role values that have a defined authorization contract. */
@@ -82,6 +85,9 @@ class Business extends Model
         'status' => 'inactive',
         'tax_enabled' => false,
         'tax_rate' => 11.00,
+        'cashier_pin' => '123456',
+        'default_opening_cash' => 0,
+        'auto_open_shift' => true,
     ];
 
     /**
@@ -94,6 +100,8 @@ class Business extends Model
         return [
             'tax_enabled' => 'boolean',
             'tax_rate' => 'float',
+            'default_opening_cash' => 'integer',
+            'auto_open_shift' => 'boolean',
         ];
     }
 

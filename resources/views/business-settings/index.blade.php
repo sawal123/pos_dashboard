@@ -78,8 +78,14 @@
             :taxRate="$taxRate"
         />
 
+        <x-business-settings.cashier-pin-shift-form
+            :cashierPin="$cashierPin"
+            :defaultOpeningCash="$defaultOpeningCash"
+            :autoOpenShift="$autoOpenShift"
+        />
+
         <p class="text-xs text-slate-500 dark:text-slate-400">
-            Mengubah tipe bisnis dan pengaturan pajak berlaku untuk transaksi baru dan tidak mengubah data transaksi historis.
+            Mengubah tipe bisnis, pengaturan pajak, serta PIN dan Shift berlaku untuk sesi operasional kasir baru.
         </p>
     </main>
 </x-layouts::app>

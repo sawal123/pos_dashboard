@@ -6,6 +6,7 @@ use App\Enums\BusinessType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\UpdateBusinessTaxRequest;
 use App\Http\Requests\Dashboard\UpdateBusinessTypeRequest;
+use App\Http\Requests\Dashboard\UpdateCashierPinShiftRequest;
 use App\Models\Business;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,9 @@ class BusinessSettingsController extends Controller
             'typeOptions' => BusinessType::options(),
             'taxEnabled' => (bool) $business->tax_enabled,
             'taxRate' => (float) $business->tax_rate,
+            'cashierPin' => (string) ($business->cashier_pin ?? '123456'),
+            'defaultOpeningCash' => (int) ($business->default_opening_cash ?? 0),
+            'autoOpenShift' => (bool) ($business->auto_open_shift ?? true),
         ]);
     }
 
@@ -65,6 +69,23 @@ class BusinessSettingsController extends Controller
         return redirect()
             ->route('business-settings.edit')
             ->with('status', 'Pengaturan pajak bisnis berhasil disimpan.');
+    }
+
+    public function updateCashierPinShift(UpdateCashierPinShiftRequest $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validated();
+
+        $business->update([
+            'cashier_pin' => (string) $validated['cashier_pin'],
+            'default_opening_cash' => (int) $validated['default_opening_cash'],
+            'auto_open_shift' => (bool) $validated['auto_open_shift'],
+        ]);
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', 'Pengaturan PIN kasir dan Shift berhasil disimpan.');
     }
 
     /**

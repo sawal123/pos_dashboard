@@ -102,6 +102,11 @@ class MobileContextController extends Controller
                     'enabled' => (bool) $business->tax_enabled,
                     'rate' => (float) ($business->tax_rate ?? 11.0),
                 ],
+                'cashier_pin' => (string) ($business->cashier_pin ?? '123456'),
+                'shift_settings' => [
+                    'auto_open' => (bool) ($business->auto_open_shift ?? true),
+                    'default_opening_cash' => (int) ($business->default_opening_cash ?? 0),
+                ],
                 'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,
