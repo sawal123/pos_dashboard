@@ -73,9 +73,13 @@
             :typeOptions="$typeOptions"
         />
 
+        <x-business-settings.tax-settings-form
+            :taxEnabled="$taxEnabled"
+            :taxRate="$taxRate"
+        />
+
         <p class="text-xs text-slate-500 dark:text-slate-400">
-            Mengubah tipe bisnis tidak menghapus produk, transaksi, stok, data laundry, atau langganan.
-            Hanya relevansi tampilan menu yang menyesuaikan.
+            Mengubah tipe bisnis dan pengaturan pajak berlaku untuk transaksi baru dan tidak mengubah data transaksi historis.
         </p>
     </main>
 </x-layouts::app>

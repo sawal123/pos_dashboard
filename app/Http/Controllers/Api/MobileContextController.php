@@ -98,6 +98,10 @@ class MobileContextController extends Controller
                 // (`cafe` | `laundry` | `grosir`) or null when not determined.
                 // Existing keys are unchanged; legacy clients can ignore it.
                 'business_type' => $business->normalizedBusinessType(),
+                'tax_settings' => [
+                    'enabled' => (bool) $business->tax_enabled,
+                    'rate' => (float) ($business->tax_rate ?? 11.0),
+                ],
                 'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,

@@ -65,11 +65,11 @@ class MobileBusinessTypeContextTest extends TestCase
         $businesses = $response->json('data.businesses');
         $this->assertCount(1, $businesses);
 
-        // No existing key was removed or renamed — only `business_type` added.
+        // No existing key was removed or renamed.
         $keys = array_keys($businesses[0]);
         sort($keys);
         $this->assertSame(
-            ['business_type', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'role', 'subscription', 'sync_capabilities'],
+            ['business_type', 'catalog_capabilities', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'role', 'subscription', 'sync_capabilities', 'tax_settings'],
             $keys,
         );
         $this->assertNull($businesses[0]['device_context']);

@@ -378,7 +378,10 @@ class PosCheckoutService
             }
 
             // 7. Calculate Final Total and Payment
-            $totalAmount = max(0, $subtotal - $discountAmount);
+            $taxRate = $business->tax_enabled ? (float) $business->tax_rate : 0.0;
+            $taxableSubtotal = max(0, $subtotal - $discountAmount);
+            $taxAmount = $business->tax_enabled ? (int) round(($taxableSubtotal * $taxRate) / 100) : 0;
+            $totalAmount = $taxableSubtotal + $taxAmount;
             $paymentMethod = (string) $payload['payment_method'];
             $validMethods = ['cash', 'qris', 'transfer', 'debit'];
             if (! in_array($paymentMethod, $validMethods, true)) {
@@ -404,7 +407,7 @@ class PosCheckoutService
                 $changeAmount = 0;
             }
 
-            $grossProfit = round($totalAmount - $costTotal, 2);
+            $grossProfit = round($taxableSubtotal - $costTotal, 2);
 
             // 8. Snapshots
             $customerSnapshot = $customer ? [
@@ -433,7 +436,7 @@ class PosCheckoutService
                 'status' => 'completed',
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
-                'tax_amount' => 0,
+                'tax_amount' => $taxAmount,
                 'total_amount' => $totalAmount,
                 'gross_profit' => $grossProfit,
                 'payment_method' => $paymentMethod,

@@ -25,6 +25,8 @@ class BusinessFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name).'-'.Str::random(6),
             'status' => 'inactive',
+            'tax_enabled' => false,
+            'tax_rate' => 11.00,
         ];
     }
 
@@ -64,5 +66,13 @@ class BusinessFactory extends Factory
     public function grosir(): static
     {
         return $this->businessType(BusinessType::Grosir);
+    }
+
+    public function withTax(float $rate = 11.00): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'tax_enabled' => true,
+            'tax_rate' => $rate,
+        ]);
     }
 }

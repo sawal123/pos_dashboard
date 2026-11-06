@@ -179,6 +179,10 @@
                         </span>
                         <span id="cartDiscountText" class="font-semibold">- Rp 0</span>
                     </div>
+                    <div id="cartTaxRow" class="hidden flex items-center justify-between text-slate-500 dark:text-slate-400">
+                        <span>Pajak (<span id="cartTaxRateText">11</span>%)</span>
+                        <span id="cartTaxText" class="font-semibold text-slate-800 dark:text-slate-200">+ Rp 0</span>
+                    </div>
                     <div class="pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
                         <span class="font-bold text-sm text-slate-900 dark:text-white">Total Bayar</span>
                         <span id="cartTotalText" class="font-black text-xl text-indigo-600 dark:text-indigo-400">Rp 0</span>
@@ -418,6 +422,10 @@
                         <span>Diskon:</span>
                         <span id="receiptDiscount">-</span>
                     </div>
+                    <div id="receiptTaxRow" class="flex justify-between text-slate-500 hidden">
+                        <span>Pajak (<span id="receiptTaxRate">11</span>%):</span>
+                        <span id="receiptTax">-</span>
+                    </div>
                     <div class="flex justify-between font-bold text-xs text-slate-900 dark:text-white pt-1">
                         <span>Total:</span>
                         <span id="receiptTotal">-</span>
@@ -638,6 +646,8 @@
             hasOpenShift: {{ $currentShift ? 'true' : 'false' }},
             shiftId: {{ $currentShift ? (int) $currentShift->id : 'null' }},
             shiftNumber: "{{ $currentShift ? $currentShift->shift_number : '' }}",
+            taxEnabled: {{ $business->tax_enabled ? 'true' : 'false' }},
+            taxRate: {{ (float) ($business->tax_rate ?? 11.0) }},
             checkoutUrl: "{{ route('pos.checkout') }}",
             promoPreviewUrl: "{{ route('pos.promo-preview') }}",
             openShiftUrl: "{{ route('pos.shifts.open') }}",
@@ -1078,6 +1088,17 @@
             renderCart();
         }
 
+        function computeCartTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
+            const discount = appliedDiscount || 0;
+            const taxableSubtotal = Math.max(0, subtotal - discount);
+            const tax = (POS_CONFIG.taxEnabled && POS_CONFIG.taxRate > 0)
+                ? Math.round((taxableSubtotal * POS_CONFIG.taxRate) / 100)
+                : 0;
+            const total = taxableSubtotal + tax;
+            return { subtotal, discount, taxableSubtotal, tax, total };
+        }
+
         function renderCart() {
             const container = document.getElementById('cartItemsList');
             const placeholder = document.getElementById('emptyCartPlaceholder');
@@ -1096,6 +1117,7 @@
                 subtotalTextEl.textContent = formatRp(0);
                 totalTextEl.textContent = formatRp(0);
                 document.getElementById('cartDiscountRow').classList.add('hidden');
+                document.getElementById('cartTaxRow').classList.add('hidden');
                 return;
             }
 
@@ -1103,13 +1125,11 @@
             checkoutBtn.disabled = !POS_CONFIG.hasOpenShift;
             container.innerHTML = '';
 
-            let subtotal = 0;
             let totalItems = 0;
 
             cart.forEach(item => {
                 const lineId = item.line_id || String(item.product_id);
                 const lineTotal = item.unit_price * item.quantity;
-                subtotal += lineTotal;
                 totalItems += item.quantity;
 
                 const row = document.createElement('div');
@@ -1159,18 +1179,26 @@
                 container.appendChild(row);
             });
 
+            const totals = computeCartTotals();
             itemsCountEl.textContent = totalItems.toString();
-            subtotalTextEl.textContent = formatRp(subtotal);
-
-            const finalTotal = Math.max(0, subtotal - appliedDiscount);
-            totalTextEl.textContent = formatRp(finalTotal);
+            subtotalTextEl.textContent = formatRp(totals.subtotal);
+            totalTextEl.textContent = formatRp(totals.total);
 
             const discountRow = document.getElementById('cartDiscountRow');
-            if (appliedDiscount > 0) {
+            if (totals.discount > 0) {
                 discountRow.classList.remove('hidden');
-                document.getElementById('cartDiscountText').textContent = '- ' + formatRp(appliedDiscount);
+                document.getElementById('cartDiscountText').textContent = '- ' + formatRp(totals.discount);
             } else {
                 discountRow.classList.add('hidden');
+            }
+
+            const taxRow = document.getElementById('cartTaxRow');
+            if (POS_CONFIG.taxEnabled && totals.tax > 0) {
+                taxRow.classList.remove('hidden');
+                document.getElementById('cartTaxRateText').textContent = POS_CONFIG.taxRate;
+                document.getElementById('cartTaxText').textContent = '+ ' + formatRp(totals.tax);
+            } else {
+                taxRow.classList.add('hidden');
             }
         }
 
@@ -1248,11 +1276,10 @@
                 return;
             }
 
-            const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-            const total = Math.max(0, subtotal - appliedDiscount);
+            const totals = computeCartTotals();
 
-            document.getElementById('modalTotalPayText').textContent = formatRp(total);
-            document.getElementById('cashReceivedInput').value = total;
+            document.getElementById('modalTotalPayText').textContent = formatRp(totals.total);
+            document.getElementById('cashReceivedInput').value = totals.total;
             document.getElementById('cashChangeText').textContent = formatRp(0);
 
             // Default payment method = cash
@@ -1293,11 +1320,10 @@
         }
 
         function calculateCashChange() {
-            const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-            const total = Math.max(0, subtotal - appliedDiscount);
+            const totals = computeCartTotals();
             const received = Number(document.getElementById('cashReceivedInput').value || 0);
 
-            const change = received - total;
+            const change = received - totals.total;
             const changeEl = document.getElementById('cashChangeText');
 
             if (change < 0) {
@@ -1315,13 +1341,12 @@
         async function executeCheckout() {
             if (cart.length === 0) return;
 
-            const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-            const total = Math.max(0, subtotal - appliedDiscount);
+            const totals = computeCartTotals();
 
-            let cashReceived = total;
+            let cashReceived = totals.total;
             if (selectedPaymentMethod === 'cash') {
                 cashReceived = Number(document.getElementById('cashReceivedInput').value || 0);
-                if (cashReceived < total) {
+                if (cashReceived < totals.total) {
                     showToast('error', 'Uang tunai yang diterima kurang dari total belanja.');
                     return;
                 }
@@ -1407,6 +1432,15 @@
                 document.getElementById('receiptDiscount').textContent = '- ' + formatRp(sale.discount_amount);
             } else {
                 discRow.classList.add('hidden');
+            }
+
+            const taxRow = document.getElementById('receiptTaxRow');
+            if (sale.tax_amount > 0) {
+                taxRow.classList.remove('hidden');
+                document.getElementById('receiptTaxRate').textContent = POS_CONFIG.taxRate;
+                document.getElementById('receiptTax').textContent = '+ ' + formatRp(sale.tax_amount);
+            } else {
+                taxRow.classList.add('hidden');
             }
 
             document.getElementById('receiptTotal').textContent = formatRp(sale.total_amount);
@@ -1669,9 +1703,8 @@
             const exactCashBtn = document.getElementById('exactCashBtn');
             if (exactCashBtn) {
                 exactCashBtn.addEventListener('click', () => {
-                    const subtotal = cart.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0);
-                    const total = Math.max(0, subtotal - appliedDiscount);
-                    document.getElementById('cashReceivedInput').value = total;
+                    const totals = computeCartTotals();
+                    document.getElementById('cashReceivedInput').value = totals.total;
                     calculateCashChange();
                 });
             }

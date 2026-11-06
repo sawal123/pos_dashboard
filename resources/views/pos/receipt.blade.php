@@ -134,6 +134,12 @@
                 <span>- Rp {{ number_format($sale->discount_amount, 0, ',', '.') }}</span>
             </div>
         @endif
+        @if($sale->tax_amount > 0)
+            <div class="summary-row">
+                <span>Pajak:</span>
+                <span>+ Rp {{ number_format($sale->tax_amount, 0, ',', '.') }}</span>
+            </div>
+        @endif
         <div class="summary-row total-row">
             <span>TOTAL:</span>
             <span>Rp {{ number_format($sale->total_amount, 0, ',', '.') }}</span>

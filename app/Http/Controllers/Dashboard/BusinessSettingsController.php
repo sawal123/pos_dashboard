@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Enums\BusinessType;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Dashboard\UpdateBusinessTaxRequest;
 use App\Http\Requests\Dashboard\UpdateBusinessTypeRequest;
 use App\Models\Business;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,8 @@ class BusinessSettingsController extends Controller
             'currentTypeLabel' => $business->businessTypeLabel(),
             'hasType' => $business->business_type !== null,
             'typeOptions' => BusinessType::options(),
+            'taxEnabled' => (bool) $business->tax_enabled,
+            'taxRate' => (float) $business->tax_rate,
         ]);
     }
 
@@ -46,6 +49,22 @@ class BusinessSettingsController extends Controller
         return redirect()
             ->route('business-settings.edit')
             ->with('status', 'Tipe bisnis disimpan sebagai '.$type->label().'.');
+    }
+
+    public function updateTax(UpdateBusinessTaxRequest $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validated();
+
+        $business->update([
+            'tax_enabled' => (bool) $validated['tax_enabled'],
+            'tax_rate' => round((float) $validated['tax_rate'], 2),
+        ]);
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', 'Pengaturan pajak bisnis berhasil disimpan.');
     }
 
     /**

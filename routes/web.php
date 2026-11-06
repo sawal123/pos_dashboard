@@ -437,6 +437,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::patch('business-settings/business-type', [BusinessSettingsController::class, 'update'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.business-type.update');
+    Route::patch('business-settings/tax', [BusinessSettingsController::class, 'updateTax'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.tax.update');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');
