@@ -1,5 +1,6 @@
 @props([
     'transactions' => [],
+    'canEdit' => false,
 ])
 {{-- $transactions: LengthAwarePaginator with ->through() mapped arrays --}}
 
@@ -112,15 +113,29 @@
 
                         {{-- Aksi --}}
                         <td class="py-3.5 px-4 whitespace-nowrap text-center">
-                            <button
-                                type="button"
-                                class="view-detail-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                                data-id="{{ $trx['id'] }}"
-                                aria-label="Lihat detail transaksi {{ $trx['transaction_number'] }}"
-                            >
-                                <span>Lihat Detail</span>
-                                <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                            </button>
+                            <div class="inline-flex items-center gap-1.5 justify-center">
+                                <button
+                                    type="button"
+                                    class="view-detail-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                    data-id="{{ $trx['id'] }}"
+                                    aria-label="Lihat detail transaksi {{ $trx['transaction_number'] }}"
+                                >
+                                    <span>Lihat Detail</span>
+                                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                                </button>
+                                @if($canEdit)
+                                    <button
+                                        type="button"
+                                        class="edit-trx-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                        data-id="{{ $trx['id'] }}"
+                                        aria-label="Edit transaksi {{ $trx['transaction_number'] }}"
+                                        title="Edit Transaksi"
+                                    >
+                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                                        <span>Edit</span>
+                                    </button>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                 @endforeach

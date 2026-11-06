@@ -158,6 +158,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('transactions', [TransactionsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::TRANSACTIONS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('transactions.index');
+    Route::patch('transactions/{sale}', [TransactionsController::class, 'update'])
+        ->whereNumber('sale')
+        ->middleware(['business.permission:'.BusinessPermission::TRANSACTIONS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('transactions.update');
 
     Route::get('products', [ProductsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

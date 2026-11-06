@@ -19,6 +19,21 @@ class ProfileUpdateTest extends TestCase
         $this->get('/settings/profile')->assertOk();
     }
 
+    public function test_profile_page_preserves_dashboard_sidebar_and_business_context(): void
+    {
+        $user = \App\Models\User::factory()->create(['email_verified_at' => now()]);
+        $business = \App\Models\Business::factory()->create(['name' => 'Kedai Kopi Mantap']);
+        $user->businesses()->attach($business->id, ['role' => 'owner']);
+        \App\Models\Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $response = $this->actingAs($user)->get('/settings/profile');
+        $response->assertOk();
+        $response->assertSee('Kedai Kopi Mantap');
+        $response->assertSee('Operasional');
+        $response->assertSee(route('transactions.index'), false);
+        $response->assertSee(route('pos.index'), false);
+    }
+
     public function test_profile_information_can_be_updated(): void
     {
         $user = User::factory()->create();

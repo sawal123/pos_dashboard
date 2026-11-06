@@ -1,3 +1,7 @@
+@props([
+    'canEdit' => false,
+])
+
 {{-- ==================== TRANSACTION DETAIL DRAWER ==================== --}}
 <div
     id="transactionDrawerWrapper"
@@ -169,8 +173,8 @@
 
         </div>
 
-        {{-- Drawer Footer: Non-destructive Placeholder Actions --}}
-        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2.5 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+        {{-- Drawer Footer: Actions --}}
+        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
             <button
                 type="button"
                 id="drawerPrintBtn"
@@ -180,6 +184,16 @@
                 <i data-lucide="printer" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
                 <span>Cetak Struk</span>
             </button>
+            @if($canEdit)
+                <button
+                    type="button"
+                    id="drawerEditBtn"
+                    class="flex-1 py-2.5 px-3 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 min-h-[42px]"
+                >
+                    <i data-lucide="edit-3" class="w-4 h-4 text-amber-600 dark:text-amber-400"></i>
+                    <span>Edit Transaksi</span>
+                </button>
+            @endif
             <button
                 type="button"
                 id="drawerCloseFooterBtn"

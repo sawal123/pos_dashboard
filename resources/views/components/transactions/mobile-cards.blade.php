@@ -1,5 +1,6 @@
 @props([
     'transactions' => [],
+    'canEdit' => false,
 ])
 {{-- $transactions: LengthAwarePaginator with ->through() mapped arrays --}}
 
@@ -95,16 +96,30 @@
                 @endif
             </div>
 
-            {{-- Action: Lihat Detail button --}}
-            <button
-                type="button"
-                class="view-detail-btn w-full py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50/50 hover:bg-indigo-50/50 dark:bg-slate-800/40 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-h-[42px]"
-                data-id="{{ $trx['id'] }}"
-                aria-label="Lihat detail transaksi {{ $trx['transaction_number'] }}"
-            >
-                <span>Lihat Detail</span>
-                <i data-lucide="chevron-right" class="w-4 h-4"></i>
-            </button>
+            {{-- Action buttons --}}
+            <div class="flex items-center gap-2 pt-1">
+                <button
+                    type="button"
+                    class="view-detail-btn flex-1 py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 bg-slate-50/50 hover:bg-indigo-50/50 dark:bg-slate-800/40 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-h-[42px]"
+                    data-id="{{ $trx['id'] }}"
+                    aria-label="Lihat detail transaksi {{ $trx['transaction_number'] }}"
+                >
+                    <span>Lihat Detail</span>
+                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+                @if($canEdit)
+                    <button
+                        type="button"
+                        class="edit-trx-btn py-2.5 px-3.5 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 min-h-[42px]"
+                        data-id="{{ $trx['id'] }}"
+                        aria-label="Edit transaksi {{ $trx['transaction_number'] }}"
+                        title="Edit Transaksi"
+                    >
+                        <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        <span>Edit</span>
+                    </button>
+                @endif
+            </div>
         </div>
     @endforeach
 </div>

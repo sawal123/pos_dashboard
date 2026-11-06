@@ -21,6 +21,9 @@ final class BusinessPermission
 
     public const TRANSACTIONS_VIEW = 'transactions.view';
 
+    // DASH-TX-EDIT — owner-only transaction editing (status, payment method, payment status).
+    public const TRANSACTIONS_MANAGE = 'transactions.manage';
+
     public const PRODUCTS_VIEW = 'products.view';
 
     // DASH-15 — owner-only catalog management (products, services, categories).

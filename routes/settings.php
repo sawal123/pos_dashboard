@@ -1,17 +1,18 @@
 <?php
 
+use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Profile;
 use App\Livewire\Settings\Security;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', ShareDashboardBusinessContext::class])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
     Route::livewire('settings/profile', Profile::class)->name('profile.edit');
 });
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->group(function () {
     Route::livewire('settings/appearance', Appearance::class)->name('appearance.edit');
 
     Route::livewire('settings/security', Security::class)

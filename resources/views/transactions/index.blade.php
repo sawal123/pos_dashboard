@@ -33,10 +33,10 @@
         {{-- ==================== 3. TRANSACTIONS LIST / EMPTY STATE ==================== --}}
         @if($transactions->isNotEmpty())
             {{-- Desktop Table View (>= md) --}}
-            <x-transactions.table :transactions="$transactions" />
+            <x-transactions.table :transactions="$transactions" :canEdit="$canEdit ?? false" />
 
             {{-- Mobile Cards View (< md) --}}
-            <x-transactions.mobile-cards :transactions="$transactions" />
+            <x-transactions.mobile-cards :transactions="$transactions" :canEdit="$canEdit ?? false" />
 
             {{-- ==================== 4. PAGINATION ==================== --}}
             <div id="transactionsPagination" class="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs text-xs">
@@ -96,7 +96,12 @@
         @endif
 
         {{-- ==================== 5. DETAIL DRAWER ==================== --}}
-        <x-transactions.detail-drawer />
+        <x-transactions.detail-drawer :canEdit="$canEdit ?? false" />
+
+        {{-- ==================== 6. EDIT TRANSACTION MODAL (OWNER ONLY) ==================== --}}
+        @if($canEdit ?? false)
+            <x-transactions.edit-modal />
+        @endif
 
     </main>
 
@@ -180,9 +185,13 @@
                 }
             }
 
+            // Current active transaction data cache for drawer/edit
+            let currentTrxData = null;
+
             // Drawer Opening & Closing Logic
             function openDrawer(data) {
                 if (!drawerWrapper || !data) return;
+                currentTrxData = data;
 
                 // Populate Metadata safely
                 document.getElementById('detailTrxNumber').textContent = data.transaction_number || '-';
@@ -404,6 +413,176 @@
             if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
             if (drawerCloseFooterBtn) drawerCloseFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
+
+            // ==================== EDIT MODAL LOGIC (OWNER) ====================
+            const editModal = document.getElementById('editTransactionModal');
+            const editBackdrop = document.getElementById('editTransactionBackdrop');
+            const editDialog = document.getElementById('editTransactionDialog');
+            const editForm = document.getElementById('editTransactionForm');
+            const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+            const cancelEditModalBtn = document.getElementById('cancelEditModalBtn');
+            const drawerEditBtn = document.getElementById('drawerEditBtn');
+            const editPaymentMethod = document.getElementById('editPaymentMethod');
+            const editPaymentStatus = document.getElementById('editPaymentStatus');
+            const editStatus = document.getElementById('editStatus');
+            const editCashSection = document.getElementById('editCashSection');
+            const editCashReceived = document.getElementById('editCashReceived');
+            const editChangeAmountDisplay = document.getElementById('editChangeAmountDisplay');
+            const editNote = document.getElementById('editNote');
+            const editTrxNumberDisplay = document.getElementById('editTrxNumberDisplay');
+            const editTrxTotalDisplay = document.getElementById('editTrxTotalDisplay');
+            const editTrxOutletTimeDisplay = document.getElementById('editTrxOutletTimeDisplay');
+
+            let activeEditTrxTotal = 0;
+
+            function syncCashFields() {
+                if (!editCashSection || !editPaymentMethod) return;
+                const method = (editPaymentMethod.value || '').toLowerCase();
+                if (method === 'tunai' || method === 'cash') {
+                    editCashSection.classList.remove('hidden');
+                    const received = parseFloat(editCashReceived.value || 0);
+                    const change = Math.max(0, received - activeEditTrxTotal);
+                    if (editChangeAmountDisplay) {
+                        editChangeAmountDisplay.textContent = formatRupiah(change);
+                    }
+                } else {
+                    editCashSection.classList.add('hidden');
+                }
+            }
+
+            if (editPaymentMethod) {
+                editPaymentMethod.addEventListener('change', syncCashFields);
+            }
+            if (editCashReceived) {
+                editCashReceived.addEventListener('input', syncCashFields);
+            }
+
+            function openEditModal(data) {
+                if (!editModal || !data) return;
+                currentTrxData = data;
+                activeEditTrxTotal = Number(data.total_amount || 0);
+
+                if (editForm) {
+                    editForm.action = `/transactions/${data.id}`;
+                }
+                if (editTrxNumberDisplay) {
+                    editTrxNumberDisplay.textContent = data.transaction_number || '';
+                }
+                if (editTrxTotalDisplay) {
+                    editTrxTotalDisplay.textContent = formatRupiah(activeEditTrxTotal);
+                }
+                if (editTrxOutletTimeDisplay) {
+                    editTrxOutletTimeDisplay.textContent = `${data.outlet_name || '-'} · ${data.sold_at || '-'}`;
+                }
+
+                if (editPaymentMethod) {
+                    const rawMethod = (data.payment_method_raw || data.payment_method || '').toLowerCase();
+                    if (rawMethod === 'cash' || rawMethod === 'tunai') {
+                        editPaymentMethod.value = 'Tunai';
+                    } else if (rawMethod === 'qris') {
+                        editPaymentMethod.value = 'QRIS';
+                    } else if (rawMethod === 'transfer') {
+                        editPaymentMethod.value = 'Transfer';
+                    } else if (rawMethod === 'card' || rawMethod === 'kartu') {
+                        editPaymentMethod.value = 'Kartu';
+                    } else {
+                        editPaymentMethod.value = data.payment_method || 'Tunai';
+                    }
+                }
+
+                if (editPaymentStatus) {
+                    const rawPayStatus = (data.payment_status_raw || '').toLowerCase();
+                    if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
+                        editPaymentStatus.value = 'paid';
+                    } else {
+                        editPaymentStatus.value = 'unpaid';
+                    }
+                }
+
+                if (editStatus) {
+                    const rawStatus = (data.status_raw || '').toLowerCase();
+                    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || data.status === 'Dibatalkan') {
+                        editStatus.value = 'cancelled';
+                    } else {
+                        editStatus.value = 'completed';
+                    }
+                }
+
+                if (editCashReceived) {
+                    editCashReceived.value = (data.cash_received !== null && data.cash_received !== undefined) ? data.cash_received : '';
+                }
+                if (editNote) {
+                    editNote.value = data.note || '';
+                }
+
+                syncCashFields();
+
+                editModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    if (editBackdrop) {
+                        editBackdrop.classList.remove('opacity-0');
+                        editBackdrop.classList.add('opacity-100');
+                    }
+                    if (editDialog) {
+                        editDialog.classList.remove('scale-95', 'opacity-0');
+                        editDialog.classList.add('scale-100', 'opacity-100');
+                    }
+                });
+
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function closeEditModal() {
+                if (!editModal || editModal.classList.contains('hidden')) return;
+
+                if (editBackdrop) {
+                    editBackdrop.classList.remove('opacity-100');
+                    editBackdrop.classList.add('opacity-0');
+                }
+                if (editDialog) {
+                    editDialog.classList.remove('scale-100', 'opacity-100');
+                    editDialog.classList.add('scale-95', 'opacity-0');
+                }
+
+                setTimeout(() => {
+                    editModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 200);
+            }
+
+            if (closeEditModalBtn) closeEditModalBtn.onclick = closeEditModal;
+            if (cancelEditModalBtn) cancelEditModalBtn.onclick = closeEditModal;
+            if (editBackdrop) editBackdrop.onclick = closeEditModal;
+
+            if (drawerEditBtn) {
+                drawerEditBtn.onclick = () => {
+                    if (currentTrxData) {
+                        closeDrawer();
+                        setTimeout(() => {
+                            openEditModal(currentTrxData);
+                        }, 280);
+                    }
+                };
+            }
+
+            document.querySelectorAll('.edit-trx-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    const rowOrCard = btn.closest('.transaction-row, .transaction-card');
+                    if (rowOrCard) {
+                        const raw = rowOrCard.getAttribute('data-raw');
+                        if (raw) {
+                            try {
+                                const data = JSON.parse(raw);
+                                openEditModal(data);
+                            } catch (err) {
+                                console.error('Failed to parse transaction data', err);
+                            }
+                        }
+                    }
+                };
+            });
         }
 
         initTransactionsPage();

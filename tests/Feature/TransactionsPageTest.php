@@ -993,6 +993,170 @@ class TransactionsPageTest extends TestCase
         ], $attributes));
     }
 
+    // ============================================================
+    // Owner Transaction Editing (DASH-TX-EDIT)
+    // ============================================================
+
+    public function test_owner_sees_edit_button_and_edit_modal_in_transactions_page(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $owner->businesses()->attach($business->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $sale = $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-EDIT-TEST',
+            'payment_method' => 'Tunai',
+            'payment_status' => 'paid',
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($owner)->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('title="Edit Transaksi"', false);
+        $response->assertSee('id="editTransactionForm"', false);
+        $response->assertSee('id="drawerEditBtn"', false);
+        $response->assertSee('Edit Transaksi');
+    }
+
+    public function test_member_cannot_see_edit_button_and_cannot_update_transaction(): void
+    {
+        $member = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $member->businesses()->attach($business->id, ['role' => 'member']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $sale = $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-MEMBER-TEST',
+            'payment_method' => 'Tunai',
+            'payment_status' => 'paid',
+            'status' => 'completed',
+        ]);
+
+        $response = $this->actingAs($member)->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertDontSee('title="Edit Transaksi"', false);
+        $response->assertDontSee('id="editTransactionForm"', false);
+        $response->assertDontSee('id="drawerEditBtn"', false);
+
+        // Attempt direct patch
+        $this->actingAs($member)
+            ->patch(route('transactions.update', $sale->id), [
+                'payment_method' => 'QRIS',
+                'payment_status' => 'unpaid',
+                'status' => 'cancelled',
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_owner_can_update_transaction_payment_and_status(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $owner->businesses()->attach($business->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $sale = $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-UPDATE-OK',
+            'payment_method' => 'Tunai',
+            'payment_status' => 'unpaid',
+            'status' => 'completed',
+            'total_amount' => 50000,
+            'paid_at' => null,
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->patch(route('transactions.update', $sale->id), [
+                'payment_method' => 'QRIS',
+                'payment_status' => 'paid',
+                'status' => 'completed',
+                'note' => 'Diubah ke QRIS setelah konfirmasi pelanggan',
+            ]);
+
+        $response->assertRedirect(route('transactions.index'));
+        $response->assertSessionHas('status');
+
+        $sale->refresh();
+        $this->assertEquals('QRIS', $sale->payment_method);
+        $this->assertEquals('paid', $sale->payment_status);
+        $this->assertEquals('completed', $sale->status);
+        $this->assertNotNull($sale->paid_at);
+        $this->assertEquals('Diubah ke QRIS setelah konfirmasi pelanggan', $sale->note);
+    }
+
+    public function test_owner_can_cancel_transaction_and_update_cash(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $owner->businesses()->attach($business->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $sale = $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-CANCEL-OK',
+            'payment_method' => 'Tunai',
+            'payment_status' => 'paid',
+            'status' => 'completed',
+            'total_amount' => 50000,
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->patch(route('transactions.update', $sale->id), [
+                'payment_method' => 'Tunai',
+                'payment_status' => 'unpaid',
+                'status' => 'cancelled',
+                'cash_received' => 100000,
+                'note' => 'Dibatalkan atas permintaan pelanggan',
+            ]);
+
+        $response->assertRedirect(route('transactions.index'));
+
+        $sale->refresh();
+        $this->assertEquals('Tunai', $sale->payment_method);
+        $this->assertEquals('unpaid', $sale->payment_status);
+        $this->assertEquals('cancelled', $sale->status);
+        $this->assertEquals(100000, $sale->cash_received);
+        $this->assertEquals(50000, $sale->change_amount);
+        $this->assertNull($sale->paid_at);
+        $this->assertEquals('Dibatalkan atas permintaan pelanggan', $sale->note);
+    }
+
+    public function test_owner_cannot_update_transaction_of_different_business(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $businessA = Business::factory()->create();
+        $businessB = Business::factory()->create();
+        $outletB = Outlet::factory()->create(['business_id' => $businessB->id]);
+        $owner->businesses()->attach($businessA->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $businessA->id]);
+
+        $saleB = $this->createSale([
+            'business_id' => $businessB->id,
+            'outlet_id' => $outletB->id,
+            'transaction_number' => 'TRX-TENANT-ISOLATION',
+        ]);
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $businessA->id])
+            ->patch(route('transactions.update', $saleB->id), [
+                'payment_method' => 'QRIS',
+                'payment_status' => 'paid',
+                'status' => 'completed',
+            ])
+            ->assertNotFound();
+    }
+
     /**
      * Local test helper to create a Shift without model factory.
      *
