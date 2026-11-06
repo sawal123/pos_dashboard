@@ -148,3 +148,4 @@
         document.addEventListener('livewire:navigated', initCashierPinToggle);
     })();
 </script>
+

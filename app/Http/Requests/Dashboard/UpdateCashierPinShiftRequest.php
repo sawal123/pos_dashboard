@@ -49,3 +49,4 @@ class UpdateCashierPinShiftRequest extends FormRequest
         ];
     }
 }
+
