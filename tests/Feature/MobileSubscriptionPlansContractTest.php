@@ -178,13 +178,13 @@ class MobileSubscriptionPlansContractTest extends TestCase
 
     public function test_mobile_context_exposes_subscription_dates_additively(): void
     {
-        $startsAt = Carbon::parse('2026-09-01 08:00:00', 'UTC');
-        $expiresAt = Carbon::parse('2026-10-01 08:00:00', 'UTC');
+        $startsAt = Carbon::now()->startOfDay();
+        $expiresAt = Carbon::now()->addMonth()->startOfDay();
 
         [$user, $token] = $this->userWithToken();
         $business = Business::factory()->create();
         $this->attach($user, $business);
-        Subscription::factory()->cloud()->create([
+        $subscription = Subscription::factory()->cloud()->create([
             'business_id' => $business->id,
             'starts_at' => $startsAt,
             'expires_at' => $expiresAt,
@@ -195,8 +195,8 @@ class MobileSubscriptionPlansContractTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.businesses.0.subscription.plan', Subscription::PLAN_CLOUD)
             ->assertJsonPath('data.businesses.0.subscription.status', Subscription::STATUS_ACTIVE)
-            ->assertJsonPath('data.businesses.0.subscription.starts_at', $startsAt->toJSON())
-            ->assertJsonPath('data.businesses.0.subscription.expires_at', $expiresAt->toJSON());
+            ->assertJsonPath('data.businesses.0.subscription.starts_at', $subscription->starts_at?->toJSON())
+            ->assertJsonPath('data.businesses.0.subscription.expires_at', $subscription->expires_at?->toJSON());
     }
 
     public function test_free_active_cloud_expired_and_non_active_cloud_entitlements_are_authoritative(): void

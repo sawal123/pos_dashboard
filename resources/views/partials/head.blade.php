@@ -9,6 +9,26 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+{{-- NexaPOS Synchronous Anti-Flicker Theme Script --}}
+<script data-navigate-once>
+    (function () {
+        try {
+            const stored = localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const isDark = stored === 'dark' || (!stored && prefersDark);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            }
+            localStorage.setItem('nexa-theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('flux.appearance', isDark ? 'dark' : 'light');
+        } catch (e) {}
+    })();
+</script>
+
 @fluxAppearance
 
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -57,8 +77,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
 {{-- TailwindCSS CDN --}}
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
+<script src="https://cdn.tailwindcss.com" data-navigate-once></script>
+<script data-navigate-once>
     tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -79,8 +99,8 @@
 </script>
 
 {{-- Lucide Icons --}}
-<script src="https://unpkg.com/lucide@latest"></script>
-<script>
+<script src="https://unpkg.com/lucide@latest" data-navigate-once></script>
+<script data-navigate-once>
     document.addEventListener('livewire:navigated', () => {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
@@ -89,15 +109,15 @@
 </script>
 
 {{-- Chart.js --}}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" data-navigate-once></script>
 
 {{-- jQuery & Select2 --}}
-<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js" data-navigate-once></script>
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js" data-navigate-once></script>
 
 {{-- Sidebar Collapsed Floating Tooltip --}}
-<script>
+<script data-navigate-once>
     (function() {
         let tooltipEl = null;
 

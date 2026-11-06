@@ -161,14 +161,13 @@ class GuideChatbotTest extends TestCase
         $dashRes->assertSee('nexabotWidgetContainer', false);
         $dashRes->assertSee('Tanya NexaBot');
 
-        // POS
+        // POS — NexaBot chatbot is hidden on POS page per user requirement
         $posRes = $this->actingAs($user)
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('pos.index'));
 
         $posRes->assertOk();
-        $posRes->assertSee('nexabotWidgetContainer', false);
-        $posRes->assertSee('Tanya NexaBot');
+        $posRes->assertDontSee('nexabotWidgetContainer', false);
     }
 
     /**

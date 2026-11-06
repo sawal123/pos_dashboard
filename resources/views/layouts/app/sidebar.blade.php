@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen">
+    <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen">
 
         {{-- ==================== PAGE LOADER ==================== --}}
         <x-ui.page-loader />
@@ -38,7 +38,7 @@
         <x-ui.pwa-banner />
 
         {{-- ==================== JAVASCRIPT ==================== --}}
-        <script>
+        <script data-navigate-once>
             (function() {
                 // ========== INITIALIZE LUCIDE ICONS ==========
                 let isUpdatingIcons = false;
@@ -67,23 +67,29 @@
 
                 // ========== THEME MANAGEMENT ==========
                 function applyTheme(theme) {
+                    const isDark = theme === 'dark';
                     const html = document.documentElement;
+
+                    html.classList.toggle('dark', isDark);
+                    html.classList.toggle('light', !isDark);
+
+                    try {
+                        localStorage.setItem('nexa-theme', isDark ? 'dark' : 'light');
+                        localStorage.setItem('flux.appearance', isDark ? 'dark' : 'light');
+                    } catch (e) {}
+
+                    if (window.Flux && typeof window.Flux.applyAppearance === 'function') {
+                        try {
+                            window.Flux.applyAppearance(isDark ? 'dark' : 'light');
+                        } catch (e) {}
+                    }
+
+                    // Reset any stale inline display style on toggle icons so Tailwind classes take priority
                     const moonIcon = document.getElementById('moonIcon');
                     const sunIcon = document.getElementById('sunIcon');
-                    if (theme === 'dark') {
-                        html.classList.add('dark');
-                        html.classList.remove('light');
-                        if (moonIcon) moonIcon.style.display = 'inline';
-                        if (sunIcon) sunIcon.style.display = 'none';
-                    } else {
-                        html.classList.remove('dark');
-                        html.classList.add('light');
-                        if (moonIcon) moonIcon.style.display = 'none';
-                        if (sunIcon) sunIcon.style.display = 'inline';
-                    }
-                    try {
-                        localStorage.setItem('nexa-theme', theme);
-                    } catch (e) {}
+                    if (moonIcon) moonIcon.style.display = '';
+                    if (sunIcon) sunIcon.style.display = '';
+
                     if (typeof updateChartColors === 'function') {
                         updateChartColors();
                     }
@@ -91,7 +97,7 @@
                 window.applyTheme = applyTheme;
 
                 function getStoredTheme() {
-                    return localStorage.getItem('nexa-theme') || 'light';
+                    return localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance') || 'light';
                 }
                 window.getStoredTheme = getStoredTheme;
 
@@ -404,8 +410,9 @@
                         const themeBtn = e.target.closest('#themeToggleBtn');
                         if (themeBtn) {
                             e.preventDefault();
-                            const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-                            applyTheme(current === 'dark' ? 'light' : 'dark');
+                            e.stopPropagation();
+                            const isDark = document.documentElement.classList.contains('dark');
+                            applyTheme(isDark ? 'light' : 'dark');
                             return;
                         }
 
@@ -582,11 +589,44 @@
                 }
 
                 document.addEventListener('livewire:navigated', onPageReady);
-                document.addEventListener('livewire:init', () => {
-                    if (typeof Livewire !== 'undefined') {
+
+                // ========== LIVEWIRE INIT & HOOKS ==========
+                function registerLivewireHooks() {
+                    if (typeof Livewire !== 'undefined' && !window.__livewireHooksRegistered) {
+                        window.__livewireHooksRegistered = true;
+                        Livewire.hook('morph.updating', ({ el, toEl }) => {
+                            if (el === document.documentElement) {
+                                const isDark = getStoredTheme() === 'dark';
+                                toEl.classList.toggle('dark', isDark);
+                                toEl.classList.toggle('light', !isDark);
+                            }
+                        });
                         Livewire.hook('morph.updated', () => initIcons());
                         Livewire.hook('commit', () => initIcons());
                     }
+                }
+
+                if (typeof Livewire !== 'undefined') {
+                    registerLivewireHooks();
+                } else {
+                    document.addEventListener('livewire:init', registerLivewireHooks);
+                }
+
+                // Keep nexa-theme synchronized if Flux appearance changes class externally
+                if (typeof MutationObserver !== 'undefined' && !window.__themeMutationObserverAttached) {
+                    window.__themeMutationObserverAttached = true;
+                    const themeObserver = new MutationObserver(() => {
+                        const isDark = document.documentElement.classList.contains('dark');
+                        try {
+                            localStorage.setItem('nexa-theme', isDark ? 'dark' : 'light');
+                            localStorage.setItem('flux.appearance', isDark ? 'dark' : 'light');
+                        } catch (e) {}
+                    });
+                    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+                }
+
+                document.addEventListener('livewire:navigating', () => {
+                    window.__activeTheme = getStoredTheme();
                 });
             })();
         </script>

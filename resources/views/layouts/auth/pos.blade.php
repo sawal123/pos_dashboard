@@ -3,27 +3,15 @@
 ])
 
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head')
-
-        {{-- Apply the persisted NexaPOS theme before paint to avoid a flash. --}}
-        <script>
-            (function () {
-                try {
-                    if (localStorage.getItem('nexa-theme') === 'dark') {
-                        document.documentElement.classList.add('dark');
-                        document.documentElement.classList.remove('light');
-                    }
-                } catch (e) {}
-            })();
-        </script>
 
         <style>
             [x-cloak] { display: none !important; }
         </style>
     </head>
-    <body class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased transition-colors duration-300">
+    <body class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased">
 
         <div class="flex min-h-screen flex-col lg:flex-row">
 

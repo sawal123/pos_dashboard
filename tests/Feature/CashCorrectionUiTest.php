@@ -93,27 +93,32 @@ class CashCorrectionUiTest extends TestCase
 
     public function test_member_and_cashier_never_receive_the_correction_actions_or_dialog(): void
     {
-        foreach (['member', 'cashier'] as $role) {
-            [$user, $business, $outlet] = $this->makeUserWithBusiness($role);
-            $ledger = $this->manualLedger($business, $outlet);
-            $expense = $this->expense($business, $outlet);
+        // Member can view cash management but has no manage/correction permission
+        [$member, $business, $outlet] = $this->makeUserWithBusiness('member');
+        $ledger = $this->manualLedger($business, $outlet);
+        $expense = $this->expense($business, $outlet);
 
-            $ledgers = $this->actingAs($user)->get(route('cash.index', ['tab' => 'ledgers']));
-            $ledgers->assertOk();
-            $ledgers->assertDontSee('data-correction-kind', false);
-            $ledgers->assertDontSee(route('cash.ledger.reverse', $ledger->id));
-            $ledgers->assertDontSee('id="cashCorrectionModal"', false);
+        $ledgers = $this->actingAs($member)->get(route('cash.index', ['tab' => 'ledgers']));
+        $ledgers->assertOk();
+        $ledgers->assertDontSee('data-correction-kind', false);
+        $ledgers->assertDontSee(route('cash.ledger.reverse', $ledger->id));
+        $ledgers->assertDontSee('id="cashCorrectionModal"', false);
 
-            $expenses = $this->actingAs($user)->get(route('cash.index', ['tab' => 'expenses']));
-            $expenses->assertOk();
-            $expenses->assertDontSee('data-correction-kind', false);
-            $expenses->assertDontSee(route('cash.expenses.void', $expense->id));
-            $expenses->assertDontSee('id="cashCorrectionModal"', false);
+        $expenses = $this->actingAs($member)->get(route('cash.index', ['tab' => 'expenses']));
+        $expenses->assertOk();
+        $expenses->assertDontSee('data-correction-kind', false);
+        $expenses->assertDontSee(route('cash.expenses.void', $expense->id));
+        $expenses->assertDontSee('id="cashCorrectionModal"', false);
 
-            // And the server still refuses the mutation outright.
-            $this->actingAs($user)->post(route('cash.ledger.reverse', $ledger->id))->assertForbidden();
-            $this->actingAs($user)->post(route('cash.expenses.void', $expense->id))->assertForbidden();
-        }
+        // Server refuses the mutation outright for member
+        $this->actingAs($member)->post(route('cash.ledger.reverse', $ledger->id))->assertForbidden();
+        $this->actingAs($member)->post(route('cash.expenses.void', $expense->id))->assertForbidden();
+
+        // Cashier is forbidden from cash management entirely per DASH-10B2 RBAC
+        [$cashier] = $this->makeUserWithBusiness('cashier');
+        $this->actingAs($cashier)->get(route('cash.index'))->assertForbidden();
+        $this->actingAs($cashier)->post(route('cash.ledger.reverse', $ledger->id))->assertForbidden();
+        $this->actingAs($cashier)->post(route('cash.expenses.void', $expense->id))->assertForbidden();
     }
 
     public function test_owner_sees_the_confirmation_dialog_with_amount_type_and_consequence(): void

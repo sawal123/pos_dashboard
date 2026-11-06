@@ -69,7 +69,7 @@ class MobileBusinessTypeContextTest extends TestCase
         $keys = array_keys($businesses[0]);
         sort($keys);
         $this->assertSame(
-            ['business_type', 'catalog_capabilities', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'role', 'subscription', 'sync_capabilities', 'tax_settings'],
+            ['business_type', 'cashier_pin', 'catalog_capabilities', 'cloud_access', 'device_context', 'id', 'name', 'outlets', 'role', 'shift_settings', 'subscription', 'sync_capabilities', 'tax_settings'],
             $keys,
         );
         $this->assertNull($businesses[0]['device_context']);

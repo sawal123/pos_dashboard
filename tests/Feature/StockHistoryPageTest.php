@@ -38,7 +38,7 @@ class StockHistoryPageTest extends TestCase
 
     public function test_04_owner_member_and_cashier_can_open_history(): void
     {
-        foreach (['owner', 'member', 'cashier'] as $role) {
+        foreach (['owner', 'member'] as $role) {
             [$business, $user] = $this->actingAsRole($role);
 
             $this->actingAs($user)
@@ -46,6 +46,13 @@ class StockHistoryPageTest extends TestCase
                 ->get(route('stock.history'))
                 ->assertOk();
         }
+
+        // Cashier has no STOCK_VIEW permission and is forbidden per DASH-10B2
+        [$business, $cashier] = $this->actingAsRole('cashier');
+        $this->actingAs($cashier)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('stock.history'))
+            ->assertForbidden();
     }
 
     public function test_05_history_lists_movements_of_active_business_only(): void
@@ -135,13 +142,20 @@ class StockHistoryPageTest extends TestCase
         $this->assertSame(true, $ownerResponse->viewData('canManageStock'));
         $ownerResponse->assertSee('id="openAdjustmentBtn"', false);
 
-        [, $cashier] = $this->actingAsRole('cashier', $business);
-        $cashierResponse = $this->actingAs($cashier)
+        // Member can view stock history but cannot manage stock mutations (INV-D01)
+        [, $member] = $this->actingAsRole('member', $business);
+        $memberResponse = $this->actingAs($member)
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('stock.history'));
-        $this->assertSame('cashier', $cashierResponse->viewData('dashboardBusinessRole'));
-        $this->assertSame(false, $cashierResponse->viewData('canManageStock'));
-        $cashierResponse->assertDontSee('id="openAdjustmentBtn"', false);
+        $memberResponse->assertOk();
+        $this->assertSame('member', $memberResponse->viewData('dashboardBusinessRole'));
+
+        // Cashier has no STOCK_VIEW permission and is forbidden per DASH-10B2
+        [, $cashier] = $this->actingAsRole('cashier', $business);
+        $this->actingAs($cashier)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('stock.history'))
+            ->assertForbidden();
     }
 
     public function test_10_json_feed_returns_paginated_items(): void

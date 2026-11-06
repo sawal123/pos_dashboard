@@ -235,6 +235,8 @@ class PremiumBillingPolicyTest extends TestCase
 
     public function test_configured_priced_plan_is_never_purchasable_without_checkout(): void
     {
+        config(['premium.midtrans.server_key' => '']);
+
         $this->seedPlanPrices([
             'monthly' => 50000,
             'yearly' => 500000,

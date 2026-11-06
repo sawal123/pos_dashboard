@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         @include('partials.head', ['title' => 'Zona Kasir (POS) - ' . ($dashboardCurrentBusiness->name ?? 'NexaPOS')])
         <style>
@@ -21,7 +21,7 @@
             }
         </style>
     </head>
-    <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans transition-colors duration-200 overflow-x-hidden">
+    <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
 
         {{-- ==================== POS HEADER ==================== --}}
         <header class="h-14 md:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 md:px-6 flex items-center justify-between shrink-0 z-30 select-none">
@@ -159,34 +159,38 @@
 
                 // Theme Management
                 function applyTheme(theme) {
+                    const isDark = theme === 'dark';
                     const html = document.documentElement;
+
+                    html.classList.toggle('dark', isDark);
+                    html.classList.toggle('light', !isDark);
+
+                    try {
+                        localStorage.setItem('nexa-theme', isDark ? 'dark' : 'light');
+                        localStorage.setItem('flux.appearance', isDark ? 'dark' : 'light');
+                    } catch (e) {}
+
+                    if (window.Flux && typeof window.Flux.applyAppearance === 'function') {
+                        try {
+                            window.Flux.applyAppearance(isDark ? 'dark' : 'light');
+                        } catch (e) {}
+                    }
+
                     const moonIcon = document.getElementById('moonIcon');
                     const sunIcon = document.getElementById('sunIcon');
-                    if (theme === 'dark') {
-                        html.classList.add('dark');
-                        html.classList.remove('light');
-                        if (moonIcon) moonIcon.style.display = 'inline';
-                        if (sunIcon) sunIcon.style.display = 'none';
-                    } else {
-                        html.classList.remove('dark');
-                        html.classList.add('light');
-                        if (moonIcon) moonIcon.style.display = 'none';
-                        if (sunIcon) sunIcon.style.display = 'inline';
-                    }
-                    try {
-                        localStorage.setItem('nexa-theme', theme);
-                    } catch (e) {}
+                    if (moonIcon) moonIcon.style.display = isDark ? 'inline' : 'none';
+                    if (sunIcon) sunIcon.style.display = isDark ? 'none' : 'inline';
                 }
                 window.applyTheme = applyTheme;
 
-                const storedTheme = localStorage.getItem('nexa-theme') || 'light';
+                const storedTheme = localStorage.getItem('nexa-theme') || localStorage.getItem('flux.appearance') || 'light';
                 applyTheme(storedTheme);
 
                 const themeToggleBtn = document.getElementById('themeToggleBtn');
                 if (themeToggleBtn) {
                     themeToggleBtn.addEventListener('click', () => {
-                        const current = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
-                        applyTheme(current === 'dark' ? 'light' : 'dark');
+                        const isDark = document.documentElement.classList.contains('dark');
+                        applyTheme(isDark ? 'light' : 'dark');
                     });
                 }
 
