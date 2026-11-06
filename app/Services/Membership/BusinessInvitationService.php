@@ -110,6 +110,69 @@ class BusinessInvitationService
     }
 
     /**
+     * Directly register a new user with password and attach to business.
+     *
+     * @throws ValidationException
+     */
+    public function registerDirectly(
+        User $actor,
+        Business $business,
+        string $name,
+        string $email,
+        string $password,
+        string $role = BusinessInvitation::ROLE_MEMBER,
+    ): User {
+        $email = Str::lower(trim($email));
+        $this->assertRoleAllowed($role);
+
+        if ($this->emailAlreadyMember($business, $email)) {
+            throw ValidationException::withMessages([
+                'email' => 'Pengguna dengan email ini sudah menjadi anggota bisnis aktif.',
+            ]);
+        }
+
+        $existing = User::query()->where('email', $email)->first();
+        if ($existing !== null) {
+            throw ValidationException::withMessages([
+                'email' => 'Email ini sudah terdaftar di sistem. Silakan gunakan opsi "Kirim Undangan" agar pemilik akun dapat bergabung.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($actor, $business, $name, $email, $password, $role): User {
+            $user = User::create([
+                'name' => trim($name),
+                'email' => $email,
+                'password' => $password,
+                'password_login_enabled' => true,
+            ]);
+
+            $user->forceFill(['email_verified_at' => now()])->save();
+
+            $business->users()->attach($user->id, ['role' => $role]);
+
+            BusinessInvitation::query()
+                ->forBusiness((int) $business->id)
+                ->where('email', $email)
+                ->where('status', BusinessInvitation::STATUS_PENDING)
+                ->update([
+                    'status' => BusinessInvitation::STATUS_ACCEPTED,
+                    'active_key' => null,
+                ]);
+
+            $this->audit->record(
+                $business,
+                $actor,
+                MembershipAuditLog::ACTION_MEMBER_DIRECTLY_REGISTERED,
+                $user,
+                $email,
+                ['role' => $role],
+            );
+
+            return $user;
+        });
+    }
+
+    /**
      * Rotate the token and extend the expiry of a pending invitation.
      *
      * @return array{invitation: BusinessInvitation, token: string}

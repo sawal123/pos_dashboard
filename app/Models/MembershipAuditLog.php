@@ -48,6 +48,8 @@ class MembershipAuditLog extends Model
 
     public const ACTION_ROLE_CHANGED = 'role_changed';
 
+    public const ACTION_MEMBER_DIRECTLY_REGISTERED = 'member_directly_registered';
+
     /**
      * Append-only: only created_at is tracked.
      *

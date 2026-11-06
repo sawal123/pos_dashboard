@@ -29,6 +29,19 @@ class BusinessInvitationsController extends Controller
 
         $email = (string) $request->validated('email');
         $role = (string) $request->validated('role');
+        $mode = (string) ($request->validated('mode') ?? 'invite');
+
+        if ($mode === 'direct') {
+            $name = (string) $request->validated('name');
+            $password = (string) $request->validated('password');
+
+            $newUser = $invitations->registerDirectly($actor, $business, $name, $email, $password, $role);
+            $roleLabel = $role === BusinessInvitation::ROLE_CASHIER ? 'Kasir' : 'Anggota';
+
+            return redirect()
+                ->route('users.index')
+                ->with('status', 'Pengguna '.$newUser->name.' ('.$email.') berhasil didaftarkan langsung sebagai '.$roleLabel.'.');
+        }
 
         $invitations->invite($actor, $business, $email, $role);
 

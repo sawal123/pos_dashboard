@@ -57,3 +57,4 @@ class MobileBusinessTaxController extends Controller
         ]);
     }
 }
+

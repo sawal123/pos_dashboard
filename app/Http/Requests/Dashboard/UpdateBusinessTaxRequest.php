@@ -42,3 +42,4 @@ class UpdateBusinessTaxRequest extends FormRequest
         ];
     }
 }
+

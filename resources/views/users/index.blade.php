@@ -19,7 +19,7 @@
                 class="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold self-start focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
             >
                 <i data-lucide="user-plus" class="w-4 h-4"></i>
-                Undang Anggota
+                Tambah Pengguna
             </button>
         </section>
 
@@ -562,6 +562,13 @@
                     openStack.length = 0;
                     document.body.classList.remove('overflow-hidden');
                 });
+
+                @if($errors->any())
+                    const inviteModal = document.getElementById('inviteMemberModal');
+                    if (inviteModal) {
+                        openModal(inviteModal);
+                    }
+                @endif
             })();
         </script>
     </main>
