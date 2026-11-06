@@ -67,13 +67,17 @@ class CashierRbacTest extends TestCase
         $this->assertRoutesStatus(self::ADMIN_ROUTES, 403);
     }
 
-    public function test_cashier_can_access_only_pos_and_is_redirected_from_dashboard(): void
+    public function test_cashier_can_access_dashboard_and_pos_with_locked_sidebar_and_restricted_access(): void
     {
         $business = Business::factory()->create();
         $this->actingAsRole($business, 'cashier');
 
         $this->get(route('pos.index'))->assertOk();
-        $this->get(route('dashboard'))->assertRedirect(route('pos.index'));
+        $dashboard = $this->get(route('dashboard'));
+        $dashboard->assertOk();
+        $dashboard->assertSee('Mode Kasir Aktif');
+        $dashboard->assertSee('data-role-locked="true"', false);
+        $dashboard->assertSee('Terkunci');
 
         $forbiddenOperational = array_values(array_filter(self::OPERATIONAL_ROUTES, fn (string $r): bool => $r !== 'dashboard'));
         $this->assertRoutesStatus($forbiddenOperational, 403);
@@ -199,7 +203,11 @@ class CashierRbacTest extends TestCase
         $cashierBusiness = Business::factory()->create();
         $this->actingAsRole($cashierBusiness, 'cashier');
         $cashier = $this->get(route('dashboard'));
-        $cashier->assertRedirect(route('pos.index'));
+        $cashier->assertOk();
+        $cashier->assertSee('Mode Kasir Aktif');
+        $cashier->assertSee('data-role-locked="true"', false);
+        $cashier->assertSee('Terkunci');
+        $cashier->assertDontSee(route('subscriptions.index'), false);
 
         $ownerBusiness = Business::factory()->create();
         $this->actingAsRole($ownerBusiness, 'owner');

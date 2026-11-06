@@ -25,10 +25,6 @@ class DashboardController extends Controller
         $hasCloudAccess = (bool) $request->attributes->get('dashboard_cloud_access', false);
         $role = $request->attributes->get('dashboard_business_role');
 
-        if ($currentBusiness !== null && $role === Business::ROLE_CASHIER) {
-            return redirect()->route('pos.index');
-        }
-
         // Keep the dashboard route reachable as a conversion surface, but do
         // not load or expose operational data until the business has an active
         // Cloud subscription. The sidebar and billing path remain available so

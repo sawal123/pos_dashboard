@@ -157,11 +157,11 @@ class BusinessTypeNavigationTest extends TestCase
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
         $owned = Business::factory()->cafe()->create();
-        $cashierBusiness = Business::factory()->laundry()->create();
+        $memberBusiness = Business::factory()->laundry()->create();
         Subscription::factory()->cloud()->create(['business_id' => $owned->id]);
-        Subscription::factory()->cloud()->create(['business_id' => $cashierBusiness->id]);
+        Subscription::factory()->cloud()->create(['business_id' => $memberBusiness->id]);
         $user->businesses()->attach($owned->id, ['role' => 'owner']);
-        $user->businesses()->attach($cashierBusiness->id, ['role' => 'cashier']);
+        $user->businesses()->attach($memberBusiness->id, ['role' => 'member']);
 
         // Owner in the active (cafe) business: owner-only menus are present.
         $ownerView = $this->dashboardFor($user, $owned);
@@ -169,14 +169,14 @@ class BusinessTypeNavigationTest extends TestCase
         $ownerView->assertSee(route('business-settings.edit'), false);
         $ownerView->assertSee(route('subscriptions.index'), false);
 
-        // Cashier in the active (laundry) business: laundry menu appears by type,
+        // Member in the active (laundry) business: laundry menu appears by type,
         // but every owner-only menu disappears by permission.
-        $cashierView = $this->dashboardFor($user, $cashierBusiness);
-        $cashierView->assertSee('Pesanan Laundry');
-        $cashierView->assertSee(route('laundry-orders.index'), false);
-        $cashierView->assertDontSee(route('users.index'), false);
-        $cashierView->assertDontSee(route('business-settings.edit'), false);
-        $cashierView->assertDontSee(route('subscriptions.index'), false);
+        $memberView = $this->dashboardFor($user, $memberBusiness);
+        $memberView->assertSee('Pesanan Laundry');
+        $memberView->assertSee(route('laundry-orders.index'), false);
+        $memberView->assertDontSee(route('users.index'), false);
+        $memberView->assertDontSee(route('business-settings.edit'), false);
+        $memberView->assertDontSee(route('subscriptions.index'), false);
     }
 
     // =========================================================================
@@ -217,10 +217,10 @@ class BusinessTypeNavigationTest extends TestCase
             ->get(route('laundry-orders.index'))
             ->assertOk();
 
-        // Cashier on a grosir business: same permission-based outcome.
-        [$cashier, $grosir] = $this->makeUserWithBusiness('grosir', 'cashier');
+        // Member on a grosir business: same permission-based outcome (LAUNDRY_VIEW granted, business_type grosir).
+        [$member, $grosir] = $this->makeUserWithBusiness('grosir', 'member');
 
-        $this->actingAs($cashier)
+        $this->actingAs($member)
             ->withSession([DashboardBusinessContext::SESSION_KEY => $grosir->id])
             ->get(route('laundry-orders.index'))
             ->assertOk();

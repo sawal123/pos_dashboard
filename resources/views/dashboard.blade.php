@@ -10,6 +10,35 @@
             </div>
         @endif
 
+        {{-- Cashier Mode Notice Banner --}}
+        @if(($dashboardBusinessRole ?? null) === \App\Models\Business::ROLE_CASHIER)
+            <div class="rounded-2xl border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/80 via-white to-indigo-50/50 dark:from-indigo-950/30 dark:via-slate-900/40 dark:to-indigo-950/20 p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
+                        <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-white">
+                                Mode Kasir Aktif
+                            </h2>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 text-[10px] font-semibold">
+                                <i data-lucide="lock" class="w-3 h-3"></i>
+                                Akses Terbatas
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+                            Menu administratif dikunci untuk peran Kasir. Silakan buka menu Kasir (POS) untuk melayani transaksi pelanggan.
+                        </p>
+                    </div>
+                </div>
+                <a href="{{ route('pos.index') }}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs md:text-sm font-semibold transition-all shadow-sm hover:shadow-indigo-500/20 shrink-0">
+                    <i data-lucide="store" class="w-4 h-4"></i>
+                    <span>Buka Kasir (POS)</span>
+                </a>
+            </div>
+        @endif
+
         {{-- ==================== DASHBOARD HEADER ==================== --}}
         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
             <div>

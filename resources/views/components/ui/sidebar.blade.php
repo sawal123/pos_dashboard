@@ -16,6 +16,7 @@
     // still governs authorization and every route is enforced server-side.
     $activeBusinessType = $businessType ?? ($dashboardBusinessType ?? null);
     $isLaundryBusiness = $activeBusinessType === 'laundry';
+    $isCashier = ($dashboardBusinessRole ?? null) === \App\Models\Business::ROLE_CASHIER;
 
     $subConfig = match($subscription) {
         'subscriber' => [
@@ -106,7 +107,7 @@
         @endif
 
         {{-- 1. RINGKASAN --}}
-        @if($can($P::DASHBOARD_VIEW))
+        @if($can($P::DASHBOARD_VIEW) || $isCashier)
             <x-ui.sidebar-section title="Ringkasan">
                 <x-ui.sidebar-item
                     icon="layout-dashboard"
@@ -117,131 +118,145 @@
         @endif
 
         {{-- 2. OPERASIONAL --}}
-        @if($can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW) || $can($P::POS_SELL))
+        @if($isCashier || $can($P::LAUNDRY_VIEW) || $can($P::TRANSACTIONS_VIEW) || $can($P::PRODUCTS_VIEW) || $can($P::STOCK_VIEW) || $can($P::CASH_VIEW) || $can($P::SHIFTS_VIEW) || $can($P::CUSTOMERS_VIEW) || $can($P::POS_SELL))
             <x-ui.sidebar-section title="Operasional">
-                @if($can($P::POS_SELL))
+                @if($can($P::POS_SELL) || $isCashier)
                     <x-ui.sidebar-item
                         icon="shopping-bag"
                         label="Kasir (POS)"
                         route="pos.index"
+                        :locked="$isCashier && !$can($P::POS_SELL)"
                     />
                 @endif
                 {{--
                     DASH-14: "Pesanan Laundry" is relevant only for a laundry
-                    business, so it requires BOTH the LAUNDRY_VIEW permission
-                    (authorization) and business_type = laundry (relevance).
-                    See docs/dashboard/DASH14_BUSINESS_TYPE.md.
+                    business, so it requires business_type = laundry.
                 --}}
-                @if($can($P::LAUNDRY_VIEW) && $isLaundryBusiness)
+                @if($isLaundryBusiness && ($can($P::LAUNDRY_VIEW) || $isCashier))
                     <x-ui.sidebar-item
                         icon="washing-machine"
                         label="Pesanan Laundry"
                         route="laundry-orders.index"
+                        :locked="$isCashier && !$can($P::LAUNDRY_VIEW)"
                     />
                 @endif
-                @if($can($P::TRANSACTIONS_VIEW))
+                @if($can($P::TRANSACTIONS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="receipt"
                         label="Transaksi"
                         route="transactions.index"
+                        :locked="$isCashier && !$can($P::TRANSACTIONS_VIEW)"
                     />
                 @endif
-                @if($can($P::PRODUCTS_VIEW))
+                @if($can($P::PRODUCTS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="package"
                         label="Produk & Layanan"
                         route="products.index"
+                        :locked="$isCashier && !$can($P::PRODUCTS_VIEW)"
                     />
                 @endif
-                @if($can($P::STOCK_VIEW))
+                @if($can($P::STOCK_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="boxes"
                         label="Stok"
                         route="stock.index"
+                        :locked="$isCashier && !$can($P::STOCK_VIEW)"
                     />
                     <x-ui.sidebar-item
                         icon="history"
                         label="Riwayat Stok"
                         route="stock.history"
+                        :locked="$isCashier && !$can($P::STOCK_VIEW)"
                     />
                     <x-ui.sidebar-item
                         icon="clipboard-check"
                         label="Stock Opname"
                         route="stock.opname.index"
+                        :locked="$isCashier && !$can($P::STOCK_VIEW)"
                     />
                 @endif
-                @if($can($P::PROMO_VIEW))
+                @if($can($P::PROMO_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="badge-percent"
                         label="Promo"
                         route="promos.index"
+                        :locked="$isCashier && !$can($P::PROMO_VIEW)"
                     />
                 @endif
-                @if($can($P::CASH_VIEW))
+                @if($can($P::CASH_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="wallet-cards"
                         label="Kas & Pengeluaran"
                         route="cash.index"
+                        :locked="$isCashier && !$can($P::CASH_VIEW)"
                     />
                 @endif
-                @if($can($P::SHIFTS_VIEW))
+                @if($can($P::SHIFTS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="clock"
                         label="Shift"
                         route="shifts.index"
+                        :locked="$isCashier && !$can($P::SHIFTS_VIEW)"
                     />
                 @endif
-                @if($can($P::CUSTOMERS_VIEW))
+                @if($can($P::CUSTOMERS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="users"
                         label="Pelanggan"
                         route="customers.index"
+                        :locked="$isCashier && !$can($P::CUSTOMERS_VIEW)"
                     />
                 @endif
             </x-ui.sidebar-section>
         @endif
 
         {{-- 3. ANALISIS --}}
-        @if($can($P::REPORTS_VIEW))
+        @if($can($P::REPORTS_VIEW) || $isCashier)
             <x-ui.sidebar-section title="Analisis">
                 <x-ui.sidebar-item
                     icon="chart-column"
                     label="Laporan"
                     route="reports.index"
+                    :locked="$isCashier && !$can($P::REPORTS_VIEW)"
                 />
             </x-ui.sidebar-section>
         @endif
 
         {{-- 4. BISNIS --}}
-        @if($can($P::OUTLETS_VIEW) || $can($P::USERS_VIEW) || $can($P::DEVICES_VIEW) || $can($P::BUSINESS_SETTINGS_MANAGE))
+        @if($isCashier || $can($P::OUTLETS_VIEW) || $can($P::USERS_VIEW) || $can($P::DEVICES_VIEW) || $can($P::BUSINESS_SETTINGS_MANAGE))
             <x-ui.sidebar-section title="Bisnis">
-                @if($can($P::OUTLETS_VIEW))
+                @if($can($P::OUTLETS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="store"
                         label="Outlet"
                         route="outlets.index"
+                        :locked="$isCashier && !$can($P::OUTLETS_VIEW)"
                     />
                 @endif
                 {{-- DASH-14 — owner-only business profile / type setup. --}}
-                @if($can($P::BUSINESS_SETTINGS_MANAGE))
+                @if($can($P::BUSINESS_SETTINGS_MANAGE) || $isCashier)
                     <x-ui.sidebar-item
                         icon="briefcase-business"
                         label="Pengaturan Bisnis"
                         route="business-settings.edit"
+                        :locked="$isCashier && !$can($P::BUSINESS_SETTINGS_MANAGE)"
                     />
                 @endif
-                @if($can($P::USERS_VIEW))
+                @if($can($P::USERS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="user-cog"
                         label="Pengguna / Kasir"
                         route="users.index"
+                        :locked="$isCashier && !$can($P::USERS_VIEW)"
                     />
                 @endif
-                @if($can($P::DEVICES_VIEW))
+                @if($can($P::DEVICES_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="monitor-smartphone"
                         label="Perangkat"
                         route="devices.index"
+                        :locked="$isCashier && !$can($P::DEVICES_VIEW)"
                     />
                 @endif
             </x-ui.sidebar-section>
@@ -249,15 +264,16 @@
 
         {{-- 5. CLOUD & SISTEM --}}
         <x-ui.sidebar-section title="Cloud & Sistem">
-            @if($can($P::SYNC_VIEW))
+            @if($can($P::SYNC_VIEW) || $isCashier)
                 <x-ui.sidebar-item
                     icon="refresh-cw"
                     label="Sinkronisasi"
                     route="sync.index"
+                    :locked="$isCashier && !$can($P::SYNC_VIEW)"
                 />
             @endif
-            {{-- DASH-12A — subscription overview, owner-only (SUBSCRIPTION_MANAGE). --}}
-            @if($can($P::SUBSCRIPTION_MANAGE))
+            {{-- DASH-12A — subscription overview, owner-only (SUBSCRIPTION_MANAGE). Never shown for cashiers --}}
+            @if(!$isCashier && $can($P::SUBSCRIPTION_MANAGE))
                 <x-ui.sidebar-item
                     icon="credit-card"
                     label="Langganan"
@@ -273,8 +289,8 @@
 
     </nav>
 
-    {{-- Compact Redesigned Cloud Plan Card (Owner-only: hidden for cashier/members) --}}
-    @if($can($P::SUBSCRIPTION_MANAGE))
+    {{-- Compact Redesigned Cloud Plan Card (Owner-only / default: hidden for cashier and members) --}}
+    @if(!$isCashier && ($can($P::SUBSCRIPTION_MANAGE) || empty($dashboardCurrentBusiness)))
     <div class="px-3 pb-3 shrink-0">
         {{-- Expanded State Card --}}
         <div class="sidebar-cloud-card rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 p-3">
