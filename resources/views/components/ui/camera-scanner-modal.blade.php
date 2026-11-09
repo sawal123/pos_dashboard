@@ -240,6 +240,7 @@
                 this.isScanning = false;
                 this.onDetectCallback = null;
                 this.continuous = false;
+                this.isInline = false;
                 this.docked = false;
                 this.videoMinimized = false;
                 this.lastScannedCode = '';
@@ -263,12 +264,26 @@
                 this.workCanvas = document.createElement('canvas');
             }
 
+            get isInlineActive() { return Boolean(this.isInline && this.isScanning); }
             get modal() { return document.getElementById('cameraScannerModal'); }
-            get video() { return document.getElementById('cameraScannerVideo'); }
-            get loader() { return document.getElementById('cameraScannerLoader'); }
-            get viewfinder() { return document.getElementById('cameraScannerViewfinder'); }
-            get formatBadge() { return document.getElementById('cameraScannerFormatBadge'); }
-            get fileInput() { return document.getElementById('cameraScannerFileInput'); }
+            get video() {
+                return (this.isInline ? document.getElementById('posInlineVideo') : null) || document.getElementById('cameraScannerVideo');
+            }
+            get loader() {
+                return (this.isInline ? document.getElementById('posInlineLoader') : null) || document.getElementById('cameraScannerLoader');
+            }
+            get viewfinder() {
+                return (this.isInline ? document.getElementById('posInlineViewfinder') : null) || document.getElementById('cameraScannerViewfinder');
+            }
+            get reticle() {
+                return (this.isInline ? document.getElementById('posInlineReticle') : null) || document.getElementById('cameraScannerReticle');
+            }
+            get formatBadge() {
+                return this.isInline ? null : document.getElementById('cameraScannerFormatBadge');
+            }
+            get fileInput() {
+                return (this.isInline ? document.getElementById('posInlineFileInput') : null) || document.getElementById('cameraScannerFileInput');
+            }
 
             resetLoader(title = 'Menyiapkan kamera...', subtitle = 'Pastikan izin akses kamera diberikan pada browser Anda.') {
                 if (!this.loader) return;
@@ -354,8 +369,7 @@
             }
 
             async open(onDetect, options = {}) {
-                if (!this.modal) return;
-
+                this.isInline = Boolean(options && options.inline);
                 this.onDetectCallback = onDetect;
                 this.continuous = Boolean(options && options.continuous);
                 this.docked = Boolean(options && options.docked);
@@ -364,15 +378,39 @@
                 this.lastRepeatableCode = '';
                 this.lastScannedAt = 0;
                 this.sessionScanCount = 0;
-                this.modal.classList.remove('hidden');
 
-                this.applyLayoutMode();
-                this.syncContinuousUi(options && options.allowContinuousToggle !== undefined ? Boolean(options.allowContinuousToggle) : this.continuous);
+                if (this.isInline) {
+                    const gridContainer = document.getElementById('productGridContainer');
+                    const categoryBar = document.getElementById('posCategoryFilterBar');
+                    const inlineContainer = document.getElementById('posInlineScannerContainer');
+                    const btn = document.getElementById('btnOpenPosScanner');
+                    const btnText = document.getElementById('btnOpenPosScannerText');
+                    const btnIcon = document.getElementById('btnOpenPosScannerIcon');
 
-                const viewport = document.getElementById('cameraScannerViewport');
-                const enhanceBar = document.getElementById('cameraScannerEnhanceBar');
-                if (viewport) viewport.classList.remove('hidden');
-                if (enhanceBar) enhanceBar.classList.remove('hidden');
+                    if (gridContainer) gridContainer.classList.add('hidden');
+                    if (categoryBar) categoryBar.classList.add('hidden');
+                    if (inlineContainer) {
+                        inlineContainer.classList.remove('hidden');
+                        inlineContainer.classList.add('flex');
+                    }
+                    if (btn) {
+                        btn.className = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-semibold text-xs md:text-sm shadow-sm transition-all shrink-0 cursor-pointer';
+                    }
+                    if (btnText) btnText.textContent = 'Tutup Scanner';
+                    if (btnIcon) btnIcon.setAttribute('data-lucide', 'x');
+
+                    if (this.modal) this.modal.classList.add('hidden');
+                } else {
+                    if (!this.modal) return;
+                    this.modal.classList.remove('hidden');
+                    this.applyLayoutMode();
+                    this.syncContinuousUi(options && options.allowContinuousToggle !== undefined ? Boolean(options.allowContinuousToggle) : this.continuous);
+
+                    const viewport = document.getElementById('cameraScannerViewport');
+                    const enhanceBar = document.getElementById('cameraScannerEnhanceBar');
+                    if (viewport) viewport.classList.remove('hidden');
+                    if (enhanceBar) enhanceBar.classList.remove('hidden');
+                }
 
                 if (window.lucide) {
                     window.lucide.createIcons();
@@ -508,6 +546,46 @@
             }
 
             updateContinuousFeedback(code, resultMeta = null) {
+                const isSuccess = !resultMeta || resultMeta.found !== false;
+                const label = (resultMeta && resultMeta.label) ? resultMeta.label : `✓ Kode: ${code}`;
+                const sub = (resultMeta && resultMeta.subtitle) ? resultMeta.subtitle : 'Berhasil • Scan lagi untuk tambah Qty (N+1)';
+
+                if (this.isInline) {
+                    const banner = document.getElementById('posInlineScanBanner');
+                    const iconEl = document.getElementById('posInlineScanIcon');
+                    const titleEl = document.getElementById('posInlineScanTitle');
+                    const qtyBadge = document.getElementById('posInlineScanQtyBadge');
+                    const subEl = document.getElementById('posInlineScanSub');
+                    const minusBtn = document.getElementById('posInlineScanMinusBtn');
+                    const plusBtn = document.getElementById('posInlineScanPlusBtn');
+
+                    if (banner) {
+                        banner.className = isSuccess
+                            ? 'px-4 py-3 rounded-2xl border-2 transition-all duration-150 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500/60 flex flex-wrap items-center justify-between gap-3 shadow-xs scale-[1.01]'
+                            : 'px-4 py-3 rounded-2xl border-2 transition-all duration-150 bg-rose-50 dark:bg-rose-950/40 border-rose-500/60 flex flex-wrap items-center justify-between gap-3 shadow-xs';
+                        setTimeout(() => banner.classList.remove('scale-[1.01]'), 180);
+                    }
+                    if (iconEl) {
+                        iconEl.className = isSuccess
+                            ? 'w-8 h-8 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black text-sm shrink-0'
+                            : 'w-8 h-8 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black text-sm shrink-0';
+                        iconEl.textContent = isSuccess ? '✓' : '✕';
+                    }
+                    if (titleEl) titleEl.textContent = label;
+                    if (subEl) subEl.textContent = sub;
+                    if (qtyBadge) {
+                        if (isSuccess && resultMeta?.badgeText) {
+                            qtyBadge.classList.remove('hidden');
+                            qtyBadge.textContent = resultMeta.badgeText;
+                        } else {
+                            qtyBadge.classList.add('hidden');
+                        }
+                    }
+                    if (minusBtn) minusBtn.classList.toggle('hidden', !isSuccess || !this.lastRepeatableCode);
+                    if (plusBtn) plusBtn.classList.toggle('hidden', !isSuccess || !this.lastRepeatableCode);
+                    return;
+                }
+
                 const banner = document.getElementById('cameraScannerContinuousBanner');
                 const cardEl = document.getElementById('cameraScannerContinuousCard');
                 const iconEl = document.getElementById('cameraScannerStatusIcon');
@@ -521,10 +599,6 @@
                 if (banner) {
                     banner.classList.remove('hidden');
                 }
-
-                const isSuccess = !resultMeta || resultMeta.found !== false;
-                const label = (resultMeta && resultMeta.label) ? resultMeta.label : `✓ Kode: ${code}`;
-                const sub = (resultMeta && resultMeta.subtitle) ? resultMeta.subtitle : 'Berhasil • Scan lagi untuk tambah Qty (N+1)';
 
                 if (cardEl) {
                     cardEl.className = isSuccess
@@ -696,12 +770,17 @@
                         torchBtn.classList.toggle('hidden', !this.torchSupported);
                         torchBtn.classList.toggle('inline-flex', this.torchSupported);
                     }
+                    const inlineTorchBtn = document.getElementById('posInlineTorchBtn');
+                    if (inlineTorchBtn) {
+                        inlineTorchBtn.classList.toggle('hidden', !this.torchSupported);
+                        inlineTorchBtn.classList.toggle('inline-flex', this.torchSupported);
+                    }
 
                     this.video.srcObject = this.stream;
                     await this.video.play();
 
                     // Apply initial zoom
-                    const zoomRange = document.getElementById('cameraScannerZoomRange');
+                    const zoomRange = (this.isInline ? document.getElementById('posInlineZoomRange') : null) || document.getElementById('cameraScannerZoomRange');
                     this.setZoom(zoomRange ? zoomRange.value : 1.2);
                     this.applyVideoFilterStyle();
 
@@ -717,6 +796,11 @@
                     if (switchBtn) {
                         switchBtn.classList.remove('hidden');
                         switchBtn.classList.add('inline-flex');
+                    }
+                    const inlineSwitchBtn = document.getElementById('posInlineSwitchCamBtn');
+                    if (inlineSwitchBtn) {
+                        inlineSwitchBtn.classList.remove('hidden');
+                        inlineSwitchBtn.classList.add('inline-flex');
                     }
 
                     this.isScanning = true;
@@ -736,6 +820,10 @@
                 this.zoomLevel = z;
                 const label = document.getElementById('cameraScannerZoomLabel');
                 if (label) label.textContent = `${z.toFixed(1)}x`;
+                const inlineLabel = document.getElementById('posInlineZoomLabel');
+                if (inlineLabel) inlineLabel.textContent = `${z.toFixed(1)}x`;
+                const inlineRange = document.getElementById('posInlineZoomRange');
+                if (inlineRange && inlineRange.value != z) inlineRange.value = z;
 
                 const track = this.stream?.getVideoTracks?.()?.[0];
                 if (this.hardwareZoomSupported && track && typeof track.applyConstraints === 'function') {
@@ -765,6 +853,16 @@
                         ? 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition-colors cursor-pointer'
                         : 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors cursor-pointer';
                 }
+
+                const inlineBtn = document.getElementById('posInlineEnhanceBtn');
+                const inlineLbl = document.getElementById('posInlineEnhanceLabel');
+                if (inlineLbl) inlineLbl.textContent = this.enhanceMode ? 'Anti-Silau ON' : 'Anti-Silau OFF';
+                if (inlineBtn) {
+                    inlineBtn.className = this.enhanceMode
+                        ? 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer'
+                        : 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition cursor-pointer';
+                }
+
                 this.applyVideoFilterStyle();
             }
 
@@ -956,17 +1054,21 @@
             }
 
             flashReticleSuccess() {
-                const reticle = document.getElementById('cameraScannerReticle');
-                if (reticle) {
-                    reticle.classList.remove('border-indigo-400/85');
+                const reticles = [
+                    document.getElementById('cameraScannerReticle'),
+                    document.getElementById('posInlineReticle')
+                ].filter(Boolean);
+
+                reticles.forEach(reticle => {
+                    reticle.classList.remove('border-indigo-400/85', 'border-indigo-400/90');
                     reticle.classList.add('border-emerald-400', 'scale-105');
                     if (this.continuous) {
                         setTimeout(() => {
                             reticle.classList.remove('border-emerald-400', 'scale-105');
-                            reticle.classList.add('border-indigo-400/85');
+                            reticle.classList.add(this.isInline ? 'border-indigo-400/90' : 'border-indigo-400/85');
                         }, 360);
                     }
-                }
+                });
             }
 
             triggerFileSelect() {
@@ -1070,6 +1172,30 @@
 
             close() {
                 this.stopStream();
+                if (this.isInline) {
+                    const gridContainer = document.getElementById('productGridContainer');
+                    const categoryBar = document.getElementById('posCategoryFilterBar');
+                    const inlineContainer = document.getElementById('posInlineScannerContainer');
+                    const btn = document.getElementById('btnOpenPosScanner');
+                    const btnText = document.getElementById('btnOpenPosScannerText');
+                    const btnIcon = document.getElementById('btnOpenPosScannerIcon');
+
+                    if (inlineContainer) {
+                        inlineContainer.classList.add('hidden');
+                        inlineContainer.classList.remove('flex');
+                    }
+                    if (gridContainer) gridContainer.classList.remove('hidden');
+                    if (categoryBar) categoryBar.classList.remove('hidden');
+
+                    if (btn) {
+                        btn.className = 'flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-xs md:text-sm shadow-xs transition-all shrink-0 cursor-pointer';
+                    }
+                    if (btnText) btnText.textContent = 'Kamera Scan';
+                    if (btnIcon) btnIcon.setAttribute('data-lucide', 'scan');
+
+                    this.isInline = false;
+                    if (window.lucide) window.lucide.createIcons();
+                }
                 if (this.modal) {
                     this.modal.classList.add('hidden');
                 }

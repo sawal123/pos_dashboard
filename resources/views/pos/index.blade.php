@@ -43,16 +43,16 @@
                             <span>Alat Scanner Siap</span>
                         </div>
 
-                        {{-- Scan Barcode Button for Grosir (Flexible Non-Blocking Camera Dock) --}}
+                        {{-- Scan Barcode Button for Grosir (Switches between Card Menu & Inline Scanner Workspace) --}}
                         <button
                             type="button"
                             id="btnOpenPosScanner"
-                            onclick="window.openPosScanner()"
+                            onclick="window.togglePosInlineScanner()"
                             class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-xs md:text-sm shadow-sm transition-all shrink-0 cursor-pointer"
-                            title="Buka Kamera Scan Fleksibel (Keranjang tetap terlihat & scan berulang otomatis N+1)"
+                            title="Ubah tampilan menu produk dengan Kamera Scanner"
                         >
-                            <i data-lucide="scan" class="w-4 h-4"></i>
-                            <span class="hidden sm:inline">Kamera Scan</span>
+                            <i data-lucide="scan" id="btnOpenPosScannerIcon" class="w-4 h-4"></i>
+                            <span id="btnOpenPosScannerText" class="hidden sm:inline">Kamera Scan</span>
                         </button>
                     @endif
                 </div>
@@ -106,7 +106,7 @@
                 @endif
 
                 {{-- Category Filter Pills --}}
-                <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+                <div id="posCategoryFilterBar" class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
                     <button
                         type="button"
                         class="category-filter-btn px-3 py-1.5 rounded-xl font-semibold transition-all whitespace-nowrap bg-indigo-600 text-white shadow-xs"
@@ -126,7 +126,7 @@
                 </div>
             </div>
 
-            {{-- Product Grid Cards --}}
+            {{-- Product Grid Cards Container --}}
             <div id="productGridContainer" class="flex-1 overflow-y-auto p-3 md:p-4">
                 <div id="productGrid" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 md:gap-3.5">
                     {{-- Dynamically rendered by JavaScript --}}
@@ -137,6 +137,180 @@
                     </div>
                     <p class="font-bold text-sm text-slate-700 dark:text-slate-300">Tidak ada produk ditemukan</p>
                     <p class="text-xs mt-1">Coba gunakan kata kunci lain atau pilih kategori berbeda.</p>
+                </div>
+            </div>
+
+            {{-- INLINE SCANNER WORKSPACE: Menggantikan Card Menu Saat Fitur Scan Diaktifkan! --}}
+            <div id="posInlineScannerContainer" class="hidden flex-1 overflow-y-auto p-3 md:p-4 flex-col gap-3 bg-slate-100/50 dark:bg-slate-950/30">
+                {{-- Scanner Header Bar --}}
+                <div class="flex items-center justify-between p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">Kamera Scanner Kasir</h3>
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    AKTIF (N+1)
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400">Card menu digantikan oleh pemindai. Arahkan barcode ke kamera atau gunakan alat scanner.</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onclick="window.togglePosInlineScanner(false)"
+                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        title="Tutup scanner dan tampilkan kembali card menu produk"
+                    >
+                        <i data-lucide="layout-grid" class="w-4 h-4 text-indigo-500"></i>
+                        <span>Buka Menu Produk</span>
+                    </button>
+                </div>
+
+                {{-- Live Scan Result Banner --}}
+                <div id="posInlineScanBanner" class="px-4 py-3 rounded-2xl border-2 transition-all duration-200 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span id="posInlineScanIcon" class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center font-black text-sm shrink-0">⋯</span>
+                        <div class="min-w-0">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span id="posInlineScanTitle" class="font-extrabold text-sm text-slate-900 dark:text-white truncate">Menunggu Scan Produk...</span>
+                                <span id="posInlineScanQtyBadge" class="hidden px-2.5 py-0.5 rounded-lg bg-emerald-500 text-slate-950 font-mono font-black text-xs">Qty: 0</span>
+                            </div>
+                            <p id="posInlineScanSub" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">Arahkan barcode/QR ke kamera atau scan dengan Alat Scanner USB/Bluetooth</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2 ml-auto shrink-0">
+                        <button
+                            type="button"
+                            id="posInlineScanMinusBtn"
+                            onclick="window.adjustLastScannedQty(-1)"
+                            class="hidden px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 text-xs transition cursor-pointer"
+                            title="Kurangi Qty 1"
+                        >
+                            -1
+                        </button>
+                        <button
+                            type="button"
+                            id="posInlineScanPlusBtn"
+                            onclick="window.adjustLastScannedQty(1)"
+                            class="hidden px-3.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-extrabold text-xs shadow-xs transition cursor-pointer"
+                            title="Tambah Qty +1 lagi untuk produk ini (N+1)"
+                        >
+                            +1 Lagi
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Camera Viewport Section --}}
+                <div class="relative w-full rounded-2xl bg-slate-950 border border-slate-800 overflow-hidden shadow-md flex-1 min-h-[320px] max-h-[55vh] flex items-center justify-center">
+                    <video id="posInlineVideo" class="w-full h-full object-cover hidden transition-transform duration-150 origin-center" playsinline muted autoplay></video>
+                    <input type="file" id="posInlineFileInput" accept="image/*" class="hidden" onchange="window.handlePosInlineFileSelect(event)" />
+
+                    {{-- Reticle Viewfinder --}}
+                    <div id="posInlineViewfinder" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center hidden">
+                        <div id="posInlineReticle" class="relative w-72 h-44 border-2 border-indigo-400/90 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.38)] transition-all duration-200">
+                            <div class="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl"></div>
+                            <div class="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl"></div>
+                            <div class="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl"></div>
+                            <div class="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-xl"></div>
+                            <div class="absolute inset-x-2 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_8px_#f43f5e] animate-pulse"></div>
+                        </div>
+                        <span class="mt-3 px-3 py-1 rounded-full bg-slate-950/80 text-[11px] font-medium text-slate-200 backdrop-blur-xs">
+                            Arahkan barcode/QR ke kotak • Scan berulang otomatis menjumlahkan total (N+1)
+                        </span>
+                    </div>
+
+                    {{-- Loader / Permission / Status --}}
+                    <div id="posInlineLoader" class="flex flex-col items-center justify-center p-6 text-center z-10">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 mb-3 animate-pulse">
+                            <i data-lucide="camera" class="w-6 h-6"></i>
+                        </div>
+                        <p id="posInlineStatusText" class="text-xs font-semibold text-slate-200">Menyiapkan kamera scanner...</p>
+                        <p id="posInlineSubText" class="text-[11px] text-slate-400 mt-1 max-w-xs">Pastikan izin akses kamera diberikan pada browser Anda.</p>
+                    </div>
+                </div>
+
+                {{-- Camera Controls & Tool Bar --}}
+                <div class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+                        <i data-lucide="zoom-in" class="w-4 h-4 text-indigo-500 shrink-0"></i>
+                        <span class="text-xs font-semibold text-slate-600 dark:text-slate-300 shrink-0">Zoom:</span>
+                        <input
+                            id="posInlineZoomRange"
+                            type="range"
+                            min="1"
+                            max="2.6"
+                            step="0.1"
+                            value="1.2"
+                            oninput="window.setPosInlineZoom(this.value)"
+                            class="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                        <span id="posInlineZoomLabel" class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 w-9 text-right">1.2x</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button
+                            type="button"
+                            id="posInlineEnhanceBtn"
+                            onclick="window.togglePosInlineEnhance()"
+                            class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition cursor-pointer"
+                            title="Mode Anti-Silau & Toleransi Lekukan Plastik Kemasan"
+                        >
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                            <span id="posInlineEnhanceLabel">Anti-Silau ON</span>
+                        </button>
+                        <button
+                            type="button"
+                            id="posInlineTorchBtn"
+                            onclick="window.togglePosInlineTorch()"
+                            class="hidden items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        >
+                            <i data-lucide="flashlight" class="w-3.5 h-3.5"></i>
+                            <span>Senter</span>
+                        </button>
+                        <button
+                            type="button"
+                            onclick="document.getElementById('posInlineFileInput')?.click()"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition cursor-pointer"
+                        >
+                            <i data-lucide="image" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <span>Scan Gambar</span>
+                        </button>
+                        <button
+                            type="button"
+                            id="posInlineSwitchCamBtn"
+                            onclick="window.switchPosInlineCamera()"
+                            class="hidden items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+                        >
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                            <span>Putar</span>
+                        </button>
+                    </div>
+                </div>
+
+                {{-- Direct Hardware Scanner / Barcode Gun Input inside Scanner Area --}}
+                <div class="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2 shadow-xs">
+                    <div class="relative flex-1">
+                        <i data-lucide="barcode" class="w-4 h-4 text-indigo-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                        <input
+                            type="text"
+                            id="posInlineManualInput"
+                            placeholder="Tembak dengan Alat Scanner (USB / Bluetooth) atau ketik barcode lalu tekan Enter..."
+                            autocomplete="off"
+                            class="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs md:text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            onkeydown="if(event.key === 'Enter'){ event.preventDefault(); window.submitPosInlineManualInput(); }"
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onclick="window.submitPosInlineManualInput()"
+                        class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-bold text-xs md:text-sm transition cursor-pointer shrink-0"
+                    >
+                        + Input Kode
+                    </button>
                 </div>
             </div>
         </div>
@@ -801,7 +975,7 @@
                 productId: found.id,
             });
 
-            if (window.CameraScanner && window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')) {
+            if (window.CameraScanner && (window.CameraScanner.isInlineActive || (window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')))) {
                 window.CameraScanner.updateContinuousFeedback(found.barcode || found.sku, {
                     found: true,
                     label: `✓ ${found.name} (Qty: ${currentQty})`,
@@ -833,7 +1007,7 @@
                     title: `Kode "${code}" Tidak Ditemukan`,
                     subtitle: 'Periksa kembali barcode/SKU produk atau daftarkan di menu Produk.',
                 });
-                if (window.CameraScanner && window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')) {
+                if (window.CameraScanner && (window.CameraScanner.isInlineActive || (window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')))) {
                     window.CameraScanner.updateContinuousFeedback(code, failMeta);
                 }
                 return failMeta;
@@ -891,7 +1065,7 @@
                     productId: found.id,
                 });
 
-                if (window.CameraScanner && window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')) {
+                if (window.CameraScanner && (window.CameraScanner.isInlineActive || (window.CameraScanner.modal && !window.CameraScanner.modal.classList.contains('hidden')))) {
                     window.CameraScanner.lastRepeatableCode = code;
                     window.CameraScanner.updateContinuousFeedback(code, successMeta);
                 }
@@ -904,8 +1078,57 @@
             if (window.CameraScanner) {
                 window.CameraScanner.open(
                     (code) => handleScannedCode(code),
-                    { continuous: true, docked: true, allowContinuousToggle: true }
+                    { inline: true, continuous: true }
                 );
+            }
+        };
+
+        window.togglePosInlineScanner = function(explicitState) {
+            if (!window.CameraScanner) return;
+            const shouldOpen = explicitState !== undefined ? explicitState : !window.CameraScanner.isInlineActive;
+            if (shouldOpen) {
+                window.CameraScanner.open(
+                    (code) => handleScannedCode(code),
+                    { inline: true, continuous: true }
+                );
+            } else {
+                window.CameraScanner.close();
+            }
+        };
+
+        window.setPosInlineZoom = function(val) {
+            if (window.CameraScanner) window.CameraScanner.setZoom(val);
+        };
+
+        window.togglePosInlineEnhance = function() {
+            if (window.CameraScanner) window.CameraScanner.toggleEnhanceMode();
+        };
+
+        window.togglePosInlineTorch = function() {
+            if (window.CameraScanner) window.CameraScanner.toggleTorch();
+        };
+
+        window.switchPosInlineCamera = function() {
+            if (window.CameraScanner) window.CameraScanner.switchCamera();
+        };
+
+        window.submitPosInlineManualInput = function() {
+            const input = document.getElementById('posInlineManualInput');
+            if (!input) return;
+            const val = String(input.value || '').trim();
+            if (!val) return;
+            input.value = '';
+            if (window.CameraScanner) {
+                window.CameraScanner.processDetectedCode(val, { bypassCooldown: true });
+            } else {
+                handleScannedCode(val);
+            }
+            input.focus();
+        };
+
+        window.handlePosInlineFileSelect = function(event) {
+            if (window.CameraScanner) {
+                window.CameraScanner.handleFileSelect(event);
             }
         };
 
@@ -2001,8 +2224,12 @@
                         return;
                     }
 
-                    // Esc: Close Modal
+                    // Esc: Close Modal or Inline Scanner
                     if (e.key === 'Escape') {
+                        if (window.CameraScanner && window.CameraScanner.isInlineActive) {
+                            window.CameraScanner.close();
+                            return;
+                        }
                         closePaymentModal();
                         closeSuccessModal();
                         closeOpenShiftModal();
