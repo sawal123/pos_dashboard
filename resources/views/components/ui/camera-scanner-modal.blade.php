@@ -48,6 +48,22 @@
                     </span>
                 </div>
 
+                {{-- Continuous Scan Live Feedback Banner --}}
+                <div id="cameraScannerContinuousBanner" class="hidden absolute bottom-2.5 inset-x-3 z-20 pointer-events-none">
+                    <div id="cameraScannerContinuousCard" class="px-3 py-2 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-100 shadow-lg backdrop-blur-md flex items-center justify-between gap-2 transition-all">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-xs font-black shrink-0">✓</span>
+                            <div class="min-w-0">
+                                <p id="cameraScannerLastScanTitle" class="text-[11px] font-bold text-white truncate">Mode Scan Beruntun Aktif</p>
+                                <p id="cameraScannerLastScanSub" class="text-[10px] text-emerald-300 truncate">Kamera tetap menyala otomatis untuk produk berikutnya</p>
+                            </div>
+                        </div>
+                        <span id="cameraScannerScanCountBadge" class="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-mono font-bold text-emerald-200 shrink-0">
+                            0 discan
+                        </span>
+                    </div>
+                </div>
+
                 {{-- Loading / Permission / Fallback State --}}
                 <div id="cameraScannerLoader" class="flex flex-col items-center justify-center p-6 text-center z-10">
                     <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 mb-3 animate-pulse">
@@ -78,6 +94,17 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 shrink-0">
+                    <button
+                        type="button"
+                        id="cameraScannerContinuousBtn"
+                        onclick="window.CameraScanner && window.CameraScanner.toggleContinuousMode()"
+                        class="hidden items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-colors cursor-pointer"
+                        title="Mode Scan Beruntun: Kamera tetap aktif setelah produk masuk keranjang"
+                    >
+                        <i data-lucide="repeat" class="w-3 h-3"></i>
+                        <span id="cameraScannerContinuousLabel">Beruntun ON</span>
+                    </button>
+
                     <button
                         type="button"
                         id="cameraScannerEnhanceBtn"
@@ -119,7 +146,7 @@
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                         <span>Putar Kamera</span>
                     </button>
-                    <button type="button" onclick="window.CameraScanner && window.CameraScanner.close()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300/70 dark:hover:bg-slate-700 transition-colors cursor-pointer">
+                    <button type="button" id="cameraScannerCloseFooterBtn" onclick="window.CameraScanner && window.CameraScanner.close()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300/70 dark:hover:bg-slate-700 transition-colors cursor-pointer">
                         Batal
                     </button>
                 </div>
@@ -136,12 +163,17 @@
          * 1. Lighting / Glare on plastic packaging (Adaptive Contrast & GlobalHistogramBinarizer + HybridBinarizer)
          * 2. Curved surfaces / bottles / sachets (Center ROI magnification + horizontal aspect unwarping 1.22x)
          * 3. Tilted / skewed angles (Multi-angle rotation passes: 0°, ±18°, ±35°, 90°)
+         * 4. Continuous POS scanning (stays open after adding items with smart duplicate cooldown)
          */
         class CameraScannerManager {
             constructor() {
                 this.stream = null;
                 this.isScanning = false;
                 this.onDetectCallback = null;
+                this.continuous = false;
+                this.lastScannedCode = '';
+                this.lastScannedAt = 0;
+                this.sessionScanCount = 0;
                 this.detector = null;
                 this.zxingReader = null;
                 this.facingMode = 'environment';
@@ -247,11 +279,17 @@
                 return (this.detector || this.zxingReader) ? 'ready' : null;
             }
 
-            async open(onDetect) {
+            async open(onDetect, options = {}) {
                 if (!this.modal) return;
 
                 this.onDetectCallback = onDetect;
+                this.continuous = Boolean(options && options.continuous);
+                this.lastScannedCode = '';
+                this.lastScannedAt = 0;
+                this.sessionScanCount = 0;
                 this.modal.classList.remove('hidden');
+
+                this.syncContinuousUi(options && options.allowContinuousToggle !== undefined ? Boolean(options.allowContinuousToggle) : this.continuous);
 
                 if (window.lucide) {
                     window.lucide.createIcons();
@@ -274,6 +312,63 @@
                         'Gunakan tombol "Scan dari Gambar" di bawah untuk memindai foto/file barcode atau ketik kode secara manual.'
                     );
                 }
+            }
+
+            syncContinuousUi(showToggleBtn = false) {
+                const btn = document.getElementById('cameraScannerContinuousBtn');
+                const lbl = document.getElementById('cameraScannerContinuousLabel');
+                const banner = document.getElementById('cameraScannerContinuousBanner');
+                const closeBtn = document.getElementById('cameraScannerCloseFooterBtn');
+                const titleEl = document.getElementById('cameraScannerLastScanTitle');
+                const subEl = document.getElementById('cameraScannerLastScanSub');
+                const countEl = document.getElementById('cameraScannerScanCountBadge');
+
+                if (btn) {
+                    if (showToggleBtn || this.continuous) {
+                        btn.classList.remove('hidden');
+                        btn.classList.add('inline-flex');
+                    } else {
+                        btn.classList.add('hidden');
+                        btn.classList.remove('inline-flex');
+                    }
+                    btn.className = this.continuous
+                        ? 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition-colors cursor-pointer'
+                        : ((showToggleBtn ? 'inline-flex ' : 'hidden ') + 'items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors cursor-pointer');
+                }
+                if (lbl) {
+                    lbl.textContent = this.continuous ? 'Beruntun ON' : 'Beruntun OFF';
+                }
+                if (banner) {
+                    banner.classList.toggle('hidden', !this.continuous);
+                }
+                if (closeBtn) {
+                    closeBtn.textContent = this.continuous ? 'Selesai Scan' : 'Batal';
+                }
+                if (this.sessionScanCount === 0) {
+                    if (titleEl) titleEl.textContent = 'Mode Scan Beruntun Aktif';
+                    if (subEl) subEl.textContent = 'Kamera tetap menyala otomatis untuk produk berikutnya';
+                    if (countEl) countEl.textContent = 'Siap Scan';
+                }
+            }
+
+            toggleContinuousMode() {
+                this.continuous = !this.continuous;
+                this.syncContinuousUi(true);
+            }
+
+            updateContinuousFeedback(code, resultMeta = null) {
+                const banner = document.getElementById('cameraScannerContinuousBanner');
+                const titleEl = document.getElementById('cameraScannerLastScanTitle');
+                const subEl = document.getElementById('cameraScannerLastScanSub');
+                const countEl = document.getElementById('cameraScannerScanCountBadge');
+                if (banner && this.continuous) {
+                    banner.classList.remove('hidden');
+                }
+                const label = (resultMeta && resultMeta.label) ? resultMeta.label : `Kode: ${code}`;
+                const sub = (resultMeta && resultMeta.subtitle) ? resultMeta.subtitle : 'Arahkan produk berikutnya ke kamera...';
+                if (titleEl) titleEl.textContent = label;
+                if (subEl) subEl.textContent = sub;
+                if (countEl) countEl.textContent = `${this.sessionScanCount} discan`;
             }
 
             async startStream() {
@@ -582,16 +677,38 @@
                     try {
                         const code = await this.decodeFromSource(this.video, false);
                         if (code) {
-                            this.flashReticleSuccess();
-                            this.playBeep();
-                            const callback = this.onDetectCallback;
-                            setTimeout(() => {
-                                this.close();
-                                if (typeof callback === 'function') {
-                                    callback(code);
+                            const now = Date.now();
+                            // In continuous mode, prevent duplicate rapid triggers of the exact same barcode within 1.3s
+                            if (this.continuous && code === this.lastScannedCode && (now - this.lastScannedAt) < 1300) {
+                                // Still in cooldown for same item; continue loop
+                            } else {
+                                this.lastScannedCode = code;
+                                this.lastScannedAt = now;
+                                this.sessionScanCount += 1;
+                                this.flashReticleSuccess();
+                                this.playBeep();
+                                const callback = this.onDetectCallback;
+
+                                if (this.continuous) {
+                                    let resultMeta = null;
+                                    if (typeof callback === 'function') {
+                                        resultMeta = callback(code);
+                                    }
+                                    if (resultMeta && resultMeta.closeScanner) {
+                                        this.close();
+                                        return;
+                                    }
+                                    this.updateContinuousFeedback(code, resultMeta);
+                                } else {
+                                    setTimeout(() => {
+                                        this.close();
+                                        if (typeof callback === 'function') {
+                                            callback(code);
+                                        }
+                                    }, 120);
+                                    return;
                                 }
-                            }, 120);
-                            return;
+                            }
                         }
                     } catch (e) {
                         // Continue scanning next frame
@@ -610,6 +727,12 @@
                 if (reticle) {
                     reticle.classList.remove('border-indigo-400/85');
                     reticle.classList.add('border-emerald-400', 'scale-105');
+                    if (this.continuous) {
+                        setTimeout(() => {
+                            reticle.classList.remove('border-emerald-400', 'scale-105');
+                            reticle.classList.add('border-indigo-400/85');
+                        }, 360);
+                    }
                 }
             }
 

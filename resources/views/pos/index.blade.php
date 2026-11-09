@@ -33,16 +33,26 @@
                     </div>
 
                     @if($isGrosir ?? false)
-                        {{-- Scan Barcode Button for Grosir --}}
+                        {{-- Always-On Auto Scan Status Pill --}}
+                        <div
+                            id="posAutoScanStatusBadge"
+                            class="hidden md:inline-flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold shrink-0 select-none"
+                            title="Scanner fisik / USB / Bluetooth & input kode langsung aktif otomatis tanpa perlu klik tombol Scan"
+                        >
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <span>Auto-Scan Aktif</span>
+                        </div>
+
+                        {{-- Scan Barcode Button for Grosir (Continuous Camera Mode) --}}
                         <button
                             type="button"
                             id="btnOpenPosScanner"
                             onclick="window.openPosScanner()"
                             class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-semibold text-xs md:text-sm shadow-sm transition-all shrink-0 cursor-pointer"
-                            title="Scan Barcode / QR dengan Kamera"
+                            title="Buka Kamera Scan Beruntun (Tetap aktif untuk scan banyak produk sekaligus)"
                         >
                             <i data-lucide="scan" class="w-4 h-4"></i>
-                            <span class="hidden sm:inline">Scan</span>
+                            <span class="hidden sm:inline">Kamera Scan</span>
                         </button>
                     @endif
                 </div>
@@ -659,42 +669,74 @@
         const ALL_PRODUCTS = @json($products);
         const ALL_PROMOS = @json($promos);
 
-        function handleScannedCode(rawCode) {
-            if (!rawCode) return;
+        function findProductByCode(rawCode) {
+            if (!rawCode) return null;
             const code = String(rawCode).trim();
-            if (!code) return;
+            if (!code) return null;
+            const lowerCode = code.toLowerCase();
 
-            // Search exact match against barcode or sku in ALL_PRODUCTS
-            const found = ALL_PRODUCTS.find(p => {
-                const pBarcode = (p.barcode || '').trim();
-                const pSku = (p.sku || '').trim();
-                return pBarcode === code || pSku === code;
-            });
+            return ALL_PRODUCTS.find(p => {
+                const pBarcode = String(p.barcode || '').trim().toLowerCase();
+                const pSku = String(p.sku || '').trim().toLowerCase();
+                return (pBarcode && pBarcode === lowerCode) || (pSku && pSku === lowerCode);
+            }) || null;
+        }
+
+        function handleScannedCode(rawCode) {
+            if (!rawCode) return { found: false };
+            const code = String(rawCode).trim();
+            if (!code) return { found: false };
+
+            const found = findProductByCode(code);
 
             if (!found) {
                 showToast('error', `Produk dengan kode "${code}" tidak ditemukan.`);
-                return;
+                return {
+                    found: false,
+                    label: `Kode "${code}" tidak ditemukan`,
+                    subtitle: 'Coba arahkan ulang atau periksa kode produk',
+                    closeScanner: false,
+                };
             }
 
             if (found.is_out_of_stock) {
                 showToast('warning', `Stok produk "${found.name}" habis.`);
-                return;
+                return {
+                    found: true,
+                    label: `Stok Habis: ${found.name}`,
+                    subtitle: 'Produk tidak dapat ditambahkan ke keranjang',
+                    closeScanner: false,
+                };
             }
 
-            // If product has variants, open variant modal
+            // If product has variants, open variant modal and close camera scanner so user can pick variant
             if (found.has_variants) {
                 openVariantModal(found);
+                return {
+                    found: true,
+                    label: `Pilih Varian: ${found.name}`,
+                    subtitle: 'Silakan pilih varian produk',
+                    closeScanner: true,
+                };
             } else {
                 addToCart(found.id);
+                const totalItems = cart.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
                 showToast('success', `"${found.name}" ditambahkan ke keranjang.`);
+                return {
+                    found: true,
+                    label: `✓ ${found.name} (+1)`,
+                    subtitle: `Total ${totalItems} item di keranjang • Arahkan produk berikutnya`,
+                    closeScanner: false,
+                };
             }
         }
 
         window.openPosScanner = function() {
             if (window.CameraScanner) {
-                window.CameraScanner.open((code) => {
-                    handleScannedCode(code);
-                });
+                window.CameraScanner.open(
+                    (code) => handleScannedCode(code),
+                    { continuous: true, allowContinuousToggle: true }
+                );
             }
         };
 
@@ -1618,23 +1660,69 @@
             renderCatalog();
             renderCart();
 
-            // Search Input listener
+            // Search Input listener + Direct Barcode/SKU Auto-Scan (without clicking Scan button)
             const searchInput = document.getElementById('catalogSearchInput');
             const clearBtn = document.getElementById('catalogSearchClearBtn');
+            let searchInputLastKeyTime = 0;
+            let searchInputRapidStreak = 0;
+            let searchInputAutoScanTimer = null;
+
+            const clearSearchField = () => {
+                if (!searchInput) return;
+                searchInput.value = '';
+                searchQuery = '';
+                if (clearBtn) clearBtn.classList.add('hidden');
+                renderCatalog();
+            };
+
             if (searchInput) {
                 searchInput.addEventListener('input', (e) => {
                     searchQuery = e.target.value;
-                    clearBtn.classList.toggle('hidden', !searchQuery);
+                    if (clearBtn) clearBtn.classList.toggle('hidden', !searchQuery);
                     renderCatalog();
+
+                    // If a USB/Bluetooth scanner injects characters rapidly without sending Enter, auto-detect exact barcode match
+                    const now = Date.now();
+                    if (now - searchInputLastKeyTime < 55) {
+                        searchInputRapidStreak += 1;
+                    } else {
+                        searchInputRapidStreak = 1;
+                    }
+                    searchInputLastKeyTime = now;
+
+                    if (searchInputAutoScanTimer) clearTimeout(searchInputAutoScanTimer);
+                    const trimmed = String(searchQuery || '').trim();
+                    if (trimmed.length >= 4 && searchInputRapidStreak >= 4) {
+                        searchInputAutoScanTimer = setTimeout(() => {
+                            const exactBarcodeHit = ALL_PRODUCTS.find(p => {
+                                const b = String(p.barcode || '').trim().toLowerCase();
+                                return b && b === trimmed.toLowerCase();
+                            });
+                            if (exactBarcodeHit) {
+                                handleScannedCode(trimmed);
+                                clearSearchField();
+                                searchInputRapidStreak = 0;
+                            }
+                        }, 90);
+                    }
+                });
+
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        const code = String(searchInput.value || '').trim();
+                        if (!code) return;
+                        e.preventDefault();
+                        if (searchInputAutoScanTimer) clearTimeout(searchInputAutoScanTimer);
+                        handleScannedCode(code);
+                        clearSearchField();
+                        searchInputRapidStreak = 0;
+                    }
                 });
             }
             if (clearBtn) {
                 clearBtn.addEventListener('click', () => {
-                    searchInput.value = '';
-                    searchQuery = '';
-                    clearBtn.classList.add('hidden');
-                    renderCatalog();
-                    searchInput.focus();
+                    clearSearchField();
+                    if (searchInput) searchInput.focus();
                 });
             }
 
@@ -1719,18 +1807,24 @@
                 cashInput.addEventListener('input', calculateCashChange);
             }
 
-            // Keyboard Shortcuts (attached once globally, only active while on POS page)
+            // Keyboard Shortcuts & Global Hardware Barcode Scanner (attached once globally, active while on POS page)
             if (!window.__posShortcutsBound) {
                 window.__posShortcutsBound = true;
+                let globalScanBuffer = '';
+                let globalScanLastTime = 0;
+                let globalScanClearTimer = null;
+
                 document.addEventListener('keydown', (e) => {
                     if (!document.getElementById('productGrid')) return;
-                    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-                    const isEditing = activeTag === 'input' || activeTag === 'textarea';
+                    const activeEl = document.activeElement;
+                    const activeTag = activeEl ? activeEl.tagName.toLowerCase() : '';
+                    const isEditing = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select' || Boolean(activeEl && activeEl.isContentEditable);
 
                     // F2: Checkout
                     if (e.key === 'F2') {
                         e.preventDefault();
                         openPaymentModal();
+                        return;
                     }
 
                     // Esc: Close Modal
@@ -1739,15 +1833,51 @@
                         closeSuccessModal();
                         closeOpenShiftModal();
                         closeCloseShiftModal();
+                        return;
                     }
 
                     // '/' Focus search
-                    if (e.key === '/' && !isEditing) {
+                    if (e.key === '/' && !isEditing && !globalScanBuffer) {
                         e.preventDefault();
                         const currentSearchInput = document.getElementById('catalogSearchInput');
                         if (currentSearchInput) {
                             currentSearchInput.focus();
                             currentSearchInput.select();
+                        }
+                        return;
+                    }
+
+                    // Global Hardware Scanner / Direct Barcode Buffer when not focused in an input
+                    if (!isEditing && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                        const now = Date.now();
+                        if (now - globalScanLastTime > 120) {
+                            globalScanBuffer = '';
+                        }
+
+                        if (e.key === 'Enter') {
+                            const code = globalScanBuffer.trim();
+                            globalScanBuffer = '';
+                            if (globalScanClearTimer) clearTimeout(globalScanClearTimer);
+                            if (code.length >= 3) {
+                                e.preventDefault();
+                                handleScannedCode(code);
+                            }
+                            return;
+                        }
+
+                        if (e.key && e.key.length === 1) {
+                            globalScanBuffer += e.key;
+                            globalScanLastTime = now;
+                            if (globalScanClearTimer) clearTimeout(globalScanClearTimer);
+
+                            const candidate = globalScanBuffer.trim();
+                            globalScanClearTimer = setTimeout(() => {
+                                // Also support scanners that do not emit Enter if buffer matches an exact barcode/SKU
+                                if (candidate.length >= 4 && findProductByCode(candidate)) {
+                                    handleScannedCode(candidate);
+                                }
+                                globalScanBuffer = '';
+                            }, 130);
                         }
                     }
                 });
