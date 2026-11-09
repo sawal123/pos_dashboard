@@ -21,9 +21,7 @@
                 <div class="pointer-events-none absolute -bottom-24 -right-16 h-96 w-96 rounded-full bg-indigo-500/20 blur-3xl"></div>
 
                 <a href="{{ route('home') }}" class="relative z-10 flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-xl">
-                    <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/40 shrink-0">
-                        <i data-lucide="zap" class="h-5 w-5"></i>
-                    </div>
+                    <x-app-logo-icon variant="white" class="h-10 w-10" />
                     <span class="text-xl font-extrabold tracking-tight">
                         Nexa<span class="text-indigo-400">POS</span>
                     </span>
@@ -91,9 +89,7 @@
                 <div class="w-full max-w-md">
                     {{-- Brand (mobile / tablet) --}}
                     <a href="{{ route('home') }}" class="mb-6 flex items-center justify-center gap-2.5 lg:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl">
-                        <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/30 shrink-0">
-                            <i data-lucide="zap" class="h-5 w-5"></i>
-                        </div>
+                        <x-app-logo-icon class="h-10 w-10" />
                         <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                             Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
                         </span>

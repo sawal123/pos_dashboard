@@ -189,7 +189,7 @@
     <body>
         <header class="hero hero-glow">
             <nav class="shell hero-nav" aria-label="Navigasi utama">
-                <a href="{{ route('home') }}" class="brand" aria-label="NexaPOS beranda"><span class="brand-mark">N</span><span>NexaPOS</span></a>
+                <a href="{{ route('home') }}" class="brand" aria-label="NexaPOS beranda"><x-app-logo-icon variant="white" width="34" height="34" /><span>NexaPOS</span></a>
                 <div class="hero-links"><a class="nav-link" href="#fitur">Fitur</a><a class="nav-link" href="#harga">Harga</a><a class="nav-link" href="#cara-kerja">Cara kerja</a><a class="nav-link" href="#bisnis">Untuk bisnis</a></div>
                 <div class="hero-actions">
                     @auth
@@ -223,7 +223,7 @@
                     <div class="dashboard-card">
                         <div class="dashboard-topbar"><div class="dashboard-dots"><i></i><i></i><i></i></div><strong>NexaPOS / Overview</strong><span>Hari ini, 24 Jun</span></div>
                         <div class="dashboard-body">
-                            <aside class="dashboard-sidebar" aria-hidden="true"><div class="mini-logo"><b>N</b>NexaPOS</div><div class="mini-nav"><span class="active">Overview</span><span>Transaksi</span><span>Produk</span><span>Stok</span><span>Laporan</span></div></aside>
+                            <aside class="dashboard-sidebar" aria-hidden="true"><div class="mini-logo"><x-app-logo-icon variant="blue" width="20" height="20" />NexaPOS</div><div class="mini-nav"><span class="active">Overview</span><span>Transaksi</span><span>Produk</span><span>Stok</span><span>Laporan</span></div></aside>
                             <div class="dashboard-main">
                                 <div class="dashboard-heading"><div><small>Ringkasan operasional</small><strong>Selamat datang kembali</strong></div><button type="button">Export laporan</button></div>
                                 <div class="metric-row"><div class="metric blue"><label>Penjualan hari ini</label><strong>Rp 8,4 jt</strong><em>↑ Terpantau</em></div><div class="metric lime"><label>Transaksi</label><strong>128</strong><em>Aktif</em></div><div class="metric"><label>Stok menipis</label><strong>06</strong><em>Perlu cek</em></div></div>
@@ -386,7 +386,7 @@
         </main>
 
         <footer class="shell footer">
-            <a href="{{ route('home') }}" class="brand"><span class="brand-mark">N</span><span>NexaPOS</span></a>
+            <a href="{{ route('home') }}" class="brand"><x-app-logo-icon variant="blue" width="32" height="32" /><span>NexaPOS</span></a>
             <div class="footer-links">
                 <a href="#fitur">Fitur</a>
                 <a href="#harga">Harga</a>

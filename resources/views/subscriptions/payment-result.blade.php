@@ -23,9 +23,7 @@
     <main class="min-h-screen flex items-center justify-center px-4 py-10">
         <div class="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-5">
             <div class="flex items-center gap-2.5">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/30">
-                    <i data-lucide="zap" class="h-5 w-5"></i>
-                </div>
+                <x-app-logo-icon class="h-10 w-10" />
                 <span class="text-xl font-extrabold tracking-tight">
                     Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
                 </span>

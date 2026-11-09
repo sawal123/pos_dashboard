@@ -17,9 +17,7 @@
             {{-- Top Branding Header --}}
             <div class="h-16 px-5 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between shrink-0">
                 <a href="{{ route('platform.dashboard') }}" class="flex items-center gap-3 group focus:outline-none">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-purple-800 text-white flex items-center justify-center font-black text-sm shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform shrink-0">
-                        P
-                    </div>
+                    <x-app-logo-icon class="w-9 h-9 group-hover:scale-105 transition-transform" />
                     <div class="sidebar-label sidebar-logo-text flex flex-col leading-tight">
                         <span class="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
                             Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>

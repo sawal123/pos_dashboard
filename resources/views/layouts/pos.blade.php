@@ -28,9 +28,7 @@
             {{-- Left: Logo & Business / Outlet --}}
             <div class="flex items-center gap-3">
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 group" title="Kembali ke Dashboard">
-                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-                        <i data-lucide="zap" class="w-4 h-4"></i>
-                    </div>
+                    <x-app-logo-icon class="w-8 h-8 group-hover:scale-105 transition-transform" />
                     <div class="hidden sm:block">
                         <span class="font-black text-sm tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
                             Nexa<span class="text-indigo-600">POS</span>

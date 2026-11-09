@@ -62,9 +62,7 @@
     {{-- Sidebar Header / Brand Logo --}}
     <div class="flex items-center justify-between h-16 px-4 sm:px-5 border-b border-slate-200/80 dark:border-slate-800 shrink-0">
         <a href="{{ route('dashboard') }}" class="flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl" aria-label="NexaPOS Dashboard">
-            <div class="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-600/20 shrink-0">
-                <i data-lucide="zap" class="w-5 h-5"></i>
-            </div>
+            <x-app-logo-icon class="w-9 h-9" />
             <span class="sidebar-logo-text font-extrabold text-lg tracking-tight text-slate-900 dark:text-white">
                 Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
             </span>

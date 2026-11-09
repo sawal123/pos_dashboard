@@ -55,9 +55,7 @@
         <div class="p-3.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl backdrop-blur-md">
             <div class="flex items-start justify-between gap-2 mb-2">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
-                        <i data-lucide="zap" class="w-4 h-4"></i>
-                    </div>
+                    <x-app-logo-icon class="w-8 h-8" />
                     <div>
                         <h4 class="font-bold text-xs">Install Aplikasi NexaPOS</h4>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400">Akses cepat & layar penuh</p>
