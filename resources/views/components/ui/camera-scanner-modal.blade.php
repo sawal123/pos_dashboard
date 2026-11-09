@@ -1,8 +1,7 @@
-{{-- Universal Camera Barcode & QR Scanner Modal Component --}}
-@once
+{{-- Universal Camera Barcode & QR Scanner Modal Component (With Glare, Curvature & Tilt Tolerance) --}}
 <div id="cameraScannerModal" class="fixed inset-0 z-[150] hidden" role="dialog" aria-modal="true" aria-labelledby="cameraScannerTitle">
     {{-- Backdrop --}}
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="window.CameraScanner.close()"></div>
+    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="window.CameraScanner && window.CameraScanner.close()"></div>
 
     {{-- Modal Content --}}
     <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
@@ -14,32 +13,39 @@
                         <i data-lucide="scan-barcode" class="w-5 h-5"></i>
                     </div>
                     <div>
-                        <h3 id="cameraScannerTitle" class="text-sm font-bold text-slate-900 dark:text-white">Scan Barcode / QR Code</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Arahkan kamera atau pilih gambar barcode/QR produk</p>
+                        <h3 id="cameraScannerTitle" class="text-sm font-bold text-slate-900 dark:text-white">Scan Barcode / QR Produk</h3>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Toleransi otomatis untuk pantulan cahaya, kemasan melengkung & miring</p>
                     </div>
                 </div>
-                <button type="button" onclick="window.CameraScanner.close()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" aria-label="Tutup kamera">
+                <button type="button" onclick="window.CameraScanner && window.CameraScanner.close()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer" aria-label="Tutup kamera">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
 
             {{-- Video Viewport --}}
             <div class="relative bg-slate-950 aspect-[4/3] w-full overflow-hidden flex items-center justify-center">
-                <video id="cameraScannerVideo" class="w-full h-full object-cover hidden" playsinline muted autoplay></video>
-                <input type="file" id="cameraScannerFileInput" accept="image/*" class="hidden" onchange="window.CameraScanner.handleFileSelect(event)" />
+                <video id="cameraScannerVideo" class="w-full h-full object-cover hidden transition-transform duration-150 origin-center" playsinline muted autoplay></video>
+                <input type="file" id="cameraScannerFileInput" accept="image/*" class="hidden" onchange="window.CameraScanner && window.CameraScanner.handleFileSelect(event)" />
 
                 {{-- Target Reticle / Viewfinder Overlay --}}
-                <div id="cameraScannerViewfinder" class="absolute inset-0 pointer-events-none flex items-center justify-center hidden">
-                    <div class="relative w-56 h-40 border-2 border-indigo-500/80 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.45)]">
+                <div id="cameraScannerViewfinder" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center hidden">
+                    <div id="cameraScannerReticle" class="relative w-64 h-44 border-2 border-indigo-400/85 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.42)] transition-colors duration-200">
                         {{-- Corner Accents --}}
                         <div class="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl"></div>
                         <div class="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl"></div>
                         <div class="absolute -bottom-0.5 -left-0.5 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl"></div>
                         <div class="absolute -bottom-0.5 -right-0.5 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-xl"></div>
 
+                        {{-- Multi-angle guide lines (subtle) --}}
+                        <div class="absolute inset-x-4 top-1/3 h-px bg-indigo-400/20"></div>
+                        <div class="absolute inset-x-4 bottom-1/3 h-px bg-indigo-400/20"></div>
+
                         {{-- Animated Laser Line --}}
                         <div class="absolute inset-x-2 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_8px_#f43f5e] animate-pulse"></div>
                     </div>
+                    <span class="mt-2.5 px-2.5 py-1 rounded-full bg-slate-950/75 text-[10px] font-medium text-slate-200 backdrop-blur-xs">
+                        Bisa miring / plastik melengkung • Gunakan Zoom jika barcode kecil
+                    </span>
                 </div>
 
                 {{-- Loading / Permission / Fallback State --}}
@@ -52,24 +58,68 @@
                 </div>
             </div>
 
+            {{-- Camera Enhancement Controls Bar (Zoom, Anti-Glare, Torch) --}}
+            <div id="cameraScannerEnhanceBar" class="px-5 py-2.5 bg-slate-900 text-slate-200 border-t border-slate-800 flex items-center justify-between gap-3 text-xs">
+                <div class="flex items-center gap-2 flex-1">
+                    <i data-lucide="zoom-in" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></i>
+                    <span class="text-[11px] font-semibold text-slate-300 shrink-0">Zoom:</span>
+                    <input
+                        id="cameraScannerZoomRange"
+                        type="range"
+                        min="1"
+                        max="2.6"
+                        step="0.1"
+                        value="1.2"
+                        oninput="window.CameraScanner && window.CameraScanner.setZoom(this.value)"
+                        class="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        title="Perbesar area barcode agar lebih fokus pada kemasan plastik"
+                    />
+                    <span id="cameraScannerZoomLabel" class="text-[11px] font-mono font-bold text-indigo-300 w-9 text-right">1.2x</span>
+                </div>
+
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button
+                        type="button"
+                        id="cameraScannerEnhanceBtn"
+                        onclick="window.CameraScanner && window.CameraScanner.toggleEnhanceMode()"
+                        class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition-colors cursor-pointer"
+                        title="Mode Anti-Silau & Kompensasi Lekukan Plastik Aktif"
+                    >
+                        <i data-lucide="sparkles" class="w-3 h-3"></i>
+                        <span id="cameraScannerEnhanceLabel">Anti-Silau ON</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        id="cameraScannerTorchBtn"
+                        onclick="window.CameraScanner && window.CameraScanner.toggleTorch()"
+                        class="hidden items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 transition-colors cursor-pointer"
+                        title="Nyalakan Lampu Senter Kamera"
+                    >
+                        <i data-lucide="flashlight" class="w-3 h-3"></i>
+                        <span>Senter</span>
+                    </button>
+                </div>
+            </div>
+
             {{-- Footer Controls --}}
             <div class="px-5 py-3.5 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
-                    <button type="button" onclick="window.CameraScanner.triggerFileSelect()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer">
+                    <button type="button" onclick="window.CameraScanner && window.CameraScanner.triggerFileSelect()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/70 dark:border-indigo-800/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer">
                         <i data-lucide="image" class="w-3.5 h-3.5"></i>
                         <span>Scan dari Gambar</span>
                     </button>
                     <span id="cameraScannerFormatBadge" class="hidden sm:inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                        Aktif
+                        Multi-Sudut Aktif
                     </span>
                 </div>
                 <div class="flex items-center gap-2 ml-auto">
-                    <button type="button" id="cameraScannerSwitchBtn" onclick="window.CameraScanner.switchCamera()" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-colors">
+                    <button type="button" id="cameraScannerSwitchBtn" onclick="window.CameraScanner && window.CameraScanner.switchCamera()" class="hidden items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 transition-colors cursor-pointer">
                         <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
                         <span>Putar Kamera</span>
                     </button>
-                    <button type="button" onclick="window.CameraScanner.close()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300/70 dark:hover:bg-slate-700 transition-colors">
+                    <button type="button" onclick="window.CameraScanner && window.CameraScanner.close()" class="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300/70 dark:hover:bg-slate-700 transition-colors cursor-pointer">
                         Batal
                     </button>
                 </div>
@@ -78,219 +128,523 @@
     </div>
 </div>
 
-<script data-navigate-once>
-    /**
-     * Universal Camera Scanner Manager (Supports 1D Barcode & 2D QR Code)
-     * Uses Native BarcodeDetector API with automatic ZXing multi-format fallback + Image File Scanning
-     */
-    class CameraScannerManager {
-        constructor() {
-            this.stream = null;
-            this.isScanning = false;
-            this.onDetectCallback = null;
-            this.detector = null;
-            this.zxingReader = null;
-            this.facingMode = 'environment';
-            this.scanFrameId = null;
-            this.scanTimer = null;
-            this.canvas = document.createElement('canvas');
-        }
+<script>
+    (function () {
+        /**
+         * Universal Multi-Pass Camera Scanner Manager
+         * Built with tolerance for:
+         * 1. Lighting / Glare on plastic packaging (Adaptive Contrast & GlobalHistogramBinarizer + HybridBinarizer)
+         * 2. Curved surfaces / bottles / sachets (Center ROI magnification + horizontal aspect unwarping 1.22x)
+         * 3. Tilted / skewed angles (Multi-angle rotation passes: 0°, ±18°, ±35°, 90°)
+         */
+        class CameraScannerManager {
+            constructor() {
+                this.stream = null;
+                this.isScanning = false;
+                this.onDetectCallback = null;
+                this.detector = null;
+                this.zxingReader = null;
+                this.facingMode = 'environment';
+                this.scanFrameId = null;
+                this.scanTimer = null;
+                this.frameCounter = 0;
+                this.zoomLevel = 1.2;
+                this.hardwareZoomSupported = false;
+                this.torchSupported = false;
+                this.torchOn = false;
+                this.enhanceMode = true;
+                this.canvas = document.createElement('canvas');
+                this.workCanvas = document.createElement('canvas');
+            }
 
-        get modal() { return document.getElementById('cameraScannerModal'); }
-        get video() { return document.getElementById('cameraScannerVideo'); }
-        get loader() { return document.getElementById('cameraScannerLoader'); }
-        get viewfinder() { return document.getElementById('cameraScannerViewfinder'); }
-        get formatBadge() { return document.getElementById('cameraScannerFormatBadge'); }
-        get fileInput() { return document.getElementById('cameraScannerFileInput'); }
+            get modal() { return document.getElementById('cameraScannerModal'); }
+            get video() { return document.getElementById('cameraScannerVideo'); }
+            get loader() { return document.getElementById('cameraScannerLoader'); }
+            get viewfinder() { return document.getElementById('cameraScannerViewfinder'); }
+            get formatBadge() { return document.getElementById('cameraScannerFormatBadge'); }
+            get fileInput() { return document.getElementById('cameraScannerFileInput'); }
 
-        resetLoader(title = 'Menyiapkan kamera...', subtitle = 'Pastikan izin akses kamera diberikan pada browser Anda.') {
-            if (!this.loader) return;
-            this.loader.classList.remove('hidden');
-            this.loader.innerHTML = `
-                <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 mb-3 animate-pulse">
-                    <i data-lucide="camera" class="w-6 h-6"></i>
-                </div>
-                <p id="cameraScannerStatusText" class="text-xs font-semibold text-slate-200">${title}</p>
-                <p id="cameraScannerSubText" class="text-[11px] text-slate-400 mt-1 max-w-xs">${subtitle}</p>
-            `;
-            if (window.lucide) window.lucide.createIcons();
-        }
+            resetLoader(title = 'Menyiapkan kamera...', subtitle = 'Pastikan izin akses kamera diberikan pada browser Anda.') {
+                if (!this.loader) return;
+                this.loader.classList.remove('hidden');
+                this.loader.innerHTML = `
+                    <div class="w-12 h-12 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-400 mb-3 animate-pulse">
+                        <i data-lucide="camera" class="w-6 h-6"></i>
+                    </div>
+                    <p id="cameraScannerStatusText" class="text-xs font-semibold text-slate-200">${title}</p>
+                    <p id="cameraScannerSubText" class="text-[11px] text-slate-400 mt-1 max-w-xs">${subtitle}</p>
+                `;
+                if (window.lucide) window.lucide.createIcons();
+            }
 
-        async ensureDecoder() {
-            if (this.detector) return 'native';
+            async ensureDecoder() {
+                // 1. Initialize Native BarcodeDetector if available
+                if (!this.detector && ('BarcodeDetector' in window)) {
+                    try {
+                        const formats = await window.BarcodeDetector.getSupportedFormats();
+                        const desired = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'qr_code', 'itf', 'codabar', 'data_matrix'];
+                        const activeFormats = desired.filter(f => formats.includes(f));
+                        this.detector = new window.BarcodeDetector({
+                            formats: activeFormats.length > 0 ? activeFormats : undefined
+                        });
+                    } catch (e) {
+                        console.warn('BarcodeDetector init error:', e);
+                    }
+                }
 
-            if ('BarcodeDetector' in window) {
-                try {
-                    const formats = await window.BarcodeDetector.getSupportedFormats();
-                    const desired = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code', 'itf', 'codabar'];
-                    const activeFormats = desired.filter(f => formats.includes(f));
-                    this.detector = new window.BarcodeDetector({
-                        formats: activeFormats.length > 0 ? activeFormats : undefined
-                    });
-                    return 'native';
-                } catch (e) {
-                    console.warn('BarcodeDetector init error:', e);
+                // 2. Always also load ZXing MultiFormatReader with TRY_HARDER + ALSO_INVERTED for difficult/tilted/glare frames
+                if (!this.zxingReader) {
+                    try {
+                        if (!window.ZXing) {
+                            await new Promise((resolve, reject) => {
+                                const existing = document.querySelector('script[data-zxing-lib]');
+                                if (existing) {
+                                    if (window.ZXing) { resolve(); return; }
+                                    existing.addEventListener('load', resolve, { once: true });
+                                    existing.addEventListener('error', reject, { once: true });
+                                    return;
+                                }
+                                const s = document.createElement('script');
+                                s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+                                s.async = true;
+                                s.setAttribute('data-zxing-lib', '1');
+                                s.onload = resolve;
+                                s.onerror = reject;
+                                document.head.appendChild(s);
+                            });
+                        }
+                        if (window.ZXing && window.ZXing.MultiFormatReader) {
+                            const Z = window.ZXing;
+                            const hints = new Map();
+                            if (Z.DecodeHintType && Z.BarcodeFormat) {
+                                hints.set(Z.DecodeHintType.TRY_HARDER, true);
+                                if (Z.DecodeHintType.ALSO_INVERTED !== undefined) {
+                                    hints.set(Z.DecodeHintType.ALSO_INVERTED, true);
+                                }
+                                const fmts = [
+                                    Z.BarcodeFormat.EAN_13,
+                                    Z.BarcodeFormat.EAN_8,
+                                    Z.BarcodeFormat.UPC_A,
+                                    Z.BarcodeFormat.UPC_E,
+                                    Z.BarcodeFormat.CODE_128,
+                                    Z.BarcodeFormat.CODE_39,
+                                    Z.BarcodeFormat.CODE_93,
+                                    Z.BarcodeFormat.ITF,
+                                    Z.BarcodeFormat.CODABAR,
+                                    Z.BarcodeFormat.QR_CODE,
+                                    Z.BarcodeFormat.DATA_MATRIX,
+                                ].filter(Boolean);
+                                hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, fmts);
+                            }
+                            this.zxingReader = new Z.MultiFormatReader();
+                            this.zxingReader.setHints(hints);
+                        }
+                    } catch (err) {
+                        console.warn('ZXing fallback load failed:', err);
+                    }
+                }
+
+                return (this.detector || this.zxingReader) ? 'ready' : null;
+            }
+
+            async open(onDetect) {
+                if (!this.modal) return;
+
+                this.onDetectCallback = onDetect;
+                this.modal.classList.remove('hidden');
+
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+
+                this.resetLoader('Menyiapkan pemindai pintar...', 'Mengaktifkan kamera dengan mode toleransi cahaya & kemasan plastik.');
+                if (this.video) this.video.classList.add('hidden');
+                if (this.viewfinder) this.viewfinder.classList.add('hidden');
+                if (this.formatBadge) this.formatBadge.classList.add('hidden');
+
+                // Start camera immediately while decoder initializes in parallel
+                const [, engine] = await Promise.all([
+                    this.startStream(),
+                    this.ensureDecoder(),
+                ]);
+
+                if (!engine && !this.stream) {
+                    this.showError(
+                        'Kamera Langsung Tidak Tersedia',
+                        'Gunakan tombol "Scan dari Gambar" di bawah untuk memindai foto/file barcode atau ketik kode secara manual.'
+                    );
                 }
             }
 
-            if (this.zxingReader) return 'zxing';
+            async startStream() {
+                this.stopStream();
 
-            try {
-                if (!window.ZXingBrowser && !window.ZXing) {
-                    await new Promise((resolve, reject) => {
-                        const existing = document.querySelector('script[data-zxing-lib]');
-                        if (existing) {
-                            existing.addEventListener('load', resolve, { once: true });
-                            existing.addEventListener('error', reject, { once: true });
+                try {
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('MediaDevices API not supported');
+                    }
+
+                    const constraints = {
+                        audio: false,
+                        video: {
+                            facingMode: { ideal: this.facingMode },
+                            width: { ideal: 1920, min: 640 },
+                            height: { ideal: 1080, min: 480 },
+                        }
+                    };
+
+                    try {
+                        this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    } catch (firstErr) {
+                        this.stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+                    }
+
+                    if (!this.video) {
+                        this.stopStream();
+                        return;
+                    }
+
+                    // Apply continuous autofocus / exposure / whitebalance + inspect zoom & torch capabilities
+                    const track = this.stream.getVideoTracks?.()?.[0];
+                    this.hardwareZoomSupported = false;
+                    this.torchSupported = false;
+                    this.torchOn = false;
+
+                    if (track && typeof track.getCapabilities === 'function') {
+                        try {
+                            const caps = track.getCapabilities();
+                            const adv = {};
+                            if (Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) {
+                                adv.focusMode = 'continuous';
+                            }
+                            if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) {
+                                adv.exposureMode = 'continuous';
+                            }
+                            if (Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes('continuous')) {
+                                adv.whiteBalanceMode = 'continuous';
+                            }
+                            if (caps.zoom) {
+                                this.hardwareZoomSupported = true;
+                            }
+                            if (caps.torch) {
+                                this.torchSupported = true;
+                            }
+                            if (Object.keys(adv).length > 0 && typeof track.applyConstraints === 'function') {
+                                await track.applyConstraints({ advanced: [adv] }).catch(() => {});
+                            }
+                        } catch (e) {}
+                    }
+
+                    const torchBtn = document.getElementById('cameraScannerTorchBtn');
+                    if (torchBtn) {
+                        torchBtn.classList.toggle('hidden', !this.torchSupported);
+                        torchBtn.classList.toggle('inline-flex', this.torchSupported);
+                    }
+
+                    this.video.srcObject = this.stream;
+                    await this.video.play();
+
+                    // Apply initial zoom
+                    const zoomRange = document.getElementById('cameraScannerZoomRange');
+                    this.setZoom(zoomRange ? zoomRange.value : 1.2);
+                    this.applyVideoFilterStyle();
+
+                    if (this.loader) this.loader.classList.add('hidden');
+                    this.video.classList.remove('hidden');
+                    if (this.viewfinder) this.viewfinder.classList.remove('hidden');
+                    if (this.formatBadge) {
+                        this.formatBadge.classList.remove('hidden');
+                        this.formatBadge.classList.add('inline-flex');
+                    }
+
+                    const switchBtn = document.getElementById('cameraScannerSwitchBtn');
+                    if (switchBtn) {
+                        switchBtn.classList.remove('hidden');
+                        switchBtn.classList.add('inline-flex');
+                    }
+
+                    this.isScanning = true;
+                    this.frameCounter = 0;
+                    this.scanLoop();
+                } catch (err) {
+                    console.warn('Camera access error:', err);
+                    this.showError(
+                        'Gagal Mengakses Kamera',
+                        'Izin kamera ditolak atau perangkat tidak memiliki kamera. Anda tetap dapat klik "Scan dari Gambar" di bawah.'
+                    );
+                }
+            }
+
+            setZoom(value) {
+                const z = Math.max(1, Math.min(3, parseFloat(value) || 1));
+                this.zoomLevel = z;
+                const label = document.getElementById('cameraScannerZoomLabel');
+                if (label) label.textContent = `${z.toFixed(1)}x`;
+
+                const track = this.stream?.getVideoTracks?.()?.[0];
+                if (this.hardwareZoomSupported && track && typeof track.applyConstraints === 'function') {
+                    try {
+                        const caps = track.getCapabilities();
+                        const minZ = caps.zoom?.min ?? 1;
+                        const maxZ = caps.zoom?.max ?? 3;
+                        const targetZ = Math.min(maxZ, Math.max(minZ, z));
+                        track.applyConstraints({ advanced: [{ zoom: targetZ }] }).catch(() => {});
+                        if (this.video) this.video.style.transform = 'scale(1)';
+                        return;
+                    } catch (e) {}
+                }
+
+                if (this.video) {
+                    this.video.style.transform = `scale(${z})`;
+                }
+            }
+
+            toggleEnhanceMode() {
+                this.enhanceMode = !this.enhanceMode;
+                const btn = document.getElementById('cameraScannerEnhanceBtn');
+                const lbl = document.getElementById('cameraScannerEnhanceLabel');
+                if (lbl) lbl.textContent = this.enhanceMode ? 'Anti-Silau ON' : 'Anti-Silau OFF';
+                if (btn) {
+                    btn.className = this.enhanceMode
+                        ? 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 hover:bg-indigo-500/30 transition-colors cursor-pointer'
+                        : 'inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 transition-colors cursor-pointer';
+                }
+                this.applyVideoFilterStyle();
+            }
+
+            applyVideoFilterStyle() {
+                if (!this.video) return;
+                this.video.style.filter = this.enhanceMode
+                    ? 'contrast(1.18) brightness(1.04) saturate(0.85)'
+                    : 'none';
+            }
+
+            async toggleTorch() {
+                const track = this.stream?.getVideoTracks?.()?.[0];
+                if (!track || !this.torchSupported) return;
+                this.torchOn = !this.torchOn;
+                try {
+                    await track.applyConstraints({ advanced: [{ torch: this.torchOn }] });
+                } catch (e) {
+                    this.torchOn = false;
+                }
+            }
+
+            async switchCamera() {
+                this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
+                await this.startStream();
+            }
+
+            /**
+             * Decode a single prepared canvas using both Native BarcodeDetector and ZXing (Hybrid + GlobalHistogram)
+             */
+            async decodeCanvasElement(targetCanvas) {
+                if (!targetCanvas || targetCanvas.width < 16 || targetCanvas.height < 16) return null;
+
+                // 1. Native BarcodeDetector
+                if (this.detector) {
+                    try {
+                        const barcodes = await this.detector.detect(targetCanvas);
+                        if (barcodes && barcodes.length > 0) {
+                            const hit = barcodes.find(b => b.rawValue && String(b.rawValue).trim().length > 0);
+                            if (hit) return String(hit.rawValue).trim();
+                        }
+                    } catch (e) {}
+                }
+
+                // 2. ZXing MultiFormatReader (TRY_HARDER + HybridBinarizer & GlobalHistogramBinarizer)
+                if (this.zxingReader && window.ZXing) {
+                    const Z = window.ZXing;
+                    try {
+                        const luminance = new Z.HTMLCanvasElementLuminanceSource(targetCanvas);
+                        // Try HybridBinarizer first (handles uneven shadows/glare on packaging)
+                        try {
+                            const bitmapHybrid = new Z.BinaryBitmap(new Z.HybridBinarizer(luminance));
+                            const res = this.zxingReader.decodeWithState(bitmapHybrid);
+                            if (res && res.getText()) return String(res.getText()).trim();
+                        } catch (e1) {}
+
+                        // Try GlobalHistogramBinarizer second (handles soft focus / plastic curvature / low contrast)
+                        if (Z.GlobalHistogramBinarizer) {
+                            try {
+                                const bitmapGlobal = new Z.BinaryBitmap(new Z.GlobalHistogramBinarizer(luminance));
+                                const res2 = this.zxingReader.decodeWithState(bitmapGlobal);
+                                if (res2 && res2.getText()) return String(res2.getText()).trim();
+                            } catch (e2) {}
+                        }
+                    } catch (e) {}
+                }
+
+                return null;
+            }
+
+            /**
+             * Render a transformed pass into this.workCanvas:
+             * - cropRatio: 1.0 (full) or 0.68 (center ROI zoom)
+             * - filterCss: CSS canvas filter for glare / contrast compensation
+             * - angleDeg: rotation in degrees for tilted barcodes (-35, -18, 0, 18, 35, 90)
+             * - stretchX: horizontal stretch factor (e.g. 1.24) to unwarp barcodes on curved bottles/sachets
+             */
+            preparePassCanvas(sourceEl, { cropRatio = 1.0, filterCss = 'none', angleDeg = 0, stretchX = 1.0 } = {}) {
+                const srcW = sourceEl.videoWidth || sourceEl.naturalWidth || sourceEl.width || 0;
+                const srcH = sourceEl.videoHeight || sourceEl.naturalHeight || sourceEl.height || 0;
+                if (srcW <= 0 || srcH <= 0) return null;
+
+                const effectiveCrop = Math.min(1.0, Math.max(0.35, cropRatio / Math.max(1, this.zoomLevel * 0.85)));
+                const cropW = Math.round(srcW * effectiveCrop);
+                const cropH = Math.round(srcH * effectiveCrop);
+                const sx = Math.round((srcW - cropW) / 2);
+                const sy = Math.round((srcH - cropH) / 2);
+
+                const targetW = Math.min(960, Math.max(480, Math.round(cropW * stretchX)));
+                const targetH = Math.min(720, Math.max(360, cropH));
+
+                const c = this.workCanvas;
+                c.width = targetW;
+                c.height = targetH;
+                const ctx = c.getContext('2d', { willReadFrequently: true });
+                if (!ctx) return null;
+
+                ctx.save();
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, targetW, targetH);
+
+                if (filterCss && filterCss !== 'none' && 'filter' in ctx) {
+                    ctx.filter = filterCss;
+                }
+
+                ctx.translate(targetW / 2, targetH / 2);
+                if (angleDeg !== 0) {
+                    ctx.rotate((angleDeg * Math.PI) / 180);
+                }
+                if (stretchX !== 1.0) {
+                    ctx.scale(stretchX, 1.0);
+                }
+                ctx.drawImage(sourceEl, sx, sy, cropW, cropH, -targetW / 2, -targetH / 2, targetW, targetH);
+                ctx.restore();
+
+                return c;
+            }
+
+            /**
+             * Multi-pass decoding:
+             * - Live video mode runs 3 complementary passes per frame (cycling through tilt angles & curvature stretch)
+             *   so each frame stays fast (~25ms) while covering glare, curved plastic, and tilted angles within 0.3s!
+             * - Image upload mode runs all 10 passes exhaustively.
+             */
+            async decodeFromSource(sourceEl, exhaustive = false) {
+                const allPasses = [
+                    // 1. Center ROI with moderate anti-glare contrast
+                    { cropRatio: 0.78, filterCss: 'grayscale(100%) contrast(145%) brightness(104%)', angleDeg: 0, stretchX: 1.0 },
+                    // 2. Raw full frame
+                    { cropRatio: 1.0, filterCss: 'none', angleDeg: 0, stretchX: 1.0 },
+                    // 3. Curved plastic bottle/sachet unwarp (horizontal stretch 1.24x + high contrast)
+                    { cropRatio: 0.72, filterCss: 'grayscale(100%) contrast(185%) brightness(106%)', angleDeg: 0, stretchX: 1.24 },
+                    // 4. Tilted +18 deg with glare suppression
+                    { cropRatio: 0.80, filterCss: 'grayscale(100%) contrast(165%)', angleDeg: 18, stretchX: 1.12 },
+                    // 5. Tilted -18 deg with glare suppression
+                    { cropRatio: 0.80, filterCss: 'grayscale(100%) contrast(165%)', angleDeg: -18, stretchX: 1.12 },
+                    // 6. Strong glare / shiny plastic wrapper suppression (darkened highlights + strong contrast)
+                    { cropRatio: 0.72, filterCss: 'grayscale(100%) contrast(230%) brightness(90%)', angleDeg: 0, stretchX: 1.15 },
+                    // 7. Tilted +34 deg
+                    { cropRatio: 0.85, filterCss: 'grayscale(100%) contrast(160%)', angleDeg: 34, stretchX: 1.0 },
+                    // 8. Tilted -34 deg
+                    { cropRatio: 0.85, filterCss: 'grayscale(100%) contrast(160%)', angleDeg: -34, stretchX: 1.0 },
+                    // 9. Vertical barcode (90 deg)
+                    { cropRatio: 0.85, filterCss: 'grayscale(100%) contrast(155%)', angleDeg: 90, stretchX: 1.0 },
+                    // 10. Tight macro zoom for tiny sachet barcodes + strong curvature stretch
+                    { cropRatio: 0.52, filterCss: 'grayscale(100%) contrast(195%) brightness(105%)', angleDeg: 0, stretchX: 1.32 },
+                ];
+
+                let passesToRun = allPasses;
+                if (!exhaustive) {
+                    const idx = this.frameCounter++;
+                    // Always run Pass 1 (Center ROI + Anti-Glare), plus 2 rotating specialized passes per tick
+                    const rotatingA = allPasses[1 + (idx % 4)];
+                    const rotatingB = allPasses[5 + (idx % 5)];
+                    passesToRun = [allPasses[0], rotatingA, rotatingB];
+                }
+
+                for (const pass of passesToRun) {
+                    const prepared = this.preparePassCanvas(sourceEl, pass);
+                    if (!prepared) continue;
+                    const code = await this.decodeCanvasElement(prepared);
+                    if (code) return code;
+                }
+
+                return null;
+            }
+
+            async scanLoop() {
+                if (!this.isScanning || !this.video) return;
+
+                if (this.video.readyState >= 2) {
+                    try {
+                        const code = await this.decodeFromSource(this.video, false);
+                        if (code) {
+                            this.flashReticleSuccess();
+                            this.playBeep();
+                            const callback = this.onDetectCallback;
+                            setTimeout(() => {
+                                this.close();
+                                if (typeof callback === 'function') {
+                                    callback(code);
+                                }
+                            }, 120);
                             return;
                         }
-                        const s = document.createElement('script');
-                        s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
-                        s.async = true;
-                        s.setAttribute('data-zxing-lib', '1');
-                        s.onload = resolve;
-                        s.onerror = reject;
-                        document.head.appendChild(s);
-                    });
-                }
-                if (window.ZXing && window.ZXing.BrowserMultiFormatReader) {
-                    this.zxingReader = new window.ZXing.BrowserMultiFormatReader();
-                    return 'zxing';
-                }
-            } catch (err) {
-                console.warn('ZXing fallback load failed:', err);
-            }
-
-            return null;
-        }
-
-        /**
-         * Open the camera scanner modal
-         * @param {Function} onDetect - Callback receiving (codeString)
-         */
-        async open(onDetect) {
-            if (!this.modal) return;
-
-            this.onDetectCallback = onDetect;
-            this.modal.classList.remove('hidden');
-
-            if (window.lucide) {
-                window.lucide.createIcons();
-            }
-
-            this.resetLoader('Menyiapkan pemindai...', 'Mengaktifkan kamera untuk membaca barcode atau QR produk.');
-            if (this.video) this.video.classList.add('hidden');
-            if (this.viewfinder) this.viewfinder.classList.add('hidden');
-            if (this.formatBadge) this.formatBadge.classList.add('hidden');
-
-            const engine = await this.ensureDecoder();
-            if (!engine) {
-                this.showError(
-                    'Kamera Langsung Tidak Tersedia',
-                    'Gunakan tombol "Scan dari Gambar" di bawah untuk memindai foto/file QR atau ketik kode secara manual.'
-                );
-                return;
-            }
-
-            await this.startStream();
-        }
-
-        async startStream() {
-            this.stopStream();
-
-            try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('MediaDevices API not supported');
-                }
-
-                const constraints = {
-                    audio: false,
-                    video: {
-                        facingMode: { ideal: this.facingMode },
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    }
-                };
-
-                this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-                if (!this.video) {
-                    this.stopStream();
-                    return;
-                }
-                this.video.srcObject = this.stream;
-                await this.video.play();
-
-                if (this.loader) this.loader.classList.add('hidden');
-                this.video.classList.remove('hidden');
-                if (this.viewfinder) this.viewfinder.classList.remove('hidden');
-                if (this.formatBadge) {
-                    this.formatBadge.classList.remove('hidden');
-                    this.formatBadge.classList.add('inline-flex');
-                }
-
-                const switchBtn = document.getElementById('cameraScannerSwitchBtn');
-                if (switchBtn) {
-                    switchBtn.classList.remove('hidden');
-                    switchBtn.classList.add('inline-flex');
-                }
-
-                this.isScanning = true;
-                this.scanLoop();
-            } catch (err) {
-                console.warn('Camera access error:', err);
-                this.showError(
-                    'Gagal Mengakses Kamera',
-                    'Izin kamera ditolak atau perangkat tidak memiliki kamera. Anda tetap dapat klik "Scan dari Gambar" di bawah.'
-                );
-            }
-        }
-
-        async switchCamera() {
-            this.facingMode = this.facingMode === 'environment' ? 'user' : 'environment';
-            await this.startStream();
-        }
-
-        async decodeFromSource(sourceEl) {
-            if (this.detector) {
-                const barcodes = await this.detector.detect(sourceEl);
-                if (barcodes && barcodes.length > 0) {
-                    const hit = barcodes.find(b => b.rawValue && String(b.rawValue).trim().length > 0);
-                    if (hit) return String(hit.rawValue).trim();
-                }
-            }
-
-            if (window.ZXing) {
-                const width = sourceEl.videoWidth || sourceEl.naturalWidth || sourceEl.width || 0;
-                const height = sourceEl.videoHeight || sourceEl.naturalHeight || sourceEl.height || 0;
-                if (width > 0 && height > 0) {
-                    this.canvas.width = width;
-                    this.canvas.height = height;
-                    const ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-                    if (ctx) {
-                        ctx.drawImage(sourceEl, 0, 0, width, height);
-                        if (this.zxingReader && typeof this.zxingReader.decodeFromCanvas === 'function') {
-                            const res = this.zxingReader.decodeFromCanvas(this.canvas);
-                            if (res && res.getText()) return String(res.getText()).trim();
-                        } else if (window.ZXing.HTMLCanvasElementLuminanceSource && window.ZXing.BinaryBitmap && window.ZXing.HybridBinarizer && window.ZXing.MultiFormatReader) {
-                            const luminance = new window.ZXing.HTMLCanvasElementLuminanceSource(this.canvas);
-                            const bitmap = new window.ZXing.BinaryBitmap(new window.ZXing.HybridBinarizer(luminance));
-                            const reader = new window.ZXing.MultiFormatReader();
-                            const res = reader.decode(bitmap);
-                            if (res && res.getText()) return String(res.getText()).trim();
-                        }
+                    } catch (e) {
+                        // Continue scanning next frame
                     }
                 }
+
+                if (this.isScanning) {
+                    this.scanTimer = setTimeout(() => {
+                        this.scanFrameId = requestAnimationFrame(() => this.scanLoop());
+                    }, 90);
+                }
             }
 
-            return null;
-        }
+            flashReticleSuccess() {
+                const reticle = document.getElementById('cameraScannerReticle');
+                if (reticle) {
+                    reticle.classList.remove('border-indigo-400/85');
+                    reticle.classList.add('border-emerald-400', 'scale-105');
+                }
+            }
 
-        async scanLoop() {
-            if (!this.isScanning || !this.video) return;
+            triggerFileSelect() {
+                if (this.fileInput) {
+                    this.fileInput.value = '';
+                    this.fileInput.click();
+                }
+            }
 
-            if (this.video.readyState >= 2) {
+            async handleFileSelect(event) {
+                const file = event?.target?.files?.[0];
+                if (!file) return;
+
+                this.resetLoader('Memindai gambar...', 'Menganalisis kode dengan koreksi cahaya, kemiringan & lekukan.');
+                if (this.video) this.video.classList.add('hidden');
+                if (this.viewfinder) this.viewfinder.classList.add('hidden');
+
                 try {
-                    const code = await this.decodeFromSource(this.video);
+                    await this.ensureDecoder();
+                    const dataUrl = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(String(reader.result || ''));
+                        reader.onerror = () => reject(new Error('Gagal membaca file gambar'));
+                        reader.readAsDataURL(file);
+                    });
+
+                    const img = await new Promise((resolve, reject) => {
+                        const image = new Image();
+                        image.onload = () => resolve(image);
+                        image.onerror = () => reject(new Error('Format gambar tidak valid'));
+                        image.src = dataUrl;
+                    });
+
+                    const code = await this.decodeFromSource(img, true);
                     if (code) {
                         this.playBeep();
                         const callback = this.onDetectCallback;
@@ -300,140 +654,84 @@
                         }
                         return;
                     }
-                } catch (e) {
-                    // Normal when no barcode is in current frame
+
+                    this.showError(
+                        'Kode Tidak Terbaca dari Gambar',
+                        'Pastikan seluruh garis barcode atau kotak QR terlihat di dalam foto, lalu pilih gambar lain.'
+                    );
+                } catch (err) {
+                    this.showError(
+                        'Gagal Memindai Gambar',
+                        err?.message || 'Tidak ditemukan barcode atau QR Code pada gambar tersebut.'
+                    );
                 }
             }
 
-            if (this.isScanning) {
-                this.scanTimer = setTimeout(() => {
-                    this.scanFrameId = requestAnimationFrame(() => this.scanLoop());
-                }, 120);
-            }
-        }
-
-        triggerFileSelect() {
-            if (this.fileInput) {
-                this.fileInput.value = '';
-                this.fileInput.click();
-            }
-        }
-
-        async handleFileSelect(event) {
-            const file = event?.target?.files?.[0];
-            if (!file) return;
-
-            this.resetLoader('Memindai gambar...', 'Membaca kode barcode / QR dari gambar yang dipilih.');
-            if (this.video) this.video.classList.add('hidden');
-            if (this.viewfinder) this.viewfinder.classList.add('hidden');
-
-            try {
-                await this.ensureDecoder();
-                const dataUrl = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(String(reader.result || ''));
-                    reader.onerror = () => reject(new Error('Gagal membaca file gambar'));
-                    reader.readAsDataURL(file);
-                });
-
-                const img = await new Promise((resolve, reject) => {
-                    const image = new Image();
-                    image.onload = () => resolve(image);
-                    image.onerror = () => reject(new Error('Format gambar tidak valid'));
-                    image.src = dataUrl;
-                });
-
-                const code = await this.decodeFromSource(img);
-                if (code) {
-                    this.playBeep();
-                    const callback = this.onDetectCallback;
-                    this.close();
-                    if (typeof callback === 'function') {
-                        callback(code);
-                    }
-                    return;
+            stopStream() {
+                this.isScanning = false;
+                if (this.scanTimer) {
+                    clearTimeout(this.scanTimer);
+                    this.scanTimer = null;
                 }
-
-                this.showError(
-                    'Kode Tidak Terbaca dari Gambar',
-                    'Pastikan gambar QR Code atau Barcode terlihat jelas dan tidak buram, lalu coba pilih gambar lain.'
-                );
-            } catch (err) {
-                this.showError(
-                    'Gagal Memproses Gambar',
-                    'File gambar tidak dapat dipindai. Silakan coba gambar lain atau ketik kode secara manual.'
-                );
+                if (this.scanFrameId) {
+                    cancelAnimationFrame(this.scanFrameId);
+                    this.scanFrameId = null;
+                }
+                if (this.stream) {
+                    this.stream.getTracks().forEach(track => track.stop());
+                    this.stream = null;
+                }
+                if (this.video) {
+                    this.video.srcObject = null;
+                }
             }
-        }
 
-        showError(title, message) {
-            if (!this.loader) return;
-            this.loader.classList.remove('hidden');
-            if (this.video) this.video.classList.add('hidden');
-            if (this.viewfinder) this.viewfinder.classList.add('hidden');
-            this.loader.innerHTML = `
-                <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-3">
-                    <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-                </div>
-                <p class="text-xs font-bold text-white">${title}</p>
-                <p class="text-[11px] text-slate-400 mt-1.5 max-w-xs leading-relaxed">${message}</p>
-                <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
-                    <button type="button" onclick="window.CameraScanner.triggerFileSelect()" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors cursor-pointer">
+            close() {
+                this.stopStream();
+                if (this.modal) {
+                    this.modal.classList.add('hidden');
+                }
+                this.onDetectCallback = null;
+            }
+
+            showError(title, subtitle) {
+                if (!this.loader) return;
+                this.loader.classList.remove('hidden');
+                if (this.video) this.video.classList.add('hidden');
+                if (this.viewfinder) this.viewfinder.classList.add('hidden');
+
+                this.loader.innerHTML = `
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-3">
+                        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                    </div>
+                    <p class="text-xs font-bold text-white">${title}</p>
+                    <p class="text-[11px] text-slate-400 mt-1 max-w-xs leading-relaxed">${subtitle}</p>
+                    <button type="button" onclick="window.CameraScanner && window.CameraScanner.triggerFileSelect()" class="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer">
                         <i data-lucide="image" class="w-3.5 h-3.5"></i>
-                        <span>Pilih Gambar QR / Barcode</span>
+                        <span>Pilih Foto Barcode / QR</span>
                     </button>
-                    <button type="button" onclick="window.CameraScanner.startStream()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer">
-                        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-                        <span>Coba Kamera Lagi</span>
-                    </button>
-                </div>
-            `;
-            if (window.lucide) window.lucide.createIcons();
-        }
+                `;
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }
 
-        playBeep() {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(1200, ctx.currentTime);
-                gain.gain.setValueAtTime(0.12, ctx.currentTime);
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.start();
-                osc.stop(ctx.currentTime + 0.09);
-            } catch (e) {}
-        }
-
-        stopStream() {
-            this.isScanning = false;
-            if (this.scanTimer) {
-                clearTimeout(this.scanTimer);
-                this.scanTimer = null;
-            }
-            if (this.scanFrameId) {
-                cancelAnimationFrame(this.scanFrameId);
-                this.scanFrameId = null;
-            }
-            if (this.stream) {
-                this.stream.getTracks().forEach(track => track.stop());
-                this.stream = null;
-            }
-            if (this.video) {
-                this.video.srcObject = null;
+            playBeep() {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1046.5, ctx.currentTime);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.09);
+                } catch (e) {}
             }
         }
 
-        close() {
-            this.stopStream();
-            if (this.modal) {
-                this.modal.classList.add('hidden');
-            }
-            this.onDetectCallback = null;
-        }
-    }
-
-    window.CameraScanner = window.CameraScanner || new CameraScannerManager();
+        window.CameraScanner = window.CameraScanner || new CameraScannerManager();
+    })();
 </script>
-@endonce

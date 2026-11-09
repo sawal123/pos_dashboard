@@ -87,33 +87,41 @@
                         </td>
 
                         {{-- 2. SKU / Barcode --}}
-                        <td class="py-3 px-4">
+                        <td class="py-3 px-4" data-qr-cell="{{ $product['id'] }}">
                             <div class="font-mono text-[11px] text-slate-700 dark:text-slate-300">
                                 {{ $product['sku'] }}
                             </div>
                             @if(!empty($product['barcode']))
-                                <div class="font-mono text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    data-open-qr-modal="{{ $product['id'] }}"
+                                    onclick="window.openQrModal && window.openQrModal({{ $product['id'] }})"
+                                    class="font-mono text-[10px] text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 mt-0.5 inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                    title="Klik untuk lihat & cetak Barcode / QR"
+                                >
                                     <i data-lucide="barcode" class="w-3 h-3 text-slate-400"></i>
-                                    <span>{{ $product['barcode'] }}</span>
-                                </div>
+                                    <span class="underline decoration-dotted underline-offset-2">{{ $product['barcode'] }}</span>
+                                </button>
                             @endif
-                            @if($isGrosir)
+                            @if($isGrosir || !empty($product['barcode']))
                                 <div class="mt-1 flex items-center gap-1">
                                     @if(!empty($product['barcode']))
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200/60 dark:border-indigo-800/60 transition-colors"
-                                            onclick="openQrModal({{ $product['id'] }})"
-                                            title="Lihat QR Code"
+                                            data-open-qr-modal="{{ $product['id'] }}"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/70 dark:border-indigo-800/70 transition-colors cursor-pointer"
+                                            onclick="window.openQrModal && window.openQrModal({{ $product['id'] }})"
+                                            title="Lihat & Cetak QR / Barcode"
                                         >
                                             <i data-lucide="qr-code" class="w-3 h-3"></i>
-                                            <span>Lihat QR</span>
+                                            <span>Lihat QR & Barcode</span>
                                         </button>
-                                    @elseif($canManage)
+                                    @elseif($isGrosir && $canManage)
                                         <button
                                             type="button"
-                                            class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200/60 dark:border-emerald-800/60 transition-colors"
-                                            onclick="generateQrCode({{ $product['id'] }})"
+                                            data-qr-generate-btn="{{ $product['id'] }}"
+                                            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-200/70 dark:border-emerald-800/70 transition-colors cursor-pointer"
+                                            onclick="window.generateQrCode && window.generateQrCode({{ $product['id'] }}, this)"
                                             title="Buat Kode & QR"
                                         >
                                             <i data-lucide="plus" class="w-3 h-3"></i>

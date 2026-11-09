@@ -131,22 +131,24 @@
                             @endif
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                            @if($isGrosir)
+                            @if($isGrosir || !empty($product['barcode']))
                                 @if(!empty($product['barcode']))
                                     <button
                                         type="button"
-                                        onclick="openQrModal({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1"
-                                        title="Lihat QR Code"
+                                        data-open-qr-modal="{{ $product['id'] }}"
+                                        onclick="window.openQrModal && window.openQrModal({{ $product['id'] }})"
+                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                        title="Lihat QR & Barcode"
                                     >
                                         <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                        <span>QR</span>
+                                        <span>Lihat QR</span>
                                     </button>
-                                @elseif($canManage)
+                                @elseif($isGrosir && $canManage)
                                     <button
                                         type="button"
-                                        onclick="generateQrCode({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1"
+                                        data-qr-generate-btn="{{ $product['id'] }}"
+                                        onclick="window.generateQrCode && window.generateQrCode({{ $product['id'] }}, this)"
+                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
                                         title="Buat Kode & QR"
                                     >
                                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -249,22 +251,24 @@
                             @endif
                         </div>
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                            @if($isGrosir)
+                            @if($isGrosir || !empty($product['barcode']))
                                 @if(!empty($product['barcode']))
                                     <button
                                         type="button"
-                                        onclick="openQrModal({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1"
-                                        title="Lihat QR Code"
+                                        data-open-qr-modal="{{ $product['id'] }}"
+                                        onclick="window.openQrModal && window.openQrModal({{ $product['id'] }})"
+                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                        title="Lihat QR & Barcode"
                                     >
                                         <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                        <span>QR</span>
+                                        <span>Lihat QR</span>
                                     </button>
-                                @elseif($canManage)
+                                @elseif($isGrosir && $canManage)
                                     <button
                                         type="button"
-                                        onclick="generateQrCode({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1"
+                                        data-qr-generate-btn="{{ $product['id'] }}"
+                                        onclick="window.generateQrCode && window.generateQrCode({{ $product['id'] }}, this)"
+                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
                                         title="Buat Kode & QR"
                                     >
                                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
@@ -345,22 +349,24 @@
 
                     <div class="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
                         <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                            @if($isGrosir)
+                            @if($isGrosir || !empty($product['barcode']))
                                 @if(!empty($product['barcode']))
                                     <button
                                         type="button"
-                                        onclick="openQrModal({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1"
-                                        title="Lihat QR Code"
+                                        data-open-qr-modal="{{ $product['id'] }}"
+                                        onclick="window.openQrModal && window.openQrModal({{ $product['id'] }})"
+                                        class="px-2.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
+                                        title="Lihat QR & Barcode"
                                     >
                                         <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
-                                        <span>QR</span>
+                                        <span>Lihat QR</span>
                                     </button>
-                                @elseif($canManage)
+                                @elseif($isGrosir && $canManage)
                                     <button
                                         type="button"
-                                        onclick="generateQrCode({{ $product['id'] }})"
-                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1"
+                                        data-qr-generate-btn="{{ $product['id'] }}"
+                                        onclick="window.generateQrCode && window.generateQrCode({{ $product['id'] }}, this)"
+                                        class="px-2.5 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold text-xs transition-colors flex items-center gap-1 cursor-pointer"
                                         title="Buat Kode & QR"
                                     >
                                         <i data-lucide="plus" class="w-3.5 h-3.5"></i>
