@@ -21,7 +21,7 @@ class GuideChatbotService
         if ($cleanMessage === '') {
             return [
                 'success' => false,
-                'reply' => 'Pertanyaan tidak boleh kosong. Silakan ketik pertanyaan seputar fitur atau penggunaan NexaPOS.',
+                'reply' => 'Pertanyaan tidak boleh kosong. Silakan ketik pertanyaan seputar fitur atau penggunaan Net Kasir.',
             ];
         }
 

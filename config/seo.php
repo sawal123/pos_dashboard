@@ -10,11 +10,11 @@ return [
     | Authenticated and operational screens opt out of indexing explicitly in
     | the shared layout.
     */
-    'site_name' => env('SEO_SITE_NAME', 'NexaPOS'),
-    'title' => env('SEO_TITLE', 'NexaPOS - Sistem POS untuk Operasional Bisnis'),
+    'site_name' => env('SEO_SITE_NAME', 'Net Kasir'),
+    'title' => env('SEO_TITLE', 'Net Kasir - Sistem POS untuk Operasional Bisnis'),
     'description' => env(
         'SEO_DESCRIPTION',
-        'NexaPOS membantu bisnis mengelola penjualan, produk, stok, laporan, outlet, dan sinkronisasi Cloud dalam satu platform POS.',
+        'Net Kasir membantu bisnis mengelola penjualan, produk, stok, laporan, outlet, dan sinkronisasi Cloud dalam satu platform POS.',
     ),
     'keywords' => env(
         'SEO_KEYWORDS',

@@ -36,11 +36,11 @@ class GuideChatController extends Controller
 
         $context = [
             'user_name' => $user?->name ?? 'Pengguna',
-            'business_name' => $business?->name ?? 'Bisnis NexaPOS',
+            'business_name' => $business?->name ?? 'Bisnis Net Kasir',
             'business_type' => $businessType ?? ($business?->normalizedBusinessType() ?? 'Umum'),
             'user_role' => $businessRole ?? 'Pengguna',
             'current_path' => $validated['current_path'] ?? $request->header('Referer', '/dashboard'),
-            'page_title' => $validated['page_title'] ?? 'NexaPOS',
+            'page_title' => $validated['page_title'] ?? 'Net Kasir',
         ];
 
         $history = $validated['history'] ?? [];

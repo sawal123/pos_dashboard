@@ -25,7 +25,7 @@
             <div class="flex items-center gap-2.5">
                 <x-app-logo-icon class="h-10 w-10" />
                 <span class="text-xl font-extrabold tracking-tight">
-                    Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
+                    Net<span class="text-indigo-600 dark:text-indigo-400">Kasir</span>
                 </span>
             </div>
 

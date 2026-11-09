@@ -35,7 +35,7 @@
                             Panduan
                         </span>
                     </div>
-                    <p class="text-[10px] text-slate-300">Asisten Resmi NexaPOS</p>
+                    <p class="text-[10px] text-slate-300">Asisten Resmi Net Kasir</p>
                 </div>
             </div>
 
@@ -72,7 +72,7 @@
                     <div>
                         <p class="font-bold text-slate-800 dark:text-slate-100 text-xs">Halo! Saya NexaBot 👋</p>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                            Saya siap memandu seluruh fitur NexaPOS (Kasir POS, Stok, Resep & HPP, Promo, Laporan, dll). Ada yang ingin Anda tanyakan?
+                            Saya siap memandu seluruh fitur Net Kasir (Kasir POS, Stok, Resep & HPP, Promo, Laporan, dll). Ada yang ingin Anda tanyakan?
                         </p>
                     </div>
                 </div>
@@ -137,7 +137,7 @@
                 <input
                     type="text"
                     id="nexabotInput"
-                    placeholder="Tanyakan panduan NexaPOS..."
+                    placeholder="Tanyakan panduan Net Kasir..."
                     autocomplete="off"
                     maxlength="1000"
                     class="flex-1 pl-3 pr-10 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
@@ -152,7 +152,7 @@
                 </button>
             </form>
             <div class="mt-1 px-1 flex items-center justify-between text-[10px] text-slate-400">
-                <span>Panduan khusus NexaPOS</span>
+                <span>Panduan khusus Net Kasir</span>
                 <span>Enter untuk kirim</span>
             </div>
         </div>

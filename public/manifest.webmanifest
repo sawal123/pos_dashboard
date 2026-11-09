@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "NexaPOS - Sistem Kasir & Manajemen Bisnis",
-  "short_name": "NexaPOS",
+  "name": "Net Kasir - Sistem Kasir & Manajemen Bisnis",
+  "short_name": "Net Kasir",
   "description": "Aplikasi POS & Manajemen Bisnis Multi-Tenant Offline-Ready",
   "start_url": "/dashboard",
   "scope": "/",

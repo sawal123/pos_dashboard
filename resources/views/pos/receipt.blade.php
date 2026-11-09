@@ -157,7 +157,7 @@
     <div class="footer">
         <p>Terima kasih atas kunjungan Anda!</p>
         <p style="margin-top: 2px;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
-        <p style="margin-top: 4px; font-size: 8px; color: #888;">NexaPOS System</p>
+        <p style="margin-top: 4px; font-size: 8px; color: #888;">Net Kasir System</p>
     </div>
 </body>
 </html>

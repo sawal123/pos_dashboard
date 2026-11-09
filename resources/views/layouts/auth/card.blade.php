@@ -11,7 +11,7 @@
                         <x-app-logo-icon class="size-10" />
                     </span>
 
-                    <span class="sr-only">{{ config('app.name', 'NexaPOS') }}</span>
+                    <span class="sr-only">{{ config('app.name', 'Net Kasir') }}</span>
                 </a>
 
                 <div class="flex flex-col gap-6">

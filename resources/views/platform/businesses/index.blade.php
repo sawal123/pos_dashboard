@@ -16,7 +16,7 @@
                     Manajemen Bisnis / Merchant
                 </h1>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Daftar global seluruh entitas bisnis yang terdaftar dalam ekosistem platform NexaPOS.
+                    Daftar global seluruh entitas bisnis yang terdaftar dalam ekosistem platform Net Kasir.
                 </p>
             </div>
             <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0">

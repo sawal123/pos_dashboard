@@ -13,7 +13,7 @@
                         Platform Admin Overview
                     </h1>
                     <p class="text-sm text-indigo-200/90 leading-relaxed">
-                        Pusat kendali dan ringkasan global ekosistem NexaPOS secara real-time. Informasi agregasi lintas bisnis, akun pengguna, langganan aktif, dan perangkat POS yang terhubung.
+                        Pusat kendali dan ringkasan global ekosistem Net Kasir secara real-time. Informasi agregasi lintas bisnis, akun pengguna, langganan aktif, dan perangkat POS yang terhubung.
                     </p>
                 </div>
                 <div class="shrink-0 flex items-center gap-3">

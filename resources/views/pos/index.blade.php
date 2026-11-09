@@ -674,7 +674,7 @@
 
                 <div class="text-center text-[10px] text-slate-400 pt-1">
                     <p>Terima kasih atas kunjungan Anda!</p>
-                    <p>Powered by NexaPOS Cloud</p>
+                    <p>Powered by Net Kasir Cloud</p>
                 </div>
             </div>
 

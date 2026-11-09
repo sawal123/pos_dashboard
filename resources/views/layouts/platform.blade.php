@@ -20,7 +20,7 @@
                     <x-app-logo-icon class="w-9 h-9 group-hover:scale-105 transition-transform" />
                     <div class="sidebar-label sidebar-logo-text flex flex-col leading-tight">
                         <span class="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
-                            Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
+                            Net<span class="text-indigo-600 dark:text-indigo-400">Kasir</span>
                         </span>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                             Platform Admin

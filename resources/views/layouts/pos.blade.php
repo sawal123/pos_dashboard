@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        @include('partials.head', ['title' => 'Zona Kasir (POS) - ' . ($dashboardCurrentBusiness->name ?? 'NexaPOS')])
+        @include('partials.head', ['title' => 'Zona Kasir (POS) - ' . ($dashboardCurrentBusiness->name ?? 'Net Kasir')])
         <style>
             @media print {
                 body * {
@@ -31,7 +31,7 @@
                     <x-app-logo-icon class="w-8 h-8 group-hover:scale-105 transition-transform" />
                     <div class="hidden sm:block">
                         <span class="font-black text-sm tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-                            Nexa<span class="text-indigo-600">POS</span>
+                            Net<span class="text-indigo-600">Kasir</span>
                             <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">KASIR</span>
                         </span>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate max-w-[150px] md:max-w-[220px]">

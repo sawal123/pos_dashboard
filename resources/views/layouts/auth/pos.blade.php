@@ -23,7 +23,7 @@
                 <a href="{{ route('home') }}" class="relative z-10 flex items-center gap-2.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 rounded-xl">
                     <x-app-logo-icon variant="white" class="h-10 w-10" />
                     <span class="text-xl font-extrabold tracking-tight">
-                        Nexa<span class="text-indigo-400">POS</span>
+                        Net<span class="text-indigo-400">Kasir</span>
                     </span>
                 </a>
 
@@ -68,7 +68,7 @@
                 </div>
 
                 <p class="relative z-10 text-xs text-slate-500">
-                    &copy; {{ date('Y') }} NexaPOS. Semua data terpisah per bisnis.
+                    &copy; {{ date('Y') }} Net Kasir. Semua data terpisah per bisnis.
                 </p>
             </aside>
 
@@ -91,7 +91,7 @@
                     <a href="{{ route('home') }}" class="mb-6 flex items-center justify-center gap-2.5 lg:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 rounded-xl">
                         <x-app-logo-icon class="h-10 w-10" />
                         <span class="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                            Nexa<span class="text-indigo-600 dark:text-indigo-400">POS</span>
+                            Net<span class="text-indigo-600 dark:text-indigo-400">Kasir</span>
                         </span>
                     </a>
 
@@ -100,7 +100,7 @@
                     </div>
 
                     <p class="mt-6 text-center text-xs text-slate-400 dark:text-slate-500">
-                        Dengan masuk, Anda menyetujui ketentuan penggunaan NexaPOS.
+                        Dengan masuk, Anda menyetujui ketentuan penggunaan Net Kasir.
                     </p>
                 </div>
             </main>

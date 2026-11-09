@@ -11,7 +11,7 @@
                     <span class="flex h-10 w-10 items-center justify-center rounded-md me-2">
                         <x-app-logo-icon variant="white" class="size-9" />
                     </span>
-                    {{ config('app.name', 'NexaPOS') }}
+                    {{ config('app.name', 'Net Kasir') }}
                 </a>
 
                 @php
@@ -32,7 +32,7 @@
                             <x-app-logo-icon class="size-10" />
                         </span>
 
-                        <span class="sr-only">{{ config('app.name', 'NexaPOS') }}</span>
+                        <span class="sr-only">{{ config('app.name', 'Net Kasir') }}</span>
                     </a>
                     {{ $slot }}
                 </div>

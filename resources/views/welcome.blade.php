@@ -423,7 +423,7 @@
     <body>
         <header class="hero hero-glow">
             <nav class="shell hero-nav" aria-label="Navigasi utama">
-                <a href="{{ route('home') }}" class="brand" aria-label="NexaPOS beranda"><x-app-logo-icon variant="white" width="34" height="34" /><span>NexaPOS</span></a>
+                <a href="{{ route('home') }}" class="brand" aria-label="Net Kasir beranda"><x-app-logo-icon variant="white" width="34" height="34" /><span>Net Kasir</span></a>
                 <div class="hero-links"><a class="nav-link" href="#fitur">Fitur</a><a class="nav-link" href="#harga">Harga</a><a class="nav-link" href="#cara-kerja">Cara kerja</a><a class="nav-link" href="#bisnis">Untuk bisnis</a></div>
                 <div class="hero-actions">
                     @auth
@@ -439,7 +439,7 @@
                 <div class="hero-copy" data-reveal="left">
                     <span class="eyebrow" style="color:var(--lime);">Satu pusat kendali bisnis</span>
                     <h1>Bisnis rapi. <span>Keputusan cepat.</span></h1>
-                    <p>NexaPOS menyatukan penjualan, stok, outlet, laporan, dan operasional harian agar Anda bisa fokus mengembangkan bisnis—bukan mengejar data.</p>
+                    <p>Net Kasir menyatukan penjualan, stok, outlet, laporan, dan operasional harian agar Anda bisa fokus mengembangkan bisnis—bukan mengejar data.</p>
                     <div class="actions">
                         @auth
                             <a class="button button-primary" href="{{ route('dashboard') }}">Buka Dashboard <span aria-hidden="true">↗</span></a>
@@ -452,12 +452,12 @@
                     <div class="hero-note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg>Dibuat untuk operasional bisnis Indonesia</div>
                 </div>
 
-                <div class="dashboard-stage" aria-label="Pratinjau dashboard NexaPOS" data-reveal="zoom" data-reveal-delay="140">
+                <div class="dashboard-stage" aria-label="Pratinjau dashboard Net Kasir" data-reveal="zoom" data-reveal-delay="140">
                     <div class="float-tag top"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M3 12h18"/></svg>Semua data dalam satu tempat</div>
                     <div class="dashboard-card">
-                        <div class="dashboard-topbar"><div class="dashboard-dots"><i></i><i></i><i></i></div><strong>NexaPOS / Overview</strong><span>Hari ini, 24 Jun</span></div>
+                        <div class="dashboard-topbar"><div class="dashboard-dots"><i></i><i></i><i></i></div><strong>Net Kasir / Overview</strong><span>Hari ini, 24 Jun</span></div>
                         <div class="dashboard-body">
-                            <aside class="dashboard-sidebar" aria-hidden="true"><div class="mini-logo"><x-app-logo-icon variant="blue" width="20" height="20" />NexaPOS</div><div class="mini-nav"><span class="active">Overview</span><span>Transaksi</span><span>Produk</span><span>Stok</span><span>Laporan</span></div></aside>
+                            <aside class="dashboard-sidebar" aria-hidden="true"><div class="mini-logo"><x-app-logo-icon variant="blue" width="20" height="20" />Net Kasir</div><div class="mini-nav"><span class="active">Overview</span><span>Transaksi</span><span>Produk</span><span>Stok</span><span>Laporan</span></div></aside>
                             <div class="dashboard-main">
                                 <div class="dashboard-heading"><div><small>Ringkasan operasional</small><strong>Selamat datang kembali</strong></div><button type="button">Export laporan</button></div>
                                 <div class="metric-row"><div class="metric blue"><label>Penjualan hari ini</label><strong>Rp 8,4 jt</strong><em>↑ Terpantau</em></div><div class="metric lime"><label>Transaksi</label><strong>128</strong><em>Aktif</em></div><div class="metric"><label>Stok menipis</label><strong>06</strong><em>Perlu cek</em></div></div>
@@ -471,14 +471,14 @@
         </header>
 
         <main>
-            <section class="shell trust-strip" aria-label="Keunggulan NexaPOS">
+            <section class="shell trust-strip" aria-label="Keunggulan Net Kasir">
                 <div class="trust-item" data-reveal="up" data-reveal-delay="0"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 4 7v5c0 5 3.4 8.7 8 9 4.6-.3 8-4 8-9V7l-8-4Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></svg>Data bisnis lebih terarah</div>
                 <div class="trust-item" data-reveal="up" data-reveal-delay="100"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="8"/></svg>Alur kerja mudah dipahami</div>
                 <div class="trust-item" data-reveal="up" data-reveal-delay="200"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>Siap berkembang bersama bisnis</div>
             </section>
 
             <section id="fitur" class="shell section">
-                <div class="section-heading" data-reveal="up"><span class="eyebrow">Yang Anda butuhkan setiap hari</span><h2>Satu sistem untuk pekerjaan yang tidak boleh terlewat.</h2><p>Mulai dari transaksi pertama hingga laporan akhir hari, NexaPOS membantu tim bekerja dengan konteks yang sama.</p></div>
+                <div class="section-heading" data-reveal="up"><span class="eyebrow">Yang Anda butuhkan setiap hari</span><h2>Satu sistem untuk pekerjaan yang tidak boleh terlewat.</h2><p>Mulai dari transaksi pertama hingga laporan akhir hari, Net Kasir membantu tim bekerja dengan konteks yang sama.</p></div>
                 <div class="features">
                     <article class="feature" data-reveal="zoom" data-reveal-delay="0"><div class="feature-icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2v20M18 2v20M2 6h20M2 18h20"/></svg></div><h3>Penjualan terpusat</h3><p>Pantau transaksi, pelanggan, shift, dan arus kas dari dashboard yang sama.</p></article>
                     <article class="feature" data-reveal="zoom" data-reveal-delay="90"><div class="feature-icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3h18v18H3z"/><path d="M7 7h10M7 12h10M7 17h6"/></svg></div><h3>Stok lebih terkendali</h3><p>Kelola produk, kategori, pergerakan stok, dan tanda stok menipis dengan lebih jelas.</p></article>
@@ -489,7 +489,7 @@
 
             <section class="section grid-paper">
                 <div class="shell split-section">
-                    <div data-reveal="left"><span class="eyebrow">Dibuat untuk bergerak cepat</span><h2 class="font-display" style="margin:17px 0 15px;font-size:clamp(34px,4vw,55px);line-height:1.05;letter-spacing:-.065em;">Dari meja kasir ke keputusan bisnis.</h2><p style="max-width:520px;margin:0;color:var(--muted);font-size:16px;line-height:1.7;">Tidak perlu berpindah-pindah tools untuk memahami apa yang sedang terjadi. NexaPOS merapikan aliran data supaya pemilik dan tim bisa bertindak lebih tenang.</p><ul class="check-list"><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Dashboard operasional yang mudah dipindai</span></li><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Hak akses dan konteks bisnis yang lebih aman</span></li><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Cloud sync untuk menjaga data tetap terhubung</span></li></ul></div>
+                    <div data-reveal="left"><span class="eyebrow">Dibuat untuk bergerak cepat</span><h2 class="font-display" style="margin:17px 0 15px;font-size:clamp(34px,4vw,55px);line-height:1.05;letter-spacing:-.065em;">Dari meja kasir ke keputusan bisnis.</h2><p style="max-width:520px;margin:0;color:var(--muted);font-size:16px;line-height:1.7;">Tidak perlu berpindah-pindah tools untuk memahami apa yang sedang terjadi. Net Kasir merapikan aliran data supaya pemilik dan tim bisa bertindak lebih tenang.</p><ul class="check-list"><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Dashboard operasional yang mudah dipindai</span></li><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Hak akses dan konteks bisnis yang lebih aman</span></li><li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 4 4L19 6"/></svg><span>Cloud sync untuk menjaga data tetap terhubung</span></li></ul></div>
                     <div class="workflow" id="cara-kerja"><article class="workflow-card" data-reveal="zoom" data-reveal-delay="0"><div class="step">01</div><h3>Catat</h3><p>Transaksi dan aktivitas operasional tercatat dalam alur yang rapi.</p></article><article class="workflow-card" data-reveal="zoom" data-reveal-delay="110"><div class="step">02</div><h3>Pahami</h3><p>Ringkasan dan laporan membantu membaca kondisi bisnis tanpa menebak.</p></article><article class="workflow-card" data-reveal="zoom" data-reveal-delay="220"><div class="step">03</div><h3>Bertindak</h3><p>Ambil keputusan lebih cepat berdasarkan data yang relevan dan terbaru.</p></article></div>
                 </div>
             </section>
@@ -613,9 +613,9 @@
                             <a class="button button-primary" href="{{ route('dashboard') }}">Buka Dashboard <span aria-hidden="true">↗</span></a>
                         @else
                             @if (Route::has('register'))
-                                <a class="button button-primary" href="{{ route('register') }}">Buat akun NexaPOS <span aria-hidden="true">↗</span></a>
+                                <a class="button button-primary" href="{{ route('register') }}">Buat akun Net Kasir <span aria-hidden="true">↗</span></a>
                             @elseif (Route::has('login'))
-                                <a class="button button-primary" href="{{ route('login') }}">Masuk ke NexaPOS <span aria-hidden="true">↗</span></a>
+                                <a class="button button-primary" href="{{ route('login') }}">Masuk ke Net Kasir <span aria-hidden="true">↗</span></a>
                             @endif
                         @endauth
                     </div>
@@ -624,7 +624,7 @@
         </main>
 
         <footer class="shell footer" data-reveal="up">
-            <a href="{{ route('home') }}" class="brand"><x-app-logo-icon variant="blue" width="32" height="32" /><span>NexaPOS</span></a>
+            <a href="{{ route('home') }}" class="brand"><x-app-logo-icon variant="blue" width="32" height="32" /><span>Net Kasir</span></a>
             <div class="footer-links">
                 <a href="#fitur">Fitur</a>
                 <a href="#harga">Harga</a>
@@ -635,7 +635,7 @@
                     @if (Route::has('login'))<a href="{{ route('login') }}">Masuk</a>@endif
                 @endauth
             </div>
-            <span>&copy; {{ date('Y') }} NexaPOS</span>
+            <span>&copy; {{ date('Y') }} Net Kasir</span>
         </footer>
 
         <script>

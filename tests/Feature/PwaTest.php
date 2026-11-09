@@ -20,8 +20,8 @@ class PwaTest extends TestCase
         $response->assertHeader('Content-Type', 'application/manifest+json; charset=utf-8');
 
         $data = $response->json();
-        $this->assertSame('NexaPOS - Sistem Kasir & Manajemen Bisnis', $data['name']);
-        $this->assertSame('NexaPOS', $data['short_name']);
+        $this->assertSame('Net Kasir - Sistem Kasir & Manajemen Bisnis', $data['name']);
+        $this->assertSame('Net Kasir', $data['short_name']);
         $this->assertSame('/dashboard', $data['start_url']);
         $this->assertSame('/', $data['scope']);
         $this->assertSame('standalone', $data['display']);
@@ -38,7 +38,7 @@ class PwaTest extends TestCase
 
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-        $this->assertSame('NexaPOS', $response->json('short_name'));
+        $this->assertSame('Net Kasir', $response->json('short_name'));
     }
 
     public function test_03_offline_page_is_publicly_accessible(): void

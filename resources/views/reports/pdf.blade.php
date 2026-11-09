@@ -177,6 +177,6 @@
         <div class="note">{{ $document->note() }}</div>
     @endif
 
-    <div class="footer">Dibuat otomatis oleh NexaPOS · {{ $document->generatedAt }} ({{ $document->timezone }})</div>
+    <div class="footer">Dibuat otomatis oleh Net Kasir · {{ $document->generatedAt }} ({{ $document->timezone }})</div>
 </body>
 </html>
