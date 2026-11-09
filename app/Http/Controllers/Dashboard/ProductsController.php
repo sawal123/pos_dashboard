@@ -232,13 +232,21 @@ class ProductsController extends Controller
         /** @var ProductCodeService $codeService */
         $codeService = app(ProductCodeService::class);
         $product = $codeService->assignBarcode($product);
+        $svg = $codeService->renderQrSvg((string) $product->barcode, 280);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
+                'id' => $product->id,
                 'product_id' => $product->id,
+                'name' => $product->name,
+                'product_name' => $product->name,
+                'sku' => $product->sku,
+                'price' => (int) $product->price,
                 'barcode' => $product->barcode,
-                'message' => 'Kode produk berhasil dibuat.',
+                'svg' => $svg,
+                'download_url' => route('products.qr-download', ['productId' => $product->id]),
+                'message' => 'Kode produk dan QR berhasil dibuat.',
             ]);
         }
 
@@ -271,9 +279,12 @@ class ProductsController extends Controller
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
+                'id' => $product->id,
                 'product_id' => $product->id,
                 'name' => $product->name,
+                'product_name' => $product->name,
                 'sku' => $product->sku,
+                'price' => (int) $product->price,
                 'barcode' => $product->barcode,
                 'svg' => $svg,
                 'download_url' => route('products.qr-download', ['productId' => $product->id]),

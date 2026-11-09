@@ -270,8 +270,18 @@
                 <div data-catalog-field="product" class="space-y-4">
                     <div>
                         <div class="flex items-center justify-between mb-1.5">
-                            <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Barcode</label>
-                            <span class="text-[11px] text-slate-400">Barcode kemasan atau kode scan produk</span>
+                            <label for="catalogProductBarcode" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Barcode / Kode QR</label>
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    id="btnGenerateBarcodeLink"
+                                    class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 dark:hover:text-emerald-300 inline-flex items-center gap-1 transition-colors focus:outline-none cursor-pointer"
+                                    title="Buat kode barcode/QR otomatis"
+                                >
+                                    <i data-lucide="qr-code" class="w-3 h-3"></i>
+                                    <span>Buat Kode Otomatis</span>
+                                </button>
+                            </div>
                         </div>
                         <div class="relative flex items-center">
                             <input
@@ -280,19 +290,31 @@
                                 type="text"
                                 maxlength="255"
                                 value="{{ old('barcode') }}"
-                                placeholder="Scan atau ketik barcode..."
-                                class="w-full h-10 pl-3 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Scan kamera, ketik manual, atau buat otomatis..."
+                                class="w-full h-10 pl-3 pr-24 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm font-mono text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             >
-                            <button
-                                type="button"
-                                id="btnScanBarcodeForm"
-                                onclick="window.CameraScanner?.open(code => { const el = document.getElementById('catalogProductBarcode'); if (el) { el.value = code; el.dispatchEvent(new Event('input')); } })"
-                                title="Pindai barcode dengan kamera"
-                                class="absolute right-1.5 p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            >
-                                <i data-lucide="camera" class="w-4 h-4"></i>
-                            </button>
+                            <div class="absolute right-1.5 top-1.5 bottom-1.5 flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    id="btnGenerateBarcodeForm"
+                                    title="Buat kode barcode otomatis"
+                                    class="h-full px-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 border border-emerald-200/60 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                    <i data-lucide="sparkles" class="w-3 h-3"></i>
+                                    <span>Buat</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    id="btnScanBarcodeForm"
+                                    title="Pindai barcode / QR dengan kamera atau gambar"
+                                    class="h-full px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:hover:bg-indigo-900 border border-indigo-200/60 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-[11px] font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                    <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+                                    <span>Scan</span>
+                                </button>
+                            </div>
                         </div>
+                        <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">Klik <strong>Scan</strong> untuk memindai via kamera/gambar, atau <strong>Buat</strong> untuk membuat kode produk otomatis.</p>
                         @error('barcode')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
 

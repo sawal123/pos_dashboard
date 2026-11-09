@@ -195,10 +195,18 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('products.generate-qr');
+    Route::post('products/{productId}/generate-barcode', [ProductsController::class, 'generateQr'])
+        ->whereNumber('productId')
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.generate-barcode');
     Route::get('products/{productId}/qr-preview', [ProductsController::class, 'qrPreview'])
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('products.qr-preview');
+    Route::get('products/{productId}/qr-data', [ProductsController::class, 'qrPreview'])
+        ->whereNumber('productId')
+        ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('products.qr-data');
     Route::get('products/{productId}/qr-download', [ProductsController::class, 'qrDownload'])
         ->whereNumber('productId')
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])

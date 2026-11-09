@@ -439,12 +439,23 @@
 
                 const barcodeContainer = document.getElementById('detailBarcodeContainer');
                 const viewQrBtn = document.getElementById('detailItemViewQrBtn');
-                if (!isService && itemData.barcode) {
+                const isGrosirMode = @json($isGrosir ?? false);
+                const canManageMode = @json($canManageCatalog ?? false);
+                if (!isService && (itemData.barcode || isGrosirMode)) {
                     barcodeContainer.classList.remove('hidden');
-                    document.getElementById('detailItemBarcode').textContent = itemData.barcode;
+                    document.getElementById('detailItemBarcode').textContent = itemData.barcode || 'Belum ada';
                     if (viewQrBtn) {
-                        viewQrBtn.classList.remove('hidden');
-                        viewQrBtn.onclick = () => openQrModal(itemData.id);
+                        if (itemData.barcode) {
+                            viewQrBtn.classList.remove('hidden');
+                            viewQrBtn.innerHTML = '<i data-lucide="qr-code" class="w-3 h-3"></i><span>Lihat & Cetak QR</span>';
+                            viewQrBtn.onclick = () => window.openQrModal?.(itemData.id);
+                        } else if (isGrosirMode && canManageMode) {
+                            viewQrBtn.classList.remove('hidden');
+                            viewQrBtn.innerHTML = '<i data-lucide="plus" class="w-3 h-3"></i><span>Buat Kode & QR</span>';
+                            viewQrBtn.onclick = () => window.generateQrCode?.(itemData.id, viewQrBtn);
+                        } else {
+                            viewQrBtn.classList.add('hidden');
+                        }
                     }
                 } else {
                     barcodeContainer.classList.add('hidden');
@@ -975,6 +986,39 @@
                     skuInput.dispatchEvent(new Event('change', { bubbles: true }));
                 };
 
+                const generateRandomBarcode = () => {
+                    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+                    let code = '';
+                    for (let i = 0; i < 8; i++) {
+                        code += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    return `NXP-${code}`;
+                };
+
+                const handleGenerateBarcode = () => {
+                    const barcodeInput = document.getElementById('catalogProductBarcode');
+                    if (!barcodeInput) return;
+                    barcodeInput.value = generateRandomBarcode();
+                    barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    barcodeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                    barcodeInput.focus();
+                };
+
+                const handleScanBarcodeForm = () => {
+                    if (!window.CameraScanner || typeof window.CameraScanner.open !== 'function') {
+                        return;
+                    }
+                    window.CameraScanner.open((code) => {
+                        const barcodeInput = document.getElementById('catalogProductBarcode');
+                        if (barcodeInput && code) {
+                            barcodeInput.value = String(code).trim();
+                            barcodeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            barcodeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            barcodeInput.focus();
+                        }
+                    });
+                };
+
                 const applySupplyMode = (isSupply, isExplicitSupplyModal = false) => {
                     const priceContainer = document.getElementById('catalogProductPriceContainer');
                     const supplyCostContainer = document.getElementById('catalogSupplyCostContainer');
@@ -1102,6 +1146,12 @@
                 };
 
                 const close = () => {
+                    const scannerModal = document.getElementById('cameraScannerModal');
+                    if (scannerModal && !scannerModal.classList.contains('hidden')) return;
+
+                    const qrModal = document.getElementById('productQrModal');
+                    if (qrModal && !qrModal.classList.contains('hidden')) return;
+
                     const el = modalEl();
                     if (!el || el.classList.contains('hidden')) return;
 
@@ -1547,6 +1597,18 @@
                         return;
                     }
 
+                    if (target.closest('#btnGenerateBarcodeLink') || target.closest('#btnGenerateBarcodeForm')) {
+                        event.preventDefault();
+                        handleGenerateBarcode();
+                        return;
+                    }
+
+                    if (target.closest('#btnScanBarcodeForm')) {
+                        event.preventDefault();
+                        handleScanBarcodeForm();
+                        return;
+                    }
+
                     if (target.closest('#btnToggleNewUnitBox')) {
                         event.preventDefault();
                         toggleNewUnitBox();
@@ -1657,6 +1719,12 @@
                         }
                         return;
                     }
+
+                    const scannerModal = document.getElementById('cameraScannerModal');
+                    if (scannerModal && !scannerModal.classList.contains('hidden')) return;
+
+                    const qrModal = document.getElementById('productQrModal');
+                    if (qrModal && !qrModal.classList.contains('hidden')) return;
 
                     const el = modalEl();
                     if (!el || el.classList.contains('hidden')) return;
