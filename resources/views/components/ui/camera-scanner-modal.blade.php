@@ -1,35 +1,98 @@
-{{-- Universal Camera Barcode & QR Scanner Modal Component (With Glare, Curvature & Tilt Tolerance) --}}
+{{-- Universal Camera Barcode & QR Scanner Modal / Flexible POS Dock Component --}}
 <div id="cameraScannerModal" class="fixed inset-0 z-[150] hidden" role="dialog" aria-modal="true" aria-labelledby="cameraScannerTitle">
-    {{-- Backdrop --}}
-    <div class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="window.CameraScanner && window.CameraScanner.close()"></div>
+    {{-- Backdrop (Hidden automatically in POS Flexible Docked Mode so Cart & Catalog stay visible) --}}
+    <div id="cameraScannerBackdrop" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity" onclick="window.CameraScanner && window.CameraScanner.close()"></div>
 
-    {{-- Modal Content --}}
-    <div class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
-        <div class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transform transition-all">
+    {{-- Modal / Floating Dock Wrapper --}}
+    <div id="cameraScannerWrapper" class="fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4">
+        <div id="cameraScannerCard" class="relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transform transition-all pointer-events-auto">
             {{-- Header --}}
-            <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-                <div class="flex items-center gap-2.5">
-                    <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                        <i data-lucide="scan-barcode" class="w-5 h-5"></i>
+            <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                        <i data-lucide="scan-barcode" class="w-4 h-4"></i>
                     </div>
-                    <div>
-                        <h3 id="cameraScannerTitle" class="text-sm font-bold text-slate-900 dark:text-white">Scan Barcode / QR Produk</h3>
-                        <p class="text-[11px] text-slate-500 dark:text-slate-400">Toleransi otomatis untuk pantulan cahaya, kemasan melengkung & miring</p>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1.5">
+                            <h3 id="cameraScannerTitle" class="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">Scanner Kasir Aktif</h3>
+                            <span id="cameraScannerLivePill" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                LIVE
+                            </span>
+                        </div>
+                        <p class="text-[10px] text-slate-500 dark:text-slate-400 truncate">Kamera & Alat Scanner (USB/Bluetooth) siap • Scan ulang = tambah Qty (N+1)</p>
                     </div>
                 </div>
-                <button type="button" onclick="window.CameraScanner && window.CameraScanner.close()" class="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer" aria-label="Tutup kamera">
-                    <i data-lucide="x" class="w-4 h-4"></i>
-                </button>
+                <div class="flex items-center gap-1 shrink-0">
+                    <button
+                        type="button"
+                        id="cameraScannerDockToggleBtn"
+                        onclick="window.CameraScanner && window.CameraScanner.toggleDockedLayout()"
+                        class="hidden px-2 py-1 rounded-lg text-[10px] font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 hover:text-indigo-600 dark:hover:text-indigo-400 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
+                        title="Ubah posisi jendela kamera (Pojok Fleksibel / Tengah)"
+                    >
+                        <span id="cameraScannerDockToggleLabel">Mode Tengah</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="cameraScannerMinimizeBtn"
+                        onclick="window.CameraScanner && window.CameraScanner.toggleMinimizeVideo()"
+                        class="hidden w-7 h-7 rounded-lg items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        title="Kecilkan / Tampilkan Video Kamera"
+                    >
+                        <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                    <button type="button" onclick="window.CameraScanner && window.CameraScanner.close()" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors cursor-pointer" aria-label="Tutup kamera">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Live Status & (N+1) Feedback Card (Always visible at top of scanner so cashier immediately sees scan result) --}}
+            <div id="cameraScannerContinuousBanner" class="hidden px-3.5 py-2.5 bg-slate-900 border-b border-slate-800 transition-all duration-200">
+                <div id="cameraScannerContinuousCard" class="px-3 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-200 flex items-center justify-between gap-2 transition-all duration-200">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span id="cameraScannerStatusIcon" class="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center justify-center text-xs font-black shrink-0">
+                            ⋯
+                        </span>
+                        <div class="min-w-0">
+                            <p id="cameraScannerLastScanTitle" class="text-xs font-bold text-white truncate">Menunggu Scan Produk...</p>
+                            <p id="cameraScannerLastScanSub" class="text-[11px] text-slate-400 truncate">Arahkan barcode/QR ke kamera atau tembak dengan Alat Scanner</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button
+                            type="button"
+                            id="cameraScannerRepeatPlusBtn"
+                            onclick="window.CameraScanner && window.CameraScanner.repeatLastScan()"
+                            class="hidden items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 text-[11px] font-extrabold shadow-sm transition-all cursor-pointer"
+                            title="Tambah +1 lagi untuk produk yang baru saja di-scan (N+1)"
+                        >
+                            <span>+1 Lagi</span>
+                        </button>
+                        <span id="cameraScannerScanCountBadge" class="px-2 py-1 rounded-lg bg-slate-700/80 border border-slate-600 text-[10px] font-mono font-bold text-slate-200 shrink-0">
+                            0 scan
+                        </span>
+                    </div>
+                </div>
             </div>
 
             {{-- Video Viewport --}}
-            <div class="relative bg-slate-950 aspect-[4/3] w-full overflow-hidden flex items-center justify-center">
+            <div id="cameraScannerViewport" class="relative bg-slate-950 aspect-[16/10] w-full overflow-hidden flex items-center justify-center">
                 <video id="cameraScannerVideo" class="w-full h-full object-cover hidden transition-transform duration-150 origin-center" playsinline muted autoplay></video>
                 <input type="file" id="cameraScannerFileInput" accept="image/*" class="hidden" onchange="window.CameraScanner && window.CameraScanner.handleFileSelect(event)" />
 
+                {{-- Flash Success Pop Overlay on Video --}}
+                <div id="cameraScannerSuccessPop" class="hidden absolute top-2.5 inset-x-3 z-30 pointer-events-none flex justify-center">
+                    <div class="px-3.5 py-1.5 rounded-full bg-emerald-500 text-slate-950 font-extrabold text-xs shadow-lg flex items-center gap-1.5 animate-bounce">
+                        <span>✓</span>
+                        <span id="cameraScannerSuccessPopText">BERHASIL DISCAN (+1)</span>
+                    </div>
+                </div>
+
                 {{-- Target Reticle / Viewfinder Overlay --}}
                 <div id="cameraScannerViewfinder" class="absolute inset-0 pointer-events-none flex flex-col items-center justify-center hidden">
-                    <div id="cameraScannerReticle" class="relative w-64 h-44 border-2 border-indigo-400/85 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.42)] transition-colors duration-200">
+                    <div id="cameraScannerReticle" class="relative w-60 h-36 border-2 border-indigo-400/85 rounded-2xl shadow-[0_0_0_9999px_rgba(2,6,23,0.38)] transition-all duration-200">
                         {{-- Corner Accents --}}
                         <div class="absolute -top-0.5 -left-0.5 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl"></div>
                         <div class="absolute -top-0.5 -right-0.5 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl"></div>
@@ -43,25 +106,9 @@
                         {{-- Animated Laser Line --}}
                         <div class="absolute inset-x-2 top-1/2 h-0.5 bg-gradient-to-r from-transparent via-rose-500 to-transparent shadow-[0_0_8px_#f43f5e] animate-pulse"></div>
                     </div>
-                    <span class="mt-2.5 px-2.5 py-1 rounded-full bg-slate-950/75 text-[10px] font-medium text-slate-200 backdrop-blur-xs">
-                        Bisa miring / plastik melengkung • Gunakan Zoom jika barcode kecil
+                    <span id="cameraScannerHintPill" class="mt-2 px-2.5 py-0.5 rounded-full bg-slate-950/75 text-[10px] font-medium text-slate-200 backdrop-blur-xs">
+                        Scan produk yang sama berulang kali otomatis menambah Qty (N+1)
                     </span>
-                </div>
-
-                {{-- Continuous Scan Live Feedback Banner --}}
-                <div id="cameraScannerContinuousBanner" class="hidden absolute bottom-2.5 inset-x-3 z-20 pointer-events-none">
-                    <div id="cameraScannerContinuousCard" class="px-3 py-2 rounded-xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-100 shadow-lg backdrop-blur-md flex items-center justify-between gap-2 transition-all">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-xs font-black shrink-0">✓</span>
-                            <div class="min-w-0">
-                                <p id="cameraScannerLastScanTitle" class="text-[11px] font-bold text-white truncate">Mode Scan Beruntun Aktif</p>
-                                <p id="cameraScannerLastScanSub" class="text-[10px] text-emerald-300 truncate">Kamera tetap menyala otomatis untuk produk berikutnya</p>
-                            </div>
-                        </div>
-                        <span id="cameraScannerScanCountBadge" class="px-2 py-0.5 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-[10px] font-mono font-bold text-emerald-200 shrink-0">
-                            0 discan
-                        </span>
-                    </div>
                 </div>
 
                 {{-- Loading / Permission / Fallback State --}}
@@ -72,6 +119,28 @@
                     <p id="cameraScannerStatusText" class="text-xs font-semibold text-slate-200">Menyiapkan kamera...</p>
                     <p id="cameraScannerSubText" class="text-[11px] text-slate-400 mt-1 max-w-xs">Pastikan izin akses kamera diberikan pada browser Anda.</p>
                 </div>
+            </div>
+
+            {{-- Direct Alat Scanner / Manual Code Input Inside Scanner Card --}}
+            <div class="px-4 py-2 bg-slate-900/95 border-t border-slate-800 flex items-center gap-2">
+                <div class="relative flex-1">
+                    <i data-lucide="barcode" class="w-3.5 h-3.5 text-indigo-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input
+                        type="text"
+                        id="cameraScannerManualInput"
+                        placeholder="Alat Scanner (USB/Bluetooth) / ketik barcode lalu Enter..."
+                        autocomplete="off"
+                        onkeydown="if(event.key === 'Enter'){ event.preventDefault(); window.CameraScanner && window.CameraScanner.submitManualInput(); }"
+                        class="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-xs text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                </div>
+                <button
+                    type="button"
+                    onclick="window.CameraScanner && window.CameraScanner.submitManualInput()"
+                    class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shrink-0 cursor-pointer transition-colors"
+                >
+                    + Tambah
+                </button>
             </div>
 
             {{-- Camera Enhancement Controls Bar (Zoom, Anti-Glare, Torch) --}}
@@ -171,9 +240,14 @@
                 this.isScanning = false;
                 this.onDetectCallback = null;
                 this.continuous = false;
+                this.docked = false;
+                this.videoMinimized = false;
                 this.lastScannedCode = '';
+                this.lastRepeatableCode = '';
                 this.lastScannedAt = 0;
                 this.sessionScanCount = 0;
+                this.cooldownResetTimer = null;
+                this.popTimer = null;
                 this.detector = null;
                 this.zxingReader = null;
                 this.facingMode = 'environment';
@@ -284,12 +358,21 @@
 
                 this.onDetectCallback = onDetect;
                 this.continuous = Boolean(options && options.continuous);
+                this.docked = Boolean(options && options.docked);
+                this.videoMinimized = false;
                 this.lastScannedCode = '';
+                this.lastRepeatableCode = '';
                 this.lastScannedAt = 0;
                 this.sessionScanCount = 0;
                 this.modal.classList.remove('hidden');
 
+                this.applyLayoutMode();
                 this.syncContinuousUi(options && options.allowContinuousToggle !== undefined ? Boolean(options.allowContinuousToggle) : this.continuous);
+
+                const viewport = document.getElementById('cameraScannerViewport');
+                const enhanceBar = document.getElementById('cameraScannerEnhanceBar');
+                if (viewport) viewport.classList.remove('hidden');
+                if (enhanceBar) enhanceBar.classList.remove('hidden');
 
                 if (window.lucide) {
                     window.lucide.createIcons();
@@ -309,9 +392,63 @@
                 if (!engine && !this.stream) {
                     this.showError(
                         'Kamera Langsung Tidak Tersedia',
-                        'Gunakan tombol "Scan dari Gambar" di bawah untuk memindai foto/file barcode atau ketik kode secara manual.'
+                        'Gunakan Alat Scanner (USB/Bluetooth), ketik barcode di kolom bawah, atau klik "Scan dari Gambar".'
                     );
                 }
+            }
+
+            applyLayoutMode() {
+                const modal = this.modal;
+                const backdrop = document.getElementById('cameraScannerBackdrop');
+                const wrapper = document.getElementById('cameraScannerWrapper');
+                const card = document.getElementById('cameraScannerCard');
+                const dockBtn = document.getElementById('cameraScannerDockToggleBtn');
+                const dockLbl = document.getElementById('cameraScannerDockToggleLabel');
+                const minBtn = document.getElementById('cameraScannerMinimizeBtn');
+
+                if (!modal || !wrapper || !card) return;
+
+                if (this.continuous) {
+                    if (dockBtn) dockBtn.classList.remove('hidden');
+                    if (minBtn) {
+                        minBtn.classList.remove('hidden');
+                        minBtn.classList.add('flex');
+                    }
+                } else {
+                    if (dockBtn) dockBtn.classList.add('hidden');
+                    if (minBtn) {
+                        minBtn.classList.add('hidden');
+                        minBtn.classList.remove('flex');
+                    }
+                }
+
+                if (this.docked) {
+                    // Non-blocking floating panel at bottom-left so Cart (Pesanan Kasir) on the right is 100% visible & interactive!
+                    modal.className = 'fixed inset-0 z-[140] pointer-events-none';
+                    if (backdrop) backdrop.classList.add('hidden');
+                    wrapper.className = 'fixed inset-0 z-10 pointer-events-none flex items-end justify-start p-3 sm:p-4';
+                    card.className = 'relative w-full max-w-[380px] sm:max-w-[420px] rounded-2xl bg-white dark:bg-slate-900 border-2 border-indigo-500/60 dark:border-indigo-500/50 shadow-[0_20px_50px_rgba(0,0,0,0.55)] overflow-hidden transform transition-all pointer-events-auto';
+                    if (dockLbl) dockLbl.textContent = 'Mode Tengah';
+                } else {
+                    modal.className = 'fixed inset-0 z-[150]';
+                    if (backdrop) backdrop.classList.remove('hidden');
+                    wrapper.className = 'fixed inset-0 z-10 overflow-y-auto flex items-center justify-center p-4';
+                    card.className = 'relative w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transform transition-all pointer-events-auto';
+                    if (dockLbl) dockLbl.textContent = 'Mode Pojok (Lihat Keranjang)';
+                }
+            }
+
+            toggleDockedLayout() {
+                this.docked = !this.docked;
+                this.applyLayoutMode();
+            }
+
+            toggleMinimizeVideo() {
+                this.videoMinimized = !this.videoMinimized;
+                const viewport = document.getElementById('cameraScannerViewport');
+                const enhanceBar = document.getElementById('cameraScannerEnhanceBar');
+                if (viewport) viewport.classList.toggle('hidden', this.videoMinimized);
+                if (enhanceBar) enhanceBar.classList.toggle('hidden', this.videoMinimized);
             }
 
             syncContinuousUi(showToggleBtn = false) {
@@ -319,9 +456,12 @@
                 const lbl = document.getElementById('cameraScannerContinuousLabel');
                 const banner = document.getElementById('cameraScannerContinuousBanner');
                 const closeBtn = document.getElementById('cameraScannerCloseFooterBtn');
+                const cardEl = document.getElementById('cameraScannerContinuousCard');
+                const iconEl = document.getElementById('cameraScannerStatusIcon');
                 const titleEl = document.getElementById('cameraScannerLastScanTitle');
                 const subEl = document.getElementById('cameraScannerLastScanSub');
                 const countEl = document.getElementById('cameraScannerScanCountBadge');
+                const repeatBtn = document.getElementById('cameraScannerRepeatPlusBtn');
 
                 if (btn) {
                     if (showToggleBtn || this.continuous) {
@@ -345,9 +485,20 @@
                     closeBtn.textContent = this.continuous ? 'Selesai Scan' : 'Batal';
                 }
                 if (this.sessionScanCount === 0) {
-                    if (titleEl) titleEl.textContent = 'Mode Scan Beruntun Aktif';
-                    if (subEl) subEl.textContent = 'Kamera tetap menyala otomatis untuk produk berikutnya';
+                    if (cardEl) {
+                        cardEl.className = 'px-3 py-2 rounded-xl bg-slate-800/90 border border-slate-700 text-slate-200 flex items-center justify-between gap-2 transition-all duration-200';
+                    }
+                    if (iconEl) {
+                        iconEl.className = 'w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-400/40 text-indigo-300 flex items-center justify-center text-xs font-black shrink-0';
+                        iconEl.textContent = '⋯';
+                    }
+                    if (titleEl) titleEl.textContent = 'Menunggu Scan Produk...';
+                    if (subEl) subEl.textContent = 'Arahkan barcode/QR ke kamera atau tembak dengan Alat Scanner';
                     if (countEl) countEl.textContent = 'Siap Scan';
+                    if (repeatBtn) {
+                        repeatBtn.classList.add('hidden');
+                        repeatBtn.classList.remove('inline-flex');
+                    }
                 }
             }
 
@@ -358,17 +509,127 @@
 
             updateContinuousFeedback(code, resultMeta = null) {
                 const banner = document.getElementById('cameraScannerContinuousBanner');
+                const cardEl = document.getElementById('cameraScannerContinuousCard');
+                const iconEl = document.getElementById('cameraScannerStatusIcon');
                 const titleEl = document.getElementById('cameraScannerLastScanTitle');
                 const subEl = document.getElementById('cameraScannerLastScanSub');
                 const countEl = document.getElementById('cameraScannerScanCountBadge');
-                if (banner && this.continuous) {
+                const repeatBtn = document.getElementById('cameraScannerRepeatPlusBtn');
+                const popEl = document.getElementById('cameraScannerSuccessPop');
+                const popText = document.getElementById('cameraScannerSuccessPopText');
+
+                if (banner) {
                     banner.classList.remove('hidden');
                 }
-                const label = (resultMeta && resultMeta.label) ? resultMeta.label : `Kode: ${code}`;
-                const sub = (resultMeta && resultMeta.subtitle) ? resultMeta.subtitle : 'Arahkan produk berikutnya ke kamera...';
+
+                const isSuccess = !resultMeta || resultMeta.found !== false;
+                const label = (resultMeta && resultMeta.label) ? resultMeta.label : `✓ Kode: ${code}`;
+                const sub = (resultMeta && resultMeta.subtitle) ? resultMeta.subtitle : 'Berhasil • Scan lagi untuk tambah Qty (N+1)';
+
+                if (cardEl) {
+                    cardEl.className = isSuccess
+                        ? 'px-3 py-2 rounded-xl bg-emerald-950/95 border-2 border-emerald-400 text-emerald-100 shadow-lg flex items-center justify-between gap-2 transition-all duration-150 scale-[1.01]'
+                        : 'px-3 py-2 rounded-xl bg-rose-950/95 border-2 border-rose-500 text-rose-100 shadow-lg flex items-center justify-between gap-2 transition-all duration-150';
+                    setTimeout(() => {
+                        if (cardEl) cardEl.classList.remove('scale-[1.01]');
+                    }, 220);
+                }
+
+                if (iconEl) {
+                    iconEl.className = isSuccess
+                        ? 'w-6 h-6 rounded-lg bg-emerald-400 text-slate-950 flex items-center justify-center text-xs font-black shrink-0'
+                        : 'w-6 h-6 rounded-lg bg-rose-500 text-white flex items-center justify-center text-xs font-black shrink-0';
+                    iconEl.textContent = isSuccess ? '✓' : '✕';
+                }
+
                 if (titleEl) titleEl.textContent = label;
                 if (subEl) subEl.textContent = sub;
-                if (countEl) countEl.textContent = `${this.sessionScanCount} discan`;
+                if (countEl) {
+                    countEl.textContent = resultMeta && resultMeta.badgeText
+                        ? resultMeta.badgeText
+                        : `${this.sessionScanCount}x scan`;
+                }
+
+                if (repeatBtn) {
+                    if (isSuccess && this.lastRepeatableCode) {
+                        repeatBtn.classList.remove('hidden');
+                        repeatBtn.classList.add('inline-flex');
+                    } else {
+                        repeatBtn.classList.add('hidden');
+                        repeatBtn.classList.remove('inline-flex');
+                    }
+                }
+
+                if (popEl && popText && isSuccess) {
+                    popText.textContent = resultMeta && resultMeta.popText
+                        ? resultMeta.popText
+                        : `BERHASIL (+1) • ${label}`;
+                    popEl.classList.remove('hidden');
+                    if (this.popTimer) clearTimeout(this.popTimer);
+                    this.popTimer = setTimeout(() => {
+                        popEl.classList.add('hidden');
+                    }, 1100);
+                }
+            }
+
+            processDetectedCode(rawCode, { bypassCooldown = false } = {}) {
+                const code = String(rawCode || '').trim();
+                if (!code) return;
+
+                const now = Date.now();
+                // For live video frames, apply an 850ms debounce for the exact same code so 1 hold = +1,
+                // and holding/presenting again after 0.85s increments N+1 (1 -> 2 -> 3...)!
+                if (!bypassCooldown && this.continuous && code === this.lastScannedCode && (now - this.lastScannedAt) < 850) {
+                    return;
+                }
+
+                this.lastScannedCode = code;
+                this.lastRepeatableCode = code;
+                this.lastScannedAt = now;
+                this.sessionScanCount += 1;
+
+                if (this.cooldownResetTimer) clearTimeout(this.cooldownResetTimer);
+                this.cooldownResetTimer = setTimeout(() => {
+                    this.lastScannedCode = '';
+                }, 850);
+
+                this.flashReticleSuccess();
+                this.playBeep();
+                const callback = this.onDetectCallback;
+
+                if (this.continuous) {
+                    let resultMeta = null;
+                    if (typeof callback === 'function') {
+                        resultMeta = callback(code);
+                    }
+                    if (resultMeta && resultMeta.closeScanner) {
+                        this.close();
+                        return;
+                    }
+                    this.updateContinuousFeedback(code, resultMeta);
+                } else {
+                    setTimeout(() => {
+                        this.close();
+                        if (typeof callback === 'function') {
+                            callback(code);
+                        }
+                    }, 120);
+                }
+            }
+
+            repeatLastScan() {
+                if (!this.lastRepeatableCode) return;
+                this.processDetectedCode(this.lastRepeatableCode, { bypassCooldown: true });
+            }
+
+            submitManualInput() {
+                const input = document.getElementById('cameraScannerManualInput');
+                if (!input) return;
+                const val = String(input.value || '').trim();
+                if (!val) return;
+                input.value = '';
+                this.processDetectedCode(val, { bypassCooldown: true });
+                input.focus();
             }
 
             async startStream() {
@@ -677,37 +938,9 @@
                     try {
                         const code = await this.decodeFromSource(this.video, false);
                         if (code) {
-                            const now = Date.now();
-                            // In continuous mode, prevent duplicate rapid triggers of the exact same barcode within 1.3s
-                            if (this.continuous && code === this.lastScannedCode && (now - this.lastScannedAt) < 1300) {
-                                // Still in cooldown for same item; continue loop
-                            } else {
-                                this.lastScannedCode = code;
-                                this.lastScannedAt = now;
-                                this.sessionScanCount += 1;
-                                this.flashReticleSuccess();
-                                this.playBeep();
-                                const callback = this.onDetectCallback;
-
-                                if (this.continuous) {
-                                    let resultMeta = null;
-                                    if (typeof callback === 'function') {
-                                        resultMeta = callback(code);
-                                    }
-                                    if (resultMeta && resultMeta.closeScanner) {
-                                        this.close();
-                                        return;
-                                    }
-                                    this.updateContinuousFeedback(code, resultMeta);
-                                } else {
-                                    setTimeout(() => {
-                                        this.close();
-                                        if (typeof callback === 'function') {
-                                            callback(code);
-                                        }
-                                    }, 120);
-                                    return;
-                                }
+                            this.processDetectedCode(code, { bypassCooldown: false });
+                            if (!this.continuous) {
+                                return;
                             }
                         }
                     } catch (e) {
@@ -747,9 +980,10 @@
                 const file = event?.target?.files?.[0];
                 if (!file) return;
 
-                this.resetLoader('Memindai gambar...', 'Menganalisis kode dengan koreksi cahaya, kemiringan & lekukan.');
-                if (this.video) this.video.classList.add('hidden');
-                if (this.viewfinder) this.viewfinder.classList.add('hidden');
+                const hadLiveStream = Boolean(this.stream);
+                if (!hadLiveStream) {
+                    this.resetLoader('Memindai gambar...', 'Menganalisis kode dengan koreksi cahaya, kemiringan & lekukan.');
+                }
 
                 try {
                     await this.ensureDecoder();
@@ -769,24 +1003,45 @@
 
                     const code = await this.decodeFromSource(img, true);
                     if (code) {
-                        this.playBeep();
-                        const callback = this.onDetectCallback;
-                        this.close();
-                        if (typeof callback === 'function') {
-                            callback(code);
+                        this.processDetectedCode(code, { bypassCooldown: true });
+                        if (this.continuous && !this.stream && this.loader) {
+                            this.loader.innerHTML = `
+                                <div class="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-3">
+                                    <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                                </div>
+                                <p class="text-xs font-bold text-white">Gambar Berhasil Discan (+1)</p>
+                                <p class="text-[11px] text-slate-400 mt-1 max-w-xs">Pilih gambar lagi atau klik "+1 Lagi" di atas untuk menambah jumlah (N+1).</p>
+                                <button type="button" onclick="window.CameraScanner && window.CameraScanner.triggerFileSelect()" class="mt-3 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors cursor-pointer">
+                                    <i data-lucide="image" class="w-3.5 h-3.5"></i>
+                                    <span>Scan Gambar Berikutnya</span>
+                                </button>
+                            `;
+                            if (window.lucide) window.lucide.createIcons();
                         }
                         return;
                     }
 
-                    this.showError(
-                        'Kode Tidak Terbaca dari Gambar',
-                        'Pastikan seluruh garis barcode atau kotak QR terlihat di dalam foto, lalu pilih gambar lain.'
-                    );
+                    if (this.continuous) {
+                        this.updateContinuousFeedback('-', {
+                            found: false,
+                            label: 'Kode Tidak Terbaca dari Gambar',
+                            subtitle: 'Pastikan seluruh garis barcode / kotak QR terlihat jelas di foto',
+                            badgeText: 'Gagal Baca',
+                        });
+                    }
+                    if (!hadLiveStream) {
+                        this.showError(
+                            'Kode Tidak Terbaca dari Gambar',
+                            'Pastikan seluruh garis barcode atau kotak QR terlihat di dalam foto, lalu pilih gambar lain.'
+                        );
+                    }
                 } catch (err) {
-                    this.showError(
-                        'Gagal Memindai Gambar',
-                        err?.message || 'Tidak ditemukan barcode atau QR Code pada gambar tersebut.'
-                    );
+                    if (!hadLiveStream) {
+                        this.showError(
+                            'Gagal Memindai Gambar',
+                            err?.message || 'Tidak ditemukan barcode atau QR Code pada gambar tersebut.'
+                        );
+                    }
                 }
             }
 
@@ -799,6 +1054,10 @@
                 if (this.scanFrameId) {
                     cancelAnimationFrame(this.scanFrameId);
                     this.scanFrameId = null;
+                }
+                if (this.cooldownResetTimer) {
+                    clearTimeout(this.cooldownResetTimer);
+                    this.cooldownResetTimer = null;
                 }
                 if (this.stream) {
                     this.stream.getTracks().forEach(track => track.stop());
