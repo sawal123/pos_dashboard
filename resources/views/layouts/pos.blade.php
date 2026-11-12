@@ -18,6 +18,12 @@
                     padding: 0;
                     margin: 0;
                 }
+                #thermalReceiptArea .receipt-logo {
+                    display: block !important;
+                    margin: 0 auto 6px auto;
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
             }
         </style>
     </head>

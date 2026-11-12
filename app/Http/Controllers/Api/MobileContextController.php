@@ -107,6 +107,12 @@ class MobileContextController extends Controller
                     'auto_open' => (bool) ($business->auto_open_shift ?? true),
                     'default_opening_cash' => (int) ($business->default_opening_cash ?? 0),
                 ],
+                'receipt_settings' => [
+                    'logo' => $business->receiptLogoPayload(),
+                    'logoUrl' => $business->receiptLogoUrl(),
+                    'address' => $business->receipt_address,
+                    'footer' => $business->receipt_footer,
+                ],
                 'subscription' => $subscription !== null ? [
                     'plan' => $subscription->plan,
                     'status' => $subscription->status,

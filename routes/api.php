@@ -65,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/mobile/context', [MobileContextController::class, 'context']);
     Route::patch('/mobile/businesses/{business}/tax-settings', [\App\Http\Controllers\Api\MobileBusinessTaxController::class, 'update']);
+    Route::patch('/mobile/businesses/{business}/receipt-settings', [\App\Http\Controllers\Api\MobileBusinessReceiptController::class, 'update']);
     Route::post('/mobile/devices', [MobileDeviceController::class, 'store']);
     Route::get('/mobile/subscription/plans', [MobileSubscriptionPlansController::class, 'index']);
     Route::post('/mobile/subscription/checkout', [MobileSubscriptionCheckoutController::class, 'store'])

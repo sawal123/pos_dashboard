@@ -636,6 +636,11 @@
             {{-- Printable Struk Area --}}
             <div id="thermalReceiptArea" class="p-4 space-y-3 overflow-y-auto flex-1 font-mono text-[11px] text-slate-700 dark:text-slate-300">
                 <div class="text-center border-b border-dashed border-slate-200 dark:border-slate-700 pb-2">
+                    @if($business->receiptLogoUrl())
+                        <div class="flex justify-center mb-2">
+                            <img src="{{ $business->receiptLogoUrl() }}" alt="Logo" class="receipt-logo h-10 max-w-[120px] object-contain mx-auto" />
+                        </div>
+                    @endif
                     <div class="font-bold text-sm text-slate-900 dark:text-white">{{ $business->name }}</div>
                     <div class="text-[10px] text-slate-500">{{ $activeOutlet->name }}</div>
                     <div id="receiptDateTime" class="text-[10px] text-slate-400 mt-1">-</div>

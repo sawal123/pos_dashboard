@@ -455,6 +455,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::patch('business-settings/cashier-pin-shift', [BusinessSettingsController::class, 'updateCashierPinShift'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.cashier-pin-shift.update');
+    Route::post('business-settings/receipt', [BusinessSettingsController::class, 'updateReceiptSettings'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.receipt.update');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

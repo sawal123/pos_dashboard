@@ -407,6 +407,8 @@ class PosCheckoutTest extends TestCase
             'pricing_unit' => 'cup',
         ]);
 
+        $business->update(['receipt_logo' => 'receipt_logos/custom_logo.png']);
+
         $response = $this->actingAs($user)
             ->withSession(['dashboard.current_business_id' => $business->id])
             ->get(route('pos.receipt', $sale->id));
@@ -416,6 +418,8 @@ class PosCheckoutTest extends TestCase
         $response->assertSee('Kopi Tubruk');
         $response->assertSee('15.000');
         $response->assertSee('3.000');
+        $response->assertSee('custom_logo.png');
+        $response->assertSee('receipt-logo');
     }
 
     public function test_11_checkout_with_variants_adds_price_adjustment_and_deducts_variant_ingredient_stock(): void

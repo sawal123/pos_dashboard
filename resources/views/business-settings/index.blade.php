@@ -84,6 +84,12 @@
             :autoOpenShift="$autoOpenShift"
         />
 
+        <x-business-settings.receipt-settings-form
+            :receiptLogoUrl="$receiptLogoUrl"
+            :receiptAddress="$receiptAddress"
+            :receiptFooter="$receiptFooter"
+        />
+
         <p class="text-xs text-slate-500 dark:text-slate-400">
             Mengubah tipe bisnis, pengaturan pajak, serta PIN dan Shift berlaku untuk sesi operasional kasir baru.
         </p>

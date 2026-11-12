@@ -10,6 +10,7 @@ use App\Http\Requests\Dashboard\UpdateCashierPinShiftRequest;
 use App\Models\Business;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 /**
@@ -38,6 +39,9 @@ class BusinessSettingsController extends Controller
             'cashierPin' => (string) ($business->cashier_pin ?? '123456'),
             'defaultOpeningCash' => (int) ($business->default_opening_cash ?? 0),
             'autoOpenShift' => (bool) ($business->auto_open_shift ?? true),
+            'receiptLogoUrl' => $business->receiptLogoUrl(),
+            'receiptAddress' => (string) ($business->receipt_address ?? ''),
+            'receiptFooter' => (string) ($business->receipt_footer ?? ''),
         ]);
     }
 
@@ -86,6 +90,43 @@ class BusinessSettingsController extends Controller
         return redirect()
             ->route('business-settings.edit')
             ->with('status', 'Pengaturan PIN kasir dan Shift berhasil disimpan.');
+    }
+
+    public function updateReceiptSettings(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'receipt_logo' => ['nullable', 'image', 'mimes:png,jpg,jpeg,svg,webp', 'max:2048'],
+            'remove_logo' => ['nullable'],
+            'receipt_address' => ['nullable', 'string', 'max:300'],
+            'receipt_footer' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $logoPath = $business->receipt_logo;
+
+        if ($request->boolean('remove_logo')) {
+            if ($logoPath && ! str_starts_with($logoPath, '{') && ! str_starts_with($logoPath, 'data:')) {
+                Storage::disk('public')->delete($logoPath);
+            }
+            $logoPath = null;
+        } elseif ($request->hasFile('receipt_logo')) {
+            if ($logoPath && ! str_starts_with($logoPath, '{') && ! str_starts_with($logoPath, 'data:')) {
+                Storage::disk('public')->delete($logoPath);
+            }
+            $file = $request->file('receipt_logo');
+            $logoPath = $file->store('receipt_logos', 'public');
+        }
+
+        $business->update([
+            'receipt_logo' => $logoPath,
+            'receipt_address' => $validated['receipt_address'] ?? null,
+            'receipt_footer' => $validated['receipt_footer'] ?? null,
+        ]);
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', 'Pengaturan struk berhasil disimpan.');
     }
 
     /**

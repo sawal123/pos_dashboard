@@ -26,6 +26,13 @@
             padding-bottom: 8px;
             margin-bottom: 8px;
         }
+        .receipt-logo {
+            max-height: 48px;
+            max-width: 90px;
+            margin: 0 auto 8px auto;
+            display: block;
+            object-fit: contain;
+        }
         .store-name {
             font-size: 15px;
             font-weight: bold;
@@ -77,6 +84,11 @@
             .no-print {
                 display: none;
             }
+            .receipt-logo {
+                display: block !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
@@ -91,9 +103,16 @@
     </div>
 
     <div class="header">
+        @if($business->receiptLogoUrl())
+            <div class="logo-wrapper" style="text-align: center; margin-bottom: 8px;">
+                <img src="{{ $business->receiptLogoUrl() }}" alt="Logo" class="receipt-logo">
+            </div>
+        @endif
         <div class="store-name">{{ $business->name }}</div>
         <div class="meta">{{ $sale->outlet?->name ?? 'Outlet' }}</div>
-        @if($sale->outlet?->address)
+        @if(!empty($business->receipt_address))
+            <div class="meta">{!! nl2br(e($business->receipt_address)) !!}</div>
+        @elseif($sale->outlet?->address)
             <div class="meta">{{ $sale->outlet->address }}</div>
         @endif
         <div class="meta" style="margin-top: 4px;">
@@ -155,8 +174,12 @@
     </div>
 
     <div class="footer">
-        <p>Terima kasih atas kunjungan Anda!</p>
-        <p style="margin-top: 2px;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
+        @if(!empty($business->receipt_footer))
+            <p>{!! nl2br(e($business->receipt_footer)) !!}</p>
+        @else
+            <p>Terima kasih atas kunjungan Anda!</p>
+            <p style="margin-top: 2px;">Barang yang sudah dibeli tidak dapat ditukar/dikembalikan.</p>
+        @endif
         <p style="margin-top: 4px; font-size: 8px; color: #888;">Net Kasir System</p>
     </div>
 </body>

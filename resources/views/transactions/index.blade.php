@@ -545,6 +545,18 @@
             if (drawerCloseFooterBtn) drawerCloseFooterBtn.onclick = closeDrawer;
             if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
 
+            // Drawer Print Handler
+            const drawerPrintBtn = document.getElementById('drawerPrintBtn');
+            if (drawerPrintBtn) {
+                drawerPrintBtn.onclick = () => {
+                    if (currentTrxData && currentTrxData.id) {
+                        window.open(`/pos/receipt/${currentTrxData.id}`, '_blank');
+                    } else if (typeof showToast === 'function') {
+                        showToast('info', 'Data transaksi belum dipilih.');
+                    }
+                };
+            }
+
             // ==================== EDIT MODAL LOGIC (OWNER) ====================
             const editModal = document.getElementById('editTransactionModal');
             const editBackdrop = document.getElementById('editTransactionBackdrop');

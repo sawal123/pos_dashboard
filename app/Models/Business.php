@@ -24,6 +24,9 @@ use Illuminate\Support\Carbon;
  * @property string $cashier_pin
  * @property int $default_opening_cash
  * @property bool $auto_open_shift
+ * @property string|null $receipt_logo
+ * @property string|null $receipt_address
+ * @property string|null $receipt_footer
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Collection<int, User> $users
@@ -45,7 +48,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
-#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift'])]
+#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift', 'receipt_logo', 'receipt_address', 'receipt_footer'])]
 class Business extends Model
 {
     /** Membership role values that have a defined authorization contract. */
@@ -102,7 +105,80 @@ class Business extends Model
             'tax_rate' => 'float',
             'default_opening_cash' => 'integer',
             'auto_open_shift' => 'boolean',
+            'receipt_logo' => 'string',
+            'receipt_address' => 'string',
+            'receipt_footer' => 'string',
         ];
+    }
+
+    /**
+     * Get the dynamic URL or data URI for the store's receipt logo.
+     */
+    public function receiptLogoUrl(): ?string
+    {
+        if (empty($this->receipt_logo)) {
+            return null;
+        }
+
+        if (str_starts_with($this->receipt_logo, '{')) {
+            $decoded = json_decode($this->receipt_logo, true);
+            if (is_array($decoded) && isset($decoded['width'], $decoded['height'], $decoded['data'])) {
+                return $this->rasterToSvgDataUrl((int) $decoded['width'], (int) $decoded['height'], (string) $decoded['data']);
+            }
+        }
+
+        if (str_starts_with($this->receipt_logo, 'data:')) {
+            return $this->receipt_logo;
+        }
+
+        return asset('storage/' . $this->receipt_logo);
+    }
+
+    /**
+     * Payload for sync with mobile context.
+     */
+    public function receiptLogoPayload(): array|string|null
+    {
+        if (empty($this->receipt_logo)) {
+            return null;
+        }
+
+        if (str_starts_with($this->receipt_logo, '{')) {
+            $decoded = json_decode($this->receipt_logo, true);
+            if (is_array($decoded) && isset($decoded['width'], $decoded['height'], $decoded['data'])) {
+                return $decoded;
+            }
+        }
+
+        return [
+            'url' => $this->receiptLogoUrl(),
+        ];
+    }
+
+    /**
+     * Convert mobile 1-bit monochrome raster to standard SVG data URI.
+     */
+    private function rasterToSvgDataUrl(int $width, int $height, string $base64Data): ?string
+    {
+        $bytes = base64_decode($base64Data);
+        if (! $bytes || strlen($bytes) !== (int) (($width / 8) * $height)) {
+            return null;
+        }
+
+        $path = '';
+        for ($y = 0; $y < $height; $y++) {
+            for ($x = 0; $x < $width; $x++) {
+                $byteIndex = (int) (($y * $width) / 8 + ($x >> 3));
+                $bit = 0x80 >> ($x % 8);
+                if ((ord($bytes[$byteIndex]) & $bit) !== 0) {
+                    $path .= "M{$x} {$y}h1v1h-1z";
+                }
+            }
+        }
+
+        $svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{$width}\" height=\"{$height}\" viewBox=\"0 0 {$width} {$height}\"><path fill=\"white\" d=\"M0 0h{$width}v{$height}H0z\"/><path fill=\"black\" d=\"{$path}\"/></svg>";
+
+        return 'data:image/svg+xml;utf8,' . rawurlencode($svg);
     }
 
     /**
