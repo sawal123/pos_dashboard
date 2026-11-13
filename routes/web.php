@@ -101,6 +101,10 @@ Route::get('/', function (Request $request, LandingPricingService $landingPricin
 Route::get('robots.txt', [SeoController::class, 'robots'])->name('seo.robots');
 Route::get('sitemap.xml', [SeoController::class, 'sitemap'])->name('seo.sitemap');
 
+// Public Legal & Compliance Pages (Google Play Store requirements)
+Route::view('privacy-policy', 'privacy-policy')->name('legal.privacy');
+Route::view('delete-account', 'delete-account')->name('legal.delete-account');
+
 // PWA — Progressive Web App manifest, offline fallback, and service worker routes
 Route::get('manifest.webmanifest', [PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('manifest.json', [PwaController::class, 'manifest']);
