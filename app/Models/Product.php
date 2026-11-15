@@ -23,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $image_path
  * @property-read string|null $image_url
  * @property int $price
+ * @property int|null $promo_price
  * @property string $kind
  * @property bool $is_sellable
  * @property string $cost
@@ -52,7 +53,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, ProductRecipeItem> $usedInRecipes
  * @property-read Collection<int, ProductCostHistory> $costHistories
  */
-#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'image_path', 'price', 'kind', 'is_sellable', 'cost', 'hpp', 'hpp_method', 'cost_source', 'hpp_overhead_fixed', 'hpp_overhead_percent', 'hpp_calculated_at', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
+#[Fillable(['business_id', 'category_id', 'name', 'sku', 'barcode', 'image_path', 'price', 'promo_price', 'kind', 'is_sellable', 'cost', 'hpp', 'hpp_method', 'cost_source', 'hpp_overhead_fixed', 'hpp_overhead_percent', 'hpp_calculated_at', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'status'])]
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
@@ -65,7 +66,33 @@ class Product extends Model
      */
     protected $appends = [
         'image_url',
+        'discount_percent',
+        'effective_price',
     ];
+
+    /**
+     * Get discount percentage if promo price is active.
+     */
+    public function getDiscountPercentAttribute(): int
+    {
+        if ($this->promo_price !== null && $this->promo_price > 0 && $this->price > 0 && $this->promo_price < $this->price) {
+            return (int) round((($this->price - $this->promo_price) / $this->price) * 100);
+        }
+
+        return 0;
+    }
+
+    /**
+     * Get effective selling price (promo price if active, otherwise regular price).
+     */
+    public function getEffectivePriceAttribute(): int
+    {
+        if ($this->promo_price !== null && $this->promo_price > 0 && $this->promo_price < $this->price) {
+            return (int) $this->promo_price;
+        }
+
+        return (int) $this->price;
+    }
 
     /**
      * Get the full URL to the product's image.
@@ -113,6 +140,7 @@ class Product extends Model
     {
         return [
             'price' => 'integer',
+            'promo_price' => 'integer',
             'is_sellable' => 'boolean',
             'cost' => 'decimal:2',
             'hpp' => 'decimal:2',

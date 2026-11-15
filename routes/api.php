@@ -8,11 +8,15 @@ use App\Http\Controllers\Api\GoogleAuthController;
 use App\Http\Controllers\Api\ManualRegistrationController;
 use App\Http\Controllers\Api\MidtransWebhookController;
 use App\Http\Controllers\Api\MobileAuthController;
+use App\Http\Controllers\Api\MobileBusinessReceiptController;
+use App\Http\Controllers\Api\MobileBusinessTaxController;
 use App\Http\Controllers\Api\MobileContextController;
 use App\Http\Controllers\Api\MobileDeviceController;
+use App\Http\Controllers\Api\MobileDevicePairingController;
 use App\Http\Controllers\Api\MobileSubscriptionCheckoutController;
 use App\Http\Controllers\Api\MobileSubscriptionPaymentsController;
 use App\Http\Controllers\Api\MobileSubscriptionPlansController;
+use App\Http\Controllers\Api\MobileUnitsController;
 use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\SyncController;
 use App\Http\Middleware\EnsureMobileSanctumToken;
@@ -64,9 +68,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/auth/logout', [AuthController::class, 'logout']);
 
     Route::get('/mobile/context', [MobileContextController::class, 'context']);
-    Route::patch('/mobile/businesses/{business}/tax-settings', [\App\Http\Controllers\Api\MobileBusinessTaxController::class, 'update']);
-    Route::patch('/mobile/businesses/{business}/receipt-settings', [\App\Http\Controllers\Api\MobileBusinessReceiptController::class, 'update']);
+    Route::patch('/mobile/businesses/{business}/tax-settings', [MobileBusinessTaxController::class, 'update']);
+    Route::patch('/mobile/businesses/{business}/receipt-settings', [MobileBusinessReceiptController::class, 'update']);
     Route::post('/mobile/devices', [MobileDeviceController::class, 'store']);
+    // Kasir pairing: kode verifikasi 4 digit dari dashboard (berlaku 30 menit).
+    Route::post('/mobile/devices/pair', [MobileDevicePairingController::class, 'pair'])
+        ->middleware('throttle:10,1');
     Route::get('/mobile/subscription/plans', [MobileSubscriptionPlansController::class, 'index']);
     Route::post('/mobile/subscription/checkout', [MobileSubscriptionCheckoutController::class, 'store'])
         ->middleware('throttle:subscription-checkout');
@@ -82,6 +89,9 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/sync/push', [SyncController::class, 'push']);
     Route::get('/sync/pull', [SyncController::class, 'pull']);
+
+    Route::get('/mobile/units', [MobileUnitsController::class, 'index']);
+    Route::post('/mobile/units', [MobileUnitsController::class, 'store']);
 
     // INT-03 — read-only status of a previously pushed request.
     Route::get('/sync/requests/{request_id}/status', [SyncController::class, 'requestStatus'])

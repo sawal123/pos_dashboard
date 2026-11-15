@@ -1,6 +1,7 @@
 @props([
     'mode' => 'no-data', // 'no-data', 'no-results'
     'canManage' => false,
+    'canPair' => false,
 ])
 
 @if($mode === 'no-data')
@@ -13,19 +14,19 @@
                 Belum Ada Perangkat
             </h3>
             <p class="text-xs text-slate-500 dark:text-slate-400">
-                Perangkat yang terdaftar di Cloud akan muncul di sini.
+                Buat kode pairing, lalu minta kasir memasukkannya di aplikasi. Perangkat akan muncul
+                di sini setelah terpasang.
             </p>
         </div>
-        @if($canManage)
+        @if($canManage && $canPair)
             <div class="pt-1">
                 <button
                     type="button"
-                    data-open-device-modal
-                    data-device-mode="create"
+                    data-open-pairing-modal
                     class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 >
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Daftarkan Perangkat</span>
+                    <i data-lucide="key-round" class="w-4 h-4"></i>
+                    <span>Buat Kode Kasir</span>
                 </button>
             </div>
         @endif

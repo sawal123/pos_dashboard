@@ -29,15 +29,21 @@ class Unit extends Model
     /** @var list<string> */
     public const DEFAULT_UNITS = [
         'pcs',
+        'botol',
         'gram',
-        'cup',
         'ml',
         'kg',
         'liter',
+        'cup',
         'box',
-        'botol',
         'pouch',
         'sachet',
+        'bks',
+        'butir',
+        'potong',
+        'galon',
+        'ons',
+        'kotak',
     ];
 
     /**

@@ -427,6 +427,9 @@ class DashboardProductsData
             'category_name' => $categoryName,
 
             'price' => (int) $product->price,
+            'promo_price' => $product->promo_price !== null ? (int) $product->promo_price : null,
+            'discount_percent' => $product->discount_percent,
+            'effective_price' => $product->effective_price,
             'cost' => (string) $product->cost,
             'hpp' => $product->hpp !== null ? (string) $product->hpp : (string) $product->cost,
             'hpp_method' => (string) ($product->hpp_method ?? 'average'),
@@ -495,6 +498,9 @@ class DashboardProductsData
             'category_name' => $categoryName,
 
             'price' => (int) $service->price,
+            'promo_price' => $service->promo_price !== null ? (int) $service->promo_price : null,
+            'discount_percent' => $service->discount_percent,
+            'effective_price' => $service->effective_price,
 
             'pricing_unit' => $service->pricing_unit,
             'min_quantity' => (string) $service->min_quantity,

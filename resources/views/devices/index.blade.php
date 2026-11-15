@@ -18,19 +18,21 @@
                 </p>
             </div>
 
-            {{-- Action Button (owner-only) --}}
+            {{-- Action Button (owner-only) — PAIR-01: perangkat kasir dipasangkan
+                 dengan kode 4 digit; identitas perangkat tidak lagi diketik manual. --}}
             @if($canManageDevices)
-                <div class="flex items-center gap-2.5 shrink-0">
-                    <button
-                        type="button"
-                        id="registerDeviceBtn"
-                        data-open-device-modal
-                        data-device-mode="create"
-                        class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                    >
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>Daftarkan Perangkat</span>
-                    </button>
+                <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                    @if($canPairCashierDevices)
+                        <button
+                            type="button"
+                            id="pairCashierBtn"
+                            data-open-pairing-modal
+                            class="py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-sm shadow-indigo-600/20 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        >
+                            <i data-lucide="key-round" class="w-4 h-4"></i>
+                            <span>Kode Kasir</span>
+                        </button>
+                    @endif
                 </div>
             @endif
         </div>
@@ -60,6 +62,11 @@
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
         <x-devices.summary-cards :summary="$summary" />
 
+        {{-- ==================== 1b. KODE PAIRING KASIR (PAIR-01) ==================== --}}
+        @if($canPairCashierDevices)
+            <x-devices.pairing-panel :codes="$activePairingCodes" :can-manage="$canManageDevices" />
+        @endif
+
         {{-- ==================== 2. FILTER BAR ==================== --}}
         <x-devices.filter-bar
             :outlets="$outlets"
@@ -69,7 +76,7 @@
 
         {{-- ==================== 3. DATA LIST / EMPTY STATES ==================== --}}
         @if(!$hasAnyDevices)
-            <x-devices.empty-state mode="no-data" :can-manage="$canManageDevices" />
+            <x-devices.empty-state mode="no-data" :can-manage="$canManageDevices" :can-pair="$canPairCashierDevices" />
         @elseif($devices->isEmpty())
             <x-devices.empty-state mode="no-results" :can-manage="$canManageDevices" />
         @else
@@ -93,9 +100,151 @@
         @if($canManageDevices)
             {{-- ==================== 5. REGISTRATION / EDIT MODAL (DASH-17) ==================== --}}
             <x-devices.device-modal :outlets="$outlets" />
+
+            @if($canPairCashierDevices)
+                {{-- ==================== 6. KODE PAIRING KASIR MODAL (PAIR-01) ==================== --}}
+                <x-devices.pairing-modal :outlets="$outlets" />
+            @endif
         @endif
 
     </main>
+
+    {{-- ==================== PAIR-01 — PAIRING MODAL, COUNTDOWN & COPY ==================== --}}
+    <script>
+        (function () {
+            if (window.__pairingBound) {
+                return;
+            }
+            window.__pairingBound = true;
+
+            const modal = () => document.getElementById('pairingModal');
+
+            const closeModal = () => {
+                const el = modal();
+                if (!el || el.classList.contains('hidden')) return;
+                el.classList.add('hidden');
+                document.body.style.overflow = '';
+            };
+
+            const openModal = () => {
+                const el = modal();
+                if (!el) return;
+                el.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                const first = el.querySelector('select, input, button');
+                if (first && typeof first.focus === 'function') {
+                    first.focus({ preventScroll: true });
+                }
+            };
+
+            const formatRemaining = (ms) => {
+                if (ms <= 0) return 'kedaluwarsa';
+                const totalSeconds = Math.floor(ms / 1000);
+                const minutes = Math.floor(totalSeconds / 60);
+                const seconds = totalSeconds % 60;
+                return minutes + 'm ' + String(seconds).padStart(2, '0') + 's';
+            };
+
+            const tickCountdowns = () => {
+                const nowMs = Date.now();
+
+                document.querySelectorAll('[data-pairing-countdown]').forEach((el) => {
+                    const result = el.closest('[data-expires-at]');
+                    const expiresAt = result ? Date.parse(result.getAttribute('data-expires-at')) : NaN;
+                    if (!Number.isFinite(expiresAt)) return;
+                    el.textContent = formatRemaining(expiresAt - nowMs);
+                });
+
+                document.querySelectorAll('[data-pairing-remaining]').forEach((el) => {
+                    const row = el.closest('[data-expires-at]');
+                    const expiresAt = row ? Date.parse(row.getAttribute('data-expires-at')) : NaN;
+                    if (!Number.isFinite(expiresAt)) return;
+                    el.textContent = formatRemaining(expiresAt - nowMs);
+                });
+            };
+
+            tickCountdowns();
+            window.setInterval(tickCountdowns, 1000);
+
+            // Clipboard with a no-permission fallback (older WebViews).
+            const copyCode = async (code) => {
+                try {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(code);
+                        return true;
+                    }
+                } catch (error) {
+                    // fall through to the legacy path
+                }
+
+                try {
+                    const input = document.createElement('textarea');
+                    input.value = code;
+                    input.setAttribute('readonly', 'readonly');
+                    input.style.position = 'fixed';
+                    input.style.opacity = '0';
+                    document.body.appendChild(input);
+                    input.select();
+                    const copied = document.execCommand('copy');
+                    document.body.removeChild(input);
+                    return copied;
+                } catch (error) {
+                    return false;
+                }
+            };
+
+            document.addEventListener('click', async (event) => {
+                const target = event.target;
+                if (!(target instanceof Element)) return;
+
+                if (target.closest('[data-close-pairing-modal]')) {
+                    event.preventDefault();
+                    closeModal();
+                    return;
+                }
+
+                if (target.closest('[data-open-pairing-modal]')) {
+                    event.preventDefault();
+                    openModal();
+                    return;
+                }
+
+                const copyBtn = target.closest('[data-copy-pairing-code]');
+                if (copyBtn) {
+                    event.preventDefault();
+                    const code = copyBtn.getAttribute('data-copy-pairing-code') || '';
+                    const copied = await copyCode(code);
+                    const label = copyBtn.querySelector('i');
+                    if (label) {
+                        label.setAttribute('data-lucide', copied ? 'check' : 'alert-circle');
+                    }
+                    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                        window.lucide.createIcons();
+                    }
+                }
+            });
+
+            document.addEventListener('keydown', (event) => {
+                const el = modal();
+                if (!el || el.classList.contains('hidden')) return;
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeModal();
+                }
+            });
+
+            // Server-side validation errors reopen the modal (full reload path).
+            const restore = () => {
+                const el = modal();
+                if (el && el.getAttribute('data-restore-mode') === 'create') {
+                    openModal();
+                }
+            };
+
+            restore();
+            document.addEventListener('livewire:navigated', restore);
+        })();
+    </script>
 
     {{-- ==================== CLIENT-SIDE SCRIPTS ==================== --}}
     <script>

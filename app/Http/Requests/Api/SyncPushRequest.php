@@ -68,6 +68,7 @@ class SyncPushRequest extends FormRequest
             'changes.products.*.barcode' => ['nullable', 'string', 'max:255'],
             'changes.products.*.barcode_action' => ['sometimes', 'nullable', 'string', 'in:set,clear'],
             'changes.products.*.price' => ['required', 'integer', 'min:0'],
+            'changes.products.*.promo_price' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'changes.products.*.kind' => ['sometimes', 'string', 'in:product,service'],
             'changes.products.*.cost' => ['sometimes', 'numeric', 'min:0'],
             'changes.products.*.stock' => ['sometimes', 'numeric'],

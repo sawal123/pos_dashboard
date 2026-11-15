@@ -517,14 +517,20 @@ class DevicesPageTest extends TestCase
         $response->assertDontSee('sync_cursor');
     }
 
-    public function test_34_device_registration_button_is_wired_to_the_dashboard_modal(): void
+    public function test_34_cashier_pairing_code_button_replaces_manual_registration(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
 
         $response = $this->actingAs($user)->get(route('devices.index'));
         $response->assertOk();
-        $response->assertSee('Daftarkan Perangkat');
-        // DASH-17: the placeholder alert is gone; the page renders a real modal.
+
+        // PAIR-01: perangkat kasir dipasangkan lewat kode 4 digit, bukan dengan
+        // mengetik identifier manual.
+        $response->assertSee('Kode Kasir');
+        $response->assertSee('id="pairingModal"', false);
+        $response->assertDontSee('id="registerDeviceBtn"', false);
+
+        // The edit modal stays available for device metadata/status management.
         $response->assertSee('id="deviceModal"', false);
         $response->assertDontSee('Registrasi perangkat dari dashboard belum tersedia.');
     }

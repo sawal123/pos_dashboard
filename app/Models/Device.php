@@ -18,12 +18,17 @@ use Illuminate\Support\Carbon;
  * @property Carbon $registered_at
  * @property Carbon|null $last_seen_at
  * @property string|null $notes
+ * @property int|null $paired_user_id
+ * @property Carbon|null $paired_at
+ * @property string|null $last_ip
+ * @property string|null $user_agent
+ * @property string|null $app_version
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Outlet|null $outlet
  */
-#[Fillable(['business_id', 'outlet_id', 'name', 'identifier', 'platform', 'status', 'registered_at', 'last_seen_at', 'notes'])]
+#[Fillable(['business_id', 'outlet_id', 'name', 'identifier', 'platform', 'status', 'registered_at', 'last_seen_at', 'notes', 'paired_user_id', 'paired_at', 'last_ip', 'user_agent', 'app_version'])]
 class Device extends Model
 {
     /** Devices that may register with, and use, the cloud API. */
@@ -61,6 +66,7 @@ class Device extends Model
         return [
             'registered_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'paired_at' => 'datetime',
         ];
     }
 

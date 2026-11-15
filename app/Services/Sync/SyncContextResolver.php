@@ -73,10 +73,34 @@ class SyncContextResolver
             ->first();
 
         if (! $device) {
-            abort(response()->json([
-                'message' => 'Invalid sync device.',
-                'code' => 'SYNC_DEVICE_INVALID',
-            ], 403));
+            // PAIR-01: a cashier terminal must be paired with a dashboard code
+            // before it may sync. Auto-provisioning is kept for owner/member,
+            // whose devices are managed from the dashboard and who explicitly
+            // do not need a pairing code.
+            if ($role === Business::ROLE_CASHIER) {
+                abort(response()->json([
+                    'message' => 'Perangkat kasir belum terpasang. Minta kode pairing 4 digit dari pemilik melalui Dashboard → Perangkat.',
+                    'code' => 'DEVICE_NOT_REGISTERED',
+                ], 403));
+            }
+
+            $defaultOutlet = $business->outlets()->where('status', 'active')->first() ?? $business->outlets()->first();
+            if ($defaultOutlet) {
+                $device = Device::create([
+                    'business_id' => $business->id,
+                    'outlet_id' => $defaultOutlet->id,
+                    'identifier' => $deviceIdentifier,
+                    'name' => 'POS Mobile ('.($user->name ?? 'Kasir').')',
+                    'status' => 'active',
+                    'registered_at' => now(),
+                    'last_seen_at' => now(),
+                ]);
+            } else {
+                abort(response()->json([
+                    'message' => 'Invalid sync device.',
+                    'code' => 'SYNC_DEVICE_INVALID',
+                ], 403));
+            }
         }
 
         if ($device->status !== 'active') {

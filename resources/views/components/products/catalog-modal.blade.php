@@ -154,6 +154,29 @@
                         @error('price')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
 
+                    <div id="catalogProductPromoPriceContainer">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="catalogProductPromoPrice" class="block text-xs font-semibold text-slate-500 dark:text-slate-400">Harga Promo (Rp) <span class="font-normal text-slate-400 dark:text-slate-500">(Opsional)</span></label>
+                            <span id="catalogPromoDiscountBadge" class="hidden px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-600 dark:bg-rose-950/70 dark:text-rose-400 border border-rose-200 dark:border-rose-900">
+                                -0%
+                            </span>
+                        </div>
+                        <input
+                            id="catalogProductPromoPrice"
+                            name="promo_price"
+                            type="number"
+                            min="0"
+                            step="1"
+                            value="{{ old('promo_price') }}"
+                            placeholder="Contoh: 16000 (diskon dari harga jual)"
+                            class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                        <p class="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                            Harga khusus promo. Otomatis menampilkan label diskon (misal: -20%) pada card menu kasir.
+                        </p>
+                        @error('promo_price')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
+                    </div>
+
                     <div id="catalogSupplyCostContainer" class="hidden">
                         <label for="catalogSupplyCostInput" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Harga Beli / Modal per Satuan (Rp)</label>
                         <input

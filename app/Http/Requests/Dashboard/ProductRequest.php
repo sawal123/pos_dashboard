@@ -78,6 +78,9 @@ class ProductRequest extends FormRequest
                 ? null
                 : $this->input('category_id'),
             'price' => ! $isSellable ? 0 : ($this->input('price') ?? 0),
+            'promo_price' => (! $isSellable || in_array($this->input('promo_price'), ['', null], true))
+                ? null
+                : (int) $this->input('promo_price'),
             'recipe_items' => $cleanRecipeItems,
         ]);
     }
@@ -95,6 +98,7 @@ class ProductRequest extends FormRequest
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'price' => ['required', 'integer', 'min:0'],
+            'promo_price' => ['nullable', 'integer', 'min:0'],
             'status' => ['sometimes', 'string', Rule::in(CatalogManagementService::STATUSES)],
             'category_id' => [
                 'nullable',

@@ -46,15 +46,12 @@ use App\Http\Controllers\PwaController;
 use App\Http\Controllers\SeoController;
 use App\Http\Middleware\ShareDashboardBusinessContext;
 use App\Models\Subscription;
-use App\Models\SubscriptionPlan;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\DashboardBusinessContext;
 use App\Services\Subscription\LandingPricingService;
 use App\Services\Subscription\PremiumPolicy;
-use App\Services\Subscription\PremiumPricing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
 
 /*
 |--------------------------------------------------------------------------
@@ -410,6 +407,15 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::post('devices', [DevicesController::class, 'store'])
         ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])
         ->name('devices.store');
+    // PAIR-01 — kode pairing kasir (4 digit, berlaku 30 menit). Owner-only;
+    // kasir memakainya dari aplikasi lewat POST /api/mobile/devices/pair.
+    Route::post('devices/pairing-code', [DevicesController::class, 'storePairingCode'])
+        ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])
+        ->name('devices.pairing-code');
+    Route::delete('devices/pairing-code/{codeId}', [DevicesController::class, 'destroyPairingCode'])
+        ->whereNumber('codeId')
+        ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])
+        ->name('devices.pairing-code.revoke');
     Route::patch('devices/{deviceId}', [DevicesController::class, 'update'])
         ->whereNumber('deviceId')
         ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])

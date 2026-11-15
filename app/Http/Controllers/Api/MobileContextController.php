@@ -122,6 +122,7 @@ class MobileContextController extends Controller
                 'cloud_access' => $cloudAccess,
                 'outlets' => $outlets,
                 'device_context' => $deviceContext,
+                'units' => \App\Models\Unit::forBusiness($business)->pluck('name')->values()->all(),
             ];
         })->values()->all();
 

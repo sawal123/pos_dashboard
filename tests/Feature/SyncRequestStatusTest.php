@@ -162,13 +162,16 @@ class SyncRequestStatusTest extends TestCase
         $env = $this->makeEnvironment('cashier');
         $other = $this->makeEnvironment('cashier');
 
+        // PAIR-01: a cashier terminal that is not paired with this business can
+        // never be resolved, so it is reported as unregistered (not merely
+        // "invalid") to point the cashier at the pairing flow.
         $this->withToken($env['token'])
             ->getJson('/api/sync/requests/'.Str::uuid().'/status?'.http_build_query([
                 'business_id' => $env['business']->id,
                 'device_identifier' => $other['device']->identifier,
             ]))
             ->assertStatus(403)
-            ->assertJson(['code' => 'SYNC_DEVICE_INVALID']);
+            ->assertJson(['code' => 'DEVICE_NOT_REGISTERED']);
     }
 
     public function test_an_inactive_subscription_is_denied(): void

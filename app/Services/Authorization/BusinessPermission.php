@@ -133,6 +133,9 @@ final class BusinessPermission
                 self::POS_SELL,
                 self::SYNC_PUSH_CASHIER_SAFE,
                 self::SYNC_PULL,
+                // PAIR-01: a cashier never self-registers a device. The terminal
+                // is paired with the 4-digit code the owner generates in the
+                // dashboard (POST /api/mobile/devices/pair), authorized by role.
             ],
         ];
     }

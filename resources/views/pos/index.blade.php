@@ -1227,12 +1227,34 @@
                     </div>`;
                 }
 
+                let promoBadge = '';
+                let priceHtml = '';
+                const promoPrice = (p.promo_price > 0 && p.promo_price < p.price) ? p.promo_price : null;
+                if (promoPrice) {
+                    const discountPct = p.discount_percent || Math.round(((p.price - promoPrice) / p.price) * 100);
+                    promoBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-500 text-white shadow-xs">-${discountPct}%</span>`;
+                    priceHtml = `
+                        <div class="flex flex-col">
+                            <span class="text-[10px] text-slate-400 line-through leading-tight">${formatRp(p.price)}</span>
+                            <span class="font-black text-xs md:text-sm text-rose-600 dark:text-rose-400 leading-tight">
+                                ${formatRp(promoPrice)}
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    priceHtml = `
+                        <span class="font-black text-xs md:text-sm text-slate-900 dark:text-white">
+                            ${formatRp(p.price)}
+                        </span>
+                    `;
+                }
+
                 card.innerHTML = `
                     <div>
                         ${imageHtml}
                         <div class="flex items-center justify-between gap-1 mb-1.5">
                             <span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500 truncate max-w-[100px]">${p.category_name}</span>
-                            <div class="flex items-center gap-1">${variantBadge}${stockBadge}</div>
+                            <div class="flex items-center gap-1">${promoBadge}${variantBadge}${stockBadge}</div>
                         </div>
                         <h4 class="font-bold text-xs md:text-sm text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 line-clamp-2 transition-colors">
                             ${p.name}
@@ -1240,9 +1262,7 @@
                         <div class="text-[10px] font-mono text-slate-400 mt-0.5">${p.sku}</div>
                     </div>
                     <div class="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-                        <span class="font-black text-xs md:text-sm text-slate-900 dark:text-white">
-                            ${formatRp(p.price)}
-                        </span>
+                        ${priceHtml}
                         <div class="w-6 h-6 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 group-hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400 group-hover:text-white flex items-center justify-center transition-colors">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                         </div>
@@ -1279,7 +1299,15 @@
         function openVariantModal(product) {
             currentVariantProduct = product;
             document.getElementById('variantModalProductName').textContent = product.name;
-            document.getElementById('variantModalBasePrice').textContent = 'Harga dasar: ' + formatRp(product.price);
+            const effectiveBasePrice = (product.promo_price > 0 && product.promo_price < product.price)
+                ? product.promo_price
+                : product.price;
+            if (product.promo_price > 0 && product.promo_price < product.price) {
+                const discountPct = product.discount_percent || Math.round(((product.price - product.promo_price) / product.price) * 100);
+                document.getElementById('variantModalBasePrice').innerHTML = `Harga promo: <span class="font-bold text-rose-600">${formatRp(effectiveBasePrice)}</span> <span class="line-through text-slate-400 text-[11px]">${formatRp(product.price)}</span> <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-500 text-white">-${discountPct}%</span>`;
+            } else {
+                document.getElementById('variantModalBasePrice').textContent = 'Harga dasar: ' + formatRp(product.price);
+            }
 
             const container = document.getElementById('variantModalGroupsContainer');
             container.innerHTML = '';
@@ -1386,7 +1414,10 @@
                 });
             });
 
-            const total = (currentVariantProduct.price || 0) + totalAdj;
+            const effectiveBasePrice = (currentVariantProduct.promo_price > 0 && currentVariantProduct.promo_price < currentVariantProduct.price)
+                ? currentVariantProduct.promo_price
+                : (currentVariantProduct.price || 0);
+            const total = effectiveBasePrice + totalAdj;
             document.getElementById('variantModalTotalPrice').textContent = formatRp(total);
 
             const addBtn = document.getElementById('addVariantToCartBtn');
@@ -1430,7 +1461,10 @@
             });
 
             const variantSummary = summaryParts.join(', ');
-            const unitPrice = currentVariantProduct.price + totalAdj;
+            const effectiveBasePrice = (currentVariantProduct.promo_price > 0 && currentVariantProduct.promo_price < currentVariantProduct.price)
+                ? currentVariantProduct.promo_price
+                : currentVariantProduct.price;
+            const unitPrice = effectiveBasePrice + totalAdj;
 
             addToCartWithVariants(currentVariantProduct, selectedOptionIds, variantsSnapshot, variantSummary, unitPrice);
             closeVariantModal();
@@ -1478,13 +1512,17 @@
             if (existing) {
                 existing.quantity += 1;
             } else {
+                const effectiveBasePrice = (product.promo_price > 0 && product.promo_price < product.price)
+                    ? product.promo_price
+                    : product.price;
                 cart.push({
                     line_id: lineKey,
                     product_id: product.id,
                     name: product.name,
                     sku: product.sku,
-                    unit_price: product.price,
+                    unit_price: effectiveBasePrice,
                     base_price: product.price,
+                    promo_price: (product.promo_price > 0 && product.promo_price < product.price) ? product.promo_price : null,
                     unit: product.unit,
                     kind: product.kind,
                     quantity: 1,

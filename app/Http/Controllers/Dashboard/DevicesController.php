@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Exceptions\DevicePairingException;
 use App\Http\Controllers\Concerns\ResolvesActiveBusiness;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\StoreDeviceRequest;
@@ -13,6 +14,7 @@ use App\Services\Authorization\BusinessAuthorizer;
 use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\DashboardDevicesData;
 use App\Services\Dashboard\DeviceManagementService;
+use App\Services\Devices\DevicePairingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -25,6 +27,7 @@ class DevicesController extends Controller
     public function __construct(
         protected DashboardDevicesData $devicesData,
         protected DeviceManagementService $devices,
+        protected DevicePairingService $pairing,
     ) {}
 
     public function index(Request $request): View
@@ -58,6 +61,16 @@ class DevicesController extends Controller
 
         $data['canManageDevices'] = app(BusinessAuthorizer::class)
             ->allows($request->user(), $currentBusiness, BusinessPermission::DEVICES_MANAGE);
+
+        // PAIR-01 — kode pairing kasir (4 digit, 30 menit). Only shown when the
+        // business can actually pair (cloud plan + manage permission).
+        $data['activePairingCodes'] = $currentBusiness instanceof Business
+            ? $this->pairing->activeCodes($currentBusiness)
+            : collect();
+
+        $data['canPairCashierDevices'] = $data['canManageDevices']
+            && $currentBusiness instanceof Business
+            && $currentBusiness->hasCloudAccess();
 
         return view('devices.index', $data);
     }
@@ -112,5 +125,51 @@ class DevicesController extends Controller
         return redirect()
             ->route('devices.index')
             ->with('status', $status === 'active' ? 'Perangkat diaktifkan.' : 'Perangkat dinonaktifkan.');
+    }
+
+    // ============================================================
+    // PAIR-01 — kode pairing kasir (4 digit, berlaku 30 menit)
+    // ============================================================
+
+    public function storePairingCode(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate(
+            ['outlet_id' => ['required', 'integer']],
+            ['outlet_id.required' => 'Pilih outlet untuk perangkat kasir ini.'],
+        );
+
+        try {
+            $result = $this->pairing->issue($business, (int) $validated['outlet_id'], $request->user());
+        } catch (DevicePairingException $exception) {
+            return redirect()
+                ->route('devices.index')
+                ->withErrors(['pairing_code' => $exception->getMessage()]);
+        }
+
+        return redirect()
+            ->route('devices.index')
+            ->with('status', 'Kode pairing kasir dibuat. Berikan kode ini kepada kasir.')
+            ->with('pairing_code', [
+                'id' => $result['pairing']->id,
+                'code' => $result['code'],
+                'outlet' => $result['pairing']->outlet?->name,
+                'expires_at' => $result['pairing']->expires_at->toIso8601String(),
+            ]);
+    }
+
+    public function destroyPairingCode(Request $request, int $codeId): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $revoked = $this->pairing->revoke($business, $codeId);
+
+        return redirect()
+            ->route('devices.index')
+            ->with(
+                'status',
+                $revoked ? 'Kode pairing dibatalkan.' : 'Kode pairing tidak ditemukan pada bisnis ini.',
+            );
     }
 }

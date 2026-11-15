@@ -53,6 +53,9 @@ class CatalogManagementService
             'name' => trim((string) ($data['name'] ?? '')),
             'category_id' => $data['category_id'] ?? null,
             'price' => (int) ($data['price'] ?? 0),
+            'promo_price' => array_key_exists('promo_price', $data) && $data['promo_price'] !== null && $data['promo_price'] !== ''
+                ? (int) $data['promo_price']
+                : null,
             'sku' => $this->resolveSku($business, $kind, $data['sku'] ?? null),
         ];
 
@@ -135,6 +138,12 @@ class CatalogManagementService
         $product->category_id = $data['category_id'] ?? null;
         $product->price = (int) ($data['price'] ?? $product->price);
 
+        if (array_key_exists('promo_price', $data)) {
+            $product->promo_price = ($data['promo_price'] !== null && $data['promo_price'] !== '')
+                ? (int) $data['promo_price']
+                : null;
+        }
+
         if (isset($data['status'])) {
             $product->status = $this->status($data['status']);
         }
@@ -159,6 +168,7 @@ class CatalogManagementService
 
             if (! $product->is_sellable) {
                 $product->price = 0;
+                $product->promo_price = null;
             }
 
             if (array_key_exists('cost_source', $data) && in_array($data['cost_source'], CostSource::values(), true)) {

@@ -161,6 +161,17 @@
                         <td class="py-3 px-4 text-right tabular-nums">
                             @if(! ($product['is_sellable'] ?? true))
                                 <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">Non-Jual</span>
+                            @elseif(!empty($product['promo_price']) && $product['promo_price'] > 0 && $product['promo_price'] < $product['price'])
+                                <div class="flex items-center justify-end gap-1.5 flex-wrap">
+                                    <span class="font-bold text-rose-600 dark:text-rose-400">Rp {{ number_format($product['promo_price'], 0, ',', '.') }}</span>
+                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 border border-rose-200 dark:border-rose-900">-{{ $product['discount_percent'] }}%</span>
+                                </div>
+                                <span class="text-[11px] text-slate-400 line-through block">{{ $formattedPrice }}</span>
+                                @if(isset($product['margin_percent']))
+                                    <span class="block text-[10px] font-semibold {{ (float)$product['margin_percent'] >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
+                                        Margin {{ number_format($product['margin_percent'], 1) }}%
+                                    </span>
+                                @endif
                             @else
                                 <span class="font-bold text-slate-900 dark:text-white block">{{ $formattedPrice }}</span>
                                 @if(isset($product['margin_percent']))

@@ -72,13 +72,16 @@ class CashierSafeSyncTest extends TestCase
         $env = $this->makeEnvironment('cashier');
         $other = $this->makeEnvironment('cashier');
 
+        // PAIR-01: perangkat kasir yang tidak dipasangkan pada bisnis ini
+        // dilaporkan sebagai DEVICE_NOT_REGISTERED agar aplikasi mengarahkan
+        // kasir ke flow pairing kode 4 digit.
         $this->withToken($env['token'])
             ->getJson('/api/sync/pull?'.http_build_query([
                 'business_id' => $env['business']->id,
                 'device_identifier' => $other['device']->identifier,
             ]))
             ->assertStatus(403)
-            ->assertJson(['code' => 'SYNC_DEVICE_INVALID']);
+            ->assertJson(['code' => 'DEVICE_NOT_REGISTERED']);
 
         $env['device']->update(['status' => 'inactive']);
         $this->withToken($env['token'])

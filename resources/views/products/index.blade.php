@@ -801,6 +801,20 @@
                         costInput.value = effectiveHpp > 0 ? (effectiveHpp % 1 === 0 ? effectiveHpp : effectiveHpp.toFixed(2)) : '0';
                     }
 
+                    // Promo discount badge calculation
+                    const promoInput = form.elements.namedItem('promo_price');
+                    const promoPrice = parseFloat(promoInput?.value) || 0;
+                    const promoBadge = document.getElementById('catalogPromoDiscountBadge');
+                    if (promoBadge) {
+                        if (promoPrice > 0 && sellingPrice > 0 && promoPrice < sellingPrice) {
+                            const discountPct = Math.round(((sellingPrice - promoPrice) / sellingPrice) * 100);
+                            promoBadge.textContent = `-${discountPct}% (Hemat ${formatRupiahVal(sellingPrice - promoPrice)})`;
+                            promoBadge.classList.remove('hidden');
+                        } else {
+                            promoBadge.classList.add('hidden');
+                        }
+                    }
+
                     // Margin badge calculation
                     const activeCost = parseFloat(costInput?.value) || 0;
                     const marginBadge = document.getElementById('catalogMarginBadge');
@@ -1021,6 +1035,7 @@
 
                 const applySupplyMode = (isSupply, isExplicitSupplyModal = false) => {
                     const priceContainer = document.getElementById('catalogProductPriceContainer');
+                    const promoPriceContainer = document.getElementById('catalogProductPromoPriceContainer');
                     const supplyCostContainer = document.getElementById('catalogSupplyCostContainer');
                     const supplyCostInput = document.getElementById('catalogSupplyCostInput');
                     const priceInput = document.getElementById('catalogProductPrice');
@@ -1046,6 +1061,7 @@
                             skuContainer.classList.add('sm:col-span-1');
                         }
                         if (priceContainer) priceContainer.classList.add('hidden');
+                        if (promoPriceContainer) promoPriceContainer.classList.add('hidden');
                         if (supplyCostContainer) supplyCostContainer.classList.remove('hidden');
                         if (priceInput) {
                             priceInput.required = false;
@@ -1083,6 +1099,7 @@
                             unitSelect.value = 'pcs';
                         }
                         if (priceContainer) priceContainer.classList.remove('hidden');
+                        if (promoPriceContainer) promoPriceContainer.classList.remove('hidden');
                         if (supplyCostContainer) supplyCostContainer.classList.add('hidden');
                         if (priceInput) {
                             priceInput.required = true;
@@ -1262,9 +1279,11 @@
 
                         if (isSupply) {
                             setValue(form, 'price', '0');
+                            setValue(form, 'promo_price', '');
                             const supplyCostInput = document.getElementById('catalogSupplyCostInput');
                             if (supplyCostInput) supplyCostInput.value = '0';
                         } else {
+                            setValue(form, 'promo_price', '');
                             // Produk (menu): sediakan 1 baris input bahan agar user langsung bisa input komposisi
                             const rawMaterials = getRawMaterials();
                             if (rawMaterials.length > 0) {
@@ -1342,6 +1361,7 @@
                     setValue(form, 'name', raw.name || '');
                     setValue(form, 'category_id', raw.category_id === null || raw.category_id === undefined ? '' : raw.category_id);
                     setValue(form, 'price', raw.price ?? '');
+                    setValue(form, 'promo_price', raw.promo_price ?? '');
                     setValue(form, 'sku', raw.sku || '');
                     setValue(form, 'unit', raw.unit || '');
                     setValue(form, 'status', raw.status_raw || raw.status || 'active');
@@ -1702,7 +1722,7 @@
                         return;
                     }
 
-                    if (['catalogProductPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].includes(target.id) || target.classList.contains('recipe-qty-input')) {
+                    if (['catalogProductPrice', 'catalogProductPromoPrice', 'catalogProductCost', 'catalogHppOverheadFixed', 'catalogHppOverheadPercent'].includes(target.id) || target.classList.contains('recipe-qty-input')) {
                         updateLiveCalculations();
                         return;
                     }

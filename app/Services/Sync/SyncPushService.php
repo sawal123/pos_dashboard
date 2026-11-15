@@ -707,11 +707,15 @@ class SyncPushService
     protected function productSemanticFields(array $item): array
     {
         $fields = [];
-        $semanticKeys = ['kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration'];
+        $semanticKeys = ['kind', 'cost', 'stock', 'unit', 'min_stock', 'pricing_unit', 'min_quantity', 'estimated_duration', 'promo_price'];
 
         foreach ($semanticKeys as $key) {
-            if (array_key_exists($key, $item) && $item[$key] !== null) {
-                $fields[$key] = $item[$key];
+            if (array_key_exists($key, $item)) {
+                if ($key === 'promo_price') {
+                    $fields[$key] = ($item[$key] !== null && $item[$key] !== '') ? (int) $item[$key] : null;
+                } elseif ($item[$key] !== null) {
+                    $fields[$key] = $item[$key];
+                }
             }
         }
 

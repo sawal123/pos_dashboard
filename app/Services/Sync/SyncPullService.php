@@ -36,6 +36,15 @@ class SyncPullService
 
         // 1. Capture snapshot server sequence
         $serverSequence = (int) (SyncCounter::where('business_id', $business->id)->value('current_sequence') ?? 0);
+
+        // Self-healing: if serverSequence is 0 or unsequenced catalog records exist, automatically resequence
+        if ($serverSequence === 0
+            || Category::where('business_id', $business->id)->where(fn ($q) => $q->whereNull('sync_sequence')->orWhere('sync_sequence', '<=', 0))->exists()
+            || Product::where('business_id', $business->id)->where(fn ($q) => $q->whereNull('sync_sequence')->orWhere('sync_sequence', '<=', 0))->exists()
+        ) {
+            $serverSequence = SyncSequence::resequenceBusiness($business->id);
+        }
+
         $fetchLimit = $limit + 1;
 
         // 2. Fetch changes across syncable entities within sequence window
@@ -84,6 +93,7 @@ class SyncPullService
                     'barcode' => $prod->barcode,
                     'image_url' => $prod->image_url,
                     'price' => (int) $prod->price,
+                    'promo_price' => $prod->promo_price !== null ? (int) $prod->promo_price : null,
                     'kind' => $prod->kind,
                     'is_sellable' => (bool) $prod->is_sellable,
                     'cost' => (float) $prod->cost,
