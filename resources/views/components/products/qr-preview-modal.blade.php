@@ -665,14 +665,17 @@
         <button class="btn-print" onclick="window.print()">Cetak Sekarang</button>
     </div>
     <div class="grid">${cardsHtml}</div>
-    <script>
-        window.onload = function() {
-            setTimeout(function() { window.print(); }, 350);
-        };
-    <\/script>
 </body>
 </html>`);
             printWin.document.close();
+            printWin.focus();
+            setTimeout(function() {
+                try {
+                    printWin.print();
+                } catch (e) {
+                    console.warn('Auto print failed:', e);
+                }
+            }, 500);
         };
 
         window.generateQrCode = async function generateQrCode(productId, triggerBtn = null) {
