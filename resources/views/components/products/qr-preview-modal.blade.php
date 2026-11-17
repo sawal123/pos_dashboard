@@ -548,126 +548,127 @@
                 return;
             }
 
-            printWin.document.open();
-            printWin.document.write(`<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="utf-8" />
-    <title>Cetak Label Produk - ${safeName}</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8fafc;
-            color: #0f172a;
-            padding: 16px;
-        }
-        .toolbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            padding: 12px 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-        .toolbar-title { font-size: 14px; font-weight: 700; }
-        .toolbar-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
-        .btn-print {
-            background: #4f46e5;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
-            gap: 10px;
-        }
-        .label-card {
-            background: #ffffff;
-            border: 1.5px dashed #94a3b8;
-            border-radius: 10px;
-            padding: 10px 8px;
-            text-align: center;
-            page-break-inside: avoid;
-            break-inside: avoid;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .label-name {
-            font-size: 11px;
-            font-weight: 800;
-            line-height: 1.25;
-            max-height: 2.5em;
-            overflow: hidden;
-            margin-bottom: 2px;
-            color: #0f172a;
-        }
-        .label-price {
-            font-size: 11px;
-            font-weight: 800;
-            color: #4f46e5;
-            margin-bottom: 4px;
-        }
-        .label-qr {
-            width: 108px;
-            height: 108px;
-            object-fit: contain;
-            margin: 2px auto;
-        }
-        .label-barcode {
-            width: 142px;
-            height: 42px;
-            object-fit: contain;
-            margin: 3px auto 1px;
-        }
-        .label-code {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-            font-size: 9.5px;
-            font-weight: 700;
-            color: #0f172a;
-            margin-top: 3px;
-            word-break: break-all;
-        }
-        .label-sku {
-            font-size: 8.5px;
-            color: #64748b;
-            margin-top: 1px;
-        }
-        @media print {
-            body { background: #ffffff; padding: 0; }
-            .toolbar { display: none !important; }
-            .grid {
-                grid-template-columns: repeat(4, 1fr);
-                gap: 8px;
-            }
-            .label-card {
-                border: 1px dashed #cbd5e1;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="toolbar">
-        <div>
-            <div class="toolbar-title">Cetak Stiker Produk: ${safeName} (${copies} Label)</div>
-            <div class="toolbar-sub">Siap dicetak pada kertas stiker / label atau printer thermal lalu ditempel pada produk.</div>
-        </div>
-        <button class="btn-print" onclick="window.print()">Cetak Sekarang</button>
-    </div>
-    <div class="grid">${cardsHtml}</div>
-</body>
-</html>`);
-            printWin.document.close();
+            printWin.document.title = `Cetak Label Produk - ${safeName}`;
+
+            const printStyles = `
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body {
+                    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                    background: #f8fafc;
+                    color: #0f172a;
+                    padding: 16px;
+                }
+                .toolbar {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    background: #ffffff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 12px;
+                    padding: 12px 16px;
+                    margin-bottom: 16px;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                }
+                .toolbar-title { font-size: 14px; font-weight: 700; }
+                .toolbar-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+                .btn-print {
+                    background: #4f46e5;
+                    color: #ffffff;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 8px 16px;
+                    font-size: 13px;
+                    font-weight: 700;
+                    cursor: pointer;
+                }
+                .grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+                    gap: 10px;
+                }
+                .label-card {
+                    background: #ffffff;
+                    border: 1.5px dashed #94a3b8;
+                    border-radius: 10px;
+                    padding: 10px 8px;
+                    text-align: center;
+                    page-break-inside: avoid;
+                    break-inside: avoid;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+                .label-name {
+                    font-size: 11px;
+                    font-weight: 800;
+                    line-height: 1.25;
+                    max-height: 2.5em;
+                    overflow: hidden;
+                    margin-bottom: 2px;
+                    color: #0f172a;
+                }
+                .label-price {
+                    font-size: 11px;
+                    font-weight: 800;
+                    color: #4f46e5;
+                    margin-bottom: 4px;
+                }
+                .label-qr {
+                    width: 108px;
+                    height: 108px;
+                    object-fit: contain;
+                    margin: 2px auto;
+                }
+                .label-barcode {
+                    width: 142px;
+                    height: 42px;
+                    object-fit: contain;
+                    margin: 3px auto 1px;
+                }
+                .label-code {
+                    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                    font-size: 9.5px;
+                    font-weight: 700;
+                    color: #0f172a;
+                    margin-top: 3px;
+                    word-break: break-all;
+                }
+                .label-sku {
+                    font-size: 8.5px;
+                    color: #64748b;
+                    margin-top: 1px;
+                }
+                @media print {
+                    body { background: #ffffff; padding: 0; }
+                    .toolbar { display: none !important; }
+                    .grid {
+                        grid-template-columns: repeat(4, 1fr);
+                        gap: 8px;
+                    }
+                    .label-card {
+                        border: 1px dashed #cbd5e1;
+                    }
+                }
+            `;
+
+            const styleEl = printWin.document.createElement('style');
+            styleEl.textContent = printStyles;
+            printWin.document.head.replaceChildren(styleEl);
+
+            const contentWrapper = printWin.document.createElement('div');
+            contentWrapper.innerHTML = `
+                <div class="toolbar">
+                    <div>
+                        <div class="toolbar-title">Cetak Stiker Produk: ${safeName} (${copies} Label)</div>
+                        <div class="toolbar-sub">Siap dicetak pada kertas stiker / label atau printer thermal lalu ditempel pada produk.</div>
+                    </div>
+                    <button class="btn-print" onclick="window.print()">Cetak Sekarang</button>
+                </div>
+                <div class="grid">${cardsHtml}</div>
+            `;
+            printWin.document.body.replaceChildren(contentWrapper);
+
             printWin.focus();
             setTimeout(function() {
                 try {
