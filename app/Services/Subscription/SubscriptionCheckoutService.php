@@ -67,16 +67,31 @@ final class SubscriptionCheckoutService
         };
     }
 
-    public function createCheckout(Business $business, User $user, string $plan, string $period, ?string $idempotencyKey = null): SubscriptionPayment
-    {
+    public function createCheckout(
+        Business $business,
+        User $user,
+        string $plan,
+        string $period,
+        ?string $idempotencyKey = null,
+        ?int $outletId = null,
+    ): SubscriptionPayment {
         $price = $this->pricing->priceFor($plan, $period);
 
         if ($price === null || ! $this->midtrans->isConfigured()) {
             throw new PricingUnavailableException;
         }
 
-        return DB::transaction(function () use ($business, $user, $plan, $period, $idempotencyKey, $price): SubscriptionPayment {
-            $existing = $this->existingPendingPayment($business, $user, $plan, $period, $price['currency'], $price['price_minor'], $idempotencyKey);
+        // Normalize primary outlet to NULL so primary-outlet checkouts reuse
+        // the canonical business-level subscription scope.
+        if ($outletId !== null) {
+            $isPrimary = $business->outlets()->whereKey($outletId)->value('is_primary');
+            if ($isPrimary) {
+                $outletId = null;
+            }
+        }
+
+        return DB::transaction(function () use ($business, $user, $plan, $period, $idempotencyKey, $price, $outletId): SubscriptionPayment {
+            $existing = $this->existingPendingPayment($business, $user, $plan, $period, $price['currency'], $price['price_minor'], $idempotencyKey, $outletId);
 
             if ($existing !== null && $existing->snap_token !== null && $existing->redirect_url !== null) {
                 return $existing;
@@ -84,6 +99,7 @@ final class SubscriptionCheckoutService
 
             $payment = $existing ?? SubscriptionPayment::query()->create([
                 'business_id' => $business->id,
+                'outlet_id' => $outletId,
                 'user_id' => $user->id,
                 'provider' => SubscriptionPayment::PROVIDER_MIDTRANS,
                 'provider_order_id' => $this->newProviderOrderId($business),
@@ -115,6 +131,7 @@ final class SubscriptionCheckoutService
         string $currency,
         int $amount,
         ?string $idempotencyKey,
+        ?int $outletId = null,
     ): ?SubscriptionPayment {
         $query = SubscriptionPayment::query()
             ->where('business_id', $business->id)
@@ -125,6 +142,12 @@ final class SubscriptionCheckoutService
             ->where('amount', $amount)
             ->where('status', SubscriptionPayment::STATUS_PENDING)
             ->lockForUpdate();
+
+        if ($outletId === null) {
+            $query->whereNull('outlet_id');
+        } else {
+            $query->where('outlet_id', $outletId);
+        }
 
         if ($idempotencyKey !== null) {
             $query->where('idempotency_key', $idempotencyKey);

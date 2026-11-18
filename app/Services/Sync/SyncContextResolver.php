@@ -84,7 +84,14 @@ class SyncContextResolver
                 ], 403));
             }
 
-            $defaultOutlet = $business->outlets()->where('status', 'active')->first() ?? $business->outlets()->first();
+            $defaultOutlet = $business->outlets()
+                ->where('status', 'active')
+                ->orderByDesc('is_primary')
+                ->orderBy('id')
+                ->get()
+                ->first(fn ($o) => $o->hasCloudAccess())
+                ?? $business->outlets()->where('status', 'active')->first()
+                ?? $business->outlets()->first();
             if ($defaultOutlet) {
                 $device = Device::create([
                     'business_id' => $business->id,
@@ -107,6 +114,14 @@ class SyncContextResolver
             abort(response()->json([
                 'message' => 'Device is inactive.',
                 'code' => 'DEVICE_INACTIVE',
+            ], 403));
+        }
+
+        $outlet = $device->outlet;
+        if (! $outlet || ! $outlet->hasCloudAccess()) {
+            abort(response()->json([
+                'message' => 'Cloud subscription is required for this outlet.',
+                'code' => 'CLOUD_SUBSCRIPTION_REQUIRED',
             ], 403));
         }
 

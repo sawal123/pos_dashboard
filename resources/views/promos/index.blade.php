@@ -161,7 +161,7 @@
         @endif
 
         @if($canManagePromos ?? false)
-            <x-promos.promo-modal :products="$products" :categories="$categories" :customers="$customers" />
+            <x-promos.promo-modal :products="$products" :categories="$categories" :customers="$customers" :outlets="$outlets ?? []" />
         @endif
     </main>
 
@@ -183,6 +183,22 @@
             const subtitle = document.getElementById('promoModalSubtitle');
             const title = document.getElementById('promoModalTitle');
             const scopeSelect = document.getElementById('promoScope');
+            const outletScopeSelect = document.getElementById('promoOutletScope');
+            const outletSelection = document.getElementById('promoOutletSelection');
+
+            const syncOutletScopeUi = (outletScope = 'all', selectedOutletIds = []) => {
+                if (outletScopeSelect) outletScopeSelect.value = outletScope;
+                if (outletSelection) {
+                    outletSelection.classList.toggle('hidden', outletScope !== 'selected');
+                }
+                const idSet = new Set((selectedOutletIds || []).map((v) => String(v)));
+                document.querySelectorAll('.promo-outlet-checkbox').forEach((cb) => {
+                    cb.checked = idSet.has(String(cb.value));
+                });
+            };
+            outletScopeSelect?.addEventListener('change', () => {
+                syncOutletScopeUi(outletScopeSelect.value, []);
+            });
             const targetGroup = document.getElementById('promoTargetGroup');
             const targetLabel = document.getElementById('promoTargetLabel');
             const targetHint = document.getElementById('promoTargetHint');
@@ -335,6 +351,7 @@
                 setValue('discount_type', 'percent');
                 setValue('discount_value', '0');
                 setTargetScope('all', []);
+                syncOutletScopeUi('all', []);
                 if (subtitle) subtitle.textContent = 'Tambah';
                 if (title) title.textContent = 'Promo';
                 open();
@@ -375,6 +392,7 @@
                         : [];
 
                     setTargetScope(scope, ids);
+                    syncOutletScopeUi(raw.outlet_scope || 'all', raw.outlet_ids || []);
 
                     if (subtitle) subtitle.textContent = 'Edit';
                     if (title) title.textContent = raw.name || 'Promo';

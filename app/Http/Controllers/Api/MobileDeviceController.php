@@ -96,7 +96,7 @@ class MobileDeviceController extends Controller
                 ->firstOrFail();
 
             // ── 5. Cloud access enforcement ───────────────────────────────────
-            if (! $lockedBusiness->hasCloudAccess()) {
+            if (! $lockedBusiness->hasCloudAccess() || ! $outlet->hasCloudAccess()) {
                 return response()->json([
                     'message' => 'Cloud subscription is required.',
                     'code' => 'CLOUD_SUBSCRIPTION_REQUIRED',

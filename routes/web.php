@@ -343,10 +343,21 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('outlets', [OutletsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::OUTLETS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('outlets.index');
+    Route::post('outlets', [OutletsController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::OUTLETS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('outlets.store');
     Route::get('outlets/{outletId}/detail', [OutletsController::class, 'detail'])
         ->whereNumber('outletId')
         ->middleware(['business.permission:'.BusinessPermission::OUTLETS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('outlets.detail');
+    Route::patch('outlets/{outletId}', [OutletsController::class, 'update'])
+        ->whereNumber('outletId')
+        ->middleware(['business.permission:'.BusinessPermission::OUTLETS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('outlets.update');
+    Route::patch('outlets/{outletId}/status', [OutletsController::class, 'updateStatus'])
+        ->whereNumber('outletId')
+        ->middleware(['business.permission:'.BusinessPermission::OUTLETS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('outlets.status');
 
     // Owner-only member administration.
     Route::get('users', [UsersController::class, 'index'])

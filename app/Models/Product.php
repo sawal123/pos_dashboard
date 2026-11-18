@@ -235,4 +235,14 @@ class Product extends Model
             ->orderByPivot('sort_order')
             ->withTimestamps();
     }
+
+    /**
+     * MULTI-OUTLET — per-branch price / availability overrides.
+     *
+     * @return HasMany<OutletProduct, $this>
+     */
+    public function outletOverrides(): HasMany
+    {
+        return $this->hasMany(OutletProduct::class);
+    }
 }

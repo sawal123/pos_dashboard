@@ -78,7 +78,7 @@ class DevicePairingService
             );
         }
 
-        if (! $business->hasCloudAccess()) {
+        if (! $business->hasCloudAccess() || ! $outlet->hasCloudAccess()) {
             throw new DevicePairingException(
                 'CLOUD_SUBSCRIPTION_REQUIRED',
                 'Kode pairing hanya tersedia untuk paket Cloud aktif.',
@@ -199,6 +199,15 @@ class DevicePairingService
                         'PAIRING_CODE_EXPIRED',
                         'Kode pairing sudah kedaluwarsa (berlaku '.DevicePairingCode::TTL_MINUTES.' menit). Minta kode baru dari pemilik.',
                         410,
+                    );
+                }
+
+                $pairingOutlet = Outlet::find($pairing->outlet_id);
+                if (! $pairingOutlet || ! $pairingOutlet->hasCloudAccess()) {
+                    throw new DevicePairingException(
+                        'CLOUD_SUBSCRIPTION_REQUIRED',
+                        'Paket Cloud cabang tidak aktif. Pairing perangkat dibatalkan.',
+                        403,
                     );
                 }
 

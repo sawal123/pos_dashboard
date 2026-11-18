@@ -32,6 +32,7 @@ class MobileSubscriptionCheckoutController extends Controller
 
         $validated = $request->validate([
             'business_id' => ['required', 'integer'],
+            'outlet_id' => ['nullable', 'integer'],
             'plan' => ['required', 'string', Rule::in([Subscription::PLAN_CLOUD])],
             'billing_period' => ['required', 'string', Rule::in(['monthly', 'yearly'])],
             'idempotency_key' => ['nullable', 'string', 'max:120'],
@@ -58,6 +59,14 @@ class MobileSubscriptionCheckoutController extends Controller
             ], 403);
         }
 
+        $outletId = isset($validated['outlet_id']) ? (int) $validated['outlet_id'] : null;
+        if ($outletId !== null && ! $business->outlets()->whereKey($outletId)->exists()) {
+            return response()->json([
+                'message' => 'Outlet not found or does not belong to this business.',
+                'code' => 'OUTLET_ACCESS_DENIED',
+            ], 403);
+        }
+
         try {
             $payment = $this->checkout->createCheckout(
                 business: $business,
@@ -65,6 +74,7 @@ class MobileSubscriptionCheckoutController extends Controller
                 plan: (string) $validated['plan'],
                 period: (string) $validated['billing_period'],
                 idempotencyKey: isset($validated['idempotency_key']) ? (string) $validated['idempotency_key'] : null,
+                outletId: $outletId,
             );
         } catch (PricingUnavailableException) {
             return response()->json([

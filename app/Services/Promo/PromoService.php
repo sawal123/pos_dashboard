@@ -24,6 +24,7 @@ final class PromoService
         return DB::transaction(function () use ($business, $data): Promo {
             $promo = Promo::create($this->attributes($business, $data));
             $this->syncTargets($promo, $data);
+            $this->syncOutlets($promo, $data);
             $this->assertNoConflict($promo);
 
             return $promo->refresh();
@@ -39,6 +40,7 @@ final class PromoService
             $promo->fill($this->attributes($promo->business ?? Business::findOrFail($promo->business_id), $data));
             $promo->save();
             $this->syncTargets($promo, $data);
+            $this->syncOutlets($promo, $data);
             $this->assertNoConflict($promo);
 
             return $promo->refresh();
@@ -76,7 +78,29 @@ final class PromoService
             'priority' => (int) ($data['priority'] ?? 0),
             'is_stackable' => (bool) ($data['is_stackable'] ?? false),
             'status' => (string) ($data['status'] ?? PromoStatus::Draft->value),
+            'outlet_scope' => (isset($data['outlet_scope']) && $data['outlet_scope'] === Promo::OUTLET_SCOPE_SELECTED)
+                ? Promo::OUTLET_SCOPE_SELECTED
+                : Promo::OUTLET_SCOPE_ALL,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function syncOutlets(Promo $promo, array $data): void
+    {
+        if ($promo->outlet_scope !== Promo::OUTLET_SCOPE_SELECTED) {
+            $promo->outlets()->detach();
+
+            return;
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', is_array($data['outlet_ids'] ?? null) ? $data['outlet_ids'] : []))));
+        $pivot = [];
+        foreach ($ids as $outletId) {
+            $pivot[$outletId] = ['business_id' => $promo->business_id];
+        }
+        $promo->outlets()->sync($pivot);
     }
 
     /**
@@ -145,6 +169,10 @@ final class PromoService
 
     private function sharesTargets(Promo $first, Promo $second): bool
     {
+        if (! $this->sharesOutlets($first, $second)) {
+            return false;
+        }
+
         if ((string) $first->scope === PromoScope::All->value || (string) $second->scope === PromoScope::All->value) {
             return true;
         }
@@ -161,6 +189,22 @@ final class PromoService
         }
 
         return array_intersect($firstIds, $secondIds) !== [];
+    }
+
+    private function sharesOutlets(Promo $first, Promo $second): bool
+    {
+        if ($first->outlet_scope !== Promo::OUTLET_SCOPE_SELECTED || $second->outlet_scope !== Promo::OUTLET_SCOPE_SELECTED) {
+            return true;
+        }
+
+        $firstOutlets = $first->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+        $secondOutlets = $second->outlets()->pluck('outlets.id')->map(fn ($id) => (int) $id)->all();
+
+        if ($firstOutlets === [] || $secondOutlets === []) {
+            return false;
+        }
+
+        return array_intersect($firstOutlets, $secondOutlets) !== [];
     }
 
     /**

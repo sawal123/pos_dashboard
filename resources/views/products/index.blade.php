@@ -301,6 +301,7 @@
                 :raw-material-options="$rawMaterialOptions ?? []"
                 :variant-group-options="$variantGroupOptions ?? []"
                 :unit-options="$unitOptions ?? []"
+                :outlets="$outlets ?? []"
                 :has-cloud-access="$hasCloudAccess ?? false"
             />
 
@@ -1318,6 +1319,10 @@
 
                         applyKind(form, kind, false);
                         applySupplyMode(isSupply, isSupply);
+                        const outletSection = document.getElementById('catalogOutletPricesSection');
+                        if (outletSection) outletSection.classList.toggle('hidden', isSupply);
+                        document.querySelectorAll('[data-outlet-price-input]').forEach((inp) => { inp.value = ''; });
+                        document.querySelectorAll('[data-outlet-available-input]').forEach((cb) => { cb.checked = true; });
                         showProductForm(form);
                         if (kind === 'service') {
                             setHeading('Tambah', 'Layanan');
@@ -1370,10 +1375,26 @@
                         setProductImagePreview(raw.image_url);
                     }
 
+                    const outletPrices = raw.outlet_prices || {};
+                    document.querySelectorAll('[data-outlet-price-input]').forEach((inp) => {
+                        const oid = inp.getAttribute('data-outlet-price-input');
+                        const row = outletPrices[oid] || {};
+                        inp.value = row.price !== null && row.price !== undefined ? row.price : '';
+                    });
+                    document.querySelectorAll('[data-outlet-available-input]').forEach((cb) => {
+                        const oid = cb.getAttribute('data-outlet-available-input');
+                        const row = outletPrices[oid];
+                        cb.checked = !row || row.is_available !== false;
+                    });
+
                     if (kind === 'service') {
                         setValue(form, 'pricing_unit', raw.pricing_unit || '');
                         setValue(form, 'min_quantity', raw.min_quantity ?? '0');
                         setValue(form, 'estimated_duration', raw.estimated_duration || '');
+                        applyKind(form, kind, true);
+                        applySupplyMode(false, false);
+                        setHeading('Edit', 'Layanan');
+                        open(trigger);
                     } else {
                         currentEditingProductId = raw.id || null;
                         currentHppCalculated = parseFloat(raw.hpp) || 0;

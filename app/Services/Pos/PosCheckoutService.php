@@ -17,6 +17,7 @@ use App\Models\Shift;
 use App\Models\User;
 use App\Models\VariantGroup;
 use App\Models\VariantOption;
+use App\Services\Catalog\OutletPricing;
 use App\Services\Inventory\StockLedgerService;
 use App\Services\Promo\PromoEvaluator;
 use Illuminate\Database\Eloquent\Collection;
@@ -31,6 +32,7 @@ class PosCheckoutService
         protected StockLedgerService $stockLedgerService,
         protected PromoEvaluator $promoEvaluator,
         protected PosShiftService $shiftService,
+        protected OutletPricing $outletPricing = new OutletPricing,
     ) {}
 
     /**
@@ -206,6 +208,7 @@ class PosCheckoutService
             $lockedProducts = Product::query()
                 ->where('business_id', $business->id)
                 ->whereIn('id', $allLockProductIds)
+                ->with(['outletOverrides' => fn ($q) => $q->where('outlet_id', $outlet->id)])
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -244,7 +247,14 @@ class PosCheckoutService
                     ]);
                 }
 
-                $unitPrice = (int) $product->price;
+                $outletPricing = $this->outletPricing->forProduct($product, $outlet);
+                if (! $outletPricing['is_available']) {
+                    throw ValidationException::withMessages([
+                        'items' => "Produk '{$product->name}' tidak tersedia di cabang ini.",
+                    ]);
+                }
+
+                $unitPrice = (int) $outletPricing['price'];
                 $unitCost = (float) $product->cost;
 
                 // Process selected variants for this line item
@@ -337,6 +347,7 @@ class PosCheckoutService
                 $promo = Promo::query()
                     ->where('business_id', $business->id)
                     ->where('id', (int) $payload['promo_id'])
+                    ->forOutlet($outlet->id)
                     ->first();
 
                 if ($promo instanceof Promo && $promo->status === PromoStatus::Active->value) {
@@ -485,6 +496,7 @@ class PosCheckoutService
                         type: StockMovementType::Sale,
                         delta: -((float) $line['quantity']),
                         meta: [
+                            'outlet_id' => $outlet->id,
                             'sale_sync_id' => (string) $sale->sync_id,
                             'reference_id' => $sale->transaction_number,
                             'category' => 'Penjualan POS',
@@ -512,6 +524,7 @@ class PosCheckoutService
                                 type: StockMovementType::Sale,
                                 delta: -$deductIngredientQty,
                                 meta: [
+                                    'outlet_id' => $outlet->id,
                                     'sale_sync_id' => (string) $sale->sync_id,
                                     'reference_id' => $sale->transaction_number,
                                     'category' => 'Bahan Baku Varian',

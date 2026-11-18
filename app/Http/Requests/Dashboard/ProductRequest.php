@@ -115,6 +115,10 @@ class ProductRequest extends FormRequest
             ],
             'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,webp,gif', 'max:2048'],
             'remove_image' => ['nullable', 'boolean'],
+            'outlet_prices' => ['nullable', 'array'],
+            'outlet_prices.*.price' => ['nullable', 'integer', 'min:0'],
+            'outlet_prices.*.promo_price' => ['nullable', 'integer', 'min:0'],
+            'outlet_prices.*.is_available' => ['nullable', 'boolean'],
         ];
 
         if ($business && ! $business->hasCloudAccess()) {

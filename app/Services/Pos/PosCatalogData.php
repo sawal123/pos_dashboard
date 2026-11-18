@@ -9,12 +9,14 @@ use App\Models\Customer;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Promo;
+use App\Services\Catalog\OutletPricing;
 use Illuminate\Support\Carbon;
 
 class PosCatalogData
 {
     public function __construct(
-        protected PosShiftService $shiftService
+        protected PosShiftService $shiftService,
+        protected OutletPricing $outletPricing = new OutletPricing,
     ) {}
 
     /**
@@ -61,6 +63,7 @@ class PosCatalogData
             ->where('is_sellable', true)
             ->with([
                 'category:id,name',
+                'outletOverrides' => fn ($q) => $q->where('outlet_id', $activeOutlet->id),
                 'variantGroups' => fn ($q) => $q->where('status', 'active')->with(['activeOptions.ingredientProduct'])->orderBy('sort_order'),
             ])
             ->orderBy('name')
@@ -80,7 +83,18 @@ class PosCatalogData
                 'kind',
                 'pricing_unit',
             ])
-            ->map(function (Product $product): array {
+            ->filter(function (Product $product) use ($activeOutlet): bool {
+                return $this->outletPricing->forProduct($product, $activeOutlet)['is_available'];
+            })
+            ->map(function (Product $product) use ($activeOutlet): array {
+                $pricing = $this->outletPricing->forProduct($product, $activeOutlet);
+                $price = $pricing['price'];
+                $promoPrice = $pricing['promo_price'];
+                $effectivePrice = ($promoPrice !== null && $promoPrice > 0 && $promoPrice < $price) ? $promoPrice : $price;
+                $discountPercent = ($effectivePrice < $price && $price > 0)
+                    ? (int) round((($price - $effectivePrice) / $price) * 100)
+                    : 0;
+
                 $hasVariants = $product->relationLoaded('variantGroups') && $product->variantGroups->isNotEmpty();
                 $variantGroups = $hasVariants
                     ? $product->variantGroups->map(fn ($g) => [
@@ -110,10 +124,10 @@ class PosCatalogData
                     'sku' => (string) $product->sku,
                     'barcode' => (string) ($product->barcode ?? ''),
                     'image_url' => $product->image_url,
-                    'price' => (int) $product->price,
-                    'promo_price' => $product->promo_price !== null ? (int) $product->promo_price : null,
-                    'discount_percent' => $product->discount_percent,
-                    'effective_price' => $product->effective_price,
+                    'price' => $price,
+                    'promo_price' => $promoPrice,
+                    'discount_percent' => $discountPercent,
+                    'effective_price' => $effectivePrice,
                     'cost' => (float) $product->cost,
                     'stock' => (float) $product->stock,
                     'min_stock' => (float) $product->min_stock,
@@ -125,12 +139,14 @@ class PosCatalogData
                     'has_variants' => $hasVariants,
                     'variant_groups' => $variantGroups,
                 ];
-            });
+            })
+            ->values();
 
         $now = Carbon::now();
         $promos = Promo::query()
             ->where('business_id', $business->id)
             ->where('status', PromoStatus::Active->value)
+            ->forOutlet($activeOutlet->id)
             ->with('targets')
             ->get()
             ->filter(function (Promo $promo) use ($now): bool {

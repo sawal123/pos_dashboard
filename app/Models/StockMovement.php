@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\DefaultsToPrimaryOutlet;
 use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $business_id
+ * @property int|null $outlet_id
  * @property int $product_id
  * @property string $movement_type
  * @property string $quantity_change
@@ -37,10 +39,10 @@ use Illuminate\Support\Carbon;
  * @property-read Product|null $product
  * @property-read User|null $user
  */
-#[Fillable(['business_id', 'product_id', 'user_id', 'movement_type', 'quantity_change', 'stock_before', 'stock_after', 'reference_id', 'category', 'note', 'sale_sync_id', 'unit_cost', 'idempotency_key', 'occurred_at'])]
+#[Fillable(['business_id', 'outlet_id', 'product_id', 'user_id', 'movement_type', 'quantity_change', 'stock_before', 'stock_after', 'reference_id', 'category', 'note', 'sale_sync_id', 'unit_cost', 'idempotency_key', 'occurred_at'])]
 class StockMovement extends Model
 {
-    use HasSyncMetadata;
+    use DefaultsToPrimaryOutlet, HasSyncMetadata;
 
     /**
      * Get the attributes that should be cast.

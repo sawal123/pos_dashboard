@@ -70,6 +70,7 @@ final class StockLedgerService
 
                 $movement = new StockMovement([
                     'business_id' => $business->id,
+                    'outlet_id' => isset($meta['outlet_id']) ? (int) $meta['outlet_id'] : null,
                     'product_id' => $locked->id,
                     'movement_type' => $type->value,
                     'quantity_change' => $this->quantity($delta),

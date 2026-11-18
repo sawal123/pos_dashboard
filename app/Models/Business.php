@@ -76,6 +76,12 @@ class Business extends Model
      */
     public const MANAGED_ROLES = [self::ROLE_MEMBER, self::ROLE_CASHIER];
 
+    /** Stock balances are shared by every outlet (current behaviour). */
+    public const STOCK_SCOPE_SHARED = 'shared';
+
+    /** Foundation only: per-outlet stock balances (not enabled yet). */
+    public const STOCK_SCOPE_PER_OUTLET = 'per_outlet';
+
     /** @use HasFactory<BusinessFactory> */
     use HasFactory;
 
@@ -242,6 +248,32 @@ class Business extends Model
     }
 
     /**
+     * The primary outlet (covered by the business-level subscription).
+     *
+     * @return HasOne<Outlet, $this>
+     */
+    public function primaryOutlet(): HasOne
+    {
+        return $this->hasOne(Outlet::class)->where('is_primary', true);
+    }
+
+    /**
+     * Resolve the primary outlet, falling back to the oldest outlet for legacy rows.
+     */
+    public function resolvePrimaryOutlet(): ?Outlet
+    {
+        /** @var Outlet|null $outlet */
+        $outlet = $this->primaryOutlet ?? $this->outlets()->orderBy('id')->first();
+
+        return $outlet;
+    }
+
+    public function stockIsPerOutlet(): bool
+    {
+        return ($this->stock_scope ?? self::STOCK_SCOPE_SHARED) === self::STOCK_SCOPE_PER_OUTLET;
+    }
+
+    /**
      * The categories belonging to the business.
      *
      * @return HasMany<Category, $this>
@@ -368,7 +400,17 @@ class Business extends Model
      */
     public function subscription(): HasOne
     {
-        return $this->hasOne(Subscription::class);
+        return $this->hasOne(Subscription::class)->where('scope_key', Subscription::SCOPE_PRIMARY);
+    }
+
+    /**
+     * Every subscription of the business, including branch subscriptions.
+     *
+     * @return HasMany<Subscription, $this>
+     */
+    public function allSubscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
     }
 
     /**
@@ -437,7 +479,32 @@ class Business extends Model
      */
     public function hasCloudAccess(): bool
     {
-        return $this->subscription !== null && $this->subscription->hasCloudAccess();
+        if ($this->subscription !== null && $this->subscription->hasCloudAccess()) {
+            return true;
+        }
+
+        return $this->hasActiveBranchSubscription();
+    }
+
+    /**
+     * MULTI-OUTLET — the business keeps dashboard/cloud access while at least
+     * one active branch outlet still has a paid, unexpired subscription.
+     */
+    public function hasActiveBranchSubscription(): bool
+    {
+        if (! $this->exists) {
+            return false;
+        }
+
+        return Subscription::query()
+            ->where('subscriptions.business_id', $this->id)
+            ->whereNotNull('subscriptions.outlet_id')
+            ->where('subscriptions.plan', Subscription::PLAN_CLOUD)
+            ->where('subscriptions.status', Subscription::STATUS_ACTIVE)
+            ->where(fn ($q) => $q->whereNull('subscriptions.expires_at')->orWhere('subscriptions.expires_at', '>', now()))
+            ->join('outlets', 'outlets.id', '=', 'subscriptions.outlet_id')
+            ->where('outlets.status', Outlet::STATUS_ACTIVE)
+            ->exists();
     }
 
     /**

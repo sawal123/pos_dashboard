@@ -106,6 +106,12 @@ class PromoRequest extends FormRequest
             'targets' => ['nullable', 'array'],
             'targets.*.type' => ['required_with:targets', 'string', Rule::in([PromoScope::Product->value, PromoScope::Category->value, PromoScope::Customer->value])],
             'targets.*.id' => ['required_with:targets', 'integer'],
+            'outlet_scope' => ['nullable', 'string', Rule::in([Promo::OUTLET_SCOPE_ALL, Promo::OUTLET_SCOPE_SELECTED])],
+            'outlet_ids' => ['nullable', 'array'],
+            'outlet_ids.*' => [
+                'integer',
+                Rule::exists('outlets', 'id')->where(fn ($q) => $q->where('business_id', $businessId)),
+            ],
         ];
 
         if ($discountType === PromoDiscountType::Percent->value) {

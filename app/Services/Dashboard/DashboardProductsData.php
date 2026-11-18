@@ -163,6 +163,21 @@ class DashboardProductsData
 
         $unitOptions = Unit::forBusiness($business)->pluck('name')->values()->all();
 
+        $outlets = $business->outlets()
+            ->orderByDesc('is_primary')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code', 'is_primary', 'status'])
+            ->map(fn ($o) => [
+                'id' => (int) $o->id,
+                'name' => (string) $o->name,
+                'code' => (string) $o->code,
+                'is_primary' => (bool) $o->is_primary,
+                'status' => (string) $o->status,
+            ])
+            ->values()
+            ->all();
+
         return [
             'summary' => $summary,
             'tabCounts' => $tabCounts,
@@ -174,6 +189,7 @@ class DashboardProductsData
             'rawMaterialOptions' => $rawMaterialOptions,
             'variantGroupOptions' => $variantGroupOptions,
             'unitOptions' => $unitOptions,
+            'outlets' => $outlets,
             'hasCloudAccess' => $business->hasCloudAccess(),
             'isGrosir' => $business->normalizedBusinessType() === 'grosir',
             'is_grosir' => $business->normalizedBusinessType() === 'grosir',
@@ -194,7 +210,7 @@ class DashboardProductsData
             ->where('status', '!=', 'deleted')
             ->where('kind', 'product')
             ->where('is_sellable', true)
-            ->with(['category', 'recipeItems.componentProduct', 'variantGroups']);
+            ->with(['category', 'recipeItems.componentProduct', 'variantGroups', 'outletOverrides']);
 
         $hasAnyData = (clone $baseQuery)->exists();
 
@@ -322,7 +338,7 @@ class DashboardProductsData
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
             ->where('kind', 'service')
-            ->with('category');
+            ->with(['category', 'outletOverrides']);
 
         $hasAnyData = (clone $baseQuery)->exists();
 
@@ -465,6 +481,15 @@ class DashboardProductsData
                 ? $product->variantGroups->pluck('name')->join(', ')
                 : '',
             'is_sellable' => (bool) $product->is_sellable,
+            'outlet_prices' => $product->relationLoaded('outletOverrides')
+                ? $product->outletOverrides->mapWithKeys(fn ($o) => [
+                    $o->outlet_id => [
+                        'price' => $o->price !== null ? (int) $o->price : null,
+                        'promo_price' => $o->promo_price !== null ? (int) $o->promo_price : null,
+                        'is_available' => (bool) $o->is_available,
+                    ],
+                ])->all()
+                : [],
 
             'stock' => (string) $product->stock,
             'unit' => $product->unit ?? 'pcs',
@@ -506,6 +531,15 @@ class DashboardProductsData
             'min_quantity' => (string) $service->min_quantity,
             'unit' => $service->unit,
             'estimated_duration' => $service->estimated_duration,
+            'outlet_prices' => $service->relationLoaded('outletOverrides')
+                ? $service->outletOverrides->mapWithKeys(fn ($o) => [
+                    $o->outlet_id => [
+                        'price' => $o->price !== null ? (int) $o->price : null,
+                        'promo_price' => $o->promo_price !== null ? (int) $o->promo_price : null,
+                        'is_available' => (bool) $o->is_available,
+                    ],
+                ])->all()
+                : [],
 
             'status_raw' => $service->status,
             'status' => $this->presentStatus($service->status),
@@ -730,6 +764,7 @@ class DashboardProductsData
             'statuses' => [],
             'variantGroupOptions' => [],
             'unitOptions' => Unit::DEFAULT_UNITS,
+            'outlets' => [],
             'hasCloudAccess' => false,
             'isGrosir' => false,
             'is_grosir' => false,

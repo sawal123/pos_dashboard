@@ -52,11 +52,15 @@ class DashboardOutletsData
             ->values()
             ->toArray();
 
-        $query = Outlet::query()->where('business_id', $businessId);
+        $query = Outlet::query()
+            ->where('business_id', $businessId)
+            ->with(['branchSubscription']);
         $this->applyFilters($query, $currentFilters);
 
         /** @var LengthAwarePaginator<int, Outlet> $paginator */
         $paginator = $query
+            ->orderByDesc('is_primary')
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->orderBy('id')
             ->paginate(self::PER_PAGE)
@@ -69,7 +73,9 @@ class DashboardOutletsData
 
         $aggregates = $this->listAggregates($businessId, $outletIds);
 
-        $paginator->getCollection()->transform(function (Outlet $outlet) use ($aggregates): array {
+        $paginator->getCollection()->transform(function (Outlet $outlet) use ($aggregates, $currentBusiness): array {
+            $outlet->setRelation('business', $currentBusiness);
+
             return $this->presentOutlet(
                 $outlet,
                 $aggregates[(int) $outlet->id] ?? $this->emptyListAggregates()
@@ -155,16 +161,23 @@ class DashboardOutletsData
         $lastSoldAt = $sales !== null ? $sales->last_sold_at : null;
 
         $statusRaw = (string) $outlet->status;
+        $outlet->setRelation('business', $currentBusiness);
+        $subscription = $this->presentSubscription($outlet);
 
         return [
             'id' => (int) $outlet->id,
             'name' => (string) $outlet->name,
             'code' => (string) $outlet->code,
+            'is_primary' => (bool) $outlet->is_primary,
+            'phone' => $outlet->phone !== null && trim((string) $outlet->phone) !== ''
+                ? (string) $outlet->phone
+                : null,
             'address' => $outlet->address !== null && trim((string) $outlet->address) !== ''
                 ? (string) $outlet->address
                 : null,
             'status_raw' => $statusRaw,
             'status' => $this->presentStatus($statusRaw),
+            'subscription' => $subscription,
             'device_count' => $deviceCount,
             'total_shifts' => $totalShifts,
             'open_shifts' => $openShifts,
@@ -192,6 +205,7 @@ class DashboardOutletsData
             'total_outlets' => (clone $base)->count(),
             'active_outlets' => (clone $base)->where('status', 'active')->count(),
             'inactive_outlets' => (clone $base)->where('status', 'inactive')->count(),
+            'pending_payment_outlets' => (clone $base)->where('status', Outlet::STATUS_PENDING_PAYMENT)->count(),
             'outlets_with_open_shift' => Shift::query()
                 ->where('business_id', $businessId)
                 ->where('status', 'open')
@@ -292,16 +306,22 @@ class DashboardOutletsData
     private function presentOutlet(Outlet $outlet, array $aggregates): array
     {
         $statusRaw = (string) $outlet->status;
+        $subscription = $this->presentSubscription($outlet);
 
         return [
             'id' => (int) $outlet->id,
             'name' => (string) $outlet->name,
             'code' => (string) $outlet->code,
+            'is_primary' => (bool) $outlet->is_primary,
+            'phone' => $outlet->phone !== null && trim((string) $outlet->phone) !== ''
+                ? (string) $outlet->phone
+                : null,
             'address' => $outlet->address !== null && trim((string) $outlet->address) !== ''
                 ? (string) $outlet->address
                 : null,
             'status_raw' => $statusRaw,
             'status' => $this->presentStatus($statusRaw),
+            'subscription' => $subscription,
             'device_count' => $aggregates['device_count'],
             'open_shift_count' => $aggregates['open_shift_count'],
             'sales_count' => $aggregates['sales_count'],
@@ -325,11 +345,64 @@ class DashboardOutletsData
         ];
     }
 
+    /**
+     * @return array{state: string, label: string, expires_at: string|null, cloud_access: bool}
+     */
+    private function presentSubscription(Outlet $outlet): array
+    {
+        $sub = $outlet->effectiveSubscription();
+        $cloudAccess = $outlet->hasCloudAccess();
+
+        if ($outlet->isPendingPayment() && ($sub === null || ! $sub->hasCloudAccess())) {
+            return [
+                'state' => 'pending_payment',
+                'label' => 'Menunggu Pembayaran',
+                'expires_at' => null,
+                'cloud_access' => false,
+            ];
+        }
+
+        if ($sub === null || $sub->isFree()) {
+            return [
+                'state' => 'free',
+                'label' => 'Belum Berlangganan',
+                'expires_at' => null,
+                'cloud_access' => false,
+            ];
+        }
+
+        if ($cloudAccess) {
+            return [
+                'state' => 'cloud_active',
+                'label' => 'Cloud Aktif',
+                'expires_at' => $this->formatDateTime($sub->expires_at),
+                'cloud_access' => true,
+            ];
+        }
+
+        if ($sub->isExpired()) {
+            return [
+                'state' => 'cloud_expired',
+                'label' => 'Kedaluwarsa',
+                'expires_at' => $this->formatDateTime($sub->expires_at),
+                'cloud_access' => false,
+            ];
+        }
+
+        return [
+            'state' => 'cloud_inactive',
+            'label' => 'Tidak Aktif',
+            'expires_at' => $this->formatDateTime($sub->expires_at),
+            'cloud_access' => false,
+        ];
+    }
+
     private function presentStatus(string $status): string
     {
         return match ($status) {
             'active' => 'Aktif',
             'inactive' => 'Nonaktif',
+            'pending_payment' => 'Menunggu Pembayaran',
             default => $status === '' ? 'Tidak Diketahui' : ucwords(str_replace(['_', '-'], ' ', $status)),
         };
     }
@@ -380,6 +453,7 @@ class DashboardOutletsData
                 'total_outlets' => 0,
                 'active_outlets' => 0,
                 'inactive_outlets' => 0,
+                'pending_payment_outlets' => 0,
                 'outlets_with_open_shift' => 0,
             ],
             'filterOptions' => [

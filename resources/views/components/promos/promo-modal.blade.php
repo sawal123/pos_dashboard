@@ -2,6 +2,7 @@
     'products' => [],
     'categories' => [],
     'customers' => [],
+    'outlets' => [],
 ])
 
 @php
@@ -98,6 +99,28 @@
                     <p id="promoTargetHint" class="mt-1 text-[11px] text-slate-400">Dipakai hanya saat cakupan bukan "Semua Item".</p>
                     @error('targets')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                 </div>
+
+                @if(count($outlets) > 1)
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700/80 p-3 space-y-2">
+                        <div class="flex items-center justify-between gap-2">
+                            <label for="promoOutletScope" class="block text-xs font-semibold text-slate-600 dark:text-slate-300">Cakupan Cabang</label>
+                            <select id="promoOutletScope" name="outlet_scope" class="h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white">
+                                <option value="all">Semua Cabang</option>
+                                <option value="selected">Cabang Tertentu</option>
+                            </select>
+                        </div>
+                        <div id="promoOutletSelection" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                            @foreach($outlets as $outlet)
+                                <label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                                    <input type="checkbox" name="outlet_ids[]" value="{{ $outlet['id'] }}" class="promo-outlet-checkbox rounded border-slate-300 text-indigo-600">
+                                    <span>{{ $outlet['name'] }} <span class="text-slate-400 font-mono">({{ $outlet['code'] }})</span></span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @else
+                    <input type="hidden" name="outlet_scope" value="all">
+                @endif
 
                 <script id="promoModalData" type="application/json">
                     {

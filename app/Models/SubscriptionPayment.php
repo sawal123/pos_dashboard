@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $business_id
+ * @property int|null $outlet_id
  * @property int|null $user_id
  * @property string $provider
  * @property string $provider_order_id
@@ -38,6 +39,7 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'business_id',
+    'outlet_id',
     'user_id',
     'provider',
     'provider_order_id',
@@ -116,5 +118,15 @@ class SubscriptionPayment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Branch outlet being paid for (NULL = primary/business subscription).
+     *
+     * @return BelongsTo<Outlet, $this>
+     */
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
     }
 }

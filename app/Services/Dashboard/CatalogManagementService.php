@@ -11,6 +11,7 @@ use App\Models\Concerns\HasSyncMetadata;
 use App\Models\Product;
 use App\Models\StockMovement;
 use App\Models\Unit;
+use App\Services\Catalog\OutletPricing;
 use App\Services\Catalog\ProductCodeService;
 use App\Services\Inventory\HppService;
 use Illuminate\Http\UploadedFile;
@@ -121,6 +122,10 @@ class CatalogManagementService
 
         if (array_key_exists('variant_group_ids', $data) && is_array($data['variant_group_ids'])) {
             $this->syncVariantGroups($product, $data['variant_group_ids']);
+        }
+
+        if (! empty($data['outlet_prices']) && is_array($data['outlet_prices'])) {
+            app(OutletPricing::class)->syncProductOverrides($product, $data['outlet_prices']);
         }
 
         return $product;
@@ -260,6 +265,10 @@ class CatalogManagementService
 
         if (array_key_exists('variant_group_ids', $data) && is_array($data['variant_group_ids'])) {
             $this->syncVariantGroups($product, $data['variant_group_ids']);
+        }
+
+        if (! empty($data['outlet_prices']) && is_array($data['outlet_prices'])) {
+            app(OutletPricing::class)->syncProductOverrides($product, $data['outlet_prices']);
         }
 
         return $product;

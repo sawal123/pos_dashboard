@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\DefaultsToPrimaryOutlet;
 use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Collection;
@@ -19,6 +20,7 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property int $business_id
+ * @property int|null $outlet_id
  * @property string $code
  * @property string $status
  * @property string|null $note
@@ -33,10 +35,10 @@ use Illuminate\Support\Carbon;
  * @property-read Business|null $business
  * @property-read Collection<int, StockOpnameItem> $items
  */
-#[Fillable(['business_id', 'code', 'status', 'note', 'created_by', 'posted_by', 'posted_at'])]
+#[Fillable(['business_id', 'outlet_id', 'code', 'status', 'note', 'created_by', 'posted_by', 'posted_at'])]
 class StockOpname extends Model
 {
-    use HasSyncMetadata;
+    use DefaultsToPrimaryOutlet, HasSyncMetadata;
 
     public const STATUS_DRAFT = 'draft';
 

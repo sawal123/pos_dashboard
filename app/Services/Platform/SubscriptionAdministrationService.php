@@ -49,8 +49,12 @@ class SubscriptionAdministrationService
 
         /** @var Subscription $subscription */
         $subscription = Subscription::query()->updateOrCreate(
-            ['business_id' => $business->id],
             [
+                'business_id' => $business->id,
+                'scope_key' => Subscription::SCOPE_PRIMARY,
+            ],
+            [
+                'outlet_id' => null,
                 'plan' => Subscription::PLAN_CLOUD,
                 'status' => Subscription::STATUS_ACTIVE,
                 'starts_at' => $now,

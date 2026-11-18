@@ -7,9 +7,11 @@ use App\Enums\PromoScope;
 use App\Enums\PromoStatus;
 use App\Models\Concerns\HasSyncMetadata;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -28,6 +30,7 @@ use Illuminate\Support\Carbon;
  * @property string $discount_type
  * @property int $discount_value
  * @property string $scope
+ * @property string $outlet_scope
  * @property int $min_purchase
  * @property int|null $max_discount
  * @property array<int, int>|null $weekdays
@@ -50,17 +53,22 @@ use Illuminate\Support\Carbon;
     'business_id', 'name', 'code', 'discount_type', 'discount_value', 'scope',
     'min_purchase', 'max_discount', 'weekdays', 'starts_at', 'ends_at',
     'start_time', 'end_time', 'usage_limit_total', 'usage_limit_per_customer',
-    'priority', 'is_stackable', 'status',
+    'priority', 'is_stackable', 'status', 'outlet_scope',
 ])]
 class Promo extends Model
 {
     use HasSyncMetadata;
+
+    public const OUTLET_SCOPE_ALL = 'all';
+
+    public const OUTLET_SCOPE_SELECTED = 'selected';
 
     /**
      * @var array<string, mixed>
      */
     protected $attributes = [
         'scope' => PromoScope::All->value,
+        'outlet_scope' => self::OUTLET_SCOPE_ALL,
         'min_purchase' => 0,
         'priority' => 0,
         'is_stackable' => false,
@@ -108,6 +116,48 @@ class Promo extends Model
     public function redemptions(): HasMany
     {
         return $this->hasMany(SalePromotion::class);
+    }
+
+    /**
+     * Outlets a `selected`-scope promo is limited to.
+     *
+     * @return BelongsToMany<Outlet, $this>
+     */
+    public function outlets(): BelongsToMany
+    {
+        return $this->belongsToMany(Outlet::class, 'promo_outlets')
+            ->withPivot('business_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Whether the promo applies at the given outlet.
+     */
+    public function appliesToOutlet(?int $outletId): bool
+    {
+        if ($this->outlet_scope !== self::OUTLET_SCOPE_SELECTED || $outletId === null) {
+            return true;
+        }
+
+        return $this->outlets->contains('id', $outletId);
+    }
+
+    /**
+     * Restrict a promo query to promos valid at the given outlet.
+     *
+     * @param  Builder<Promo>  $query
+     * @return Builder<Promo>
+     */
+    public function scopeForOutlet(Builder $query, ?int $outletId): Builder
+    {
+        if ($outletId === null) {
+            return $query;
+        }
+
+        return $query->where(function (Builder $q) use ($outletId): void {
+            $q->where('outlet_scope', '!=', self::OUTLET_SCOPE_SELECTED)
+                ->orWhereHas('outlets', fn (Builder $o) => $o->where('outlets.id', $outletId));
+        });
     }
 
     public function discountType(): ?PromoDiscountType

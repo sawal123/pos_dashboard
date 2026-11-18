@@ -57,7 +57,7 @@ class DashboardPromosData
                 ->count(),
         ];
 
-        $query = Promo::query()->where('business_id', $businessId)->with('targets');
+        $query = Promo::query()->where('business_id', $businessId)->with(['targets', 'outlets:id,name,code']);
 
         if ($currentFilters['q'] !== '') {
             $q = $currentFilters['q'];
@@ -85,6 +85,14 @@ class DashboardPromosData
             'products' => $this->productOptions($businessId),
             'categories' => $this->categoryOptions($businessId),
             'customers' => $this->customerOptions($businessId),
+            'outlets' => $business->outlets()
+                ->orderByDesc('is_primary')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'code', 'is_primary'])
+                ->map(fn ($o) => ['id' => (int) $o->id, 'name' => (string) $o->name, 'code' => (string) $o->code, 'is_primary' => (bool) $o->is_primary])
+                ->values()
+                ->all(),
             'currentFilters' => $currentFilters,
             'hasAnyPromo' => $summary['total'] > 0,
         ];
@@ -126,6 +134,10 @@ class DashboardPromosData
                 'type' => (string) $target->target_type,
                 'id' => (int) $target->target_id,
             ])->values()->all(),
+            'outlet_scope' => (string) ($promo->outlet_scope ?? Promo::OUTLET_SCOPE_ALL),
+            'outlet_ids' => $promo->relationLoaded('outlets')
+                ? $promo->outlets->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+                : [],
         ];
     }
 

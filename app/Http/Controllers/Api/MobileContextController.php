@@ -41,7 +41,10 @@ class MobileContextController extends Controller
         $user = $request->user();
 
         /** @var Collection<int, Business> $businesses */
-        $businesses = $user->businesses()->with(['subscription', 'outlets'])->get();
+        $businesses = $user->businesses()->with([
+            'subscription',
+            'outlets' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id')->with('branchSubscription'),
+        ])->get();
 
         $deviceIdentifier = (string) $request->query('device_identifier', '');
 
@@ -55,12 +58,23 @@ class MobileContextController extends Controller
 
             /** @var list<array{id: int, name: string, code: string, status: string}> $outlets */
             $outlets = $business->outlets
-                ->map(function (Outlet $outlet): array {
+                ->map(function (Outlet $outlet) use ($business): array {
+                    $outlet->setRelation('business', $business);
+                    $sub = $outlet->effectiveSubscription();
+
                     return [
                         'id' => $outlet->id,
                         'name' => $outlet->name,
                         'code' => $outlet->code,
+                        'is_primary' => (bool) $outlet->is_primary,
                         'status' => $outlet->status,
+                        'cloud_access' => $outlet->hasCloudAccess(),
+                        'subscription' => $sub !== null ? [
+                            'plan' => $sub->plan,
+                            'status' => $sub->status,
+                            'starts_at' => $sub->starts_at?->toJSON(),
+                            'expires_at' => $sub->expires_at?->toJSON(),
+                        ] : null,
                     ];
                 })
                 ->values()

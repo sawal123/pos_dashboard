@@ -17,11 +17,15 @@ use App\Models\StockMovement;
 use App\Models\SyncCounter;
 use App\Models\User;
 use App\Models\VariantGroup;
+use App\Services\Catalog\OutletPricing;
 use Carbon\CarbonInterface;
 use Illuminate\Http\JsonResponse;
 
 class SyncPullService
 {
+    public function __construct(
+        private readonly OutletPricing $outletPricing = new OutletPricing,
+    ) {}
     /**
      * Fetch delta changes for a device starting after a given sequence cursor.
      *
@@ -77,10 +81,17 @@ class SyncPullService
             ->where('sync_sequence', '<=', $serverSequence)
             ->orderBy('sync_sequence', 'asc')
             ->limit($fetchLimit)
-            ->with(['category', 'variantGroups'])
+            ->with([
+                'category',
+                'variantGroups',
+                'outletOverrides' => fn ($q) => $q->where('outlet_id', $outletId),
+            ])
             ->get();
 
         foreach ($products as $prod) {
+            $pricing = $this->outletPricing->forProduct($prod, $outletId);
+            $effectiveStatus = $pricing['is_available'] ? $prod->status : 'inactive';
+
             $records[] = [
                 'entity' => 'products',
                 'sync_sequence' => (int) $prod->sync_sequence,
@@ -92,8 +103,8 @@ class SyncPullService
                     'sku' => $prod->sku,
                     'barcode' => $prod->barcode,
                     'image_url' => $prod->image_url,
-                    'price' => (int) $prod->price,
-                    'promo_price' => $prod->promo_price !== null ? (int) $prod->promo_price : null,
+                    'price' => (int) $pricing['price'],
+                    'promo_price' => $pricing['promo_price'] !== null ? (int) $pricing['promo_price'] : null,
                     'kind' => $prod->kind,
                     'is_sellable' => (bool) $prod->is_sellable,
                     'cost' => (float) $prod->cost,
@@ -103,7 +114,7 @@ class SyncPullService
                     'pricing_unit' => $prod->pricing_unit,
                     'min_quantity' => (float) $prod->min_quantity,
                     'estimated_duration' => $prod->estimated_duration,
-                    'status' => $prod->status,
+                    'status' => $effectiveStatus,
                     'variant_group_sync_ids' => $prod->variantGroups->pluck('sync_id')->values()->all(),
                 ],
             ];
@@ -329,6 +340,7 @@ class SyncPullService
         // Promos (PROMO-D01). Draft promos never leave the dashboard.
         $promos = Promo::where('business_id', $business->id)
             ->where('status', '!=', 'draft')
+            ->forOutlet($outletId)
             ->where('sync_sequence', '>', $after)
             ->where('sync_sequence', '<=', $serverSequence)
             ->orderBy('sync_sequence', 'asc')

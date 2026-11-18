@@ -5,6 +5,7 @@
     'rawMaterialOptions' => [],
     'variantGroupOptions' => [],
     'unitOptions' => [],
+    'outlets' => [],
     'hasCloudAccess' => true,
 ])
 
@@ -688,6 +689,53 @@
                         @error('estimated_duration')<p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>@enderror
                     </div>
                 </div>
+
+                @if(count($outlets) > 1)
+                    <div id="catalogOutletPricesSection" class="rounded-xl border border-slate-200 dark:border-slate-700/80 p-3.5 space-y-2.5">
+                        <div>
+                            <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Harga & Ketersediaan per Cabang</h3>
+                            <p class="text-[11px] text-slate-400">Kosongkan harga cabang agar mengikuti Harga Jual Master di atas.</p>
+                        </div>
+                        <div class="space-y-2">
+                            @foreach($outlets as $outlet)
+                                <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60" data-outlet-price-row="{{ $outlet['id'] }}">
+                                    <div class="min-w-[140px]">
+                                        <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                            {{ $outlet['name'] }}
+                                            @if(! empty($outlet['is_primary']))
+                                                <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold">(Utama)</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-[10px] font-mono text-slate-400">{{ $outlet['code'] }}</div>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            name="outlet_prices[{{ $outlet['id'] }}][price]"
+                                            data-outlet-price-input="{{ $outlet['id'] }}"
+                                            placeholder="Ikuti harga master"
+                                            class="w-36 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
+                                        >
+                                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                            <input type="hidden" name="outlet_prices[{{ $outlet['id'] }}][is_available]" value="0">
+                                            <input
+                                                type="checkbox"
+                                                name="outlet_prices[{{ $outlet['id'] }}][is_available]"
+                                                value="1"
+                                                checked
+                                                data-outlet-available-input="{{ $outlet['id'] }}"
+                                                class="rounded border-slate-300 text-indigo-600"
+                                            >
+                                            <span>Tersedia</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
 
                 <div>
                     <label for="catalogProductStatus" class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">Status</label>

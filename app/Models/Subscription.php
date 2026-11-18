@@ -12,6 +12,8 @@ use Illuminate\Support\Carbon;
 /**
  * @property int $id
  * @property int $business_id
+ * @property int|null $outlet_id
+ * @property string $scope_key
  * @property string $plan
  * @property string $status
  * @property Carbon|null $starts_at
@@ -19,10 +21,16 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
+ * @property-read Outlet|null $outlet
  */
-#[Fillable(['business_id', 'plan', 'status', 'starts_at', 'expires_at'])]
+#[Fillable(['business_id', 'outlet_id', 'plan', 'status', 'starts_at', 'expires_at'])]
 class Subscription extends Model
 {
+    /**
+     * Scope key of the business-level subscription that covers the primary outlet.
+     */
+    public const SCOPE_PRIMARY = 'primary';
+
     public const PLAN_FREE = 'free';
 
     public const PLAN_CLOUD = 'cloud';
@@ -59,6 +67,21 @@ class Subscription extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        static::saving(function (Subscription $subscription): void {
+            $subscription->scope_key = self::scopeKeyFor($subscription->outlet_id);
+        });
+    }
+
+    /**
+     * Scope key for an outlet subscription; NULL means the primary/business scope.
+     */
+    public static function scopeKeyFor(?int $outletId): string
+    {
+        return $outletId === null ? self::SCOPE_PRIMARY : 'outlet:'.$outletId;
+    }
+
     /**
      * The business that owns the subscription.
      *
@@ -67,6 +90,21 @@ class Subscription extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * The branch outlet covered by this subscription (NULL for the primary scope).
+     *
+     * @return BelongsTo<Outlet, $this>
+     */
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
+    }
+
+    public function isPrimaryScope(): bool
+    {
+        return $this->outlet_id === null;
     }
 
     /**

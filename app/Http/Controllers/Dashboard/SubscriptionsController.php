@@ -105,16 +105,33 @@ class SubscriptionsController extends Controller
 
         Gate::forUser($user)->authorize('update', $currentBusiness);
 
-        // Prevent accidental re-purchases when Cloud is already active, unless explicit renewal from dashboard
-        if ($currentBusiness->hasCloudAccess() && ! $request->boolean('allow_renewal')) {
-            return back()->withErrors([
-                'checkout' => 'Bisnis Anda sudah memiliki Paket Cloud yang aktif.',
-            ]);
-        }
-
         $validated = $request->validate([
             'billing_period' => ['required', 'string', Rule::in($this->policy->billingPeriods())],
+            'outlet_id' => ['nullable', 'integer'],
         ]);
+
+        $targetOutlet = null;
+        if (! empty($validated['outlet_id'])) {
+            $targetOutlet = $currentBusiness->outlets()->whereKey((int) $validated['outlet_id'])->first();
+            if ($targetOutlet === null) {
+                return back()->withErrors([
+                    'checkout' => 'Cabang outlet tidak ditemukan pada bisnis ini.',
+                ]);
+            }
+        }
+
+        $targetAlreadyActive = $targetOutlet !== null && ! $targetOutlet->is_primary
+            ? $targetOutlet->hasCloudAccess()
+            : ($currentBusiness->subscription?->hasCloudAccess() ?? false);
+
+        // Prevent accidental re-purchases when Cloud is already active, unless explicit renewal from dashboard
+        if ($targetAlreadyActive && ! $request->boolean('allow_renewal')) {
+            return back()->withErrors([
+                'checkout' => $targetOutlet !== null && ! $targetOutlet->is_primary
+                    ? 'Cabang ini sudah memiliki Paket Cloud yang aktif.'
+                    : 'Bisnis Anda sudah memiliki Paket Cloud yang aktif.',
+            ]);
+        }
 
         try {
             $payment = $this->checkout->createCheckout(
@@ -122,6 +139,8 @@ class SubscriptionsController extends Controller
                 $user,
                 $this->policy->planCode(),
                 (string) $validated['billing_period'],
+                null,
+                $targetOutlet?->id,
             );
         } catch (PricingUnavailableException) {
             return back()->withErrors([

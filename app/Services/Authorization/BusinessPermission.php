@@ -61,6 +61,9 @@ final class BusinessPermission
 
     public const OUTLETS_VIEW = 'outlets.view';
 
+    // MULTI-OUTLET — owner-only branch creation, metadata editing, and status management.
+    public const OUTLETS_MANAGE = 'outlets.manage';
+
     public const USERS_VIEW = 'users.view';
 
     // Membership administration (owner only).

@@ -69,7 +69,8 @@ class DeviceManagementService
                 return $this->resolveExisting($existing, $outletId);
             }
 
-            if (! $lockedBusiness->hasCloudAccess()) {
+            $targetOutlet = $lockedBusiness->outlets()->whereKey($outletId)->first();
+            if (! $lockedBusiness->hasCloudAccess() || ($targetOutlet !== null && ! $targetOutlet->hasCloudAccess())) {
                 throw ValidationException::withMessages([
                     'identifier' => 'Langganan Cloud aktif diperlukan untuk mendaftarkan perangkat baru.',
                 ]);

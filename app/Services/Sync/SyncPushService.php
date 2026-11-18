@@ -17,6 +17,7 @@ use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\SyncRequest;
 use App\Models\User;
+use App\Services\Catalog\OutletPricing;
 use App\Services\Catalog\ProductCodeService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -82,14 +83,14 @@ class SyncPushService
         try {
             DB::transaction(function () use ($business, $outletId, $device, $requestId, $changes, $cashierSafe): void {
                 $this->processCategories($business, $changes['categories'] ?? []);
-                $this->processProducts($business, $changes['products'] ?? []);
+                $this->processProducts($business, $outletId, $changes['products'] ?? []);
                 $this->processCustomers($business, $changes['customers'] ?? []);
                 $this->processShifts($business, $outletId, $changes['shifts'] ?? []);
                 $this->processSales($business, $outletId, $changes['sales'] ?? []);
                 $this->processSaleItems($business, $outletId, $changes['sale_items'] ?? []);
                 $this->processExpenses($business, $outletId, $changes['expenses'] ?? []);
                 $this->processCashLedger($business, $outletId, $changes['cash_ledger'] ?? []);
-                $this->processStockMovements($business, $changes['stock_movements'] ?? [], $cashierSafe);
+                $this->processStockMovements($business, $outletId, $changes['stock_movements'] ?? [], $cashierSafe);
                 $this->processDeletions($business, $outletId, $changes['deletions'] ?? []);
 
                 SyncRequest::create([
@@ -235,8 +236,10 @@ class SyncPushService
     /**
      * @param  list<array<string, mixed>>  $items
      */
-    protected function processProducts(Business $business, array $items): void
+    protected function processProducts(Business $business, int $outletId, array $items): void
     {
+        $isPrimaryOutlet = (bool) $business->outlets()->whereKey($outletId)->value('is_primary');
+
         foreach ($items as $item) {
             $syncId = (string) $item['sync_id'];
             $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
@@ -324,6 +327,25 @@ class SyncPushService
             ], $semantic);
 
             if ($record instanceof Product) {
+                $incomingPrice = (int) $item['price'];
+                $incomingPromo = array_key_exists('promo_price', $semantic) ? $semantic['promo_price'] : $record->promo_price;
+
+                // MULTI-OUTLET: a non-primary branch editing a product price from
+                // POS mobile writes a branch override on `outlet_product` so the
+                // master catalog price of other outlets is never overwritten.
+                if (! $isPrimaryOutlet && ($incomingPrice !== (int) $record->price || $incomingPromo !== $record->promo_price)) {
+                    $attributes['price'] = (int) $record->price;
+                    $attributes['promo_price'] = $record->promo_price;
+
+                    app(OutletPricing::class)->syncProductOverrides($record, [
+                        $outletId => [
+                            'price' => $incomingPrice === (int) $record->price ? null : $incomingPrice,
+                            'promo_price' => $incomingPromo,
+                            'is_available' => ($attributes['status'] ?? 'active') === 'active',
+                        ],
+                    ]);
+                }
+
                 if ($this->attributesMatch($record, $attributes)) {
                     continue;
                 }
@@ -991,7 +1013,7 @@ class SyncPushService
      *                             the transaction (immutable historical values
      *                             and a locked cumulative-deduction check)
      */
-    protected function processStockMovements(Business $business, array $items, bool $cashierSafe = false): void
+    protected function processStockMovements(Business $business, int $outletId, array $items, bool $cashierSafe = false): void
     {
         foreach ($items as $item) {
             $syncId = (string) $item['sync_id'];
@@ -1088,6 +1110,7 @@ class SyncPushService
 
             $movement = new StockMovement($attributes);
             $movement->business_id = $business->id;
+            $movement->outlet_id = $outletId;
             $movement->sync_id = $syncId;
             $movement->save();
 
