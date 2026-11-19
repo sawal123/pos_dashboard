@@ -72,6 +72,8 @@ class MobileContextController extends Controller
                         'id' => $outlet->id,
                         'name' => $outlet->name,
                         'code' => $outlet->code,
+                        'address' => $outlet->address,
+                        'phone' => $outlet->phone,
                         'is_primary' => (bool) $outlet->is_primary,
                         'status' => $outlet->status,
                         'cloud_access' => $outlet->hasCloudAccess(),
