@@ -67,7 +67,9 @@ self.addEventListener('fetch', (event) => {
         url.pathname.startsWith('/livewire/') ||
         url.pathname.startsWith('/sanctum/') ||
         url.pathname.startsWith('/api/sync/') ||
-        url.pathname.includes('/auth/google')
+        url.pathname.includes('/auth/google') ||
+        url.pathname.startsWith('/transactions') ||
+        url.pathname.startsWith('/pos')
     ) {
         return;
     }

@@ -393,29 +393,44 @@ class PosCheckoutService
             $taxableSubtotal = max(0, $subtotal - $discountAmount);
             $taxAmount = $business->tax_enabled ? (int) round(($taxableSubtotal * $taxRate) / 100) : 0;
             $totalAmount = $taxableSubtotal + $taxAmount;
-            $paymentMethod = (string) $payload['payment_method'];
-            $validMethods = ['cash', 'qris', 'transfer', 'debit'];
+
+            $payLater = ! empty($payload['pay_later']) || in_array(($payload['payment_status'] ?? ''), ['unpaid', 'belum lunas'], true) || in_array(($payload['payment_method'] ?? ''), ['later', 'tempo', 'unpaid'], true);
+            $paymentMethod = (string) ($payload['payment_method'] ?? 'cash');
+            $validMethods = ['cash', 'qris', 'transfer', 'debit', 'later', 'tempo', 'unpaid'];
             if (! in_array($paymentMethod, $validMethods, true)) {
                 throw ValidationException::withMessages([
                     'payment_method' => 'Metode pembayaran tidak valid.',
                 ]);
             }
 
-            $isCash = ($paymentMethod === 'cash');
-            if ($isCash) {
-                $cashReceived = isset($payload['cash_received'])
-                    ? (int) $payload['cash_received']
-                    : $totalAmount;
-
-                if ($cashReceived < $totalAmount) {
-                    throw ValidationException::withMessages([
-                        'cash_received' => 'Uang tunai yang diterima kurang dari total tagihan.',
-                    ]);
-                }
-                $changeAmount = $cashReceived - $totalAmount;
-            } else {
-                $cashReceived = $totalAmount;
+            if ($payLater) {
+                $paymentStatus = 'unpaid';
+                $paidAt = null;
+                $cashReceived = 0;
                 $changeAmount = 0;
+                $isCash = false;
+                $salePaymentMethod = in_array($paymentMethod, ['later', 'tempo', 'unpaid'], true) ? $paymentMethod : 'unpaid';
+            } else {
+                $paymentStatus = 'paid';
+                $paidAt = $now;
+                $isCash = ($paymentMethod === 'cash');
+                $salePaymentMethod = $paymentMethod;
+
+                if ($isCash) {
+                    $cashReceived = isset($payload['cash_received'])
+                        ? (int) $payload['cash_received']
+                        : $totalAmount;
+
+                    if ($cashReceived < $totalAmount) {
+                        throw ValidationException::withMessages([
+                            'cash_received' => 'Uang tunai yang diterima kurang dari total tagihan.',
+                        ]);
+                    }
+                    $changeAmount = $cashReceived - $totalAmount;
+                } else {
+                    $cashReceived = $totalAmount;
+                    $changeAmount = 0;
+                }
             }
 
             $grossProfit = round($taxableSubtotal - $costTotal, 2);
@@ -437,7 +452,7 @@ class PosCheckoutService
             // 9. Generate Transaction Number
             $transactionNumber = $this->numberGenerator->generateTransactionNumber($business, $outlet, $now);
 
-            // 10. Create Sale
+            // 10. Create Sale — Pesanan baru selalu dimulai dengan status pesanan: Proses
             $sale = new Sale([
                 'business_id' => $business->id,
                 'outlet_id' => $outlet->id,
@@ -445,18 +460,18 @@ class PosCheckoutService
                 'customer_id' => $customer?->id,
                 'transaction_number' => $transactionNumber,
                 'status' => 'completed',
+                'order_status' => 'Proses',
                 'subtotal' => $subtotal,
                 'discount_amount' => $discountAmount,
                 'tax_amount' => $taxAmount,
                 'total_amount' => $totalAmount,
                 'gross_profit' => $grossProfit,
-                'payment_method' => $paymentMethod,
-                'payment_status' => 'paid',
-                'paid_at' => $now,
+                'payment_method' => $salePaymentMethod,
+                'payment_status' => $paymentStatus,
+                'paid_at' => $paidAt,
                 'cash_received' => $cashReceived,
                 'change_amount' => $changeAmount,
                 'promo_sync_id' => $appliedPromo?->sync_id,
-                'order_status' => $business->normalizedBusinessType() === 'laundry' ? 'Masuk' : 'Siap',
                 'note' => ! empty($payload['note']) ? (string) $payload['note'] : null,
                 'customer_snapshot' => $customerSnapshot,
                 'business_snapshot' => $businessSnapshot,

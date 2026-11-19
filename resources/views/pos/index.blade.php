@@ -316,9 +316,9 @@
         </div>
 
         {{-- ==================== RIGHT COLUMN: CART & CHECKOUT ==================== --}}
-        <div class="w-full lg:w-[420px] xl:w-[460px] flex flex-col bg-white dark:bg-slate-900 shrink-0 border-t lg:border-t-0 border-slate-200 dark:border-slate-800 select-none">
+        <div class="w-full lg:w-[420px] xl:w-[460px] h-full flex flex-col min-h-0 bg-white dark:bg-slate-900 shrink-0 border-t lg:border-t-0 border-slate-200 dark:border-slate-800 select-none">
             {{-- Cart Header & Customer Picker --}}
-            <div class="p-3.5 border-b border-slate-100 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-950/20">
+            <div class="p-3.5 border-b border-slate-100 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-950/20 shrink-0">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-2">
                         <i data-lucide="shopping-bag" class="w-4 h-4 text-indigo-600 dark:text-indigo-400"></i>
@@ -327,7 +327,7 @@
                     <button
                         type="button"
                         id="clearCartBtn"
-                        class="text-xs text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1 transition-colors"
+                        class="text-xs text-rose-500 hover:text-rose-600 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                         title="Kosongkan Keranjang"
                     >
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -339,7 +339,7 @@
                 <div class="relative">
                     <select
                         id="cartCustomerSelect"
-                        class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                         <option value="">-- Pelanggan Umum / Non-Member --</option>
                         @foreach($customers as $c)
@@ -352,29 +352,34 @@
             </div>
 
             {{-- Cart Items List (Scrollable) --}}
-            <div id="cartItemsList" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
+            <div id="cartItemsList" class="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 text-xs hidden">
                 {{-- Dynamically populated via JS --}}
             </div>
 
             {{-- Empty Cart Placeholder --}}
-            <div id="emptyCartPlaceholder" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-400">
-                <div class="w-14 h-14 rounded-2xl bg-indigo-50/60 dark:bg-slate-800 flex items-center justify-center mb-2.5 text-indigo-400 dark:text-indigo-400">
-                    <i data-lucide="shopping-cart" class="w-7 h-7"></i>
+            <div id="emptyCartPlaceholder" class="flex-1 min-h-0 flex flex-col items-center justify-center p-6 text-center select-none">
+                <div class="w-16 h-16 rounded-3xl bg-indigo-50 dark:bg-slate-800/80 border border-indigo-100 dark:border-slate-700/60 flex items-center justify-center mb-3 text-indigo-500 dark:text-indigo-400 shadow-xs">
+                    <i data-lucide="shopping-cart" class="w-8 h-8"></i>
                 </div>
-                <p class="font-bold text-sm text-slate-700 dark:text-slate-300">Keranjang Masih Kosong</p>
-                <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5 max-w-[200px]">
-                    Klik produk di sebelah kiri untuk menambahkan ke pesanan.
+                <h4 class="font-bold text-sm text-slate-800 dark:text-slate-200">Keranjang Masih Kosong</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+                    Klik produk di sebelah kiri untuk menambahkan pesanan ke keranjang.
                 </p>
+                <div class="mt-4 flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/40 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                    <span>Tekan <kbd class="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold">/</kbd> cari</span>
+                    <span>•</span>
+                    <span><kbd class="px-1.5 py-0.5 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-[10px] text-slate-600 dark:text-slate-300 font-bold">F2</kbd> bayar</span>
+                </div>
             </div>
 
             {{-- Promo & Notes (Collapsible or compact) --}}
-            <div class="px-3.5 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30 space-y-2 text-xs">
+            <div class="px-3.5 py-2.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/30 space-y-2 text-xs shrink-0">
                 {{-- Promo Selector --}}
                 <div class="flex items-center gap-2">
                     <i data-lucide="badge-percent" class="w-4 h-4 text-emerald-500 shrink-0"></i>
                     <select
                         id="cartPromoSelect"
-                        class="flex-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="flex-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                     >
                         <option value="">-- Tanpa Promo / Diskon --</option>
                         @foreach($promos as $promo)
@@ -392,13 +397,13 @@
                         type="text"
                         id="cartNoteInput"
                         placeholder="Catatan pesanan (opsional)..."
-                        class="flex-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        class="flex-1 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                 </div>
             </div>
 
             {{-- Financial Summary & Checkout Action --}}
-            <div class="p-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+            <div class="p-3.5 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 shrink-0">
                 <div class="space-y-1.5 text-xs">
                     <div class="flex items-center justify-between text-slate-500 dark:text-slate-400">
                         <span>Subtotal (<span id="cartItemsCount">0</span> item)</span>
@@ -421,17 +426,31 @@
                     </div>
                 </div>
 
-                {{-- Checkout Trigger Button --}}
-                <button
-                    type="button"
-                    id="checkoutBtn"
-                    disabled
-                    onclick="openPaymentModal()"
-                    class="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-50 disabled:pointer-events-none text-white text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2"
-                >
-                    <i data-lucide="credit-card" class="w-4 h-4"></i>
-                    <span>Bayar Sekarang (F2)</span>
-                </button>
+                {{-- Checkout Trigger Buttons: Bayar Nanti & Bayar Sekarang --}}
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button
+                        type="button"
+                        id="payLaterBtn"
+                        disabled
+                        onclick="handlePayLaterClick()"
+                        class="w-full py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-700 dark:text-amber-400 disabled:opacity-40 disabled:pointer-events-none text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        title="Simpan pesanan dengan status Belum Lunas (Bayar Nanti)"
+                    >
+                        <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
+                        <span>Bayar Nanti</span>
+                    </button>
+                    <button
+                        type="button"
+                        id="checkoutBtn"
+                        disabled
+                        onclick="openPaymentModal()"
+                        class="w-full py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title="Buka pilihan pembayaran (Tunai, QRIS, Transfer, Debit)"
+                    >
+                        <i data-lucide="credit-card" class="w-4 h-4"></i>
+                        <span>Bayar Sekarang (F2)</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -519,10 +538,10 @@
                 {{-- Payment Method Selector --}}
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Metode Pembayaran</label>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         <button
                             type="button"
-                            class="payment-method-btn p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex flex-col items-center gap-1.5 transition-all"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
                             data-method="cash"
                         >
                             <i data-lucide="banknote" class="w-5 h-5"></i>
@@ -530,7 +549,7 @@
                         </button>
                         <button
                             type="button"
-                            class="payment-method-btn p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
                             data-method="qris"
                         >
                             <i data-lucide="qr-code" class="w-5 h-5"></i>
@@ -538,7 +557,7 @@
                         </button>
                         <button
                             type="button"
-                            class="payment-method-btn p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
                             data-method="transfer"
                         >
                             <i data-lucide="landmark" class="w-5 h-5"></i>
@@ -546,11 +565,19 @@
                         </button>
                         <button
                             type="button"
-                            class="payment-method-btn p-3 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
                             data-method="debit"
                         >
                             <i data-lucide="credit-card" class="w-5 h-5"></i>
                             <span>Debit</span>
+                        </button>
+                        <button
+                            type="button"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
+                            data-method="unpaid"
+                        >
+                            <i data-lucide="clock" class="w-5 h-5 text-amber-500"></i>
+                            <span class="text-amber-600 dark:text-amber-400">Bayar Nanti</span>
                         </button>
                     </div>
                 </div>
@@ -625,11 +652,11 @@
     {{-- ==================== SUCCESS / RECEIPT MODAL ==================== --}}
     <div id="successModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
         <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
-            <div class="p-4 border-b border-slate-100 dark:border-slate-800 text-center relative bg-emerald-50/60 dark:bg-emerald-950/30">
-                <div class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2">
+            <div id="successModalHeaderBar" class="p-4 border-b border-slate-100 dark:border-slate-800 text-center relative bg-emerald-50/60 dark:bg-emerald-950/30">
+                <div id="successModalIconBox" class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2">
                     <i data-lucide="check-circle-2" class="w-6 h-6"></i>
                 </div>
-                <h3 class="font-black text-base text-slate-900 dark:text-white">Transaksi Berhasil!</h3>
+                <h3 id="successModalTitle" class="font-black text-base text-slate-900 dark:text-white">Transaksi Berhasil!</h3>
                 <p id="successTxNumber" class="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400 mt-0.5">-</p>
             </div>
 
@@ -1695,6 +1722,7 @@
             const container = document.getElementById('cartItemsList');
             const placeholder = document.getElementById('emptyCartPlaceholder');
             const checkoutBtn = document.getElementById('checkoutBtn');
+            const payLaterBtn = document.getElementById('payLaterBtn');
             const itemsCountEl = document.getElementById('cartItemsCount');
             const subtotalTextEl = document.getElementById('cartSubtotalText');
             const totalTextEl = document.getElementById('cartTotalText');
@@ -1703,18 +1731,24 @@
 
             if (cart.length === 0) {
                 container.innerHTML = '';
-                placeholder.classList.remove('hidden');
-                checkoutBtn.disabled = true;
-                itemsCountEl.textContent = '0';
-                subtotalTextEl.textContent = formatRp(0);
-                totalTextEl.textContent = formatRp(0);
-                document.getElementById('cartDiscountRow').classList.add('hidden');
-                document.getElementById('cartTaxRow').classList.add('hidden');
+                container.classList.add('hidden');
+                if (placeholder) placeholder.classList.remove('hidden');
+                if (checkoutBtn) checkoutBtn.disabled = true;
+                if (payLaterBtn) payLaterBtn.disabled = true;
+                if (itemsCountEl) itemsCountEl.textContent = '0';
+                if (subtotalTextEl) subtotalTextEl.textContent = formatRp(0);
+                if (totalTextEl) totalTextEl.textContent = formatRp(0);
+                const discRow = document.getElementById('cartDiscountRow');
+                if (discRow) discRow.classList.add('hidden');
+                const taxRow = document.getElementById('cartTaxRow');
+                if (taxRow) taxRow.classList.add('hidden');
                 return;
             }
 
-            placeholder.classList.add('hidden');
-            checkoutBtn.disabled = !POS_CONFIG.hasOpenShift;
+            if (placeholder) placeholder.classList.add('hidden');
+            container.classList.remove('hidden');
+            if (checkoutBtn) checkoutBtn.disabled = !POS_CONFIG.hasOpenShift;
+            if (payLaterBtn) payLaterBtn.disabled = !POS_CONFIG.hasOpenShift;
             container.innerHTML = '';
 
             let totalItems = 0;
@@ -1904,11 +1938,18 @@
             });
 
             const cashSection = document.getElementById('cashInputSection');
+            const submitBtn = document.getElementById('submitCheckoutBtn');
             if (method === 'cash') {
-                cashSection.classList.remove('hidden');
+                if (cashSection) cashSection.classList.remove('hidden');
+                if (submitBtn) submitBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Selesaikan Transaksi</span>`;
+            } else if (method === 'unpaid') {
+                if (cashSection) cashSection.classList.add('hidden');
+                if (submitBtn) submitBtn.innerHTML = `<i data-lucide="clock" class="w-4 h-4"></i><span>Simpan Pesanan (Bayar Nanti)</span>`;
             } else {
-                cashSection.classList.add('hidden');
+                if (cashSection) cashSection.classList.add('hidden');
+                if (submitBtn) submitBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Selesaikan Transaksi</span>`;
             }
+            if (typeof window.initIcons === 'function') window.initIcons();
         }
 
         function calculateCashChange() {
@@ -1934,9 +1975,12 @@
             if (cart.length === 0) return;
 
             const totals = computeCartTotals();
+            const isPayLater = (selectedPaymentMethod === 'unpaid');
 
             let cashReceived = totals.total;
-            if (selectedPaymentMethod === 'cash') {
+            if (isPayLater) {
+                cashReceived = 0;
+            } else if (selectedPaymentMethod === 'cash') {
                 cashReceived = Number(document.getElementById('cashReceivedInput').value || 0);
                 if (cashReceived < totals.total) {
                     showToast('error', 'Uang tunai yang diterima kurang dari total belanja.');
@@ -1964,6 +2008,7 @@
                 shift_id: POS_CONFIG.shiftId,
                 customer_id: customerId,
                 payment_method: selectedPaymentMethod,
+                pay_later: isPayLater,
                 cash_received: cashReceived,
                 promo_id: promoId,
                 note: note,
@@ -2002,7 +2047,10 @@
                 closePaymentModal();
                 showSuccessModal(data.sale);
                 clearCart();
-                showToast('success', 'Transaksi ' + data.sale.transaction_number + ' berhasil!');
+                const successMsg = isPayLater
+                    ? 'Pesanan ' + data.sale.transaction_number + ' berhasil disimpan (Bayar Nanti)!'
+                    : 'Transaksi ' + data.sale.transaction_number + ' berhasil!';
+                showToast('success', successMsg);
             } catch (err) {
                 showToast('error', 'Terjadi kesalahan jaringan atau server.');
             } finally {
@@ -2012,8 +2060,116 @@
             }
         }
 
+        // ==================== PAY LATER QUICK ACTION ====================
+        async function handlePayLaterClick() {
+            if (!POS_CONFIG.hasOpenShift) {
+                showToast('warning', 'Shift kasir belum dibuka. Silakan buka shift terlebih dahulu.');
+                openOpenShiftModal();
+                return;
+            }
+
+            if (cart.length === 0) {
+                showToast('warning', 'Keranjang belanja masih kosong.');
+                return;
+            }
+
+            const totals = computeCartTotals();
+            const confirmed = confirm('Simpan pesanan sebesar ' + formatRp(totals.total) + ' dengan status Belum Lunas (Bayar Nanti)?');
+            if (!confirmed) return;
+
+            const payLaterBtn = document.getElementById('payLaterBtn');
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            if (payLaterBtn) {
+                payLaterBtn.disabled = true;
+                payLaterBtn.innerHTML = `<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>Menyimpan...</span>`;
+            }
+            if (checkoutBtn) checkoutBtn.disabled = true;
+            if (typeof window.initIcons === 'function') window.initIcons();
+
+            const customerSelect = document.getElementById('cartCustomerSelect');
+            const customerId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+            const promoSelect = document.getElementById('cartPromoSelect');
+            const promoId = promoSelect && promoSelect.value ? Number(promoSelect.value) : null;
+            const noteInput = document.getElementById('cartNoteInput');
+            const note = noteInput ? noteInput.value : '';
+
+            const payload = {
+                client_sale_id: generateUUID(),
+                outlet_id: POS_CONFIG.outletId,
+                shift_id: POS_CONFIG.shiftId,
+                customer_id: customerId,
+                payment_method: 'unpaid',
+                pay_later: true,
+                cash_received: 0,
+                promo_id: promoId,
+                note: note,
+                items: cart.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity,
+                    variant_option_ids: item.variant_option_ids || [],
+                    variants: item.variants || []
+                }))
+            };
+
+            try {
+                const res = await fetch(POS_CONFIG.checkoutUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': POS_CONFIG.csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    const errorMsg = data.message || (data.errors ? Object.values(data.errors)[0][0] : 'Gagal memproses pesanan.');
+                    showToast('error', errorMsg);
+                    return;
+                }
+
+                lastCompletedSale = data.sale;
+                showSuccessModal(data.sale);
+                clearCart();
+                showToast('success', 'Pesanan #' + data.sale.transaction_number + ' berhasil disimpan (Bayar Nanti)!');
+            } catch (err) {
+                showToast('error', 'Terjadi kesalahan jaringan atau server.');
+            } finally {
+                if (payLaterBtn) {
+                    payLaterBtn.disabled = false;
+                    payLaterBtn.innerHTML = `<i data-lucide="clock" class="w-4 h-4 text-amber-500"></i><span>Bayar Nanti</span>`;
+                }
+                if (checkoutBtn) checkoutBtn.disabled = false;
+                if (typeof window.initIcons === 'function') window.initIcons();
+            }
+        }
+        window.handlePayLaterClick = handlePayLaterClick;
+
         // ==================== SUCCESS / RECEIPT MODAL ====================
         function showSuccessModal(sale) {
+            const isUnpaid = sale.payment_status === 'unpaid' || sale.payment_method === 'Bayar Nanti' || sale.payment_method === 'unpaid';
+            const headerBar = document.getElementById('successModalHeaderBar');
+            const iconBox = document.getElementById('successModalIconBox');
+            const titleEl = document.getElementById('successModalTitle');
+
+            if (isUnpaid) {
+                if (headerBar) headerBar.className = "p-4 border-b border-slate-100 dark:border-slate-800 text-center relative bg-amber-50/60 dark:bg-amber-950/30";
+                if (iconBox) {
+                    iconBox.className = "w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-2";
+                    iconBox.innerHTML = '<i data-lucide="clock" class="w-6 h-6"></i>';
+                }
+                if (titleEl) titleEl.textContent = "Pesanan Disimpan (Bayar Nanti)";
+            } else {
+                if (headerBar) headerBar.className = "p-4 border-b border-slate-100 dark:border-slate-800 text-center relative bg-emerald-50/60 dark:bg-emerald-950/30";
+                if (iconBox) {
+                    iconBox.className = "w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-2";
+                    iconBox.innerHTML = '<i data-lucide="check-circle-2" class="w-6 h-6"></i>';
+                }
+                if (titleEl) titleEl.textContent = "Transaksi Berhasil!";
+            }
+
             document.getElementById('successTxNumber').textContent = '#' + sale.transaction_number;
             document.getElementById('receiptDateTime').textContent = sale.sold_at;
             document.getElementById('receiptSubtotal').textContent = formatRp(sale.subtotal);
@@ -2036,9 +2192,9 @@
             }
 
             document.getElementById('receiptTotal').textContent = formatRp(sale.total_amount);
-            document.getElementById('receiptMethod').textContent = sale.payment_method.toUpperCase();
-            document.getElementById('receiptPaid').textContent = formatRp(sale.cash_received);
-            document.getElementById('receiptChange').textContent = formatRp(sale.change_amount);
+            document.getElementById('receiptMethod').textContent = isUnpaid ? 'BAYAR NANTI (BELUM LUNAS)' : (sale.payment_method ? String(sale.payment_method).toUpperCase() : 'TUNAI');
+            document.getElementById('receiptPaid').textContent = formatRp(sale.cash_received || 0);
+            document.getElementById('receiptChange').textContent = formatRp(sale.change_amount || 0);
 
             const itemsContainer = document.getElementById('receiptItemsList');
             itemsContainer.innerHTML = '';
@@ -2056,6 +2212,7 @@
             });
 
             document.getElementById('successModal').classList.remove('hidden');
+            if (typeof window.initIcons === 'function') window.initIcons();
         }
 
         function closeSuccessModal() {

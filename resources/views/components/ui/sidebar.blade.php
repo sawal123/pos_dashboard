@@ -144,6 +144,7 @@
                         icon="receipt"
                         label="Transaksi"
                         route="transactions.index"
+                        :navigate="false"
                         :locked="$isCashier && !$can($P::TRANSACTIONS_VIEW)"
                     />
                 @endif

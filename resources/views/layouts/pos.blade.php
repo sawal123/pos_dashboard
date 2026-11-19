@@ -27,7 +27,7 @@
             }
         </style>
     </head>
-    <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-sans overflow-x-hidden">
+    <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 h-screen overflow-hidden flex flex-col font-sans select-none">
 
         {{-- ==================== POS HEADER ==================== --}}
         <header class="h-14 md:h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-3 md:px-6 flex items-center justify-between shrink-0 z-30 select-none">

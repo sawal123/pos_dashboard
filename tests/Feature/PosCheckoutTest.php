@@ -527,6 +527,60 @@ class PosCheckoutTest extends TestCase
         ]);
     }
 
+    public function test_12_pay_later_creates_unpaid_sale_with_processing_order_status_and_no_cash_ledger(): void
+    {
+        [$business, $user, $outlet] = $this->setupTenant();
+        $shift = $this->openShift($business, $outlet);
+
+        $product = $this->createProduct($business, [
+            'name' => 'Kopi Tubruk',
+            'sku' => 'KOP-01',
+            'price' => 15000,
+            'cost' => 5000,
+            'stock' => 10,
+        ]);
+
+        $clientSaleId = (string) Str::uuid();
+
+        $response = $this->actingAs($user)
+            ->withSession(['pos.active_outlet_id' => $outlet->id])
+            ->postJson(route('pos.checkout'), [
+                'client_sale_id' => $clientSaleId,
+                'outlet_id' => $outlet->id,
+                'shift_id' => $shift->id,
+                'payment_method' => 'unpaid',
+                'pay_later' => true,
+                'cash_received' => 0,
+                'items' => [
+                    [
+                        'product_id' => $product->id,
+                        'quantity' => 2,
+                    ],
+                ],
+            ]);
+
+        $response->assertOk();
+        $response->assertJsonPath('success', true);
+        $response->assertJsonPath('sale.payment_status', 'unpaid');
+        $response->assertJsonPath('sale.order_status', 'Proses');
+        $response->assertJsonPath('sale.total_amount', 30000);
+
+        // Verify sale in DB
+        $sale = Sale::where('sync_id', $clientSaleId)->firstOrFail();
+        $this->assertSame('unpaid', $sale->payment_status);
+        $this->assertSame('Proses', $sale->order_status);
+        $this->assertNull($sale->paid_at);
+        $this->assertSame(0, (int) $sale->cash_received);
+
+        // Verify no cash ledger was written for unpaid sale
+        $this->assertDatabaseMissing('cash_ledger', [
+            'sale_sync_id' => $clientSaleId,
+        ]);
+
+        // Stock was still properly deducted
+        $this->assertSame('8.000', (string) $product->fresh()->stock);
+    }
+
     /**
      * @return array{0: Business, 1: User, 2: Outlet}
      */

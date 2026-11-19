@@ -111,6 +111,15 @@ class ShareDashboardBusinessContext
             View::share('dashboardBusinessType', $businessType);
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        // Prevent browser caching of dynamic dashboard pages so transactions and reports are always fresh
+        if ($user) {
+            $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+            $response->headers->set('Pragma', 'no-cache');
+            $response->headers->set('Expires', '0');
+        }
+
+        return $response;
     }
 }

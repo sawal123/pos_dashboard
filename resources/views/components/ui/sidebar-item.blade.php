@@ -11,6 +11,7 @@
     'lockedReason' => null,
     'requiresSubscription' => false,
     'subscription' => 'unknown',
+    'navigate' => true,
 ])
 
 @php
@@ -57,7 +58,7 @@
 
 <a
     href="{{ $href }}"
-    @if($hasRealRoute && !$isLocked) wire:navigate @endif
+    @if($hasRealRoute && !$isLocked && $navigate) wire:navigate @endif
     @if($locked) onclick="if (window.showToast) { window.showToast('warning', @js($lockToastMessage)); } return false;" @endif
     class="{{ $baseClasses }} {{ $stateClasses }}"
     data-tooltip-right="{{ $locked ? $label . ' (Terkunci)' : $label }}"

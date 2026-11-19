@@ -748,6 +748,11 @@
             window.__transactionsListenersBound = true;
             document.addEventListener('DOMContentLoaded', initTransactionsPage);
             document.addEventListener('livewire:navigated', initTransactionsPage);
+            window.addEventListener('pageshow', function (event) {
+                if (event.persisted) {
+                    window.location.reload();
+                }
+            });
         }
     </script>
 </x-layouts::app>
