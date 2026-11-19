@@ -366,6 +366,7 @@ class DashboardTransactionsData
             'outlet_name' => $outletName,
             'shift_name' => $shiftName,
             'customer_name' => $customerName,
+            'table_number' => $sale->table_number,
 
             'payment_method_raw' => $paymentMethodRaw,
             'payment_method' => $paymentMethod,

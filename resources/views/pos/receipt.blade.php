@@ -123,8 +123,14 @@
             No: {{ $sale->transaction_number }}<br>
             Waktu: {{ $sale->sold_at?->copy()->setTimezone(config('app.timezone', 'Asia/Jakarta'))->format('d/m/Y H:i:s') }}<br>
             Kasir: {{ $sale->shift ? 'Shift '.$sale->shift->shift_number : 'Web Kasir' }}
-            @if($sale->customer)
-                <br>Pelanggan: {{ $sale->customer->name }}
+            @php
+                $displayCustomer = $sale->customer?->name ?: ($sale->customer_snapshot['name'] ?? null);
+            @endphp
+            @if($displayCustomer)
+                <br>Pelanggan: {{ $displayCustomer }}
+            @endif
+            @if(!empty($sale->table_number))
+                <br>No. Meja: {{ $sale->table_number }}
             @endif
         </div>
     </div>

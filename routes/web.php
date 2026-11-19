@@ -491,6 +491,16 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::patch('business-settings/device-limit', [BusinessSettingsController::class, 'updateDeviceLimit'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.device-limit.update');
+    Route::patch('business-settings/tables-toggle', [BusinessSettingsController::class, 'updateTableSettings'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.tables.toggle');
+    Route::post('business-settings/tables', [BusinessSettingsController::class, 'storeTable'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.tables.store');
+    Route::delete('business-settings/tables/{tableId}', [BusinessSettingsController::class, 'destroyTable'])
+        ->whereNumber('tableId')
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.tables.destroy');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

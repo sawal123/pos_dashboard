@@ -498,6 +498,7 @@ class DashboardOverviewData
                 'sold_at_time' => $soldAtCarbon->format('H:i').' WIB',
                 'sold_at_raw' => $sale->sold_at,
                 'customer_name' => $customerName,
+                'table_number' => $sale->table_number,
                 'outlet_name' => $outletName,
                 'payment_method' => self::presentPaymentMethod($sale->payment_method),
                 'payment_method_raw' => $sale->payment_method,

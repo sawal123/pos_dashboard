@@ -191,4 +191,14 @@ class Outlet extends Model
     {
         return $this->hasMany(Device::class);
     }
+
+    /**
+     * The dining tables belonging to the outlet.
+     *
+     * @return HasMany<DiningTable, $this>
+     */
+    public function diningTables(): HasMany
+    {
+        return $this->hasMany(DiningTable::class)->orderBy('sort_order')->orderBy('name');
+    }
 }

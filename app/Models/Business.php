@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string $status
  * @property string|null $business_type
+ * @property bool $table_management_enabled
  * @property bool $tax_enabled
  * @property float $tax_rate
  * @property string $cashier_pin
@@ -48,7 +49,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
-#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift', 'receipt_logo', 'receipt_address', 'receipt_footer', 'max_devices'])]
+#[Fillable(['name', 'slug', 'status', 'business_type', 'table_management_enabled', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift', 'receipt_logo', 'receipt_address', 'receipt_footer', 'max_devices'])]
 class Business extends Model
 {
     /** Membership role values that have a defined authorization contract. */
@@ -107,6 +108,7 @@ class Business extends Model
     protected function casts(): array
     {
         return [
+            'table_management_enabled' => 'boolean',
             'tax_enabled' => 'boolean',
             'tax_rate' => 'float',
             'default_opening_cash' => 'integer',
@@ -245,6 +247,16 @@ class Business extends Model
     public function outlets(): HasMany
     {
         return $this->hasMany(Outlet::class);
+    }
+
+    /**
+     * Dining tables defined for this business.
+     *
+     * @return HasMany<DiningTable, $this>
+     */
+    public function diningTables(): HasMany
+    {
+        return $this->hasMany(DiningTable::class)->orderBy('sort_order')->orderBy('name');
     }
 
     /**

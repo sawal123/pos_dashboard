@@ -63,9 +63,16 @@
             <div class="flex items-center justify-between gap-2 text-xs pt-2 border-t border-slate-100 dark:border-slate-800/70">
                 <div class="min-w-0 flex-1">
                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Pelanggan</p>
-                    <p class="font-semibold text-slate-800 dark:text-slate-200 truncate mt-0.5 {{ empty($trx['customer_name']) ? 'italic text-slate-400 dark:text-slate-500' : '' }}">
-                        {{ $customer }}
-                    </p>
+                    <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                        <p class="font-semibold text-slate-800 dark:text-slate-200 truncate {{ empty($trx['customer_name']) ? 'italic text-slate-400 dark:text-slate-500' : '' }}">
+                            {{ $customer }}
+                        </p>
+                        @if(!empty($trx['table_number']))
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                {{ $trx['table_number'] }}
+                            </span>
+                        @endif
+                    </div>
                 </div>
                 <div class="text-right min-w-0 flex-1">
                     <p class="text-[11px] text-slate-400 dark:text-slate-500">Outlet</p>

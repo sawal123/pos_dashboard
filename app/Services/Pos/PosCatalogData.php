@@ -6,6 +6,7 @@ use App\Enums\PromoStatus;
 use App\Models\Business;
 use App\Models\Category;
 use App\Models\Customer;
+use App\Models\DiningTable;
 use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Promo;
@@ -211,9 +212,35 @@ class PosCatalogData
                 ];
             });
 
+        $diningTables = [];
+        if ($business->table_management_enabled) {
+            $diningTables = DiningTable::query()
+                ->where('business_id', $business->id)
+                ->where(function ($q) use ($activeOutlet) {
+                    $q->whereNull('outlet_id');
+                    if ($activeOutlet) {
+                        $q->orWhere('outlet_id', $activeOutlet->id);
+                    }
+                })
+                ->where('status', '!=', 'inactive')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(['id', 'name', 'capacity', 'status'])
+                ->map(fn ($t) => [
+                    'id' => (int) $t->id,
+                    'name' => (string) $t->name,
+                    'capacity' => (int) ($t->capacity ?? 4),
+                    'status' => (string) $t->status,
+                ])
+                ->values()
+                ->all();
+        }
+
         return [
             'business' => $business,
             'isGrosir' => $business->normalizedBusinessType() === 'grosir',
+            'tableManagementEnabled' => (bool) $business->table_management_enabled,
+            'diningTables' => $diningTables,
             'outlets' => $outlets,
             'activeOutlet' => $activeOutlet,
             'currentShift' => $currentShift,

@@ -77,6 +77,12 @@
             :maxDevices="$maxDevices ?? 5"
         />
 
+        <x-business-settings.table-settings-form
+            :tableManagementEnabled="$tableManagementEnabled ?? false"
+            :diningTables="$diningTables ?? []"
+            :outlets="$outlets ?? []"
+        />
+
         <x-business-settings.tax-settings-form
             :taxEnabled="$taxEnabled"
             :taxRate="$taxRate"

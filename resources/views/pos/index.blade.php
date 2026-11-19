@@ -335,19 +335,70 @@
                     </button>
                 </div>
 
-                {{-- Customer Selector --}}
-                <div class="relative">
-                    <select
-                        id="cartCustomerSelect"
-                        class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                    >
-                        <option value="">-- Pelanggan Umum / Non-Member --</option>
-                        @foreach($customers as $c)
-                            <option value="{{ $c['id'] }}">
-                                👤 {{ $c['name'] }} {{ $c['phone'] ? '('.$c['phone'].')' : '' }}
-                            </option>
-                        @endforeach
-                    </select>
+                {{-- Customer & Table Number Inputs --}}
+                <div class="space-y-2">
+                    {{-- Customer Input --}}
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-1.5">
+                            <div class="relative flex-1">
+                                <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                                </div>
+                                <input
+                                    type="text"
+                                    id="cartCustomerNameInput"
+                                    placeholder="Nama Pelanggan (opsional)"
+                                    class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-2 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                >
+                                <input type="hidden" id="cartCustomerIdInput" value="">
+                            </div>
+                            <button
+                                type="button"
+                                id="toggleMemberSelectBtn"
+                                class="h-8 px-2.5 text-[11px] font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+                                title="Pilih dari daftar member terdaftar"
+                            >
+                                <i data-lucide="users" class="w-3.5 h-3.5"></i>
+                                <span>Member</span>
+                            </button>
+                        </div>
+
+                        {{-- Member Dropdown (Toggled if kasir wants to pick registered member) --}}
+                        <div id="memberSelectContainer" class="hidden">
+                            <select
+                                id="cartCustomerSelect"
+                                class="w-full text-xs bg-indigo-50/70 dark:bg-slate-800/90 border border-indigo-200 dark:border-indigo-800/70 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                            >
+                                <option value="">-- Batal Pilih Member (Gunakan Nama Bebas) --</option>
+                                @foreach($customers as $c)
+                                    <option value="{{ $c['id'] }}" data-name="{{ $c['name'] }}">
+                                        👤 {{ $c['name'] }} {{ $c['phone'] ? '('.$c['phone'].')' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    {{-- Table Number Input (Rendered ONLY if Table Management is enabled in business settings) --}}
+                    @if($tableManagementEnabled ?? false)
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                                <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <input
+                                type="text"
+                                id="cartTableNumberInput"
+                                list="diningTablesList"
+                                placeholder="Nomor Meja (opsional, pilih/ketik)"
+                                class="w-full text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-8 pr-3 py-2 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                            <datalist id="diningTablesList">
+                                @foreach($diningTables as $t)
+                                    <option value="{{ $t['name'] }}">{{ $t['name'] }} ({{ $t['capacity'] }} org)</option>
+                                @endforeach
+                            </datalist>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -1751,6 +1802,18 @@
         function clearCart() {
             cart = [];
             appliedDiscount = 0;
+            const customerNameInput = document.getElementById('cartCustomerNameInput');
+            const customerIdInput = document.getElementById('cartCustomerIdInput');
+            const customerSelect = document.getElementById('cartCustomerSelect');
+            const tableNumberInput = document.getElementById('cartTableNumberInput');
+            const memberSelectContainer = document.getElementById('memberSelectContainer');
+
+            if (customerNameInput) customerNameInput.value = '';
+            if (customerIdInput) customerIdInput.value = '';
+            if (customerSelect) customerSelect.value = '';
+            if (tableNumberInput) tableNumberInput.value = '';
+            if (memberSelectContainer) memberSelectContainer.classList.add('hidden');
+
             saveCartToStorage();
             renderCart();
         }
@@ -1895,8 +1958,9 @@
                 line_total: item.unit_price * item.quantity
             }));
 
+            const customerIdInput = document.getElementById('cartCustomerIdInput');
             const customerSelect = document.getElementById('cartCustomerSelect');
-            const customerId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+            const customerId = customerIdInput && customerIdInput.value ? Number(customerIdInput.value) : (customerSelect && customerSelect.value ? Number(customerSelect.value) : null);
 
             try {
                 const res = await fetch(POS_CONFIG.promoPreviewUrl, {
@@ -2038,8 +2102,14 @@
                 }
             }
 
+            const customerIdInput = document.getElementById('cartCustomerIdInput');
+            const customerNameInput = document.getElementById('cartCustomerNameInput');
             const customerSelect = document.getElementById('cartCustomerSelect');
-            const customerId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+            const customerId = customerIdInput && customerIdInput.value ? Number(customerIdInput.value) : (customerSelect && customerSelect.value ? Number(customerSelect.value) : null);
+            const customerName = customerNameInput ? customerNameInput.value.trim() : '';
+
+            const tableNumberInput = document.getElementById('cartTableNumberInput');
+            const tableNumber = tableNumberInput ? tableNumberInput.value.trim() : null;
             const promoSelect = document.getElementById('cartPromoSelect');
             const promoId = promoSelect && promoSelect.value ? Number(promoSelect.value) : null;
             const noteInput = document.getElementById('cartNoteInput');
@@ -2057,6 +2127,8 @@
                 outlet_id: POS_CONFIG.outletId,
                 shift_id: POS_CONFIG.shiftId,
                 customer_id: customerId,
+                customer_name: customerName,
+                table_number: tableNumber,
                 payment_method: selectedPaymentMethod,
                 pay_later: isPayLater,
                 cash_received: cashReceived,
@@ -2151,8 +2223,14 @@
             if (checkoutBtn) checkoutBtn.disabled = true;
             if (typeof window.initIcons === 'function') window.initIcons();
 
+            const customerIdInput = document.getElementById('cartCustomerIdInput');
+            const customerNameInput = document.getElementById('cartCustomerNameInput');
             const customerSelect = document.getElementById('cartCustomerSelect');
-            const customerId = customerSelect && customerSelect.value ? Number(customerSelect.value) : null;
+            const customerId = customerIdInput && customerIdInput.value ? Number(customerIdInput.value) : (customerSelect && customerSelect.value ? Number(customerSelect.value) : null);
+            const customerName = customerNameInput ? customerNameInput.value.trim() : '';
+
+            const tableNumberInput = document.getElementById('cartTableNumberInput');
+            const tableNumber = tableNumberInput ? tableNumberInput.value.trim() : null;
             const promoSelect = document.getElementById('cartPromoSelect');
             const promoId = promoSelect && promoSelect.value ? Number(promoSelect.value) : null;
             const noteInput = document.getElementById('cartNoteInput');
@@ -2163,6 +2241,8 @@
                 outlet_id: POS_CONFIG.outletId,
                 shift_id: POS_CONFIG.shiftId,
                 customer_id: customerId,
+                customer_name: customerName,
+                table_number: tableNumber,
                 payment_method: 'unpaid',
                 pay_later: true,
                 cash_received: 0,
@@ -2541,10 +2621,41 @@
                 promoSelect.addEventListener('change', evaluateCartPromo);
             }
 
-            // Customer change
+            // Customer change & Member Select toggle
+            const toggleMemberSelectBtn = document.getElementById('toggleMemberSelectBtn');
+            const memberSelectContainer = document.getElementById('memberSelectContainer');
             const customerSelect = document.getElementById('cartCustomerSelect');
+            const customerNameInput = document.getElementById('cartCustomerNameInput');
+            const customerIdInput = document.getElementById('cartCustomerIdInput');
+
+            if (toggleMemberSelectBtn && memberSelectContainer) {
+                toggleMemberSelectBtn.addEventListener('click', () => {
+                    memberSelectContainer.classList.toggle('hidden');
+                });
+            }
+
             if (customerSelect) {
-                customerSelect.addEventListener('change', evaluateCartPromo);
+                customerSelect.addEventListener('change', () => {
+                    if (customerSelect.value) {
+                        const selectedOpt = customerSelect.options[customerSelect.selectedIndex];
+                        const name = selectedOpt.getAttribute('data-name') || selectedOpt.textContent.trim().replace(/^👤\s*/, '');
+                        if (customerNameInput) customerNameInput.value = name;
+                        if (customerIdInput) customerIdInput.value = customerSelect.value;
+                    } else {
+                        if (customerIdInput) customerIdInput.value = '';
+                    }
+                    evaluateCartPromo();
+                });
+            }
+
+            if (customerNameInput) {
+                customerNameInput.addEventListener('input', () => {
+                    if (customerIdInput && customerIdInput.value) {
+                        customerIdInput.value = '';
+                        if (customerSelect) customerSelect.value = '';
+                        evaluateCartPromo();
+                    }
+                });
             }
 
             // Clear Cart Button

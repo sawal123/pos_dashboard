@@ -801,9 +801,9 @@ class SyncPushService
             $fields['estimated_completed_at'] = $this->parseSyncTimestamp($item['estimated_completed_at']);
         }
 
-        foreach (['order_status', 'note'] as $key) {
+        foreach (['order_status', 'note', 'table_number'] as $key) {
             if (array_key_exists($key, $item)) {
-                $fields[$key] = $item[$key] !== null ? $item[$key] : null;
+                $fields[$key] = $item[$key] !== null ? (string) $item[$key] : null;
             }
         }
 

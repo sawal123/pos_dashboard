@@ -8,6 +8,7 @@ use App\Http\Requests\Dashboard\UpdateBusinessTaxRequest;
 use App\Http\Requests\Dashboard\UpdateBusinessTypeRequest;
 use App\Http\Requests\Dashboard\UpdateCashierPinShiftRequest;
 use App\Models\Business;
+use App\Models\DiningTable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -43,6 +44,9 @@ class BusinessSettingsController extends Controller
             'receiptAddress' => (string) ($business->receipt_address ?? ''),
             'receiptFooter' => (string) ($business->receipt_footer ?? ''),
             'maxDevices' => $business->maxDevices(),
+            'tableManagementEnabled' => (bool) $business->table_management_enabled,
+            'diningTables' => $business->diningTables()->with('outlet')->get(),
+            'outlets' => $business->outlets()->orderBy('is_primary', 'desc')->orderBy('name')->get(),
         ]);
     }
 
@@ -148,6 +152,68 @@ class BusinessSettingsController extends Controller
         return redirect()
             ->route('business-settings.edit')
             ->with('status', "Batas perangkat berhasil disimpan ({$business->max_devices} perangkat).");
+    }
+
+    public function updateTableSettings(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'table_management_enabled' => ['required', 'boolean'],
+        ]);
+
+        $business->table_management_enabled = (bool) $validated['table_management_enabled'];
+        $business->save();
+
+        $statusText = $business->table_management_enabled
+            ? 'Fitur nomor meja diaktifkan untuk POS.'
+            : 'Fitur nomor meja dinonaktifkan dari POS.';
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', $statusText);
+    }
+
+    public function storeTable(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'outlet_id' => ['nullable', 'integer', 'exists:outlets,id'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:100'],
+        ], [
+            'name.required' => 'Nama / nomor meja harus diisi.',
+            'name.max' => 'Nama nomor meja maksimal 100 karakter.',
+        ]);
+
+        DiningTable::create([
+            'business_id' => $business->id,
+            'outlet_id' => ! empty($validated['outlet_id']) ? (int) $validated['outlet_id'] : null,
+            'name' => trim($validated['name']),
+            'capacity' => ! empty($validated['capacity']) ? (int) $validated['capacity'] : 4,
+            'status' => 'available',
+        ]);
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', 'Nomor meja "'.trim($validated['name']).'" berhasil ditambahkan.');
+    }
+
+    public function destroyTable(Request $request, int $tableId): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $table = DiningTable::where('business_id', $business->id)
+            ->where('id', $tableId)
+            ->firstOrFail();
+
+        $name = $table->name;
+        $table->delete();
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', 'Nomor meja "'.$name.'" berhasil dihapus.');
     }
 
     /**

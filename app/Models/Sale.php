@@ -32,6 +32,7 @@ use Illuminate\Support\Carbon;
  * @property string|null $order_status
  * @property Carbon|null $estimated_completed_at
  * @property string|null $note
+ * @property string|null $table_number
  * @property array<string, mixed>|null $customer_snapshot
  * @property array<string, mixed>|null $business_snapshot
  * @property Carbon $sold_at
@@ -47,7 +48,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, SaleItem> $items
  * @property-read Collection<int, SalePromotion> $promotions
  */
-#[Fillable(['business_id', 'outlet_id', 'customer_id', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'promo_sync_id', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
+#[Fillable(['business_id', 'outlet_id', 'customer_id', 'table_number', 'shift_id', 'transaction_number', 'status', 'subtotal', 'discount_amount', 'promo_sync_id', 'tax_amount', 'total_amount', 'payment_method', 'payment_status', 'paid_at', 'cash_received', 'change_amount', 'gross_profit', 'order_status', 'estimated_completed_at', 'note', 'customer_snapshot', 'business_snapshot', 'sold_at'])]
 class Sale extends Model
 {
     use HasSyncMetadata;

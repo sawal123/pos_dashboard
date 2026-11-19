@@ -436,12 +436,20 @@ class PosCheckoutService
             $grossProfit = round($taxableSubtotal - $costTotal, 2);
 
             // 8. Snapshots
+            $customCustomerName = ! empty($payload['customer_name']) ? trim((string) $payload['customer_name']) : null;
             $customerSnapshot = $customer ? [
                 'id' => $customer->id,
                 'name' => (string) $customer->name,
                 'phone' => (string) ($customer->phone ?? ''),
                 'email' => (string) ($customer->email ?? ''),
-            ] : null;
+            ] : ($customCustomerName !== null && $customCustomerName !== '' ? [
+                'id' => null,
+                'name' => $customCustomerName,
+                'phone' => '',
+                'email' => '',
+            ] : null);
+
+            $tableNumber = ! empty($payload['table_number']) ? trim((string) $payload['table_number']) : null;
 
             $businessSnapshot = [
                 'name' => (string) $business->name,
@@ -458,6 +466,7 @@ class PosCheckoutService
                 'outlet_id' => $outlet->id,
                 'shift_id' => $shift->id,
                 'customer_id' => $customer?->id,
+                'table_number' => $tableNumber,
                 'transaction_number' => $transactionNumber,
                 'status' => 'completed',
                 'order_status' => 'Proses',

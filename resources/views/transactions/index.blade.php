@@ -330,6 +330,8 @@
                 document.getElementById('detailOutlet').textContent = data.outlet_name || '-';
                 document.getElementById('detailShift').textContent = data.shift_name || '-';
                 document.getElementById('detailCustomer').textContent = data.customer_name || 'Pelanggan Umum';
+                const detailTableEl = document.getElementById('detailTableNumber');
+                if (detailTableEl) detailTableEl.textContent = data.table_number || '-';
 
                 // Status Badges (DOM safe)
                 const payBadge = document.getElementById('detailPaymentStatusBadge');

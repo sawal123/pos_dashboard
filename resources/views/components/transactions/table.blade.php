@@ -65,9 +65,16 @@
 
                         {{-- Pelanggan --}}
                         <td class="py-3.5 px-4 whitespace-nowrap">
-                            <span class="{{ empty($trx['customer_name']) ? 'text-slate-400 dark:text-slate-500 italic' : 'font-medium text-slate-800 dark:text-slate-200' }}">
-                                {{ $customer }}
-                            </span>
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="{{ empty($trx['customer_name']) ? 'text-slate-400 dark:text-slate-500 italic' : 'font-medium text-slate-800 dark:text-slate-200' }}">
+                                    {{ $customer }}
+                                </span>
+                                @if(!empty($trx['table_number']))
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                        {{ $trx['table_number'] }}
+                                    </span>
+                                @endif
+                            </div>
                         </td>
 
                         {{-- Pembayaran --}}

@@ -73,9 +73,13 @@
                         <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Shift</span>
                         <span id="detailShift" class="font-semibold text-slate-800 dark:text-slate-200">-</span>
                     </div>
-                    <div class="col-span-2">
+                    <div>
                         <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Pelanggan</span>
                         <span id="detailCustomer" class="font-semibold text-slate-800 dark:text-slate-200">-</span>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Nomor Meja</span>
+                        <span id="detailTableNumber" class="font-semibold text-slate-800 dark:text-slate-200">-</span>
                     </div>
                 </div>
             </div>
