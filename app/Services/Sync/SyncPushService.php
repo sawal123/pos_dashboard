@@ -493,11 +493,16 @@ class SyncPushService
             $payment = $this->salePaymentFields($item);
             $snapshots = $this->saleSnapshotFields($item, $customerId);
 
+            $rawStatus = (string) ($item['status'] ?? 'completed');
+            $saleStatus = in_array(strtolower($rawStatus), ['paid', 'lunas', 'completed', 'siap', 'selesai'], true)
+                ? 'completed'
+                : (in_array(strtolower($rawStatus), ['cancelled', 'canceled', 'batal', 'dibatalkan'], true) ? 'cancelled' : $rawStatus);
+
             $attributes = array_merge([
                 'customer_id' => $customerId,
                 'shift_id' => $shiftId,
                 'transaction_number' => (string) $item['transaction_number'],
-                'status' => (string) ($item['status'] ?? 'completed'),
+                'status' => $saleStatus,
                 'subtotal' => (int) $item['subtotal'],
                 'discount_amount' => (int) ($item['discount_amount'] ?? 0),
                 'promo_sync_id' => isset($item['promo_sync_id']) && $item['promo_sync_id'] !== ''

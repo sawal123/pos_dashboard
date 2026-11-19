@@ -66,8 +66,12 @@ class DashboardOverviewData
         $todayEnd = $now->copy()->endOfDay()->toDateTimeString();
 
         $todaySalesQuery = Sale::where('business_id', $businessId)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->whereBetween('sold_at', [$todayStart, $todayEnd]);
         if ($numericOutletId !== null) {
             $todaySalesQuery->where('outlet_id', $numericOutletId);
@@ -187,8 +191,12 @@ class DashboardOverviewData
 
         // Query daily aggregates from database (SQLite and MySQL compatible)
         $salesQuery = Sale::where('business_id', $businessId)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()]);
         if ($outletId !== null) {
             $salesQuery->where('outlet_id', $outletId);
@@ -270,8 +278,12 @@ class DashboardOverviewData
 
         // Metode Pembayaran Terbanyak (berdasarkan COUNT Sale)
         $paymentQuery = Sale::where('business_id', $businessId)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()]);
         if ($outletId !== null) {
             $paymentQuery->where('outlet_id', $outletId);

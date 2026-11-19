@@ -132,8 +132,12 @@ class DashboardOutletsData
         $sales = DB::table('sales')
             ->where('business_id', $businessId)
             ->where('outlet_id', $outletId)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap', 'proses'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->select(
                 DB::raw('COUNT(*) as aggregate_count'),
                 DB::raw('COALESCE(SUM(total_amount), 0) as aggregate_total'),
@@ -276,8 +280,12 @@ class DashboardOutletsData
         $sales = DB::table('sales')
             ->where('business_id', $businessId)
             ->whereIn('outlet_id', $outletIds)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap', 'proses'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->select(
                 'outlet_id',
                 DB::raw('COUNT(*) as aggregate_count'),
