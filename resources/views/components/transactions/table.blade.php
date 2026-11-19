@@ -14,7 +14,8 @@
                     <th class="py-3.5 px-4 font-bold">Outlet</th>
                     <th class="py-3.5 px-4 font-bold">Pelanggan</th>
                     <th class="py-3.5 px-4 font-bold">Pembayaran</th>
-                    <th class="py-3.5 px-4 font-bold">Status Pembayaran</th>
+                    <th class="py-3.5 px-4 font-bold">Status Pesanan</th>
+                    <th class="py-3.5 px-4 font-bold">Status Bayar</th>
                     <th class="py-3.5 px-4 font-bold text-right">Total</th>
                     <th class="py-3.5 px-4 font-bold text-center">Aksi</th>
                 </tr>
@@ -22,9 +23,13 @@
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-slate-700 dark:text-slate-200" id="desktopTransactionsBody">
                 @foreach($transactions as $trx)
                     @php
-                        $payRaw = $trx['payment_status_raw'] ?? $trx['payment_status'];
-                        $isCancelled = in_array($trx['status_raw'] ?? $trx['status'], ['cancelled', 'canceled']);
+                        $payRaw = strtolower($trx['payment_status_raw'] ?? $trx['payment_status'] ?? '');
+                        $statusRaw = strtolower($trx['status_raw'] ?? $trx['status'] ?? '');
+                        $orderRaw = strtolower($trx['order_status_raw'] ?? $trx['order_status'] ?? '');
                         $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
+
+                        $isCancelled = in_array($statusRaw, ['cancelled', 'canceled', 'batal']) || in_array($orderRaw, ['batal', 'cancelled', 'canceled']);
+                        $isProcessing = in_array($statusRaw, ['processing', 'proses']) || in_array($orderRaw, ['proses', 'diproses', 'masuk']);
                     @endphp
                     <tr
                         class="table-row hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors transaction-row"
@@ -42,11 +47,6 @@
                         <td class="py-3.5 px-4 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             <div class="flex items-center gap-1.5">
                                 <span>{{ $trx['transaction_number'] }}</span>
-                                @if($isCancelled)
-                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400">
-                                        Batal
-                                    </span>
-                                @endif
                             </div>
                         </td>
 
@@ -86,17 +86,42 @@
                             </span>
                         </td>
 
-                        {{-- Status Pembayaran --}}
+                        {{-- Status Pesanan (Batal, Proses, Siap) --}}
                         <td class="py-3.5 px-4 whitespace-nowrap">
-                            @if($payRaw === 'paid')
+                            @if($isCancelled)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                                    <span>Batal</span>
+                                </span>
+                            @elseif($isProcessing)
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-blue-700 dark:text-blue-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                                    <span>Proses</span>
+                                </span>
+                            @else
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span>Siap</span>
+                                </span>
+                            @endif
+                        </td>
+
+                        {{-- Status Pembayaran (Refund, Belum Lunas, Lunas) --}}
+                        <td class="py-3.5 px-4 whitespace-nowrap">
+                            @if($payRaw === 'paid' || $trx['payment_status'] === 'Lunas')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                     <span>Lunas</span>
                                 </span>
-                            @elseif($payRaw === 'unpaid')
+                            @elseif($payRaw === 'unpaid' || $trx['payment_status'] === 'Belum Lunas')
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400">
                                     <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                                     <span>Belum Lunas</span>
+                                </span>
+                            @elseif($payRaw === 'refund' || $payRaw === 'refunded' || $trx['payment_status'] === 'Refund')
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 text-purple-700 dark:text-purple-400">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+                                    <span>Refund</span>
                                 </span>
                             @else
                                 <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300">

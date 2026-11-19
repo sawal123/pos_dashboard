@@ -336,7 +336,7 @@
                 payBadge.textContent = '';
                 const payDot = document.createElement('span');
                 const payText = document.createElement('span');
-                const rawPayStatus = (data.payment_status_raw || '').toLowerCase();
+                const rawPayStatus = (data.payment_status_raw || data.payment_status || '').toLowerCase();
                 if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
@@ -345,8 +345,11 @@
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
                     payText.textContent = 'Belum Lunas';
+                } else if (rawPayStatus === 'refund' || rawPayStatus === 'refunded' || data.payment_status === 'Refund') {
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 text-purple-700 dark:text-purple-400';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-purple-500';
+                    payText.textContent = 'Refund';
                 } else {
-                    // Unknown / other status: human-readable label with neutral/slate badge
                     payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
                     payDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
                     payText.textContent = data.payment_status || '-';
@@ -356,18 +359,24 @@
 
                 const txBadge = document.getElementById('detailTransactionStatusBadge');
                 txBadge.textContent = '';
+                const txDot = document.createElement('span');
                 const txText = document.createElement('span');
-                if (data.status === 'Selesai') {
-                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
-                    txText.textContent = 'Selesai';
-                } else if (data.status === 'Dibatalkan') {
+                const rawTxStatus = (data.status_raw || data.status || '').toLowerCase();
+                const rawOrderStatus = (data.order_status_raw || data.order_status || '').toLowerCase();
+                if (data.status === 'Batal' || rawTxStatus === 'cancelled' || rawTxStatus === 'canceled' || rawTxStatus === 'batal' || rawOrderStatus === 'batal') {
                     txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400';
-                    txText.textContent = 'Dibatalkan';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+                    txText.textContent = 'Batal';
+                } else if (data.status === 'Proses' || rawTxStatus === 'processing' || rawTxStatus === 'proses' || rawOrderStatus === 'proses') {
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-blue-700 dark:text-blue-400';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-blue-500';
+                    txText.textContent = 'Proses';
                 } else {
-                    // Neutral — do not default to Dibatalkan for unknown statuses
-                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
-                    txText.textContent = data.status || '-';
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+                    txText.textContent = 'Siap';
                 }
+                txBadge.appendChild(txDot);
                 txBadge.appendChild(txText);
 
                 // Order Status Section (Conditional)
@@ -634,20 +643,25 @@
                 }
 
                 if (editPaymentStatus) {
-                    const rawPayStatus = (data.payment_status_raw || '').toLowerCase();
+                    const rawPayStatus = (data.payment_status_raw || data.payment_status || '').toLowerCase();
                     if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
                         editPaymentStatus.value = 'paid';
+                    } else if (rawPayStatus === 'refund' || rawPayStatus === 'refunded' || data.payment_status === 'Refund') {
+                        editPaymentStatus.value = 'refund';
                     } else {
                         editPaymentStatus.value = 'unpaid';
                     }
                 }
 
                 if (editStatus) {
-                    const rawStatus = (data.status_raw || '').toLowerCase();
-                    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || data.status === 'Dibatalkan') {
-                        editStatus.value = 'cancelled';
+                    const rawStatus = (data.status_raw || data.status || '').toLowerCase();
+                    const rawOrder = (data.order_status_raw || data.order_status || '').toLowerCase();
+                    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'batal' || rawOrder === 'batal' || data.status === 'Batal' || data.status === 'Dibatalkan') {
+                        editStatus.value = 'batal';
+                    } else if (rawStatus === 'processing' || rawStatus === 'proses' || rawOrder === 'proses' || data.status === 'Proses') {
+                        editStatus.value = 'proses';
                     } else {
-                        editStatus.value = 'completed';
+                        editStatus.value = 'siap';
                     }
                 }
 

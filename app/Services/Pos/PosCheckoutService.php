@@ -456,7 +456,7 @@ class PosCheckoutService
                 'cash_received' => $cashReceived,
                 'change_amount' => $changeAmount,
                 'promo_sync_id' => $appliedPromo?->sync_id,
-                'order_status' => $business->normalizedBusinessType() === 'laundry' ? 'Masuk' : null,
+                'order_status' => $business->normalizedBusinessType() === 'laundry' ? 'Masuk' : 'Siap',
                 'note' => ! empty($payload['note']) ? (string) $payload['note'] : null,
                 'customer_snapshot' => $customerSnapshot,
                 'business_snapshot' => $businessSnapshot,

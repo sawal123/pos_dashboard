@@ -93,20 +93,47 @@ class DashboardTransactionsData
             $query->where('payment_method', $paymentMethod);
         }
 
-        // Payment status — raw DB values: paid / unpaid
+        // Payment status — raw DB values: paid (Lunas) / unpaid (Belum Lunas) / refund (Refund)
         $paymentStatus = isset($filters['payment_status']) && $filters['payment_status'] !== '' && $filters['payment_status'] !== 'all'
-            ? (string) $filters['payment_status']
+            ? strtolower((string) $filters['payment_status'])
             : null;
         if ($paymentStatus !== null) {
-            $query->where('payment_status', $paymentStatus);
+            if (in_array($paymentStatus, ['refund', 'refunded'], true)) {
+                $query->whereIn('payment_status', ['refund', 'refunded', 'Refund']);
+            } elseif (in_array($paymentStatus, ['paid', 'lunas'], true)) {
+                $query->whereIn('payment_status', ['paid', 'Lunas']);
+            } elseif (in_array($paymentStatus, ['unpaid', 'belum lunas'], true)) {
+                $query->whereIn('payment_status', ['unpaid', 'Belum Lunas']);
+            } else {
+                $query->where('payment_status', $paymentStatus);
+            }
         }
 
-        // Transaction status — raw DB value
+        // Status Pesanan filter — Batal / Proses / Siap
         $status = isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all'
-            ? (string) $filters['status']
+            ? strtolower((string) $filters['status'])
             : null;
         if ($status !== null) {
-            $query->where('status', $status);
+            if (in_array($status, ['batal', 'cancelled', 'canceled', 'dibatalkan'], true)) {
+                $query->where(function ($q) {
+                    $q->whereIn('status', ['cancelled', 'canceled', 'batal', 'Dibatalkan'])
+                      ->orWhereIn('order_status', ['Batal', 'batal', 'Dibatalkan']);
+                });
+            } elseif (in_array($status, ['proses', 'processing', 'diproses', 'masuk'], true)) {
+                $query->where(function ($q) {
+                    $q->whereIn('status', ['processing', 'proses', 'Proses'])
+                      ->orWhereIn('order_status', ['Proses', 'Diproses', 'Masuk', 'proses']);
+                });
+            } elseif (in_array($status, ['siap', 'completed', 'ready', 'selesai'], true)) {
+                $query->where(function ($q) {
+                    $q->whereIn('status', ['completed', 'siap', 'ready', 'selesai', 'Siap'])
+                      ->orWhereIn('order_status', ['Siap', 'Siap Diambil', 'Selesai', 'siap', 'completed']);
+                });
+            } else {
+                $query->where(function ($q) use ($status) {
+                    $q->where('status', $status)->orWhere('order_status', $status);
+                });
+            }
         }
 
         return $query;
@@ -255,21 +282,14 @@ class DashboardTransactionsData
             'label' => $this->presentPaymentMethod($pm),
         ])->values()->toArray();
 
-        // Distinct transaction statuses from actual data
-        $statuses = Sale::query()
-            ->where('business_id', $business->id)
-            ->whereNotNull('status')
-            ->distinct()
-            ->orderBy('status')
-            ->pluck('status');
-
         return [
             'outlets' => $outlets->map(fn (Outlet $o) => ['id' => $o->id, 'name' => $o->name])->values()->toArray(),
             'payment_methods' => $paymentMethods,
-            'statuses' => $statuses->toArray(),
+            'statuses' => ['siap', 'proses', 'batal'],
             'payment_statuses' => [
                 ['value' => 'paid', 'label' => 'Lunas'],
                 ['value' => 'unpaid', 'label' => 'Belum Lunas'],
+                ['value' => 'refund', 'label' => 'Refund'],
             ],
         ];
     }
@@ -317,9 +337,10 @@ class DashboardTransactionsData
         $paymentStatusRaw = $sale->payment_status;
         $paymentStatus = $this->presentPaymentStatus($paymentStatusRaw);
 
-        // Transaction status
+        // Transaction & Order status (Batal, Proses, Siap)
         $statusRaw = $sale->status;
-        $status = $this->presentStatus($statusRaw);
+        $orderStatusRaw = $sale->order_status;
+        $status = $this->presentStatus($statusRaw, $orderStatusRaw);
 
         // Items — use historical SaleItem fields only
         $items = $sale->items->map(fn ($item) => [
@@ -368,7 +389,8 @@ class DashboardTransactionsData
 
             'note' => $sale->note,
 
-            'order_status' => $sale->order_status,
+            'order_status' => $status,
+            'order_status_raw' => $orderStatusRaw,
             'estimated_completed_at' => $estimatedCompletedAt,
 
             'items' => $items,
@@ -394,28 +416,39 @@ class DashboardTransactionsData
     }
 
     /**
-     * Map raw payment_status to human-readable label.
+     * Map raw payment_status to human-readable label: Lunas, Belum Lunas, Refund.
      */
     private function presentPaymentStatus(string $raw): string
     {
-        return match ($raw) {
-            'paid' => 'Lunas',
-            'unpaid' => 'Belum Lunas',
+        return match (strtolower(trim($raw))) {
+            'paid', 'lunas' => 'Lunas',
+            'unpaid', 'belum lunas' => 'Belum Lunas',
+            'refund', 'refunded' => 'Refund',
             default => ucwords(str_replace('_', ' ', $raw)),
         };
     }
 
     /**
-     * Map raw sale status to human-readable label.
-     * Unknown values are rendered neutral — never default to "Dibatalkan".
+     * Map raw sale/order status to human-readable label: Batal, Proses, Siap.
      */
-    private function presentStatus(string $raw): string
+    private function presentStatus(?string $raw, ?string $orderStatus = null): string
     {
-        return match ($raw) {
-            'completed' => 'Selesai',
-            'cancelled', 'canceled' => 'Dibatalkan',
-            default => ucwords(str_replace('_', ' ', $raw)),
-        };
+        $rawStatus = strtolower(trim((string) $raw));
+        $rawOrder = strtolower(trim((string) $orderStatus));
+
+        if (in_array($rawStatus, ['cancelled', 'canceled', 'batal', 'dibatalkan'], true) || in_array($rawOrder, ['batal', 'cancelled', 'canceled', 'dibatalkan'], true)) {
+            return 'Batal';
+        }
+
+        if (in_array($rawStatus, ['processing', 'proses'], true) || in_array($rawOrder, ['proses', 'diproses', 'masuk', 'processing'], true)) {
+            return 'Proses';
+        }
+
+        if (in_array($rawStatus, ['completed', 'siap', 'ready', 'selesai'], true) || in_array($rawOrder, ['siap', 'siap diambil', 'selesai', 'completed', 'ready'], true)) {
+            return 'Siap';
+        }
+
+        return 'Siap';
     }
 
     /**
@@ -472,10 +505,11 @@ class DashboardTransactionsData
             'filterOptions' => [
                 'outlets' => [],
                 'payment_methods' => [],
-                'statuses' => [],
+                'statuses' => ['siap', 'proses', 'batal'],
                 'payment_statuses' => [
                     ['value' => 'paid', 'label' => 'Lunas'],
                     ['value' => 'unpaid', 'label' => 'Belum Lunas'],
+                    ['value' => 'refund', 'label' => 'Refund'],
                 ],
             ],
             'currentFilters' => $this->sanitizeFilters($filters),

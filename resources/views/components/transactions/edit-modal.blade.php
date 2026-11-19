@@ -74,7 +74,7 @@
                         </select>
                     </div>
 
-                    {{-- Status Pembayaran --}}
+                    {{-- Status Pembayaran (Refund, Belum Lunas, Lunas) --}}
                     <div>
                         <label for="editPaymentStatus" class="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
                             Status Pembayaran
@@ -87,13 +87,14 @@
                         >
                             <option value="paid">Lunas (Paid)</option>
                             <option value="unpaid">Belum Lunas (Unpaid)</option>
+                            <option value="refund">Refund</option>
                         </select>
                     </div>
 
-                    {{-- Status Transaksi --}}
+                    {{-- Status Pesanan (Batal, Proses, Siap) --}}
                     <div>
                         <label for="editStatus" class="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
-                            Status Transaksi
+                            Status Pesanan
                         </label>
                         <select
                             name="status"
@@ -101,11 +102,12 @@
                             required
                             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
                         >
-                            <option value="completed">Selesai (Completed)</option>
-                            <option value="cancelled">Dibatalkan (Cancelled)</option>
+                            <option value="siap">Siap (Siap / Selesai)</option>
+                            <option value="proses">Proses (Sedang Dikerjakan)</option>
+                            <option value="batal">Batal (Dibatalkan)</option>
                         </select>
                         <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                            Pilih "Dibatalkan" jika transaksi dibatalkan atau refund.
+                            Pilih perkembangan pengerjaan pesanan pelanggan.
                         </p>
                     </div>
 

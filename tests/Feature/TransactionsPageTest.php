@@ -327,7 +327,7 @@ class TransactionsPageTest extends TestCase
     // Status Mapping
     // ============================================================
 
-    public function test_status_completed_is_presented_as_selesai(): void
+    public function test_status_completed_is_presented_as_siap(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
@@ -342,10 +342,10 @@ class TransactionsPageTest extends TestCase
         $this->actingAs($user);
         $response = $this->get(route('transactions.index'));
         $response->assertOk();
-        $response->assertSee('Selesai');
+        $response->assertSee('Siap');
     }
 
-    public function test_status_cancelled_is_presented_as_dibatalkan(): void
+    public function test_status_cancelled_is_presented_as_batal(): void
     {
         [$user, $business] = $this->makeUserWithBusiness();
         $outlet = Outlet::factory()->create(['business_id' => $business->id]);
@@ -360,7 +360,43 @@ class TransactionsPageTest extends TestCase
         $this->actingAs($user);
         $response = $this->get(route('transactions.index'));
         $response->assertOk();
-        $response->assertSee('Dibatalkan');
+        $response->assertSee('Batal');
+    }
+
+    public function test_status_processing_is_presented_as_proses(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'status' => 'processing',
+            'transaction_number' => 'TRX-PROS-001',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('Proses');
+    }
+
+    public function test_payment_status_refund_is_presented_as_refund(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'payment_status' => 'refund',
+            'transaction_number' => 'TRX-REF-001',
+        ]);
+
+        $this->actingAs($user);
+        $response = $this->get(route('transactions.index'));
+        $response->assertOk();
+        $response->assertSee('Refund');
     }
 
     public function test_payment_status_paid_is_presented_as_lunas(): void
@@ -1234,6 +1270,41 @@ class TransactionsPageTest extends TestCase
         $this->assertEquals(50000, $sale->change_amount);
         $this->assertNull($sale->paid_at);
         $this->assertEquals('Dibatalkan atas permintaan pelanggan', $sale->note);
+    }
+
+    public function test_owner_can_update_transaction_to_refund_and_proses(): void
+    {
+        $owner = User::factory()->create(['email_verified_at' => now()]);
+        $business = Business::factory()->create();
+        $outlet = Outlet::factory()->create(['business_id' => $business->id]);
+        $owner->businesses()->attach($business->id, ['role' => 'owner']);
+        Subscription::factory()->cloud()->create(['business_id' => $business->id]);
+
+        $sale = $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet->id,
+            'transaction_number' => 'TRX-REFUND-OK',
+            'payment_method' => 'QRIS',
+            'payment_status' => 'paid',
+            'status' => 'completed',
+            'total_amount' => 75000,
+        ]);
+
+        $response = $this->actingAs($owner)
+            ->patch(route('transactions.update', $sale->id), [
+                'payment_method' => 'QRIS',
+                'payment_status' => 'refund',
+                'status' => 'proses',
+                'note' => 'Refund diajukan, pesanan diproses ulang',
+            ]);
+
+        $response->assertRedirect(route('transactions.index'));
+
+        $sale->refresh();
+        $this->assertEquals('refund', $sale->payment_status);
+        $this->assertEquals('processing', $sale->status);
+        $this->assertEquals('Proses', $sale->order_status);
+        $this->assertEquals('Refund diajukan, pesanan diproses ulang', $sale->note);
     }
 
     public function test_owner_cannot_update_transaction_of_different_business(): void

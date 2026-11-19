@@ -93,22 +93,31 @@ class TransactionsController extends Controller
 
         $validated = $request->validate([
             'payment_method' => ['required', 'string', 'max:50'],
-            'payment_status' => ['required', 'string', Rule::in(['paid', 'unpaid', 'Lunas', 'Belum Lunas'])],
-            'status' => ['required', 'string', Rule::in(['completed', 'cancelled', 'Selesai', 'Dibatalkan'])],
+            'payment_status' => ['required', 'string', Rule::in(['paid', 'unpaid', 'refund', 'refunded', 'Lunas', 'Belum Lunas', 'Refund'])],
+            'status' => ['required', 'string', Rule::in(['completed', 'cancelled', 'canceled', 'processing', 'siap', 'proses', 'batal', 'Selesai', 'Dibatalkan', 'Siap', 'Proses', 'Batal'])],
             'cash_received' => ['nullable', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $canonicalPaymentStatus = match (strtolower($validated['payment_status'])) {
+        $canonicalPaymentStatus = match (strtolower(trim($validated['payment_status']))) {
             'lunas', 'paid' => 'paid',
             'belum lunas', 'unpaid' => 'unpaid',
+            'refund', 'refunded' => 'refund',
             default => $validated['payment_status'],
         };
 
-        $canonicalStatus = match (strtolower($validated['status'])) {
-            'selesai', 'completed' => 'completed',
-            'dibatalkan', 'cancelled', 'canceled' => 'cancelled',
+        $canonicalStatus = match (strtolower(trim($validated['status']))) {
+            'batal', 'dibatalkan', 'cancelled', 'canceled' => 'cancelled',
+            'proses', 'processing', 'diproses' => 'processing',
+            'siap', 'selesai', 'completed', 'ready' => 'completed',
             default => $validated['status'],
+        };
+
+        $canonicalOrderStatus = match ($canonicalStatus) {
+            'cancelled' => 'Batal',
+            'processing' => 'Proses',
+            'completed' => 'Siap',
+            default => 'Siap',
         };
 
         $rawMethod = strtolower(trim($validated['payment_method']));
@@ -140,6 +149,7 @@ class TransactionsController extends Controller
             'payment_method' => $canonicalPaymentMethod,
             'payment_status' => $canonicalPaymentStatus,
             'status' => $canonicalStatus,
+            'order_status' => $canonicalOrderStatus,
             'paid_at' => $paidAt,
             'cash_received' => $cashReceived,
             'change_amount' => $changeAmount,
@@ -151,6 +161,31 @@ class TransactionsController extends Controller
                 'success' => true,
                 'message' => 'Transaksi '.$sale->transaction_number.' berhasil diperbarui.',
                 'sale' => $sale,
+                'data' => [
+                    'id' => $sale->id,
+                    'transaction_number' => $sale->transaction_number,
+                    'payment_method' => $canonicalPaymentMethod,
+                    'payment_status' => match ($canonicalPaymentStatus) {
+                        'paid' => 'Lunas',
+                        'unpaid' => 'Belum Lunas',
+                        'refund' => 'Refund',
+                        default => $canonicalPaymentStatus,
+                    },
+                    'payment_status_raw' => $canonicalPaymentStatus,
+                    'status' => match ($canonicalStatus) {
+                        'completed' => 'Siap',
+                        'processing' => 'Proses',
+                        'cancelled' => 'Batal',
+                        default => $canonicalStatus,
+                    },
+                    'status_raw' => $canonicalStatus,
+                    'order_status' => $canonicalOrderStatus,
+                    'order_status_raw' => $canonicalOrderStatus,
+                    'paid_at' => $sale->paid_at ? \Illuminate\Support\Carbon::parse($sale->paid_at)->setTimezone('Asia/Jakarta')->format('d M Y, H:i') : null,
+                    'cash_received' => $cashReceived,
+                    'change_amount' => $changeAmount,
+                    'note' => $sale->note,
+                ],
             ]);
         }
 

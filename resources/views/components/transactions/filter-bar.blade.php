@@ -156,30 +156,25 @@
                     name="payment_status"
                     class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                 >
-                    <option value="all">Semua Status</option>
+                    <option value="all">Semua Status Bayar</option>
                     <option value="paid" @selected(($cf['payment_status'] ?? '') === 'paid')>Lunas</option>
                     <option value="unpaid" @selected(($cf['payment_status'] ?? '') === 'unpaid')>Belum Lunas</option>
+                    <option value="refund" @selected(($cf['payment_status'] ?? '') === 'refund')>Refund</option>
                 </select>
             </div>
 
-            {{-- 6. Status Transaksi --}}
+            {{-- 6. Status Pesanan (Batal, Proses, Siap) --}}
             <div>
-                <label for="filterTransactionStatus" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Status Transaksi</label>
+                <label for="filterTransactionStatus" class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Status Pesanan</label>
                 <select
                     id="filterTransactionStatus"
                     name="status"
                     class="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
                 >
-                    <option value="all">Semua Transaksi</option>
-                    @foreach($statuses as $txStatus)
-                        <option value="{{ $txStatus }}" @selected(($cf['status'] ?? '') === $txStatus)>
-                            {{ match($txStatus) {
-                                'completed' => 'Selesai',
-                                'cancelled', 'canceled' => 'Dibatalkan',
-                                default => ucwords(str_replace('_', ' ', $txStatus)),
-                            } }}
-                        </option>
-                    @endforeach
+                    <option value="all">Semua Status Pesanan</option>
+                    <option value="siap" @selected(in_array(($cf['status'] ?? ''), ['siap', 'completed', 'selesai'], true))>Siap</option>
+                    <option value="proses" @selected(in_array(($cf['status'] ?? ''), ['proses', 'processing', 'diproses'], true))>Proses</option>
+                    <option value="batal" @selected(in_array(($cf['status'] ?? ''), ['batal', 'cancelled', 'canceled', 'dibatalkan'], true))>Batal</option>
                 </select>
             </div>
 
