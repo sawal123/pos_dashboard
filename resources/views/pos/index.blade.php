@@ -433,22 +433,22 @@
                         id="payLaterBtn"
                         disabled
                         onclick="handlePayLaterClick()"
-                        class="w-full py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-700 dark:text-amber-400 disabled:opacity-40 disabled:pointer-events-none text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                        class="w-full py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-700 dark:text-amber-400 disabled:opacity-40 disabled:pointer-events-none text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer select-none"
                         title="Simpan pesanan dengan status Belum Lunas (Bayar Nanti)"
                     >
-                        <i data-lucide="clock" class="w-4 h-4 text-amber-500"></i>
-                        <span>Bayar Nanti</span>
+                        <i data-lucide="clock" class="w-4 h-4 text-amber-500 pointer-events-none"></i>
+                        <span class="pointer-events-none select-none">Bayar Nanti</span>
                     </button>
                     <button
                         type="button"
                         id="checkoutBtn"
                         disabled
                         onclick="openPaymentModal()"
-                        class="w-full py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        class="w-full py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
                         title="Buka pilihan pembayaran (Tunai, QRIS, Transfer, Debit)"
                     >
-                        <i data-lucide="credit-card" class="w-4 h-4"></i>
-                        <span>Bayar Sekarang (F2)</span>
+                        <i data-lucide="credit-card" class="w-4 h-4 pointer-events-none"></i>
+                        <span class="pointer-events-none select-none">Bayar Sekarang (F2)</span>
                     </button>
                 </div>
             </div>
@@ -676,18 +676,18 @@
                 <button
                     type="button"
                     onclick="closePayLaterConfirmModal()"
-                    class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                    class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer select-none"
                 >
-                    Batal
+                    <span class="pointer-events-none select-none">Batal</span>
                 </button>
                 <button
                     type="button"
                     id="btnConfirmPayLater"
                     onclick="executePayLaterConfirmed()"
-                    class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
                 >
-                    <i data-lucide="check" class="w-4 h-4"></i>
-                    <span>Ya, Simpan</span>
+                    <i data-lucide="check" class="w-4 h-4 pointer-events-none"></i>
+                    <span class="pointer-events-none select-none">Ya, Simpan</span>
                 </button>
             </div>
         </div>
@@ -1968,6 +1968,8 @@
         function closePaymentModal() {
             document.getElementById('paymentModal').classList.add('hidden');
         }
+        window.openPaymentModal = openPaymentModal;
+        window.closePaymentModal = closePaymentModal;
 
         function selectPaymentMethod(method) {
             selectedPaymentMethod = method;
@@ -2595,6 +2597,25 @@
             const cashInput = document.getElementById('cashReceivedInput');
             if (cashInput) {
                 cashInput.addEventListener('input', calculateCashChange);
+            }
+
+            // Checkout & Pay Later buttons direct event listeners
+            const checkoutBtnEl = document.getElementById('checkoutBtn');
+            if (checkoutBtnEl && !checkoutBtnEl.dataset.clickBound) {
+                checkoutBtnEl.dataset.clickBound = '1';
+                checkoutBtnEl.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    openPaymentModal();
+                });
+            }
+
+            const payLaterBtnEl = document.getElementById('payLaterBtn');
+            if (payLaterBtnEl && !payLaterBtnEl.dataset.clickBound) {
+                payLaterBtnEl.dataset.clickBound = '1';
+                payLaterBtnEl.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    handlePayLaterClick();
+                });
             }
 
             // Keyboard Shortcuts & Global Hardware Barcode Scanner (Alat Scanner USB/Bluetooth)

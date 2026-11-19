@@ -25,6 +25,13 @@
                     print-color-adjust: exact;
                 }
             }
+            button {
+                user-select: none;
+                -webkit-user-select: none;
+            }
+            button > * {
+                pointer-events: none;
+            }
         </style>
     </head>
     <body class="bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 h-screen overflow-hidden flex flex-col font-sans select-none">
