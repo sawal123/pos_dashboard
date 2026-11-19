@@ -46,30 +46,32 @@
                     </div>
                 </a>
 
-                {{-- Outlet Switcher --}}
-                @if(isset($outlets) && $outlets->count() > 1)
-                    <div class="relative ml-2">
-                        <form id="outletSwitchForm" method="POST" action="{{ route('pos.switch-outlet') }}">
-                            @csrf
-                            <select
-                                name="outlet_id"
-                                onchange="document.getElementById('outletSwitchForm').submit()"
-                                class="text-xs font-semibold bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 pr-7 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                            >
-                                @foreach($outlets as $out)
-                                    <option value="{{ $out->id }}" {{ isset($activeOutlet) && $activeOutlet->id === $out->id ? 'selected' : '' }}>
-                                        📍 {{ $out->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </form>
-                    </div>
-                @else
-                    <div class="hidden md:flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500"></i>
-                        <span class="font-medium">{{ $activeOutlet->name ?? 'Outlet Utama' }}</span>
-                    </div>
-                @endif
+                {{-- Outlet Switcher / Indicator --}}
+                <div class="relative ml-1 sm:ml-2">
+                    <button
+                        type="button"
+                        id="btnOpenOutletChooser"
+                        onclick="if (typeof window.openOutletChooserModal === 'function') { window.openOutletChooserModal(); }"
+                        class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-indigo-50/90 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/80 dark:border-indigo-800/80 text-indigo-700 dark:text-indigo-300 transition-all cursor-pointer shadow-2xs group"
+                        title="{{ (isset($outlets) && $outlets->count() > 1) ? 'Klik untuk memilih atau mengganti cabang outlet' : 'Cabang Aktif' }}"
+                    >
+                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform"></i>
+                        <span class="text-xs font-bold truncate max-w-[110px] sm:max-w-[170px]">
+                            {{ $activeOutlet->name ?? 'Outlet Utama' }}
+                        </span>
+                        @if($activeOutlet?->is_primary)
+                            <span class="hidden sm:inline-block text-[9px] font-extrabold uppercase px-1 py-0.5 rounded bg-indigo-200/80 dark:bg-indigo-800/80 text-indigo-900 dark:text-indigo-100">
+                                UTAMA
+                            </span>
+                        @endif
+                        @if(isset($outlets) && $outlets->count() > 1)
+                            <span class="inline-flex items-center gap-0.5 text-[10px] font-semibold text-indigo-500 dark:text-indigo-400 pl-1 border-l border-indigo-200 dark:border-indigo-800">
+                                <span class="hidden md:inline">Ganti</span>
+                                <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                            </span>
+                        @endif
+                    </button>
+                </div>
             </div>
 
             {{-- Center: Shift Badge & Control --}}

@@ -482,6 +482,8 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');
+    Route::post('dashboard/outlet-context', [BusinessContextController::class, 'updateOutlet'])
+        ->name('dashboard.outlet-context.update');
 
     // CHATBOT-01 — NexaBot AI Application Guide
     Route::post('guide-chat/message', [GuideChatController::class, 'message'])

@@ -48,9 +48,37 @@ class ShareDashboardBusinessContext
             // them server-side so the sidebar is never the only protection.
             $businessPermissions = $this->authorizer->permissionsFor($user, $currentBusiness);
 
+            // Active outlet resolution for multi-branch awareness
+            $outlets = $currentBusiness
+                ? $currentBusiness->outlets()
+                    ->where('status', 'active')
+                    ->orderByDesc('is_primary')
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get()
+                : collect();
+
+            $sessionOutletId = session('dashboard.active_outlet_id') ?? session('pos.active_outlet_id');
+            $activeOutlet = null;
+            if ($sessionOutletId !== null && $outlets->isNotEmpty()) {
+                $activeOutlet = $outlets->firstWhere('id', (int) $sessionOutletId);
+            }
+            if (! $activeOutlet && $outlets->isNotEmpty()) {
+                $activeOutlet = $outlets->firstWhere('is_primary', true) ?? $outlets->first();
+            }
+
+            if ($activeOutlet) {
+                session([
+                    'dashboard.active_outlet_id' => $activeOutlet->id,
+                    'pos.active_outlet_id' => $activeOutlet->id,
+                ]);
+            }
+
             // Expose to request attributes for downstream controllers
             $request->attributes->set('dashboard_business', $currentBusiness);
             $request->attributes->set('dashboard_businesses', $businesses);
+            $request->attributes->set('dashboard_outlets', $outlets);
+            $request->attributes->set('dashboard_active_outlet', $activeOutlet);
             $request->attributes->set('dashboard_subscription_state', $subscriptionState);
             $request->attributes->set('dashboard_cloud_access', $cloudAccess);
             $request->attributes->set('dashboard_business_role', $businessRole);
@@ -60,6 +88,8 @@ class ShareDashboardBusinessContext
             // Expose to views for Blade components
             View::share('dashboardBusinesses', $businesses);
             View::share('dashboardCurrentBusiness', $currentBusiness);
+            View::share('dashboardOutlets', $outlets);
+            View::share('dashboardActiveOutlet', $activeOutlet);
             View::share('dashboardSubscriptionState', $subscriptionState);
             View::share('dashboardCloudAccess', $cloudAccess);
             View::share('dashboardBusinessRole', $businessRole);

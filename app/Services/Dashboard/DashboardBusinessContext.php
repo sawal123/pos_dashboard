@@ -112,6 +112,11 @@ class DashboardBusinessContext
         Gate::forUser($user)->authorize('view', $targetBusiness);
 
         session([self::SESSION_KEY => $targetBusiness->id]);
+        session()->forget([
+            'dashboard.active_outlet_id',
+            'pos.active_outlet_id',
+            'pos.outlet_confirmed',
+        ]);
         $this->currentCache[$user->id] = $targetBusiness;
 
         return $targetBusiness;

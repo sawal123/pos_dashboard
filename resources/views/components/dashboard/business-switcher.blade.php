@@ -7,6 +7,9 @@
     $businesses = $businesses ?? $dashboardBusinesses ?? collect();
     $currentBusiness = $currentBusiness ?? $dashboardCurrentBusiness ?? null;
     $count = $businesses->count();
+    $dashboardOutlets = $dashboardOutlets ?? collect();
+    $activeOutlet = $dashboardActiveOutlet ?? ($dashboardOutlets->firstWhere('is_primary', true) ?? $dashboardOutlets->first());
+    $outletCount = $dashboardOutlets->count();
 @endphp
 
 <div class="px-3 pt-3 pb-2 border-b border-slate-200/80 dark:border-slate-800">
@@ -78,14 +81,73 @@
                 </div>
             </form>
         @endif
+
+        {{-- Active Outlet / Branch Context --}}
+        @if($currentBusiness && $outletCount > 0)
+            <div class="mt-2.5 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                @if($outletCount > 1)
+                    <form 
+                        method="POST" 
+                        action="{{ route('dashboard.outlet-context.update') }}" 
+                        class="space-y-1"
+                    >
+                        @csrf
+                        <div class="flex items-center justify-between gap-1 mb-1">
+                            <label 
+                                for="dashboard-outlet-switcher-select" 
+                                class="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-semibold flex items-center gap-1"
+                            >
+                                <i data-lucide="map-pin" class="w-3 h-3 text-indigo-500"></i>
+                                Cabang Aktif
+                            </label>
+                            <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                                {{ $outletCount }} Cabang
+                            </span>
+                        </div>
+                        <div class="relative">
+                            <select
+                                id="dashboard-outlet-switcher-select"
+                                name="outlet_id"
+                                onchange="this.form.submit()"
+                                class="w-full pl-2.5 pr-8 py-1.5 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors truncate cursor-pointer appearance-none"
+                                aria-label="Pilih Cabang Aktif"
+                            >
+                                @foreach($dashboardOutlets as $out)
+                                    <option value="{{ $out->id }}" @selected($activeOutlet && $activeOutlet->id === $out->id)>
+                                        📍 {{ $out->name }} {{ $out->is_primary ? '(Utama)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                                <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i>
+                            </div>
+                        </div>
+                    </form>
+                @else
+                    <div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500 shrink-0"></i>
+                            <span class="text-slate-700 dark:text-slate-300 font-medium truncate text-[11px]">
+                                {{ $activeOutlet->name }}
+                            </span>
+                        </div>
+                        @if($activeOutlet?->is_primary)
+                            <span class="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 px-1 py-0.5 rounded bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 shrink-0">
+                                UTAMA
+                            </span>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        @endif
     </div>
 
     {{-- Collapsed Mode Mini Icon (visible when .sidebar-collapsed is active) --}}
     <div class="sidebar-business-mini hidden justify-center py-1">
         <div 
             class="w-9 h-9 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300"
-            data-tooltip-right="{{ $currentBusiness ? $currentBusiness->name : 'Belum Ada Bisnis' }}"
-            aria-label="{{ $currentBusiness ? 'Bisnis: ' . $currentBusiness->name : 'Belum Ada Bisnis' }}"
+            data-tooltip-right="{{ ($currentBusiness ? $currentBusiness->name : 'Belum Ada Bisnis') . ($activeOutlet ? ' • ' . $activeOutlet->name : '') }}"
+            aria-label="{{ ($currentBusiness ? 'Bisnis: ' . $currentBusiness->name : 'Belum Ada Bisnis') . ($activeOutlet ? ' (Cabang: ' . $activeOutlet->name . ')' : '') }}"
         >
             <i data-lucide="{{ $currentBusiness ? 'store' : 'building-2' }}" class="w-4 h-4"></i>
         </div>

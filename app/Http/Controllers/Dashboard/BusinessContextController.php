@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Services\Dashboard\DashboardBusinessContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class BusinessContextController extends Controller
 {
@@ -24,4 +26,36 @@ class BusinessContextController extends Controller
 
         return redirect()->back();
     }
+
+    /**
+     * Update the active outlet context in session.
+     */
+    public function updateOutlet(Request $request): RedirectResponse
+    {
+        /** @var Business|null $business */
+        $business = $request->attributes->get('dashboard_business');
+
+        if (! $business) {
+            abort(403, 'Bisnis aktif tidak ditemukan.');
+        }
+
+        $validated = $request->validate([
+            'outlet_id' => [
+                'required',
+                'integer',
+                Rule::exists('outlets', 'id')->where(fn ($q) => $q->where('business_id', $business->id)->where('status', 'active')),
+            ],
+        ]);
+
+        $outletId = (int) $validated['outlet_id'];
+
+        session([
+            'dashboard.active_outlet_id' => $outletId,
+            'pos.active_outlet_id' => $outletId,
+            'pos.outlet_confirmed' => true,
+        ]);
+
+        return redirect()->back();
+    }
 }
+

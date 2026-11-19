@@ -123,6 +123,7 @@
                         icon="shopping-bag"
                         label="Kasir (POS)"
                         route="pos.index"
+                        :badge="isset($dashboardActiveOutlet) && $dashboardActiveOutlet ? $dashboardActiveOutlet->name : null"
                         :locked="$isCashier && !$can($P::POS_SELL)"
                     />
                 @endif

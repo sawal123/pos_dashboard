@@ -92,6 +92,7 @@ class PosPageTest extends TestCase
 
         $response->assertRedirect(route('pos.index'));
         $this->assertSame($outlet2->id, session('pos.active_outlet_id'));
+        $this->assertTrue(session('pos.outlet_confirmed'));
     }
 
     public function test_06_business_without_cloud_subscription_is_blocked(): void
@@ -108,6 +109,39 @@ class PosPageTest extends TestCase
 
         // Premium policy redirects or shows locked state
         $this->assertTrue($response->isRedirection() || $response->isForbidden() || $response->isOk());
+    }
+
+    public function test_07_multiple_outlets_triggers_outlet_selection_modal(): void
+    {
+        [$business, $owner] = $this->actingAsRole('owner');
+        $outlet1 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Cabang Medan', 'code' => 'MDN', 'status' => 'active']);
+        $outlet2 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Cabang Binjai', 'code' => 'BJI', 'status' => 'active']);
+
+        $response = $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('pos.index'));
+
+        $response->assertOk();
+        $response->assertSee('Pilih Cabang Transaksi');
+        $response->assertSee('Cabang Medan');
+        $response->assertSee('Cabang Binjai');
+        $this->assertTrue($response->viewData('needsOutletSelection'));
+    }
+
+    public function test_08_query_param_outlet_id_bypasses_selection_modal(): void
+    {
+        [$business, $owner] = $this->actingAsRole('owner');
+        $outlet1 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Cabang Medan', 'code' => 'MDN', 'status' => 'active']);
+        $outlet2 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Cabang Binjai', 'code' => 'BJI', 'status' => 'active']);
+
+        $response = $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('pos.index', ['outlet_id' => $outlet2->id]));
+
+        $response->assertOk();
+        $this->assertFalse($response->viewData('needsOutletSelection'));
+        $this->assertSame($outlet2->id, session('pos.active_outlet_id'));
+        $this->assertTrue(session('pos.outlet_confirmed'));
     }
 
     /**

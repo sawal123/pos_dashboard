@@ -41,7 +41,11 @@ class PosController extends Controller
 
         if ($request->has('outlet_id')) {
             $reqOutletId = (int) $request->query('outlet_id');
-            session(['pos.active_outlet_id' => $reqOutletId]);
+            session([
+                'pos.active_outlet_id' => $reqOutletId,
+                'dashboard.active_outlet_id' => $reqOutletId,
+                'pos.outlet_confirmed' => true,
+            ]);
         }
 
         $selectedOutletId = session('pos.active_outlet_id');
@@ -49,8 +53,18 @@ class PosController extends Controller
 
         // Update session with resolved active outlet ID
         if (isset($data['activeOutlet']) && $data['activeOutlet'] instanceof Outlet) {
-            session(['pos.active_outlet_id' => $data['activeOutlet']->id]);
+            session([
+                'pos.active_outlet_id' => $data['activeOutlet']->id,
+                'dashboard.active_outlet_id' => $data['activeOutlet']->id,
+            ]);
         }
+
+        // Determine if outlet selection prompt should be shown:
+        // When there are multiple active outlets and the user has not explicitly confirmed an outlet choice
+        $outletsCount = isset($data['outlets']) ? $data['outlets']->count() : 0;
+        $needsOutletSelection = ($outletsCount > 1) && (! session('pos.outlet_confirmed') || $request->has('choose_outlet'));
+
+        $data['needsOutletSelection'] = $needsOutletSelection;
 
         return view('pos.index', $data);
     }
@@ -66,11 +80,17 @@ class PosController extends Controller
             'outlet_id' => [
                 'required',
                 'integer',
-                Rule::exists('outlets', 'id')->where(fn ($q) => $q->where('business_id', $business->id)),
+                Rule::exists('outlets', 'id')->where(fn ($q) => $q->where('business_id', $business->id)->where('status', 'active')),
             ],
         ]);
 
-        session(['pos.active_outlet_id' => (int) $validated['outlet_id']]);
+        $outletId = (int) $validated['outlet_id'];
+
+        session([
+            'pos.active_outlet_id' => $outletId,
+            'dashboard.active_outlet_id' => $outletId,
+            'pos.outlet_confirmed' => true,
+        ]);
 
         return redirect()->route('pos.index');
     }

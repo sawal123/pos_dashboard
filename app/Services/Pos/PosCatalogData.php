@@ -29,6 +29,8 @@ class PosCatalogData
         $outlets = Outlet::query()
             ->where('business_id', $business->id)
             ->where('status', 'active')
+            ->orderByDesc('is_primary')
+            ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
@@ -41,12 +43,24 @@ class PosCatalogData
             $outlets = collect([$primaryOutlet]);
         }
 
+        // Attach active open shift to each outlet for modal preview
+        $openShifts = \App\Models\Shift::query()
+            ->where('business_id', $business->id)
+            ->where('status', 'open')
+            ->with('user:id,name')
+            ->get()
+            ->keyBy('outlet_id');
+
+        foreach ($outlets as $out) {
+            $out->open_shift = $openShifts->get($out->id);
+        }
+
         $activeOutlet = null;
         if ($selectedOutletId !== null) {
             $activeOutlet = $outlets->firstWhere('id', $selectedOutletId);
         }
         if (! $activeOutlet instanceof Outlet) {
-            $activeOutlet = $outlets->first();
+            $activeOutlet = $outlets->firstWhere('is_primary', true) ?? $outlets->first();
         }
 
         $currentShift = $this->shiftService->currentOpenShift($business, $activeOutlet);

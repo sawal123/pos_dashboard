@@ -704,6 +704,112 @@
         </div>
     </div>
 
+    {{-- ==================== OUTLET CHOOSER MODAL ==================== --}}
+    <div id="outletChooserModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
+        <div class="w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-scale-in">
+            <div class="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-950/30">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-2xs">
+                        <i data-lucide="store" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-base text-slate-900 dark:text-white">Pilih Cabang Transaksi</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Pilih cabang toko untuk transaksi kasir</p>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onclick="closeOutletChooserModal()"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                    aria-label="Tutup"
+                >
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-5 overflow-y-auto max-h-[65vh] space-y-3">
+                @foreach($outlets as $out)
+                    @php
+                        $isSelected = isset($activeOutlet) && $activeOutlet->id === $out->id;
+                        $hasOpenShift = isset($out->open_shift) && $out->open_shift;
+                    @endphp
+                    <form method="POST" action="{{ route('pos.switch-outlet') }}">
+                        @csrf
+                        <input type="hidden" name="outlet_id" value="{{ $out->id }}">
+                        <button
+                            type="submit"
+                            class="w-full text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 group {{ $isSelected ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20 ring-2 ring-indigo-500/20' : 'border-slate-200 dark:border-slate-700/80 bg-white dark:bg-slate-800/60 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50/80 dark:hover:bg-slate-800' }}"
+                        >
+                            <div class="flex items-start gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 {{ $isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/50 group-hover:text-indigo-600 transition-colors' }}">
+                                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="font-extrabold text-sm text-slate-900 dark:text-white truncate">
+                                            {{ $out->name }}
+                                        </span>
+                                        @if($out->is_primary)
+                                            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                                Utama
+                                            </span>
+                                        @endif
+                                        @if($isSelected)
+                                            <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                                                Aktif Sekarang
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if($out->address || $out->phone)
+                                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                            {{ $out->address ?? '' }}{{ $out->address && $out->phone ? ' • ' : '' }}{{ $out->phone ?? '' }}
+                                        </p>
+                                    @endif
+                                    <div class="mt-2 flex items-center gap-2">
+                                        @if($hasOpenShift)
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                                Shift #{{ $out->open_shift->shift_number }} Buka
+                                                <span class="text-emerald-600/70 font-mono">(Rp {{ number_format($out->open_shift->opening_cash, 0, ',', '.') }})</span>
+                                            </span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                                <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                                                Shift Belum Dibuka
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="sm:self-center shrink-0">
+                                @if($isSelected)
+                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-xs">
+                                        <span>Gunakan Ini</span>
+                                        <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 group-hover:border-indigo-600 group-hover:bg-indigo-600 group-hover:text-white text-slate-700 dark:text-slate-200 font-bold text-xs transition-all shadow-2xs">
+                                        <span>Pilih Cabang</span>
+                                        <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+                                    </span>
+                                @endif
+                            </div>
+                        </button>
+                    </form>
+                @endforeach
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+                <button
+                    type="button"
+                    onclick="closeOutletChooserModal()"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- ==================== OPEN SHIFT MODAL ==================== --}}
     <div id="openShiftModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
         <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col animate-scale-in">
@@ -1951,6 +2057,22 @@
             window.print();
         }
 
+        // ==================== OUTLET CHOOSER MODAL ====================
+        window.openOutletChooserModal = function() {
+            const modal = document.getElementById('outletChooserModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+        };
+
+        window.closeOutletChooserModal = function() {
+            const modal = document.getElementById('outletChooserModal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        };
+
         // ==================== SHIFT MODALS ====================
         function openOpenShiftModal() {
             document.getElementById('openShiftModal').classList.remove('hidden');
@@ -2094,6 +2216,12 @@
             loadCartFromStorage();
             renderCatalog();
             renderCart();
+
+            @if(!empty($needsOutletSelection))
+            if (typeof window.openOutletChooserModal === 'function') {
+                window.openOutletChooserModal();
+            }
+            @endif
 
             // Search Input listener + Direct Barcode/SKU Auto-Scan (without clicking Scan button)
             const searchInput = document.getElementById('catalogSearchInput');
@@ -2277,6 +2405,9 @@
                         closeSuccessModal();
                         closeOpenShiftModal();
                         closeCloseShiftModal();
+                        if (typeof closeOutletChooserModal === 'function') {
+                            closeOutletChooserModal();
+                        }
                         return;
                     }
 
