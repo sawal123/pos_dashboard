@@ -122,15 +122,16 @@
                         <input type="hidden" name="outlet_id" id="outletCheckoutOutletId" value="">
                         <input type="hidden" name="allow_renewal" id="outletCheckoutAllowRenewal" value="1">
                         @php($cloudPlan = collect($plans ?? [])->firstWhere('code', 'cloud') ?? ($plans[0] ?? null))
-                        @php($prices = $cloudPlan['prices'] ?? [])
+                        @php($prices = $cloudPlan['billing_periods'] ?? $cloudPlan['prices'] ?? [])
                         <div class="space-y-2">
                             <label class="block text-xs font-bold text-slate-700 dark:text-slate-300">Pilih Periode Langganan</label>
                             @forelse($prices as $idx => $price)
+                                @php($period = (string) ($price['period'] ?? $price['billing_period'] ?? 'monthly'))
                                 <label class="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-500">
                                     <span class="flex items-center gap-2">
-                                        <input type="radio" name="billing_period" value="{{ $price['billing_period'] }}" @checked($idx === 0) required>
+                                        <input type="radio" name="billing_period" value="{{ $period }}" @checked($idx === 0) required>
                                         <span class="text-sm font-semibold text-slate-900 dark:text-white">
-                                            {{ $price['billing_period'] === 'yearly' ? 'Tahunan (12 Bulan)' : 'Bulanan (1 Bulan)' }}
+                                            {{ $period === 'yearly' ? 'Tahunan (12 Bulan)' : 'Bulanan (1 Bulan)' }}
                                         </span>
                                     </span>
                                     <span class="text-sm font-extrabold text-indigo-600 dark:text-indigo-400">
@@ -143,7 +144,7 @@
                         </div>
                         <div class="flex items-center justify-end gap-2 pt-2">
                             <button type="button" data-close-outlet-checkout class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300">Batal</button>
-                            <button type="submit" @disabled(empty($checkoutAvailable)) class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-xs font-semibold text-white">Lanjut ke Pembayaran</button>
+                            <button type="submit" @disabled(empty($checkoutAvailable) || empty($prices)) class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-xs font-semibold text-white">Lanjut ke Pembayaran</button>
                         </div>
                     </form>
                 </div>

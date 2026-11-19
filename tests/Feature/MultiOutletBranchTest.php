@@ -8,6 +8,8 @@ use App\Models\Product;
 use App\Models\Promo;
 use App\Models\Subscription;
 use App\Models\SubscriptionPayment;
+use App\Models\SubscriptionPlan;
+use App\Models\SubscriptionPlanPrice;
 use App\Models\User;
 use App\Services\Catalog\OutletPricing;
 use App\Services\Dashboard\OutletManagementService;
@@ -73,6 +75,28 @@ class MultiOutletBranchTest extends TestCase
         $branch = Outlet::query()->where('business_id', $business->id)->where('code', 'CBG-TBT')->first();
         $this->assertNotNull($branch);
         $this->assertSame(Outlet::STATUS_PENDING_PAYMENT, $branch->status);
+
+        // Ensure configured platform prices render in the branch checkout modal
+        $plan = SubscriptionPlan::query()->firstOrCreate(
+            ['code' => 'cloud'],
+            ['name' => 'Cloud', 'is_active' => true],
+        );
+        SubscriptionPlanPrice::query()->updateOrCreate(
+            ['subscription_plan_id' => $plan->id, 'billing_period' => 'monthly', 'currency' => 'IDR'],
+            ['price_minor' => 49000, 'is_active' => true],
+        );
+        SubscriptionPlanPrice::query()->updateOrCreate(
+            ['subscription_plan_id' => $plan->id, 'billing_period' => 'yearly', 'currency' => 'IDR'],
+            ['price_minor' => 490000, 'is_active' => true],
+        );
+
+        $this->actingAs($owner)
+            ->withSession(['dashboard.current_business_id' => $business->id])
+            ->get(route('outlets.index'))
+            ->assertOk()
+            ->assertSee('49.000')
+            ->assertSee('490.000')
+            ->assertDontSee('Harga paket belum dikonfigurasi oleh operator platform.');
     }
 
     public function test_branch_payment_activates_branch_subscription_without_overwriting_primary(): void
