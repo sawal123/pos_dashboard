@@ -49,6 +49,17 @@ class BusinessContextController extends Controller
 
         $outletId = (int) $validated['outlet_id'];
 
+        $user = $request->user();
+        if ($user) {
+            $membership = $business->users()->where('users.id', $user->id)->first();
+            $role = $membership?->pivot?->role;
+            $cashierOutletId = $membership?->pivot?->outlet_id;
+
+            if ($role === 'cashier' && $cashierOutletId && (int) $cashierOutletId !== $outletId) {
+                abort(403, 'Kasir tidak memiliki akses ke cabang toko ini.');
+            }
+        }
+
         session([
             'dashboard.active_outlet_id' => $outletId,
             'pos.active_outlet_id' => $outletId,

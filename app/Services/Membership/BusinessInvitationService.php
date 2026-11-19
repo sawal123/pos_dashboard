@@ -44,6 +44,7 @@ class BusinessInvitationService
         Business $business,
         string $email,
         string $role = BusinessInvitation::ROLE_MEMBER,
+        ?int $outletId = null,
     ): array {
         $email = Str::lower(trim($email));
         $this->assertRoleAllowed($role);
@@ -56,7 +57,7 @@ class BusinessInvitationService
 
         try {
             /** @var array{0: BusinessInvitation, 1: string} $result */
-            $result = DB::transaction(function () use ($actor, $business, $email, $role): array {
+            $result = DB::transaction(function () use ($actor, $business, $email, $role, $outletId): array {
                 $this->expireStaleInvitations($business, $email);
 
                 $existing = BusinessInvitation::query()
@@ -77,6 +78,7 @@ class BusinessInvitationService
                 $invitation = BusinessInvitation::create([
                     'business_id' => $business->id,
                     'invited_by' => $actor->id,
+                    'outlet_id' => $role === BusinessInvitation::ROLE_CASHIER ? $outletId : null,
                     'email' => $email,
                     'role' => $role,
                     'token_hash' => BusinessInvitation::hashToken($token),
@@ -121,6 +123,7 @@ class BusinessInvitationService
         string $email,
         string $password,
         string $role = BusinessInvitation::ROLE_MEMBER,
+        ?int $outletId = null,
     ): User {
         $email = Str::lower(trim($email));
         $this->assertRoleAllowed($role);
@@ -138,7 +141,7 @@ class BusinessInvitationService
             ]);
         }
 
-        return DB::transaction(function () use ($actor, $business, $name, $email, $password, $role): User {
+        return DB::transaction(function () use ($actor, $business, $name, $email, $password, $role, $outletId): User {
             $user = User::create([
                 'name' => trim($name),
                 'email' => $email,
@@ -148,7 +151,10 @@ class BusinessInvitationService
 
             $user->forceFill(['email_verified_at' => now()])->save();
 
-            $business->users()->attach($user->id, ['role' => $role]);
+            $business->users()->attach($user->id, [
+                'role' => $role,
+                'outlet_id' => $role === BusinessInvitation::ROLE_CASHIER ? $outletId : null,
+            ]);
 
             BusinessInvitation::query()
                 ->forBusiness((int) $business->id)
@@ -310,7 +316,10 @@ class BusinessInvitationService
                 ->value('role');
 
             if ($existingRole === null) {
-                $business->users()->attach($user->id, ['role' => $locked->role]);
+                $business->users()->attach($user->id, [
+                    'role' => $locked->role,
+                    'outlet_id' => $locked->outlet_id,
+                ]);
             }
 
             $locked->markAccepted();

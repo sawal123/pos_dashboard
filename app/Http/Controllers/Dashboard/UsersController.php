@@ -44,6 +44,7 @@ class UsersController extends Controller
         $data = $this->usersData->get($currentBusiness, $filters);
         $data['invitations'] = $this->usersData->invitations($currentBusiness);
         $data['invitationSummary'] = $this->usersData->invitationSummary($currentBusiness);
+        $data['outlets'] = $currentBusiness->outlets()->where('status', 'active')->orderByDesc('is_primary')->orderBy('id')->get();
 
         return view('users.index', $data);
     }

@@ -44,6 +44,14 @@ class TransactionsController extends Controller
             'status',
         ]);
 
+        // Default outlet filter to active branch from sidebar context if not explicitly passed
+        if (! $request->has('outlet_id')) {
+            $activeOutletId = session('dashboard.active_outlet_id');
+            if ($activeOutletId) {
+                $filters['outlet_id'] = (int) $activeOutletId;
+            }
+        }
+
         $validator = Validator::make($filters, [
             'q' => ['nullable', 'string', 'max:100'],
             'date' => ['nullable', 'string', Rule::in(['all', 'today', '7days', '30days', 'custom'])],

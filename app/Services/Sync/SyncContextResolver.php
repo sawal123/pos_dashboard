@@ -125,6 +125,17 @@ class SyncContextResolver
             ], 403));
         }
 
+        $assignedOutletId = $user->businesses()
+            ->where('businesses.id', $business->id)
+            ->first()?->pivot?->outlet_id;
+
+        if ($role === Business::ROLE_CASHIER && $assignedOutletId !== null && (int) $device->outlet_id !== (int) $assignedOutletId) {
+            abort(response()->json([
+                'message' => 'Kasir tidak diizinkan mengakses cabang ini.',
+                'code' => 'OUTLET_ACCESS_DENIED',
+            ], 403));
+        }
+
         return [
             'user' => $user,
             'business' => $business,

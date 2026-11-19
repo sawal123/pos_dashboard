@@ -36,10 +36,12 @@ class ShareDashboardBusinessContext
             $businessType = $this->businessContext->businessType($currentBusiness);
 
             $businessRole = null;
+            $businessOutletId = null;
             if ($currentBusiness && $currentBusiness->relationLoaded('pivot')) {
                 $pivot = $currentBusiness->getRelation('pivot');
                 if ($pivot instanceof Pivot) {
                     $businessRole = $pivot->getAttribute('role');
+                    $businessOutletId = $pivot->getAttribute('outlet_id');
                 }
             }
 
@@ -58,20 +60,31 @@ class ShareDashboardBusinessContext
                     ->get()
                 : collect();
 
-            $sessionOutletId = session('dashboard.active_outlet_id') ?? session('pos.active_outlet_id');
-            $activeOutlet = null;
-            if ($sessionOutletId !== null && $outlets->isNotEmpty()) {
-                $activeOutlet = $outlets->firstWhere('id', (int) $sessionOutletId);
-            }
-            if (! $activeOutlet && $outlets->isNotEmpty()) {
-                $activeOutlet = $outlets->firstWhere('is_primary', true) ?? $outlets->first();
-            }
-
-            if ($activeOutlet) {
+            if ($businessRole === \App\Models\Business::ROLE_CASHIER && $businessOutletId !== null) {
+                // Cashier is strictly restricted to their assigned outlet
+                $outlets = $outlets->where('id', (int) $businessOutletId)->values();
+                $activeOutlet = $outlets->first();
                 session([
-                    'dashboard.active_outlet_id' => $activeOutlet->id,
-                    'pos.active_outlet_id' => $activeOutlet->id,
+                    'dashboard.active_outlet_id' => (int) $businessOutletId,
+                    'pos.active_outlet_id' => (int) $businessOutletId,
+                    'pos.outlet_confirmed' => true,
                 ]);
+            } else {
+                $sessionOutletId = session('dashboard.active_outlet_id') ?? session('pos.active_outlet_id');
+                $activeOutlet = null;
+                if ($sessionOutletId !== null && $outlets->isNotEmpty()) {
+                    $activeOutlet = $outlets->firstWhere('id', (int) $sessionOutletId);
+                }
+                if (! $activeOutlet && $outlets->isNotEmpty()) {
+                    $activeOutlet = $outlets->firstWhere('is_primary', true) ?? $outlets->first();
+                }
+
+                if ($activeOutlet) {
+                    session([
+                        'dashboard.active_outlet_id' => $activeOutlet->id,
+                        'pos.active_outlet_id' => $activeOutlet->id,
+                    ]);
+                }
             }
 
             // Expose to request attributes for downstream controllers
@@ -79,6 +92,7 @@ class ShareDashboardBusinessContext
             $request->attributes->set('dashboard_businesses', $businesses);
             $request->attributes->set('dashboard_outlets', $outlets);
             $request->attributes->set('dashboard_active_outlet', $activeOutlet);
+            $request->attributes->set('dashboard_cashier_outlet_id', $businessOutletId);
             $request->attributes->set('dashboard_subscription_state', $subscriptionState);
             $request->attributes->set('dashboard_cloud_access', $cloudAccess);
             $request->attributes->set('dashboard_business_role', $businessRole);

@@ -19,6 +19,7 @@ use Illuminate\Support\Str;
  * @property int $id
  * @property int $business_id
  * @property int|null $invited_by
+ * @property int|null $outlet_id
  * @property string $email
  * @property string $role
  * @property string $token_hash
@@ -30,11 +31,13 @@ use Illuminate\Support\Str;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
+ * @property-read Outlet|null $outlet
  * @property-read User|null $inviter
  */
 #[Fillable([
     'business_id',
     'invited_by',
+    'outlet_id',
     'email',
     'role',
     'token_hash',
@@ -123,6 +126,14 @@ class BusinessInvitation extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    /**
+     * @return BelongsTo<Outlet, $this>
+     */
+    public function outlet(): BelongsTo
+    {
+        return $this->belongsTo(Outlet::class);
     }
 
     /**

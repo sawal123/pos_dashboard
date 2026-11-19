@@ -78,8 +78,8 @@
             </section>
         @endif
 
-        <x-users.invite-member-modal />
-        <x-users.change-role-modal :role-options="$roleOptions" />
+        <x-users.invite-member-modal :outlets="$outlets ?? collect()" />
+        <x-users.change-role-modal :role-options="$roleOptions" :outlets="$outlets ?? collect()" />
         <x-users.remove-member-modal />
         <x-users.detail-drawer />
 
@@ -254,6 +254,16 @@
                     if (verificationBadge) {
                         verificationBadge.textContent = data.is_verified ? 'Terverifikasi' : 'Belum Terverifikasi';
                         verificationBadge.className = `inline-flex items-center px-2.5 py-1 rounded-md border text-[11px] font-bold ${verificationBadgeClasses(data.is_verified)}`;
+                    }
+
+                    const outletRow = document.getElementById('userDrawerOutletRow');
+                    if (outletRow) {
+                        if (data.outlet_name) {
+                            setText('userDrawerOutlet', `📍 ${data.outlet_name}`);
+                            outletRow.classList.remove('hidden');
+                        } else {
+                            outletRow.classList.add('hidden');
+                        }
                     }
 
                     loadingEl?.classList.add('hidden');
@@ -482,6 +492,9 @@
                         const url = changeRoleTrigger.getAttribute('data-role-url');
                         const name = changeRoleTrigger.getAttribute('data-member-name');
                         const currentRole = changeRoleTrigger.getAttribute('data-current-role');
+                        const currentOutlet = changeRoleTrigger.getAttribute('data-current-outlet');
+                        const outletContainer = document.getElementById('changeRoleOutletContainer');
+                        const outletSelect = document.getElementById('changeRoleOutlet');
 
                         if (form && url) {
                             form.setAttribute('action', url);
@@ -493,6 +506,12 @@
                             form.querySelectorAll('input[name="role"]').forEach((input) => {
                                 input.checked = input.value === currentRole;
                             });
+                        }
+                        if (outletSelect && currentOutlet) {
+                            outletSelect.value = currentOutlet;
+                        }
+                        if (outletContainer) {
+                            outletContainer.classList.toggle('hidden', currentRole !== 'cashier');
                         }
 
                         openModal(document.getElementById('changeRoleModal'), changeRoleTrigger);
@@ -514,6 +533,19 @@
                         }
 
                         openModal(document.getElementById('removeMemberModal'), removeTrigger);
+                    }
+                });
+
+                document.addEventListener('change', (event) => {
+                    const target = event.target;
+                    if (!(target instanceof HTMLInputElement)) {
+                        return;
+                    }
+                    if (target.name === 'role' && target.closest('#changeRoleForm')) {
+                        const outletContainer = document.getElementById('changeRoleOutletContainer');
+                        if (outletContainer) {
+                            outletContainer.classList.toggle('hidden', target.value !== 'cashier');
+                        }
                     }
                 });
 

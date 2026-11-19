@@ -642,7 +642,16 @@
                         </div>
                     @endif
                     <div class="font-bold text-sm text-slate-900 dark:text-white">{{ $business->name }}</div>
-                    <div class="text-[10px] text-slate-500">{{ $activeOutlet->name }}</div>
+                    <div class="text-[10px] font-semibold text-slate-600 dark:text-slate-400">{{ $activeOutlet->name }}</div>
+                    @php
+                        $posReceiptAddress = !empty($activeOutlet->address) ? $activeOutlet->address : $business->receipt_address;
+                    @endphp
+                    @if(!empty($posReceiptAddress))
+                        <div class="text-[10px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{!! nl2br(e($posReceiptAddress)) !!}</div>
+                    @endif
+                    @if(!empty($activeOutlet->phone))
+                        <div class="text-[10px] text-slate-500 dark:text-slate-400">Telp: {{ $activeOutlet->phone }}</div>
+                    @endif
                     <div id="receiptDateTime" class="text-[10px] text-slate-400 mt-1">-</div>
                 </div>
 
@@ -678,7 +687,7 @@
                 </div>
 
                 <div class="text-center text-[10px] text-slate-400 pt-1">
-                    <p>Terima kasih atas kunjungan Anda!</p>
+                    <p>{{ $business->receipt_footer ?: 'Terima kasih atas kunjungan Anda!' }}</p>
                     <p>Powered by Net Kasir Cloud</p>
                 </div>
             </div>

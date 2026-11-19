@@ -110,10 +110,14 @@
         @endif
         <div class="store-name">{{ $business->name }}</div>
         <div class="meta">{{ $sale->outlet?->name ?? 'Outlet' }}</div>
-        @if(!empty($business->receipt_address))
-            <div class="meta">{!! nl2br(e($business->receipt_address)) !!}</div>
-        @elseif($sale->outlet?->address)
-            <div class="meta">{{ $sale->outlet->address }}</div>
+        @php
+            $outletAddress = !empty($sale->outlet?->address) ? $sale->outlet->address : $business->receipt_address;
+        @endphp
+        @if(!empty($outletAddress))
+            <div class="meta">{!! nl2br(e($outletAddress)) !!}</div>
+        @endif
+        @if(!empty($sale->outlet?->phone))
+            <div class="meta">Telp: {{ $sale->outlet->phone }}</div>
         @endif
         <div class="meta" style="margin-top: 4px;">
             No: {{ $sale->transaction_number }}<br>

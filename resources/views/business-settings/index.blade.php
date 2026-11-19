@@ -88,6 +88,7 @@
             :receiptLogoUrl="$receiptLogoUrl"
             :receiptAddress="$receiptAddress"
             :receiptFooter="$receiptFooter"
+            :outlets="$business->outlets()->where('status', 'active')->orderByDesc('is_primary')->orderBy('id')->get()"
         />
 
         <p class="text-xs text-slate-500 dark:text-slate-400">

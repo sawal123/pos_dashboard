@@ -58,6 +58,10 @@
                         <span class="block text-xs text-slate-500 dark:text-slate-400">Email</span>
                         <span id="userDrawerEmail" class="font-semibold text-slate-900 dark:text-white break-all">-</span>
                     </div>
+                    <div id="userDrawerOutletRow" class="hidden">
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">Cabang Ditugaskan</span>
+                        <span id="userDrawerOutlet" class="font-semibold text-slate-900 dark:text-white">-</span>
+                    </div>
                     <div>
                         <span class="block text-xs text-slate-500 dark:text-slate-400">Bergabung dengan Bisnis Aktif</span>
                         <span id="userDrawerJoinedAt" class="font-semibold text-slate-900 dark:text-white">-</span>

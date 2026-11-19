@@ -2,6 +2,7 @@
     'receiptLogoUrl' => null,
     'receiptAddress' => '',
     'receiptFooter' => '',
+    'outlets' => collect(),
 ])
 
 <form
@@ -61,6 +62,39 @@
             </p>
         </div>
     </div>
+
+    {{-- Branch Addresses Overview --}}
+    @if(isset($outlets) && $outlets->isNotEmpty())
+        <div class="rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20 p-3.5 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
+                    <i data-lucide="store" class="w-4 h-4"></i>
+                    <span>Alamat Struk Otomatis per Cabang:</span>
+                </div>
+                <a href="{{ route('outlets.index') }}" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+                    Kelola di Outlet &amp; Cabang &rarr;
+                </a>
+            </div>
+            <div class="space-y-1.5">
+                @foreach($outlets as $out)
+                    <div class="flex items-start justify-between gap-2 p-2 rounded-lg bg-white/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 text-xs">
+                        <div class="min-w-0">
+                            <span class="font-bold text-slate-800 dark:text-slate-200">{{ $out->name }}</span>
+                            @if($out->is_primary)
+                                <span class="text-[9px] font-extrabold uppercase px-1 py-0.2 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 ml-1">Utama</span>
+                            @endif
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                                📍 {{ $out->address ?: '(Alamat belum diatur)' }}{{ $out->phone ? ' • Telp: ' . $out->phone : '' }}
+                            </p>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
+                Struk kasir secara otomatis mencetak alamat dan nomor telepon dari cabang tempat transaksi dibuat. Field di bawah hanya digunakan sebagai fallback/catatan umum.
+            </p>
+        </div>
+    @endif
 
     {{-- Alamat Struk --}}
     <div class="space-y-1.5">

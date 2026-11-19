@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Concerns\ResolvesActiveBusiness;
 use App\Http\Controllers\Controller;
+use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Outlet;
 use App\Models\Product;
@@ -38,8 +39,16 @@ class PosController extends Controller
     public function index(Request $request): View
     {
         $business = $this->activeBusiness($request);
+        $role = $request->attributes->get('dashboard_business_role');
+        $cashierOutletId = $request->attributes->get('dashboard_cashier_outlet_id');
 
-        if ($request->has('outlet_id')) {
+        if ($role === Business::ROLE_CASHIER && $cashierOutletId !== null) {
+            session([
+                'pos.active_outlet_id' => (int) $cashierOutletId,
+                'dashboard.active_outlet_id' => (int) $cashierOutletId,
+                'pos.outlet_confirmed' => true,
+            ]);
+        } elseif ($request->has('outlet_id')) {
             $reqOutletId = (int) $request->query('outlet_id');
             session([
                 'pos.active_outlet_id' => $reqOutletId,
@@ -51,6 +60,11 @@ class PosController extends Controller
         $selectedOutletId = session('pos.active_outlet_id');
         $data = $this->catalogData->get($business, $selectedOutletId ? (int) $selectedOutletId : null);
 
+        // If cashier, restrict catalog outlets to their assigned branch
+        if ($role === Business::ROLE_CASHIER && $cashierOutletId !== null && isset($data['outlets'])) {
+            $data['outlets'] = $data['outlets']->where('id', (int) $cashierOutletId)->values();
+        }
+
         // Update session with resolved active outlet ID
         if (isset($data['activeOutlet']) && $data['activeOutlet'] instanceof Outlet) {
             session([
@@ -60,9 +74,10 @@ class PosController extends Controller
         }
 
         // Determine if outlet selection prompt should be shown:
-        // When there are multiple active outlets and the user has not explicitly confirmed an outlet choice
+        // Cashiers with an assigned outlet never see the modal; owners with >1 outlets see it until confirmed
         $outletsCount = isset($data['outlets']) ? $data['outlets']->count() : 0;
-        $needsOutletSelection = ($outletsCount > 1) && (! session('pos.outlet_confirmed') || $request->has('choose_outlet'));
+        $isCashierLocked = ($role === Business::ROLE_CASHIER && $cashierOutletId !== null);
+        $needsOutletSelection = ! $isCashierLocked && ($outletsCount > 1) && (! session('pos.outlet_confirmed') || $request->has('choose_outlet'));
 
         $data['needsOutletSelection'] = $needsOutletSelection;
 
@@ -75,6 +90,12 @@ class PosController extends Controller
     public function switchOutlet(Request $request): RedirectResponse
     {
         $business = $this->activeBusiness($request);
+        $role = $request->attributes->get('dashboard_business_role');
+        $cashierOutletId = $request->attributes->get('dashboard_cashier_outlet_id');
+
+        if ($role === Business::ROLE_CASHIER && $cashierOutletId !== null && (int) $request->input('outlet_id') !== (int) $cashierOutletId) {
+            abort(403, 'Kasir hanya dapat mengakses cabang yang ditugaskan.');
+        }
 
         $validated = $request->validate([
             'outlet_id' => [

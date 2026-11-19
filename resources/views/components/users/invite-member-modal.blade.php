@@ -1,3 +1,5 @@
+@props(['outlets' => collect()])
+
 {{-- DASH-10B1 — owner-only member invitation / direct registration modal. --}}
 <div
     id="inviteMemberModal"
@@ -161,6 +163,30 @@
                     @enderror
                 </div>
 
+                {{-- Outlet Assignment for Cashier --}}
+                <div id="cashierOutletSelectContainer" class="space-y-1.5 {{ old('role') === 'cashier' ? '' : 'hidden' }}">
+                    <label for="inviteMemberOutlet" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Tugaskan ke Cabang Toko <span class="text-rose-500">*</span>
+                    </label>
+                    <select
+                        id="inviteMemberOutlet"
+                        name="outlet_id"
+                        class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        @foreach($outlets as $out)
+                            <option value="{{ $out->id }}" @selected(old('outlet_id') == $out->id)>
+                                📍 {{ $out->name }} {{ $out->is_primary ? '(Utama)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        Kasir hanya dapat login dan bertransaksi di cabang yang ditugaskan (tidak dapat masuk ke cabang lain).
+                    </p>
+                    @error('outlet_id')
+                        <p class="mt-1 text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- Contextual Explanation Card --}}
                 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 p-3">
                     <p id="inviteModalExplText" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
@@ -273,6 +299,19 @@
         // Run immediately or on next microtask
         setTimeout(function() {
             setInviteModalMode(initialMode);
+
+            document.querySelectorAll('#inviteMemberForm input[name="role"]').forEach((radio) => {
+                radio.addEventListener('change', (e) => {
+                    const outletContainer = document.getElementById('cashierOutletSelectContainer');
+                    if (outletContainer) {
+                        if (e.target.value === 'cashier') {
+                            outletContainer.classList.remove('hidden');
+                        } else {
+                            outletContainer.classList.add('hidden');
+                        }
+                    }
+                });
+            });
         }, 10);
     })();
 </script>

@@ -81,7 +81,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function businesses(): BelongsToMany
     {
         return $this->belongsToMany(Business::class)
-            ->withPivot('role')
+            ->withPivot('role', 'outlet_id')
             ->withTimestamps();
     }
 

@@ -37,6 +37,16 @@ class UpdateBusinessMemberRoleRequest extends FormRequest
     {
         return [
             'role' => ['required', 'string', Rule::in(Business::MANAGED_ROLES)],
+            'outlet_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('outlets', 'id')->where(function ($q) {
+                    $business = app(DashboardBusinessContext::class)->current($this->user());
+                    if ($business) {
+                        $q->where('business_id', $business->id)->where('status', 'active');
+                    }
+                }),
+            ],
         ];
     }
 

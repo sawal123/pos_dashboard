@@ -30,12 +30,18 @@ class BusinessInvitationsController extends Controller
         $email = (string) $request->validated('email');
         $role = (string) $request->validated('role');
         $mode = (string) ($request->validated('mode') ?? 'invite');
+        $outletId = $request->validated('outlet_id') ? (int) $request->validated('outlet_id') : null;
+
+        if ($role === BusinessInvitation::ROLE_CASHIER && $outletId === null) {
+            $outletId = $business->outlets()->where('status', 'active')->where('is_primary', true)->value('id')
+                ?? $business->outlets()->where('status', 'active')->value('id');
+        }
 
         if ($mode === 'direct') {
             $name = (string) $request->validated('name');
             $password = (string) $request->validated('password');
 
-            $newUser = $invitations->registerDirectly($actor, $business, $name, $email, $password, $role);
+            $newUser = $invitations->registerDirectly($actor, $business, $name, $email, $password, $role, $outletId);
             $roleLabel = $role === BusinessInvitation::ROLE_CASHIER ? 'Kasir' : 'Anggota';
 
             return redirect()
@@ -43,7 +49,7 @@ class BusinessInvitationsController extends Controller
                 ->with('status', 'Pengguna '.$newUser->name.' ('.$email.') berhasil didaftarkan langsung sebagai '.$roleLabel.'.');
         }
 
-        $invitations->invite($actor, $business, $email, $role);
+        $invitations->invite($actor, $business, $email, $role, $outletId);
 
         return redirect()
             ->route('users.index')

@@ -4,6 +4,7 @@ namespace App\Services\Dashboard;
 
 use App\Models\Business;
 use App\Models\BusinessInvitation;
+use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -118,18 +119,21 @@ class DashboardUsersData
         /** @var Collection<int, array<string, mixed>> $rows */
         $rows = BusinessInvitation::query()
             ->forBusiness((int) $currentBusiness->id)
-            ->with('inviter')
+            ->with(['inviter', 'outlet'])
             ->orderByDesc('id')
             ->limit(self::INVITATIONS_LIMIT)
             ->get()
             ->map(function (BusinessInvitation $invitation): array {
                 $inviter = $invitation->getRelation('inviter');
+                $outlet = $invitation->getRelation('outlet');
 
                 return [
                     'id' => (int) $invitation->id,
                     'email' => (string) $invitation->email,
                     'role' => $invitation->roleLabel(),
                     'role_raw' => (string) $invitation->role,
+                    'outlet_id' => $invitation->outlet_id !== null ? (int) $invitation->outlet_id : null,
+                    'outlet_name' => $outlet instanceof Outlet ? (string) $outlet->name : null,
                     'status' => $invitation->effectiveStatus(),
                     'status_label' => $invitation->statusLabel(),
                     'is_pending' => $invitation->effectiveStatus() === BusinessInvitation::STATUS_PENDING,
@@ -216,6 +220,7 @@ class DashboardUsersData
     {
         return User::query()
             ->join('business_user', 'business_user.user_id', '=', 'users.id')
+            ->leftJoin('outlets', 'outlets.id', '=', 'business_user.outlet_id')
             ->where('business_user.business_id', $businessId)
             ->select([
                 'users.id',
@@ -224,6 +229,8 @@ class DashboardUsersData
                 'users.email_verified_at',
                 'users.created_at',
                 'business_user.role as membership_role',
+                'business_user.outlet_id as membership_outlet_id',
+                'outlets.name as membership_outlet_name',
                 'business_user.created_at as membership_created_at',
             ]);
     }
@@ -261,6 +268,9 @@ class DashboardUsersData
         $roleAttribute = $user->getAttribute('membership_role');
         $roleRaw = is_string($roleAttribute) ? $roleAttribute : '';
 
+        $outletId = $user->getAttribute('membership_outlet_id');
+        $outletName = $user->getAttribute('membership_outlet_name');
+
         $joinedAt = $user->getAttribute('membership_created_at');
         $createdAt = $user->created_at;
 
@@ -271,6 +281,8 @@ class DashboardUsersData
             'role_raw' => $roleRaw,
             'role' => $this->presentRole($roleRaw),
             'role_category' => $this->roleCategory($roleRaw),
+            'outlet_id' => $outletId !== null ? (int) $outletId : null,
+            'outlet_name' => $outletName !== null ? (string) $outletName : null,
             'is_verified' => $user->email_verified_at !== null,
             'joined_at_raw' => $joinedAt !== null ? (string) $joinedAt : null,
             'joined_at' => $this->formatDateTime($joinedAt),

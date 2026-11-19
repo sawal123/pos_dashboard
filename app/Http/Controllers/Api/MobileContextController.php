@@ -55,9 +55,15 @@ class MobileContextController extends Controller
 
             $cloudAccess = $business->hasCloudAccess();
             $role = $this->authorizer->roleIn($user, $business);
+            $assignedOutletId = $business->pivot?->outlet_id;
+
+            $businessOutlets = $business->outlets;
+            if ($role === Business::ROLE_CASHIER && $assignedOutletId !== null) {
+                $businessOutlets = $businessOutlets->where('id', (int) $assignedOutletId)->values();
+            }
 
             /** @var list<array{id: int, name: string, code: string, status: string}> $outlets */
-            $outlets = $business->outlets
+            $outlets = $businessOutlets
                 ->map(function (Outlet $outlet) use ($business): array {
                     $outlet->setRelation('business', $business);
                     $sub = $outlet->effectiveSubscription();

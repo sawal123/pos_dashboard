@@ -84,10 +84,10 @@ class BusinessMembershipService
      *
      * @throws ValidationException
      */
-    public function changeRole(User $actor, Business $business, User $target, string $newRole): string
+    public function changeRole(User $actor, Business $business, User $target, string $newRole, ?int $outletId = null): string
     {
         /** @var string $result */
-        $result = DB::transaction(function () use ($actor, $business, $target, $newRole): string {
+        $result = DB::transaction(function () use ($actor, $business, $target, $newRole, $outletId): string {
             if ($target->is($actor)) {
                 throw ValidationException::withMessages([
                     'role' => 'Anda tidak dapat mengubah peran Anda sendiri dari halaman ini.',
@@ -126,17 +126,12 @@ class BusinessMembershipService
                 ]);
             }
 
-            if ($oldRole === $newRole) {
-                throw ValidationException::withMessages([
-                    'role' => 'Pengguna sudah memiliki peran tersebut.',
-                ]);
-            }
-
             DB::table('business_user')
                 ->where('business_id', $business->id)
                 ->where('user_id', $target->id)
                 ->update([
                     'role' => $newRole,
+                    'outlet_id' => $newRole === Business::ROLE_CASHIER ? $outletId : null,
                     'updated_at' => now(),
                 ]);
 

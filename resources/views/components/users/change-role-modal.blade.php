@@ -1,4 +1,4 @@
-@props(['roleOptions' => []])
+@props(['roleOptions' => [], 'outlets' => collect()])
 
 {{-- DASH-10B2 — owner-only role change (member <-> cashier) confirmation modal. --}}
 <div
@@ -44,6 +44,30 @@
                         </label>
                     @endforeach
                 </fieldset>
+
+                {{-- Outlet Assignment for Cashier --}}
+                <div id="changeRoleOutletContainer" class="space-y-1.5 hidden">
+                    <label for="changeRoleOutlet" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Tugaskan ke Cabang Toko <span class="text-rose-500">*</span>
+                    </label>
+                    <select
+                        id="changeRoleOutlet"
+                        name="outlet_id"
+                        class="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                        @foreach($outlets as $out)
+                            <option value="{{ $out->id }}">
+                                📍 {{ $out->name }} {{ $out->is_primary ? '(Utama)' : '' }}
+                            </option>
+                        @endforeach
+                    </select>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                        Kasir hanya dapat login dan bertransaksi di cabang yang ditugaskan.
+                    </p>
+                    @error('outlet_id')
+                        <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 @error('role')
                     <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>

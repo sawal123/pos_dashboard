@@ -52,7 +52,14 @@ class BusinessMembersController extends Controller
 
         $target = $this->targetMember($business, $userId);
 
-        $newRole = $members->changeRole($actor, $business, $target, (string) $request->validated('role'));
+        $role = (string) $request->validated('role');
+        $outletId = $request->validated('outlet_id') ? (int) $request->validated('outlet_id') : null;
+        if ($role === Business::ROLE_CASHIER && $outletId === null) {
+            $outletId = $business->outlets()->where('status', 'active')->where('is_primary', true)->value('id')
+                ?? $business->outlets()->where('status', 'active')->value('id');
+        }
+
+        $newRole = $members->changeRole($actor, $business, $target, $role, $outletId);
 
         return redirect()
             ->route('users.index')

@@ -47,7 +47,6 @@ class PosCatalogData
         $openShifts = \App\Models\Shift::query()
             ->where('business_id', $business->id)
             ->where('status', 'open')
-            ->with('user:id,name')
             ->get()
             ->keyBy('outlet_id');
 

@@ -24,9 +24,16 @@
                     <h2 class="font-extrabold text-slate-900 dark:text-white break-words">{{ $user['name'] }}</h2>
                     <p class="text-xs text-slate-500 dark:text-slate-400 break-all">{{ $user['email'] }}</p>
                 </div>
-                <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-md border text-[11px] font-bold {{ $roleBadgeClass($user['role_category']) }}">
-                    {{ $user['role'] }}
-                </span>
+                <div class="shrink-0 flex flex-col items-end gap-1">
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-md border text-[11px] font-bold {{ $roleBadgeClass($user['role_category']) }}">
+                        {{ $user['role'] }}
+                    </span>
+                    @if($user['role_category'] === 'cashier' && !empty($user['outlet_name']))
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            📍 {{ $user['outlet_name'] }}
+                        </span>
+                    @endif
+                </div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -54,6 +61,7 @@
                     data-role-url="{{ route('users.members.role.update', $user['id']) }}"
                     data-member-name="{{ $user['name'] }}"
                     data-current-role="{{ $user['role_raw'] }}"
+                    data-current-outlet="{{ $user['outlet_id'] ?? '' }}"
                     class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
                 >
                     <i data-lucide="user-cog" class="w-4 h-4"></i>
