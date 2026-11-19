@@ -27,9 +27,11 @@
         <div class="space-y-1">
             <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Perangkat Aktif</span>
             <h3 id="deviceSummaryActive" class="text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums">
-                {{ number_format($summary['active_devices'] ?? 0, 0, ',', '.') }}
+                {{ number_format($summary['active_devices'] ?? 0, 0, ',', '.') }} <span class="text-sm font-semibold text-slate-400 dark:text-slate-500">/ {{ number_format($summary['device_limit'] ?? 5, 0, ',', '.') }}</span>
             </h3>
-            <p class="text-[11px] text-slate-400 dark:text-slate-500">Diizinkan mengakses API</p>
+            <p class="text-[11px] text-slate-400 dark:text-slate-500">
+                {{ $summary['remaining_slots'] ?? 0 }} slot tersisa (kuota max: {{ $summary['device_limit'] ?? 5 }})
+            </p>
         </div>
         <div class="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-800/60 shadow-xs">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i>

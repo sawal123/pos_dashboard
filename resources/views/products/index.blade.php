@@ -319,6 +319,9 @@
 
     {{-- ==================== CLIENT-SIDE SCRIPTS ==================== --}}
     <script>
+        window.__RAW_MATERIALS__ = @json($rawMaterialOptions ?? []);
+    </script>
+    <script>
         function initProductsPage() {
             const root = document.querySelector('main[data-products-page="true"]');
             if (!root || root.dataset.productsInitialized === 'true') {
@@ -704,28 +707,35 @@
                 const emptyHint = () => document.getElementById('catalogRecipeEmptyHint');
 
                 const getRawMaterials = () => {
-                    const modal = modalEl();
-                    let text = modal?.getAttribute('data-raw-materials') || '';
-                    if (!text) {
-                        const scriptEl = document.getElementById('catalogRawMaterialsData');
-                        if (scriptEl) {
-                            text = scriptEl.textContent ? scriptEl.textContent.trim() : '';
-                            if (text.startsWith('"') && text.endsWith('"')) {
-                                text = text.slice(1, -1);
+                    let all = window.__RAW_MATERIALS__;
+                    if (!all || !Array.isArray(all) || all.length === 0) {
+                        const modal = modalEl();
+                        let text = modal?.getAttribute('data-raw-materials') || '';
+                        if (!text) {
+                            const scriptEl = document.getElementById('catalogRawMaterialsData');
+                            if (scriptEl) {
+                                text = scriptEl.textContent ? scriptEl.textContent.trim() : '';
+                                if (text.startsWith('"') && text.endsWith('"')) {
+                                    text = text.slice(1, -1);
+                                }
+                            }
+                        }
+                        if (text) {
+                            try {
+                                const decoded = atob(text);
+                                all = JSON.parse(decoded || '[]');
+                            } catch (e) {
+                                all = [];
                             }
                         }
                     }
-                    if (!text) return [];
-                    try {
-                        const decoded = atob(text);
-                        const all = JSON.parse(decoded || '[]');
-                        if (currentEditingProductId) {
-                            return all.filter(m => Number(m.id) !== Number(currentEditingProductId));
-                        }
-                        return all;
-                    } catch (e) {
-                        return [];
+                    if (!Array.isArray(all)) {
+                        all = [];
                     }
+                    if (currentEditingProductId) {
+                        return all.filter(m => Number(m.id) !== Number(currentEditingProductId));
+                    }
+                    return all;
                 };
 
                 const formatRupiahVal = (val) => {

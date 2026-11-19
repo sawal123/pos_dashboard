@@ -39,6 +39,27 @@ class BusinessContextController extends Controller
             abort(403, 'Bisnis aktif tidak ditemukan.');
         }
 
+        $rawOutlet = $request->input('outlet_id');
+        $user = $request->user();
+
+        // Allow owner to view consolidated "All Branches"
+        if ($rawOutlet === 'all' || $rawOutlet === '0' || $rawOutlet === '') {
+            if ($user) {
+                $membership = $business->users()->where('users.id', $user->id)->first();
+                $role = $membership?->pivot?->role;
+                if ($role === 'cashier') {
+                    abort(403, 'Kasir harus memilih cabang toko tertentu.');
+                }
+            }
+
+            session([
+                'dashboard.active_outlet_id' => 'all',
+                'dashboard.outlet_user_selected' => true,
+            ]);
+
+            return redirect()->back();
+        }
+
         $validated = $request->validate([
             'outlet_id' => [
                 'required',
@@ -49,7 +70,6 @@ class BusinessContextController extends Controller
 
         $outletId = (int) $validated['outlet_id'];
 
-        $user = $request->user();
         if ($user) {
             $membership = $business->users()->where('users.id', $user->id)->first();
             $role = $membership?->pivot?->role;
@@ -62,6 +82,7 @@ class BusinessContextController extends Controller
 
         session([
             'dashboard.active_outlet_id' => $outletId,
+            'dashboard.outlet_user_selected' => true,
             'pos.active_outlet_id' => $outletId,
             'pos.outlet_confirmed' => true,
         ]);

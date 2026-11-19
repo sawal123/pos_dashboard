@@ -794,6 +794,46 @@ class DashboardOverviewPageTest extends TestCase
         $this->assertStringNotContainsString('Kopi Nusantara Cafe', $dashboardViewContent);
     }
 
+    public function test_chart_sales_reflects_selected_outlet_filter(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $outlet1 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Outlet Satu', 'is_primary' => true, 'status' => 'active']);
+        $outlet2 = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Outlet Dua', 'is_primary' => false, 'status' => 'active']);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet1->id,
+            'total_amount' => 50000,
+            'sold_at' => now(),
+            'status' => 'completed',
+            'payment_status' => 'paid',
+        ]);
+
+        $this->createSale([
+            'business_id' => $business->id,
+            'outlet_id' => $outlet2->id,
+            'total_amount' => 75000,
+            'sold_at' => now(),
+            'status' => 'completed',
+            'payment_status' => 'paid',
+        ]);
+
+        // 1. Filter Outlet 1
+        $res1 = $this->actingAs($user)->get(route('dashboard', ['outlet_id' => $outlet1->id]));
+        $res1->assertOk();
+        $this->assertSame('Rp 50.000', $res1->viewData('overview')['kpi']['today_sales']['value']);
+
+        // 2. Filter Outlet 2
+        $res2 = $this->actingAs($user)->get(route('dashboard', ['outlet_id' => $outlet2->id]));
+        $res2->assertOk();
+        $this->assertSame('Rp 75.000', $res2->viewData('overview')['kpi']['today_sales']['value']);
+
+        // 3. Consolidated All Outlets
+        $resAll = $this->actingAs($user)->get(route('dashboard', ['outlet_id' => 'all']));
+        $resAll->assertOk();
+        $this->assertSame('Rp 125.000', $resAll->viewData('overview')['kpi']['today_sales']['value']);
+    }
+
     // ============================================================
     // Helpers
     // ============================================================

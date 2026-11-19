@@ -437,6 +437,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('deviceId')
         ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])
         ->name('devices.update');
+    Route::patch('devices/limit', [DevicesController::class, 'updateDeviceLimit'])
+        ->middleware(['business.permission:'.BusinessPermission::DEVICES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_DEVICES])
+        ->name('devices.limit.update');
 
     Route::get('sync', [SyncMonitoringController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::SYNC_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_SYNC])
@@ -485,6 +488,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::post('business-settings/receipt', [BusinessSettingsController::class, 'updateReceiptSettings'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.receipt.update');
+    Route::patch('business-settings/device-limit', [BusinessSettingsController::class, 'updateDeviceLimit'])
+        ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
+        ->name('business-settings.device-limit.update');
 
     Route::post('dashboard/business-context', [BusinessContextController::class, 'update'])
         ->name('dashboard.business-context.update');

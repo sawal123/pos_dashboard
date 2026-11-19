@@ -73,6 +73,10 @@
             :typeOptions="$typeOptions"
         />
 
+        <x-business-settings.device-limit-form
+            :maxDevices="$maxDevices ?? 5"
+        />
+
         <x-business-settings.tax-settings-form
             :taxEnabled="$taxEnabled"
             :taxRate="$taxRate"

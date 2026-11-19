@@ -14,6 +14,12 @@ class DashboardDevicesData
 {
     public const PER_PAGE = 25;
 
+    public function __construct(
+        protected ?\App\Services\Subscription\CloudDeviceLimit $deviceLimit = null
+    ) {
+        $this->deviceLimit ??= app(\App\Services\Subscription\CloudDeviceLimit::class);
+    }
+
     /**
      * Fetch devices data scoped to the current business and filters.
      *
@@ -47,6 +53,8 @@ class DashboardDevicesData
                     'active_devices' => 0,
                     'inactive_devices' => 0,
                     'never_seen_devices' => 0,
+                    'device_limit' => 5,
+                    'remaining_slots' => 5,
                 ],
                 'outlets' => [],
                 'platforms' => [],
@@ -65,11 +73,16 @@ class DashboardDevicesData
 
         $hasAnyDevices = $totalDevices > 0;
 
+        $limit = $this->deviceLimit->limit($currentBusiness);
+        $remaining = $this->deviceLimit->remaining($currentBusiness);
+
         $summary = [
             'total_devices' => $totalDevices,
             'active_devices' => $activeDevices,
             'inactive_devices' => $inactiveDevices,
             'never_seen_devices' => $neverSeenDevices,
+            'device_limit' => $limit,
+            'remaining_slots' => $remaining,
         ];
 
         // 3. Filter options (tenant-scoped)

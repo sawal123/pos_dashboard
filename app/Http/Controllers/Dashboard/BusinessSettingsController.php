@@ -42,6 +42,7 @@ class BusinessSettingsController extends Controller
             'receiptLogoUrl' => $business->receiptLogoUrl(),
             'receiptAddress' => (string) ($business->receipt_address ?? ''),
             'receiptFooter' => (string) ($business->receipt_footer ?? ''),
+            'maxDevices' => $business->maxDevices(),
         ]);
     }
 
@@ -127,6 +128,26 @@ class BusinessSettingsController extends Controller
         return redirect()
             ->route('business-settings.edit')
             ->with('status', 'Pengaturan struk berhasil disimpan.');
+    }
+
+    public function updateDeviceLimit(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'max_devices' => ['required', 'integer', 'min:5', 'max:500'],
+        ], [
+            'max_devices.required' => 'Jumlah batas perangkat harus diisi.',
+            'max_devices.min' => 'Batas perangkat minimal 5 perangkat terhubung.',
+            'max_devices.integer' => 'Batas perangkat harus berupa angka bulat.',
+        ]);
+
+        $business->max_devices = (int) $validated['max_devices'];
+        $business->save();
+
+        return redirect()
+            ->route('business-settings.edit')
+            ->with('status', "Batas perangkat berhasil disimpan ({$business->max_devices} perangkat).");
     }
 
     /**

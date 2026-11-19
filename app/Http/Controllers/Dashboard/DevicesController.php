@@ -172,4 +172,24 @@ class DevicesController extends Controller
                 $revoked ? 'Kode pairing dibatalkan.' : 'Kode pairing tidak ditemukan pada bisnis ini.',
             );
     }
+
+    public function updateDeviceLimit(Request $request): RedirectResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $validated = $request->validate([
+            'max_devices' => ['required', 'integer', 'min:5', 'max:500'],
+        ], [
+            'max_devices.required' => 'Jumlah batas perangkat harus diisi.',
+            'max_devices.min' => 'Batas perangkat minimal 5 perangkat terhubung.',
+            'max_devices.integer' => 'Batas perangkat harus berupa angka bulat.',
+        ]);
+
+        $business->max_devices = (int) $validated['max_devices'];
+        $business->save();
+
+        return redirect()
+            ->back()
+            ->with('status', "Batas kuota perangkat berhasil diatur menjadi {$business->max_devices} perangkat.");
+    }
 }

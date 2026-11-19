@@ -35,7 +35,7 @@ use Illuminate\Support\Str;
 class CatalogManagementService
 {
     /** @var list<string> */
-    public const KINDS = ['product', 'service'];
+    public const KINDS = ['product', 'service', 'raw_material'];
 
     /** @var list<string> */
     public const STATUSES = ['active', 'inactive'];

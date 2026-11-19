@@ -48,7 +48,7 @@ use Illuminate\Support\Carbon;
  * @property-read Collection<int, BusinessInvitation> $invitations
  * @property-read Collection<int, MembershipAuditLog> $membershipAuditLogs
  */
-#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift', 'receipt_logo', 'receipt_address', 'receipt_footer'])]
+#[Fillable(['name', 'slug', 'status', 'business_type', 'tax_enabled', 'tax_rate', 'cashier_pin', 'default_opening_cash', 'auto_open_shift', 'receipt_logo', 'receipt_address', 'receipt_footer', 'max_devices'])]
 class Business extends Model
 {
     /** Membership role values that have a defined authorization contract. */
@@ -530,5 +530,15 @@ class Business extends Model
     public function businessTypeLabel(): string
     {
         return $this->businessType()?->label() ?? 'Belum ditentukan';
+    }
+
+    /**
+     * Configured maximum allowed connected devices (minimum 5 default/automatic).
+     */
+    public function maxDevices(): int
+    {
+        $val = (int) ($this->max_devices ?? 5);
+
+        return max(5, $val);
     }
 }

@@ -535,6 +535,28 @@ class DevicesPageTest extends TestCase
         $response->assertDontSee('Registrasi perangkat dari dashboard belum tersedia.');
     }
 
+    public function test_35_owner_can_configure_device_limit_with_minimum_5(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+
+        // Default limit is 5
+        $this->assertSame(5, $business->fresh()->maxDevices());
+
+        // Update limit to 10
+        $response = $this->actingAs($user)->patch(route('devices.limit.update'), [
+            'max_devices' => 10,
+        ]);
+        $response->assertRedirect();
+        $this->assertSame(10, $business->fresh()->maxDevices());
+
+        // Update limit below 5 fails validation
+        $failResponse = $this->actingAs($user)->patch(route('devices.limit.update'), [
+            'max_devices' => 3,
+        ]);
+        $failResponse->assertSessionHasErrors('max_devices');
+        $this->assertSame(10, $business->fresh()->maxDevices());
+    }
+
     // ============================================================
     // Helpers
     // ============================================================

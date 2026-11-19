@@ -6,6 +6,7 @@ use App\Models\Business;
 use App\Models\CashLedger;
 use App\Models\Device;
 use App\Models\Expense;
+use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Shift;
@@ -21,7 +22,7 @@ class DashboardOverviewData
      *
      * @return array<string, mixed>
      */
-    public function get(?Business $currentBusiness, string $period = '7d', bool $hasCloudAccess = false): array
+    public function get(?Business $currentBusiness, string $period = '7d', bool $hasCloudAccess = false, int|string|null $outletId = null): array
     {
         $tz = (string) config('app.timezone', 'Asia/Jakarta');
         $now = Carbon::now($tz);
@@ -38,11 +39,24 @@ class DashboardOverviewData
         }
 
         $businessId = (int) $currentBusiness->id;
+        $numericOutletId = (is_numeric($outletId) && (int) $outletId > 0) ? (int) $outletId : null;
+
+        $selectedOutletName = 'Seluruh Cabang (Konsolidasi)';
+        if ($numericOutletId !== null) {
+            $outlet = Outlet::where('business_id', $businessId)->where('id', $numericOutletId)->first();
+            if ($outlet) {
+                $selectedOutletName = $outlet->name . ($outlet->is_primary ? ' (Utama)' : '');
+            }
+        }
 
         // 2. Dashboard Header Data
-        $openShiftsCount = Shift::where('business_id', $businessId)
-            ->where('status', 'open')
-            ->count();
+        $openShiftsQuery = Shift::where('business_id', $businessId)
+            ->where('status', 'open');
+        if ($numericOutletId !== null) {
+            $openShiftsQuery->where('outlet_id', $numericOutletId);
+        }
+        $openShiftsCount = $openShiftsQuery->count();
+
         $openShiftsLabel = $openShiftsCount > 0
             ? "{$openShiftsCount} Shift Terbuka"
             : 'Tidak ada shift terbuka';
@@ -55,6 +69,9 @@ class DashboardOverviewData
             ->where('status', 'completed')
             ->where('payment_status', 'paid')
             ->whereBetween('sold_at', [$todayStart, $todayEnd]);
+        if ($numericOutletId !== null) {
+            $todaySalesQuery->where('outlet_id', $numericOutletId);
+        }
 
         $todaySalesTotal = (int) (clone $todaySalesQuery)->sum('total_amount');
         $todayTransactionsCount = (int) (clone $todaySalesQuery)->count();
@@ -72,26 +89,28 @@ class DashboardOverviewData
             ->where('stock', '<=', DB::raw('min_stock'))
             ->count();
 
-        // 4. Sales Overview Chart & Insight Footer
-        $chartData = $this->buildSalesChart($businessId, $period, $now);
+        // 4. Sales Overview Chart & Insight Footer (scoped to selected outlet)
+        $chartData = $this->buildSalesChart($businessId, $period, $now, $numericOutletId);
 
         // 5. Stock Alert Panel (Top 5 items)
         $stockPanel = $this->buildStockPanel($businessId, $stockAlertsKpiCount);
 
-        // 6. Ringkasan Pergerakan Kas Hari Ini
-        $cashSummary = $this->buildCashSummary($businessId, $todayStart, $todayEnd, $openShiftsCount, $openShiftsLabel);
+        // 6. Ringkasan Pergerakan Kas Hari Ini (scoped to selected outlet)
+        $cashSummary = $this->buildCashSummary($businessId, $todayStart, $todayEnd, $openShiftsCount, $openShiftsLabel, $numericOutletId);
 
         // 7. Status Cloud & Sinkronisasi
         $cloudPanel = $this->buildCloudPanel($businessId, $hasCloudAccess);
 
-        // 8. Transaksi Terbaru (Preview 8)
-        $recentTransactions = $this->buildRecentTransactions($businessId);
+        // 8. Transaksi Terbaru (Preview 8, scoped to selected outlet)
+        $recentTransactions = $this->buildRecentTransactions($businessId, $numericOutletId);
 
         return [
             'business_name' => $currentBusiness->name,
             'current_date_formatted' => $currentDateFormatted,
             'open_shifts_count' => $openShiftsCount,
             'open_shifts_label' => $openShiftsLabel,
+            'selected_outlet_id' => $numericOutletId,
+            'selected_outlet_name' => $selectedOutletName,
 
             'kpi' => [
                 'today_sales' => [
@@ -131,7 +150,7 @@ class DashboardOverviewData
      *
      * @return array<string, mixed>
      */
-    private function buildSalesChart(int $businessId, string $period, Carbon $now): array
+    private function buildSalesChart(int $businessId, string $period, Carbon $now, ?int $outletId = null): array
     {
         switch ($period) {
             case '30d':
@@ -167,10 +186,15 @@ class DashboardOverviewData
         }
 
         // Query daily aggregates from database (SQLite and MySQL compatible)
-        $rawRows = Sale::where('business_id', $businessId)
+        $salesQuery = Sale::where('business_id', $businessId)
             ->where('status', 'completed')
             ->where('payment_status', 'paid')
-            ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()])
+            ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()]);
+        if ($outletId !== null) {
+            $salesQuery->where('outlet_id', $outletId);
+        }
+
+        $rawRows = $salesQuery
             ->selectRaw('DATE(sold_at) as date_raw, SUM(total_amount) as total_sales, COUNT(id) as transaction_count')
             ->groupByRaw('DATE(sold_at)')
             ->get()
@@ -245,10 +269,14 @@ class DashboardOverviewData
         $averageSalesFormatted = 'Rp '.number_format($averageSales, 0, ',', '.');
 
         // Metode Pembayaran Terbanyak (berdasarkan COUNT Sale)
-        $paymentMethodRows = Sale::where('business_id', $businessId)
+        $paymentQuery = Sale::where('business_id', $businessId)
             ->where('status', 'completed')
             ->where('payment_status', 'paid')
-            ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()])
+            ->whereBetween('sold_at', [$startDate->toDateTimeString(), $endDate->toDateTimeString()]);
+        if ($outletId !== null) {
+            $paymentQuery->where('outlet_id', $outletId);
+        }
+        $paymentMethodRows = $paymentQuery
             ->selectRaw('payment_method, COUNT(id) as count')
             ->groupBy('payment_method')
             ->orderByDesc('count')
@@ -344,24 +372,30 @@ class DashboardOverviewData
      *
      * @return array<string, mixed>
      */
-    private function buildCashSummary(int $businessId, string $todayStart, string $todayEnd, int $openShiftsCount, string $openShiftsLabel): array
+    private function buildCashSummary(int $businessId, string $todayStart, string $todayEnd, int $openShiftsCount, string $openShiftsLabel, ?int $outletId = null): array
     {
-        $cashIn = (int) CashLedger::where('business_id', $businessId)
+        $cashInQuery = CashLedger::where('business_id', $businessId)
             ->where('type', 'in')
-            ->whereBetween('occurred_at', [$todayStart, $todayEnd])
-            ->sum('amount');
+            ->whereBetween('occurred_at', [$todayStart, $todayEnd]);
 
-        $cashOut = (int) CashLedger::where('business_id', $businessId)
+        $cashOutQuery = CashLedger::where('business_id', $businessId)
             ->where('type', 'out')
-            ->whereBetween('occurred_at', [$todayStart, $todayEnd])
-            ->sum('amount');
+            ->whereBetween('occurred_at', [$todayStart, $todayEnd]);
 
-        $netMovement = $cashIn - $cashOut;
-
-        $recordedExpense = (int) Expense::where('business_id', $businessId)
+        $expenseQuery = Expense::where('business_id', $businessId)
             ->where('status', 'recorded')
-            ->whereBetween('occurred_at', [$todayStart, $todayEnd])
-            ->sum('amount');
+            ->whereBetween('occurred_at', [$todayStart, $todayEnd]);
+
+        if ($outletId !== null) {
+            $cashInQuery->where('outlet_id', $outletId);
+            $cashOutQuery->where('outlet_id', $outletId);
+            $expenseQuery->where('outlet_id', $outletId);
+        }
+
+        $cashIn = (int) $cashInQuery->sum('amount');
+        $cashOut = (int) $cashOutQuery->sum('amount');
+        $netMovement = $cashIn - $cashOut;
+        $recordedExpense = (int) $expenseQuery->sum('amount');
 
         return [
             'cash_in' => 'Rp '.number_format($cashIn, 0, ',', '.'),
@@ -411,14 +445,19 @@ class DashboardOverviewData
      *
      * @return array<int, array<string, mixed>>
      */
-    private function buildRecentTransactions(int $businessId): array
+    private function buildRecentTransactions(int $businessId, ?int $outletId = null): array
     {
-        $sales = Sale::where('business_id', $businessId)
+        $salesQuery = Sale::where('business_id', $businessId)
             ->with(['customer', 'outlet'])
             ->orderBy('sold_at', 'desc')
             ->orderBy('id', 'desc')
-            ->limit(8)
-            ->get();
+            ->limit(8);
+
+        if ($outletId !== null) {
+            $salesQuery->where('outlet_id', $outletId);
+        }
+
+        $sales = $salesQuery->get();
 
         return $sales->map(function (Sale $sale) {
             // Customer name: snapshot first, then relation, then 'Pelanggan Umum'

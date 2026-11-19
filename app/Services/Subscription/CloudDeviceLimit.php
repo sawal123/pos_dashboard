@@ -33,9 +33,15 @@ final class CloudDeviceLimit
 
     /**
      * Configured limit; 0 means "no limit configured".
+     * Checks the specific business's configured max devices (default min 5),
+     * falling back to the policy limit.
      */
-    public function limit(): int
+    public function limit(?Business $business = null): int
     {
+        if ($business instanceof Business) {
+            return $business->maxDevices();
+        }
+
         return $this->policy->deviceLimit();
     }
 
@@ -55,7 +61,7 @@ final class CloudDeviceLimit
      */
     public function isReached(Business $business): bool
     {
-        $limit = $this->limit();
+        $limit = $this->limit($business);
 
         if ($limit <= 0) {
             return false;
@@ -69,7 +75,7 @@ final class CloudDeviceLimit
      */
     public function remaining(Business $business): ?int
     {
-        $limit = $this->limit();
+        $limit = $this->limit($business);
 
         if ($limit <= 0) {
             return null;

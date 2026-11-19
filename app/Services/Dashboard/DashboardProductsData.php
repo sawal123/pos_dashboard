@@ -52,12 +52,6 @@ class DashboardProductsData
             : 'products';
 
         // Summary metrics from current full non-deleted catalog of current business
-        $totalProducts = Product::query()
-            ->where('business_id', $business->id)
-            ->where('status', '!=', 'deleted')
-            ->where('kind', 'product')
-            ->count();
-
         $sellableProducts = Product::query()
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
@@ -65,7 +59,18 @@ class DashboardProductsData
             ->where('is_sellable', true)
             ->count();
 
-        $supplyProducts = $totalProducts - $sellableProducts;
+        $supplyProducts = Product::query()
+            ->where('business_id', $business->id)
+            ->where('status', '!=', 'deleted')
+            ->where(function ($q) {
+                $q->where('kind', 'raw_material')
+                    ->orWhere(function ($sub) {
+                        $sub->where('kind', 'product')->where('is_sellable', false);
+                    });
+            })
+            ->count();
+
+        $totalProducts = $sellableProducts + $supplyProducts;
 
         $totalServices = Product::query()
             ->where('business_id', $business->id)
@@ -127,8 +132,12 @@ class DashboardProductsData
         $rawMaterialOptions = Product::query()
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
-            ->where('kind', 'product')
-            ->where('is_sellable', false)
+            ->where(function ($q) {
+                $q->where('kind', 'raw_material')
+                    ->orWhere(function ($sub) {
+                        $sub->where('kind', 'product')->where('is_sellable', false);
+                    });
+            })
             ->orderBy('name')
             ->get(['id', 'name', 'sku', 'cost', 'unit', 'is_sellable', 'image_path'])
             ->map(fn ($p) => [
@@ -275,8 +284,12 @@ class DashboardProductsData
         $baseQuery = Product::query()
             ->where('business_id', $business->id)
             ->where('status', '!=', 'deleted')
-            ->where('kind', 'product')
-            ->where('is_sellable', false)
+            ->where(function ($q) {
+                $q->where('kind', 'raw_material')
+                    ->orWhere(function ($sub) {
+                        $sub->where('kind', 'product')->where('is_sellable', false);
+                    });
+            })
             ->with(['category', 'recipeItems.componentProduct']);
 
         $hasAnyData = (clone $baseQuery)->exists();

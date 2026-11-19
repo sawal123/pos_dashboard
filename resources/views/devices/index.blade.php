@@ -22,6 +22,15 @@
                  dengan kode 4 digit; identitas perangkat tidak lagi diketik manual. --}}
             @if($canManageDevices)
                 <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                    <button
+                        type="button"
+                        id="openDeviceLimitModalBtn"
+                        onclick="document.getElementById('deviceLimitModal')?.classList.remove('hidden')"
+                        class="py-2.5 px-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs shadow-xs transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    >
+                        <i data-lucide="sliders" class="w-4 h-4 text-indigo-500"></i>
+                        <span>Batas: {{ $summary['device_limit'] ?? 5 }} Unit</span>
+                    </button>
                     @if($canPairCashierDevices)
                         <button
                             type="button"
@@ -105,6 +114,77 @@
                 {{-- ==================== 6. KODE PAIRING KASIR MODAL (PAIR-01) ==================== --}}
                 <x-devices.pairing-modal :outlets="$outlets" />
             @endif
+
+            {{-- ==================== 7. MODAL ATUR BATAS KUOTA PERANGKAT ==================== --}}
+            <div
+                id="deviceLimitModal"
+                class="fixed inset-0 z-50 hidden"
+                role="dialog"
+                aria-modal="true"
+            >
+                <div class="fixed inset-0 bg-slate-900/50 dark:bg-slate-950/70 backdrop-blur-xs" onclick="document.getElementById('deviceLimitModal').classList.add('hidden')"></div>
+                <div class="fixed inset-0 flex items-center justify-center p-4">
+                    <div class="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl space-y-5 relative z-10">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                    <i data-lucide="sliders" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-slate-900 dark:text-white">Batas Perangkat Terhubung</h3>
+                            </div>
+                            <button type="button" onclick="document.getElementById('deviceLimitModal').classList.add('hidden')" class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+
+                        <form method="POST" action="{{ route('devices.limit.update') }}" class="space-y-4">
+                            @csrf
+                            @method('PATCH')
+
+                            <div>
+                                <label for="modal_max_devices" class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                                    Jumlah Maksimal Perangkat (Minimal 5)
+                                </label>
+                                <div class="relative">
+                                    <input
+                                        type="number"
+                                        id="modal_max_devices"
+                                        name="max_devices"
+                                        min="5"
+                                        max="500"
+                                        step="1"
+                                        value="{{ $summary['device_limit'] ?? 5 }}"
+                                        required
+                                        class="w-full h-11 px-3.5 pr-20 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-base font-extrabold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 tabular-nums"
+                                    >
+                                    <span class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3.5 text-xs text-slate-400">
+                                        perangkat
+                                    </span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">
+                                    Minimal default otomatis 5 perangkat. Perangkat aktif saat ini: <strong>{{ $summary['active_devices'] ?? 0 }}</strong> unit. Sisa kuota: <strong>{{ $summary['remaining_slots'] ?? 0 }}</strong> unit.
+                                </p>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-2.5 pt-2">
+                                <button
+                                    type="button"
+                                    onclick="document.getElementById('deviceLimitModal').classList.add('hidden')"
+                                    class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="submit"
+                                    class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-colors shadow-xs"
+                                >
+                                    Simpan Batas Kuota
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
         @endif
 
     </main>

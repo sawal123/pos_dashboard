@@ -47,10 +47,17 @@
                         <i data-lucide="store" class="w-3.5 h-3.5"></i>
                         <span id="businessNameLabel">{{ $overview['business_name'] }}</span>
                     </span>
-                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                        <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
-                        <span id="outletLabel">Seluruh Outlet</span>
-                    </span>
+                    @if(!empty($overview['selected_outlet_id']))
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-indigo-500"></i>
+                            <span id="outletLabel">Cabang: {{ $overview['selected_outlet_name'] }}</span>
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium">
+                            <i data-lucide="globe" class="w-3.5 h-3.5 text-slate-400"></i>
+                            <span id="outletLabel">{{ $overview['selected_outlet_name'] ?? 'Seluruh Outlet' }}</span>
+                        </span>
+                    @endif
                     <span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg {{ $overview['open_shifts_count'] > 0 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400' }} text-xs font-medium">
                         <span class="w-1.5 h-1.5 rounded-full {{ $overview['open_shifts_count'] > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400' }}"></span>
                         {{ $overview['open_shifts_label'] }}
@@ -136,29 +143,59 @@
                             </div>
                             <div>
                                 <h2 class="font-semibold text-slate-900 dark:text-white text-base md:text-lg tracking-tight">Grafik Penjualan</h2>
-                                <p class="text-xs text-slate-500 dark:text-slate-400">Tren omzet pendapatan berdasarkan periode</p>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Tren omzet pendapatan · <span class="font-semibold text-indigo-600 dark:text-indigo-400">{{ $overview['selected_outlet_name'] ?? 'Seluruh Cabang' }}</span>
+                                </p>
                             </div>
                         </div>
 
-                        {{-- Period Selector (GET Navigation) --}}
-                        <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium self-start sm:self-auto border border-slate-200/60 dark:border-slate-700/60" role="group" aria-label="Pilih Periode Grafik">
-                            @php
-                                $currentPeriod = $overview['sales_chart']['period'];
-                                $periods = [
-                                    '7d' => '7 Hari',
-                                    '30d' => '30 Hari',
-                                    '3m' => '3 Bulan',
-                                    '12m' => '1 Tahun',
-                                ];
-                            @endphp
-                            @foreach($periods as $periodKey => $periodText)
-                                <a
-                                    href="{{ route('dashboard', ['period' => $periodKey]) }}"
-                                    class="px-2.5 py-1.5 rounded-lg transition-all {{ $currentPeriod === $periodKey ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-semibold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' }}"
-                                >
-                                    {{ $periodText }}
-                                </a>
-                            @endforeach
+                        <div class="flex items-center gap-2 flex-wrap">
+                            {{-- Filter Cabang / Outlet Selector --}}
+                            @if(isset($outlets) && $outlets->count() > 1)
+                                @php
+                                    $currentPeriod = $overview['sales_chart']['period'];
+                                @endphp
+                                <div class="relative">
+                                    <select
+                                        onchange="window.location.href = this.value"
+                                        class="h-8 pl-2.5 pr-7 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
+                                        aria-label="Filter Cabang Grafik Penjualan"
+                                    >
+                                        <option value="{{ route('dashboard', array_filter(['period' => $currentPeriod, 'outlet_id' => 'all'])) }}" @selected(empty($selectedOutletId))>
+                                            🌐 Semua Cabang
+                                        </option>
+                                        @foreach($outlets as $o)
+                                            <option value="{{ route('dashboard', ['period' => $currentPeriod, 'outlet_id' => $o->id]) }}" @selected($selectedOutletId == $o->id)>
+                                                📍 {{ $o->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
+                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                </div>
+                            @endif
+
+                            {{-- Period Selector (GET Navigation) --}}
+                            <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium self-start sm:self-auto border border-slate-200/60 dark:border-slate-700/60" role="group" aria-label="Pilih Periode Grafik">
+                                @php
+                                    $currentPeriod = $overview['sales_chart']['period'];
+                                    $periods = [
+                                        '7d' => '7 Hari',
+                                        '30d' => '30 Hari',
+                                        '3m' => '3 Bulan',
+                                        '12m' => '1 Tahun',
+                                    ];
+                                @endphp
+                                @foreach($periods as $periodKey => $periodText)
+                                    <a
+                                        href="{{ route('dashboard', array_filter(['period' => $periodKey, 'outlet_id' => $selectedOutletId])) }}"
+                                        class="px-2.5 py-1.5 rounded-lg transition-all {{ $currentPeriod === $periodKey ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-semibold' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white' }}"
+                                    >
+                                        {{ $periodText }}
+                                    </a>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
 

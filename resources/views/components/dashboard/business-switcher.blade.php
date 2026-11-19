@@ -112,8 +112,13 @@
                                 class="w-full pl-2.5 pr-8 py-1.5 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 transition-colors truncate cursor-pointer appearance-none"
                                 aria-label="Pilih Cabang Aktif"
                             >
+                                @if(($dashboardBusinessRole ?? null) !== \App\Models\Business::ROLE_CASHIER)
+                                    <option value="all" @selected(session('dashboard.active_outlet_id') === 'all')>
+                                        🌐 Semua Cabang (Konsolidasi)
+                                    </option>
+                                @endif
                                 @foreach($dashboardOutlets as $out)
-                                    <option value="{{ $out->id }}" @selected($activeOutlet && $activeOutlet->id === $out->id)>
+                                    <option value="{{ $out->id }}" @selected(session('dashboard.active_outlet_id') !== 'all' && $activeOutlet && $activeOutlet->id === $out->id)>
                                         📍 {{ $out->name }} {{ $out->is_primary ? '(Utama)' : '' }}
                                     </option>
                                 @endforeach

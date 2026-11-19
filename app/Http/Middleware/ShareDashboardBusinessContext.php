@@ -72,14 +72,19 @@ class ShareDashboardBusinessContext
             } else {
                 $sessionOutletId = session('dashboard.active_outlet_id') ?? session('pos.active_outlet_id');
                 $activeOutlet = null;
-                if ($sessionOutletId !== null && $outlets->isNotEmpty()) {
+
+                if ($sessionOutletId === 'all') {
+                    // Owner explicitly selected all branches (consolidated)
+                    $activeOutlet = null;
+                } elseif ($sessionOutletId !== null && is_numeric($sessionOutletId) && $outlets->isNotEmpty()) {
                     $activeOutlet = $outlets->firstWhere('id', (int) $sessionOutletId);
                 }
-                if (! $activeOutlet && $outlets->isNotEmpty()) {
+
+                if (! $activeOutlet && $sessionOutletId !== 'all' && $outlets->isNotEmpty()) {
                     $activeOutlet = $outlets->firstWhere('is_primary', true) ?? $outlets->first();
                 }
 
-                if ($activeOutlet) {
+                if ($activeOutlet && $sessionOutletId !== 'all') {
                     session([
                         'dashboard.active_outlet_id' => $activeOutlet->id,
                         'pos.active_outlet_id' => $activeOutlet->id,
