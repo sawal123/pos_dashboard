@@ -58,8 +58,8 @@
                         <span class="block text-xs text-slate-500 dark:text-slate-400">Email</span>
                         <span id="userDrawerEmail" class="font-semibold text-slate-900 dark:text-white break-all">-</span>
                     </div>
-                    <div id="userDrawerOutletRow" class="hidden">
-                        <span class="block text-xs text-slate-500 dark:text-slate-400">Cabang Ditugaskan</span>
+                    <div id="userDrawerOutletRow">
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">Penugasan Cabang Toko</span>
                         <span id="userDrawerOutlet" class="font-semibold text-slate-900 dark:text-white">-</span>
                     </div>
                     <div>

@@ -274,15 +274,23 @@ class DashboardUsersData
         $joinedAt = $user->getAttribute('membership_created_at');
         $createdAt = $user->created_at;
 
+        $roleCategory = $this->roleCategory($roleRaw);
+        $outletLabel = match ($roleCategory) {
+            'owner', 'member' => 'Semua Cabang',
+            'cashier' => $outletName ?? 'Cabang Utama',
+            default => $outletName ?? 'Semua Cabang',
+        };
+
         return [
             'id' => (int) $user->id,
             'name' => (string) $user->name,
             'email' => (string) $user->email,
             'role_raw' => $roleRaw,
             'role' => $this->presentRole($roleRaw),
-            'role_category' => $this->roleCategory($roleRaw),
+            'role_category' => $roleCategory,
             'outlet_id' => $outletId !== null ? (int) $outletId : null,
             'outlet_name' => $outletName !== null ? (string) $outletName : null,
+            'outlet_label' => $outletLabel,
             'is_verified' => $user->email_verified_at !== null,
             'joined_at_raw' => $joinedAt !== null ? (string) $joinedAt : null,
             'joined_at' => $this->formatDateTime($joinedAt),

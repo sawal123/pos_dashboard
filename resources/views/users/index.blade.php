@@ -258,11 +258,10 @@
 
                     const outletRow = document.getElementById('userDrawerOutletRow');
                     if (outletRow) {
-                        if (data.outlet_name) {
-                            setText('userDrawerOutlet', `📍 ${data.outlet_name}`);
-                            outletRow.classList.remove('hidden');
+                        if (data.role_category === 'cashier') {
+                            setText('userDrawerOutlet', data.outlet_name ? `📍 ${data.outlet_name} (Khusus Cabang Ini)` : (data.outlet_label || 'Cabang Utama'));
                         } else {
-                            outletRow.classList.add('hidden');
+                            setText('userDrawerOutlet', 'Semua Cabang (Akses Pemilik)');
                         }
                     }
 

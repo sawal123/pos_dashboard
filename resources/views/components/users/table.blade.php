@@ -43,9 +43,13 @@
                             <span class="inline-flex items-center px-2.5 py-1 rounded-md border text-[11px] font-bold {{ $roleBadgeClass($user['role_category']) }}">
                                 {{ $user['role'] }}
                             </span>
-                            @if($user['role_category'] === 'cashier' && !empty($user['outlet_name']))
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                    📍 {{ $user['outlet_name'] }}
+                            @if($user['role_category'] === 'cashier')
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                    📍 {{ $user['outlet_label'] }}
+                                </span>
+                            @else
+                                <span class="text-[10px] text-slate-400 dark:text-slate-500">
+                                    {{ $user['outlet_label'] }}
                                 </span>
                             @endif
                         </div>
