@@ -59,6 +59,21 @@
             </button>
 
             @if(in_array($user['role_raw'] ?? '', $managedRoles, true))
+                @if($user['role_category'] === 'cashier')
+                    <button
+                        type="button"
+                        data-device-code-btn
+                        data-user-id="{{ $user['id'] }}"
+                        data-user-name="{{ $user['name'] }}"
+                        data-outlet-id="{{ $user['outlet_id'] ?? '' }}"
+                        data-outlet-name="{{ $user['outlet_label'] ?? '' }}"
+                        data-code-url="{{ route('users.members.device-code', $user['id']) }}"
+                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                    >
+                        <i data-lucide="smartphone" class="w-4 h-4 text-amber-500"></i>
+                        Kode Perangkat (HP Kasir)
+                    </button>
+                @endif
                 <button
                     type="button"
                     data-change-role

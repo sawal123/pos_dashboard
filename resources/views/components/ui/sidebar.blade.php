@@ -83,7 +83,7 @@
     <x-dashboard.business-switcher />
 
     {{-- Navigation Menu Container --}}
-    <nav class="flex-1 overflow-y-auto py-3 px-3 space-y-4" aria-label="Menu Utama">
+    <nav id="sidebarNav" class="flex-1 overflow-y-auto py-3 px-3 space-y-4" aria-label="Menu Utama">
 
         {{-- DASH-14 — an owner of a business without a type gets a clear prompt
              instead of a guessed Cafe navigation. --}}

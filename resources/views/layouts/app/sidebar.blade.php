@@ -461,6 +461,11 @@
                             return;
                         }
 
+                        // 5b. Save sidebar scroll position on sidebar link clicks
+                        if (e.target.closest('#sidebar a')) {
+                            saveSidebarScroll();
+                        }
+
                         // 6. Profile Dropdown Toggle
                         const profileBtn = e.target.closest('#profileDropdownBtn');
                         if (profileBtn) {
@@ -589,12 +594,59 @@
                     }
                 }
 
+                // ========== PRESERVE SIDEBAR SCROLL POSITION ==========
+                function getSidebarNav() {
+                    return document.getElementById('sidebarNav');
+                }
+
+                function saveSidebarScroll() {
+                    const nav = getSidebarNav();
+                    if (nav) {
+                        try {
+                            sessionStorage.setItem('sidebar_nav_scroll', String(nav.scrollTop));
+                        } catch (e) {}
+                    }
+                }
+
+                function restoreSidebarScroll() {
+                    const nav = getSidebarNav();
+                    if (!nav) return;
+
+                    // Bind scroll event once per container
+                    if (!nav.dataset.scrollBound) {
+                        nav.dataset.scrollBound = '1';
+                        let scrollTimer = null;
+                        nav.addEventListener('scroll', () => {
+                            if (scrollTimer) clearTimeout(scrollTimer);
+                            scrollTimer = setTimeout(saveSidebarScroll, 60);
+                        }, { passive: true });
+                    }
+
+                    const savedScroll = sessionStorage.getItem('sidebar_nav_scroll');
+                    if (savedScroll !== null) {
+                        const top = parseInt(savedScroll, 10);
+                        if (!isNaN(top)) {
+                            nav.scrollTop = top;
+                            requestAnimationFrame(() => {
+                                nav.scrollTop = top;
+                            });
+                        }
+                    } else {
+                        // Fallback: If no saved scroll, keep active item visible
+                        const activeItem = nav.querySelector('[aria-current="page"], .sidebar-active-indicator');
+                        if (activeItem) {
+                            activeItem.scrollIntoView({ block: 'nearest' });
+                        }
+                    }
+                }
+
                 // ========== IDEMPOTENT RUN ON EACH PAGE LOAD / NAVIGATION ==========
                 function onPageReady() {
                     initIcons();
                     applyTheme(getStoredTheme());
                     applySidebarStateForViewport();
                     closeAllDropdowns(null);
+                    restoreSidebarScroll();
                 }
 
                 if (document.readyState === 'loading') {
@@ -629,7 +681,10 @@
 
                 document.addEventListener('livewire:navigating', () => {
                     window.__activeTheme = getStoredTheme();
+                    saveSidebarScroll();
                 });
+
+                window.addEventListener('beforeunload', saveSidebarScroll);
             })();
         </script>
 

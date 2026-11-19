@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Business;
+use App\Models\Outlet;
 use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -375,6 +376,57 @@ class UsersPageTest extends TestCase
         $this->assertSame('member', $member->businesses()->first()?->pivot?->role);
 
         $this->postJson('/api/auth/login', [])->assertStatus(422);
+    }
+
+    public function test_owner_can_generate_4_digit_device_code_for_existing_cashier(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $outlet = Outlet::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Cabang Medan',
+            'status' => 'active',
+        ]);
+        $cashier = User::factory()->create(['name' => 'Kasir Temuan', 'email' => 'kasir@temuan.com']);
+        $business->users()->attach($cashier->id, [
+            'role' => 'cashier',
+            'outlet_id' => $outlet->id,
+        ]);
+
+        $response = $this->actingAs($owner)->postJson(route('users.members.device-code', $cashier->id), [
+            'outlet_id' => $outlet->id,
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'success' => true,
+                'user_id' => $cashier->id,
+                'outlet_id' => $outlet->id,
+                'ttl_minutes' => 30,
+            ]);
+
+        $code = $response->json('code');
+        $this->assertIsString($code);
+        $this->assertSame(4, strlen($code));
+        $this->assertMatchesRegularExpression('/^[0-9]{4}$/', $code);
+    }
+
+    public function test_owner_cannot_generate_device_code_for_user_not_in_business(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $outsider = User::factory()->create();
+
+        $response = $this->actingAs($owner)->postJson(route('users.members.device-code', $outsider->id));
+        $response->assertNotFound();
+    }
+
+    public function test_non_owner_cannot_generate_device_code(): void
+    {
+        [$owner, $business] = $this->makeOwnerWithBusiness();
+        $cashier = $this->attachMember($business, 'cashier');
+        $member = $this->attachMember($business, 'member');
+
+        $response = $this->actingAs($member)->postJson(route('users.members.device-code', $cashier->id));
+        $response->assertForbidden();
     }
 
     /**

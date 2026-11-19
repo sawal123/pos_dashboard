@@ -78,7 +78,15 @@
             </div>
         </div>
 
-        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-end gap-2 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+            <button
+                type="button"
+                id="userDrawerDeviceCodeBtn"
+                class="hidden w-full sm:w-auto py-2.5 px-4 rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-semibold text-xs transition-colors items-center justify-center gap-2 min-h-[42px] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+            >
+                <i data-lucide="smartphone" class="w-4 h-4"></i>
+                <span>Kode Perangkat (HP)</span>
+            </button>
             <button
                 type="button"
                 data-close-user-drawer

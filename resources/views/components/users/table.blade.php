@@ -75,6 +75,22 @@
                     <td class="px-4 py-3">
                         @if(in_array($user['role_raw'] ?? '', $managedRoles, true))
                             <div class="flex items-center justify-end gap-2">
+                                @if($user['role_category'] === 'cashier')
+                                    <button
+                                        type="button"
+                                        data-device-code-btn
+                                        data-user-id="{{ $user['id'] }}"
+                                        data-user-name="{{ $user['name'] }}"
+                                        data-outlet-id="{{ $user['outlet_id'] ?? '' }}"
+                                        data-outlet-name="{{ $user['outlet_label'] ?? '' }}"
+                                        data-code-url="{{ route('users.members.device-code', $user['id']) }}"
+                                        class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 font-semibold text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                        title="Buat kode verifikasi perangkat 4 digit untuk HP kasir ini"
+                                    >
+                                        <i data-lucide="smartphone" class="w-4 h-4 text-amber-500"></i>
+                                        Kode Perangkat
+                                    </button>
+                                @endif
                                 <button
                                     type="button"
                                     data-change-role

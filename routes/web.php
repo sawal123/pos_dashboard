@@ -388,6 +388,12 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->middleware(['business.permission:'.BusinessPermission::ROLES_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:member-role-update'])
         ->name('users.members.role.update');
 
+    // PAIR-02 — generate 4-digit device verification code directly for a cashier
+    Route::post('users/members/{userId}/device-code', [UsersController::class, 'generateDeviceCode'])
+        ->whereNumber('userId')
+        ->middleware(['business.permission:'.BusinessPermission::MEMBERS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('users.members.device-code');
+
     Route::get('reports', [ReportsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::REPORTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('reports.index');

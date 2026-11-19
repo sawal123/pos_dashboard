@@ -81,6 +81,7 @@
         <x-users.invite-member-modal :outlets="$outlets ?? collect()" />
         <x-users.change-role-modal :role-options="$roleOptions" :outlets="$outlets ?? collect()" />
         <x-users.remove-member-modal />
+        <x-users.device-code-modal :outlets="$outlets ?? collect()" />
         <x-users.detail-drawer />
 
         <script>
@@ -262,6 +263,31 @@
                             setText('userDrawerOutlet', data.outlet_name ? `📍 ${data.outlet_name} (Khusus Cabang Ini)` : (data.outlet_label || 'Cabang Utama'));
                         } else {
                             setText('userDrawerOutlet', 'Semua Cabang (Akses Pemilik)');
+                        }
+                    }
+
+                    const deviceCodeDrawerBtn = document.getElementById('userDrawerDeviceCodeBtn');
+                    if (deviceCodeDrawerBtn) {
+                        if (data.role_category === 'cashier') {
+                            deviceCodeDrawerBtn.classList.remove('hidden');
+                            deviceCodeDrawerBtn.classList.add('inline-flex');
+                            deviceCodeDrawerBtn.onclick = () => {
+                                closeDrawer();
+                                if (typeof window.__openDeviceCodeModal === 'function') {
+                                    window.__openDeviceCodeModal({
+                                        userId: data.id,
+                                        userName: data.name,
+                                        outletId: data.outlet_id,
+                                        outletName: data.outlet_name || data.outlet_label,
+                                        codeUrl: `/users/members/${data.id}/device-code`,
+                                        trigger: deviceCodeDrawerBtn,
+                                    });
+                                }
+                            };
+                        } else {
+                            deviceCodeDrawerBtn.classList.add('hidden');
+                            deviceCodeDrawerBtn.classList.remove('inline-flex');
+                            deviceCodeDrawerBtn.onclick = null;
                         }
                     }
 
@@ -457,6 +483,144 @@
                     }
                 };
 
+                // ========== DEVICE CODE MODAL LOGIC ==========
+                let deviceCodeCountdownTimer = null;
+                let activeCodeUrl = '';
+                let activeCashierUserId = '';
+
+                const openDeviceCodeModal = ({ userId, userName, outletId, outletName, codeUrl, trigger }) => {
+                    const modal = document.getElementById('userDeviceCodeModal');
+                    if (!modal) return;
+
+                    activeCodeUrl = codeUrl;
+                    activeCashierUserId = userId;
+
+                    const userNameEl = document.getElementById('deviceCodeModalUserName');
+                    const outletNameEl = document.getElementById('deviceCodeModalOutletName');
+                    if (userNameEl) userNameEl.textContent = userName || 'Kasir';
+                    if (outletNameEl) outletNameEl.textContent = outletName || 'Semua Cabang';
+
+                    const outletSelect = document.getElementById('deviceCodeOutletSelect');
+                    if (outletSelect && outletId) {
+                        outletSelect.value = outletId;
+                    }
+
+                    document.getElementById('deviceCodeErrorBanner')?.classList.add('hidden');
+                    document.getElementById('deviceCodeResultSection')?.classList.add('hidden');
+                    const genBtn = document.getElementById('btnGenerateDeviceCodeAction');
+                    if (genBtn) genBtn.disabled = false;
+                    const genTxt = document.getElementById('generateBtnText');
+                    if (genTxt) genTxt.textContent = 'Buat Kode 4 Digit';
+
+                    openModal(modal, trigger);
+
+                    // Automatically generate fresh code
+                    executeGenerateDeviceCode();
+                };
+                window.__openDeviceCodeModal = openDeviceCodeModal;
+
+                const executeGenerateDeviceCode = async () => {
+                    if (!activeCodeUrl) return;
+
+                    const genBtn = document.getElementById('btnGenerateDeviceCodeAction');
+                    const errBanner = document.getElementById('deviceCodeErrorBanner');
+                    const resultSec = document.getElementById('deviceCodeResultSection');
+                    const outletSelect = document.getElementById('deviceCodeOutletSelect');
+                    const selectedOutletId = outletSelect ? outletSelect.value : '';
+                    const genTxt = document.getElementById('generateBtnText');
+
+                    if (errBanner) {
+                        errBanner.classList.add('hidden');
+                        errBanner.textContent = '';
+                    }
+                    if (genBtn) genBtn.disabled = true;
+                    if (genTxt) genTxt.textContent = 'Membuat Kode...';
+
+                    try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+                        const res = await fetch(activeCodeUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken || '',
+                            },
+                            body: JSON.stringify({
+                                outlet_id: selectedOutletId ? Number(selectedOutletId) : null,
+                            }),
+                        });
+
+                        const data = await res.json();
+                        if (!res.ok) {
+                            throw new Error(data.message || 'Gagal membuat kode verifikasi.');
+                        }
+
+                        const codeStr = String(data.code || '0000').padStart(4, '0');
+                        for (let i = 0; i < 4; i++) {
+                            const el = document.getElementById('digit' + i);
+                            if (el) el.textContent = codeStr[i] || '0';
+                        }
+                        window.__activeDeviceCodeValue = codeStr;
+
+                        if (data.outlet_name) {
+                            const outletNameEl = document.getElementById('deviceCodeModalOutletName');
+                            if (outletNameEl) outletNameEl.textContent = data.outlet_name;
+                        }
+
+                        const expiresMs = Date.parse(data.expires_at);
+                        if (deviceCodeCountdownTimer) clearInterval(deviceCodeCountdownTimer);
+
+                        const updateTimer = () => {
+                            const remainingMs = expiresMs - Date.now();
+                            const timerEl = document.getElementById('deviceCodeCountdownText');
+                            if (!timerEl) return;
+                            if (remainingMs <= 0) {
+                                timerEl.textContent = 'Kedaluwarsa (Silakan buat baru)';
+                                timerEl.className = 'text-rose-500 font-bold';
+                                if (deviceCodeCountdownTimer) clearInterval(deviceCodeCountdownTimer);
+                                return;
+                            }
+                            const mins = Math.floor(remainingMs / 60000);
+                            const secs = Math.floor((remainingMs % 60000) / 1000);
+                            timerEl.textContent = mins + 'm ' + String(secs).padStart(2, '0') + 's';
+                        };
+                        updateTimer();
+                        deviceCodeCountdownTimer = setInterval(updateTimer, 1000);
+
+                        if (resultSec) resultSec.classList.remove('hidden');
+                        if (genTxt) genTxt.textContent = 'Buat Kode Baru';
+                        if (typeof lucide !== 'undefined') lucide.createIcons();
+                    } catch (err) {
+                        if (errBanner) {
+                            errBanner.textContent = err.message || 'Terjadi kesalahan saat membuat kode.';
+                            errBanner.classList.remove('hidden');
+                        }
+                        if (genTxt) genTxt.textContent = 'Coba Lagi';
+                    } finally {
+                        if (genBtn) genBtn.disabled = false;
+                    }
+                };
+
+                document.getElementById('btnGenerateDeviceCodeAction')?.addEventListener('click', executeGenerateDeviceCode);
+                document.getElementById('btnCopyDeviceCode')?.addEventListener('click', async () => {
+                    const code = window.__activeDeviceCodeValue || '';
+                    if (!code) return;
+                    try {
+                        await navigator.clipboard.writeText(code);
+                        const txt = document.getElementById('copyBtnText');
+                        if (txt) {
+                            const orig = txt.textContent;
+                            txt.textContent = '✓ Kode ' + code + ' Tersalin!';
+                            setTimeout(() => { txt.textContent = orig; }, 2000);
+                        }
+                        if (typeof window.showToast === 'function') {
+                            window.showToast('success', 'Kode verifikasi perangkat ' + code + ' disalin.');
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                });
+
                 document.addEventListener('click', (event) => {
                     const target = event.target;
                     if (!(target instanceof Element)) {
@@ -481,6 +645,23 @@
 
                     if (target.closest('[data-close-change-role-modal]')) {
                         closeModal(document.getElementById('changeRoleModal'));
+                        return;
+                    }
+
+                    if (target.closest('[data-close-device-code-modal]')) {
+                        closeModal(document.getElementById('userDeviceCodeModal'));
+                        return;
+                    }
+
+                    const deviceCodeTrigger = target.closest('[data-device-code-btn]');
+                    if (deviceCodeTrigger) {
+                        const userId = deviceCodeTrigger.getAttribute('data-user-id');
+                        const userName = deviceCodeTrigger.getAttribute('data-user-name');
+                        const outletId = deviceCodeTrigger.getAttribute('data-outlet-id');
+                        const outletName = deviceCodeTrigger.getAttribute('data-outlet-name');
+                        const codeUrl = deviceCodeTrigger.getAttribute('data-code-url');
+
+                        openDeviceCodeModal({ userId, userName, outletId, outletName, codeUrl, trigger: deviceCodeTrigger });
                         return;
                     }
 
