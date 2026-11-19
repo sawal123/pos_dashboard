@@ -124,7 +124,7 @@ class CatalogManagementService
             $this->syncVariantGroups($product, $data['variant_group_ids']);
         }
 
-        if (! empty($data['outlet_prices']) && is_array($data['outlet_prices'])) {
+        if (array_key_exists('outlet_prices', $data) && is_array($data['outlet_prices'])) {
             app(OutletPricing::class)->syncProductOverrides($product, $data['outlet_prices']);
         }
 
@@ -267,7 +267,7 @@ class CatalogManagementService
             $this->syncVariantGroups($product, $data['variant_group_ids']);
         }
 
-        if (! empty($data['outlet_prices']) && is_array($data['outlet_prices'])) {
+        if (array_key_exists('outlet_prices', $data) && is_array($data['outlet_prices'])) {
             app(OutletPricing::class)->syncProductOverrides($product, $data['outlet_prices']);
         }
 

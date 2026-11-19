@@ -214,8 +214,13 @@
             }
 
             const restoreMode = modal.dataset.restoreMode;
+            const urlParams = new URLSearchParams(window.location.search);
+            const actionParam = urlParams.get('action');
+
             if (restoreMode === 'adjustment' || restoreMode === 'receipt') {
                 openModal(restoreMode);
+            } else if (actionParam === 'receipt' || actionParam === 'adjustment') {
+                openModal(actionParam);
             }
 
             if (window.lucide) window.lucide.createIcons();

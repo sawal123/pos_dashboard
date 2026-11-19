@@ -1332,6 +1332,7 @@
                         const outletSection = document.getElementById('catalogOutletPricesSection');
                         if (outletSection) outletSection.classList.toggle('hidden', isSupply);
                         document.querySelectorAll('[data-outlet-price-input]').forEach((inp) => { inp.value = ''; });
+                        document.querySelectorAll('[data-outlet-promo-price-input]').forEach((inp) => { inp.value = ''; });
                         document.querySelectorAll('[data-outlet-available-input]').forEach((cb) => { cb.checked = true; });
                         showProductForm(form);
                         if (kind === 'service') {
@@ -1390,6 +1391,11 @@
                         const oid = inp.getAttribute('data-outlet-price-input');
                         const row = outletPrices[oid] || {};
                         inp.value = row.price !== null && row.price !== undefined ? row.price : '';
+                    });
+                    document.querySelectorAll('[data-outlet-promo-price-input]').forEach((inp) => {
+                        const oid = inp.getAttribute('data-outlet-promo-price-input');
+                        const row = outletPrices[oid] || {};
+                        inp.value = row.promo_price !== null && row.promo_price !== undefined ? row.promo_price : '';
                     });
                     document.querySelectorAll('[data-outlet-available-input]').forEach((cb) => {
                         const oid = cb.getAttribute('data-outlet-available-input');
@@ -1867,6 +1873,13 @@
                     window.__catalogModalOpenOnError = null;
                     requestAnimationFrame(() => openCreate(kind, null));
                 }
+
+                // If restored from browser Back-Forward Cache (bfcache), reload to get fresh data
+                window.addEventListener('pageshow', (event) => {
+                    if (event.persisted) {
+                        window.location.reload();
+                    }
+                });
             })();
         </script>
     @endif

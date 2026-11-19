@@ -1,9 +1,9 @@
 /**
  * NexaPOS Progressive Web App Service Worker
- * Version: 1.0.3
+ * Version: 1.0.4
  */
 
-const CACHE_NAME = 'nexapos-pwa-v1.0.3';
+const CACHE_NAME = 'nexapos-pwa-v1.0.4';
 
 // Essential assets to cache immediately upon install
 const PRECACHE_ASSETS = [
@@ -62,14 +62,27 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
 
-    // 2. Bypass Livewire, Sanctum, and API mutations
+    // 2. Bypass dynamic dashboard routes and authenticated APIs
     if (
         url.pathname.startsWith('/livewire/') ||
         url.pathname.startsWith('/sanctum/') ||
-        url.pathname.startsWith('/api/sync/') ||
-        url.pathname.includes('/auth/google') ||
+        url.pathname.startsWith('/api/') ||
+        url.pathname.includes('/auth/') ||
+        url.pathname.startsWith('/products') ||
+        url.pathname.startsWith('/stock') ||
         url.pathname.startsWith('/transactions') ||
-        url.pathname.startsWith('/pos')
+        url.pathname.startsWith('/pos') ||
+        url.pathname.startsWith('/outlets') ||
+        url.pathname.startsWith('/users') ||
+        url.pathname.startsWith('/devices') ||
+        url.pathname.startsWith('/reports') ||
+        url.pathname.startsWith('/cash') ||
+        url.pathname.startsWith('/shifts') ||
+        url.pathname.startsWith('/dashboard') ||
+        url.pathname.startsWith('/settings') ||
+        url.pathname.startsWith('/promos') ||
+        url.pathname.startsWith('/subscriptions') ||
+        url.pathname.startsWith('/sync')
     ) {
         return;
     }

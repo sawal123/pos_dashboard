@@ -150,6 +150,17 @@
                         </a>
                     @endif
                 @else
+                    @if($activeTab === 'supplies')
+                        <a
+                            href="{{ route('stock.history', ['action' => 'receipt']) }}"
+                            id="recordStockReceiptBtn"
+                            class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors flex items-center gap-1.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                            title="Catat penerimaan stok bahan masuk dari pembelian/supplier"
+                        >
+                            <i data-lucide="package-plus" class="w-4 h-4"></i>
+                            <span>Catat Stok Masuk</span>
+                        </a>
+                    @endif
                     <button
                         type="button"
                         id="addCatalogBtn"

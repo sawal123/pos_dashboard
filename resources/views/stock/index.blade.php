@@ -11,12 +11,29 @@
                     Pantau jumlah stok dan pergerakan inventori bisnis.
                 </p>
             </div>
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
                 <x-stock.tabs active="stock" />
-                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
-                    <i data-lucide="boxes" class="w-3.5 h-3.5"></i>
-                    <span>Inventori & Stok</span>
-                </span>
+                @if($canManageStock ?? false)
+                    <a
+                        href="{{ route('stock.history', ['action' => 'receipt']) }}"
+                        class="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors flex items-center gap-1.5"
+                    >
+                        <i data-lucide="package-plus" class="w-4 h-4"></i>
+                        <span>Penerimaan</span>
+                    </a>
+                    <a
+                        href="{{ route('stock.history', ['action' => 'adjustment']) }}"
+                        class="px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-1.5"
+                    >
+                        <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                        <span>Penyesuaian</span>
+                    </a>
+                @else
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold">
+                        <i data-lucide="boxes" class="w-3.5 h-3.5"></i>
+                        <span>Inventori & Stok</span>
+                    </span>
+                @endif
             </div>
         </div>
 

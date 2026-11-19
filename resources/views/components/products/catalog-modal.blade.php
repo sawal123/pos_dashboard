@@ -694,12 +694,12 @@
                     <div id="catalogOutletPricesSection" class="rounded-xl border border-slate-200 dark:border-slate-700/80 p-3.5 space-y-2.5">
                         <div>
                             <h3 class="text-xs font-bold text-slate-700 dark:text-slate-200">Harga & Ketersediaan per Cabang</h3>
-                            <p class="text-[11px] text-slate-400">Kosongkan harga cabang agar mengikuti Harga Jual Master di atas.</p>
+                            <p class="text-[11px] text-slate-400">Atur harga jual atau promo khusus cabang. Kosongkan agar otomatis mengikuti harga master di atas.</p>
                         </div>
-                        <div class="space-y-2">
+                        <div class="space-y-2.5">
                             @foreach($outlets as $outlet)
-                                <div class="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60" data-outlet-price-row="{{ $outlet['id'] }}">
-                                    <div class="min-w-[140px]">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60" data-outlet-price-row="{{ $outlet['id'] }}">
+                                    <div class="min-w-[120px]">
                                         <div class="text-xs font-semibold text-slate-800 dark:text-slate-200">
                                             {{ $outlet['name'] }}
                                             @if(! empty($outlet['is_primary']))
@@ -708,28 +708,47 @@
                                         </div>
                                         <div class="text-[10px] font-mono text-slate-400">{{ $outlet['code'] }}</div>
                                     </div>
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            step="1"
-                                            name="outlet_prices[{{ $outlet['id'] }}][price]"
-                                            data-outlet-price-input="{{ $outlet['id'] }}"
-                                            placeholder="Ikuti harga master"
-                                            class="w-36 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white"
-                                        >
-                                        <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300">
-                                            <input type="hidden" name="outlet_prices[{{ $outlet['id'] }}][is_available]" value="0">
+                                    <div class="flex items-center gap-2.5 flex-wrap">
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-0.5">Harga Cabang</span>
                                             <input
-                                                type="checkbox"
-                                                name="outlet_prices[{{ $outlet['id'] }}][is_available]"
-                                                value="1"
-                                                checked
-                                                data-outlet-available-input="{{ $outlet['id'] }}"
-                                                class="rounded border-slate-300 text-indigo-600"
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                name="outlet_prices[{{ $outlet['id'] }}][price]"
+                                                data-outlet-price-input="{{ $outlet['id'] }}"
+                                                placeholder="Ikuti master"
+                                                class="w-28 sm:w-32 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
+                                                title="Harga Jual Cabang (Kosongkan untuk ikuti master)"
                                             >
-                                            <span>Tersedia</span>
-                                        </label>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-0.5">Promo Cabang</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                name="outlet_prices[{{ $outlet['id'] }}][promo_price]"
+                                                data-outlet-promo-price-input="{{ $outlet['id'] }}"
+                                                placeholder="Promo (opsional)"
+                                                class="w-28 sm:w-32 h-8 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white placeholder:text-slate-400"
+                                                title="Harga Promo Cabang (Kosongkan jika tanpa promo)"
+                                            >
+                                        </div>
+                                        <div class="flex items-center pt-3.5">
+                                            <label class="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 cursor-pointer">
+                                                <input type="hidden" name="outlet_prices[{{ $outlet['id'] }}][is_available]" value="0">
+                                                <input
+                                                    type="checkbox"
+                                                    name="outlet_prices[{{ $outlet['id'] }}][is_available]"
+                                                    value="1"
+                                                    checked
+                                                    data-outlet-available-input="{{ $outlet['id'] }}"
+                                                    class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                >
+                                                <span>Tersedia</span>
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                             @endforeach

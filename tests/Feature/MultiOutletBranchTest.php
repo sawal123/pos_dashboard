@@ -216,4 +216,58 @@ class MultiOutletBranchTest extends TestCase
         $this->assertContains($promoAll->id, $forB);
         $this->assertContains($promoBranchOnly->id, $forB);
     }
+
+    public function test_outlet_specific_promo_price_overrides_master_and_reflects_in_catalog(): void
+    {
+        $owner = User::factory()->create();
+        $business = Business::factory()->create(['business_type' => 'cafe']);
+        $business->users()->attach($owner->id, ['role' => Business::ROLE_OWNER]);
+
+        $outletA = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Toko Utama', 'is_primary' => true]);
+        $outletB = Outlet::factory()->create(['business_id' => $business->id, 'name' => 'Cabang Kampus', 'code' => 'KMP']);
+
+        $product = Product::factory()->create([
+            'business_id' => $business->id,
+            'name' => 'Americano Special',
+            'price' => 18000,
+            'promo_price' => 16000,
+            'is_sellable' => true,
+            'status' => 'active',
+        ]);
+
+        $pricing = app(OutletPricing::class);
+
+        // Before override: both outlets follow master (price 18000, promo 16000)
+        $pricingA = $pricing->forProduct($product, $outletA);
+        $this->assertSame(18000, $pricingA['price']);
+        $this->assertSame(16000, $pricingA['promo_price']);
+
+        // Set branch specific price & promo for outlet B (regular 20000, promo 14000)
+        $pricing->syncProductOverrides($product, [
+            $outletB->id => [
+                'price' => 20000,
+                'promo_price' => 14000,
+                'is_available' => true,
+            ],
+        ]);
+
+        $pricingB = $pricing->forProduct($product->fresh(), $outletB);
+        $this->assertSame(20000, $pricingB['price']);
+        $this->assertSame(14000, $pricingB['promo_price']);
+
+        // Check PosCatalogData reflects effective price & discount
+        $catalogA = app(PosCatalogData::class)->get($business, $outletA->id);
+        $catalogB = app(PosCatalogData::class)->get($business, $outletB->id);
+
+        $itemA = collect($catalogA['products'])->firstWhere('id', $product->id);
+        $itemB = collect($catalogB['products'])->firstWhere('id', $product->id);
+
+        $this->assertSame(18000, $itemA['price']);
+        $this->assertSame(16000, $itemA['promo_price']);
+        $this->assertSame(16000, $itemA['effective_price']);
+
+        $this->assertSame(20000, $itemB['price']);
+        $this->assertSame(14000, $itemB['promo_price']);
+        $this->assertSame(14000, $itemB['effective_price']);
+    }
 }

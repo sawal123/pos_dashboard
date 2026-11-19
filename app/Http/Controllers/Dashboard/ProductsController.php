@@ -35,7 +35,7 @@ class ProductsController extends Controller
         protected CatalogManagementService $catalog,
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         /** @var Business|null $currentBusiness */
         $currentBusiness = $request->attributes->get('dashboard_business');
@@ -69,7 +69,11 @@ class ProductsController extends Controller
         $data['canManageCatalog'] = app(BusinessAuthorizer::class)
             ->allows($request->user(), $currentBusiness, BusinessPermission::PRODUCTS_MANAGE);
 
-        return view('products.index', $data);
+        return response()
+            ->view('products.index', $data)
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     // ============================================================

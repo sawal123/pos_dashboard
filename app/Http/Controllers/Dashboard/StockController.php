@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Services\Authorization\BusinessAuthorizer;
+use App\Services\Authorization\BusinessPermission;
 use App\Services\Dashboard\DashboardStockData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -17,7 +20,7 @@ class StockController extends Controller
         protected DashboardStockData $stockData
     ) {}
 
-    public function index(Request $request): View
+    public function index(Request $request): Response
     {
         $currentBusiness = $request->attributes->get('dashboard_business');
 
@@ -42,8 +45,18 @@ class StockController extends Controller
         }
 
         $data = $this->stockData->get($currentBusiness, $filters);
+        $data['canManageStock'] = $currentBusiness !== null
+            && app(BusinessAuthorizer::class)->allows(
+                $request->user(),
+                $currentBusiness,
+                BusinessPermission::STOCK_MANAGE
+            );
 
-        return view('stock.index', $data);
+        return response()
+            ->view('stock.index', $data)
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     public function movements(Request $request, int $productId): JsonResponse
