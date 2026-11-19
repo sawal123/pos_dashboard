@@ -1,9 +1,9 @@
 /**
  * NexaPOS Progressive Web App Service Worker
- * Version: 1.0.2
+ * Version: 1.0.3
  */
 
-const CACHE_NAME = 'nexapos-pwa-v1.0.2';
+const CACHE_NAME = 'nexapos-pwa-v1.0.3';
 
 // Essential assets to cache immediately upon install
 const PRECACHE_ASSETS = [

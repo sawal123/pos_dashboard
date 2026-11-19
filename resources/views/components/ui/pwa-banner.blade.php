@@ -4,7 +4,7 @@
     {{-- 1. Real-time Offline / Online Network Indicator --}}
     <div
         id="pwaNetworkBanner"
-        class="fixed top-3 left-1/2 -translate-x-1/2 z-[9999] pointer-events-auto transition-all duration-300 transform -translate-y-20 opacity-0 max-w-md w-[calc(100%-2rem)]"
+        class="fixed top-3 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none hidden transition-all duration-300 transform -translate-y-20 opacity-0 max-w-md w-[calc(100%-2rem)]"
     >
         <div id="pwaNetworkBannerContent" class="flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl shadow-xl backdrop-blur-md border text-xs font-semibold">
             <div class="flex items-center gap-2.5 min-w-0">
@@ -25,7 +25,7 @@
     {{-- 2. PWA Update Available Banner --}}
     <div
         id="pwaUpdateBanner"
-        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[9990] pointer-events-auto transition-all duration-300 transform translate-y-24 opacity-0 max-w-sm w-[calc(100%-2rem)]"
+        class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[9990] pointer-events-none hidden transition-all duration-300 transform translate-y-24 opacity-0 max-w-sm w-[calc(100%-2rem)]"
     >
         <div class="flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-slate-900/95 dark:bg-slate-800/95 text-white border border-indigo-500/40 shadow-2xl backdrop-blur-md text-xs">
             <div class="flex items-center gap-2.5">
@@ -50,7 +50,7 @@
     {{-- 3. PWA Install App Floating Prompt --}}
     <div
         id="pwaInstallCard"
-        class="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[9980] pointer-events-auto transition-all duration-300 transform translate-y-32 opacity-0 max-w-xs w-[calc(100%-2rem)] sm:w-80"
+        class="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-[9980] pointer-events-none hidden transition-all duration-300 transform translate-y-32 opacity-0 max-w-xs w-[calc(100%-2rem)] sm:w-80"
     >
         <div class="p-3.5 rounded-2xl bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 shadow-2xl backdrop-blur-md">
             <div class="flex items-start justify-between gap-2 mb-2">
@@ -137,8 +137,12 @@
             networkText.textContent = 'Mode Offline Aktif — Koneksi terputus. Data tersimpan & kasir lokal tetap berfungsi.';
             if (networkRetryBtn) networkRetryBtn.classList.remove('hidden');
 
-            networkBanner.classList.remove('-translate-y-20', 'opacity-0');
-            networkBanner.classList.add('translate-y-0', 'opacity-100');
+            networkBanner.classList.remove('hidden', 'pointer-events-none');
+            networkBanner.classList.add('pointer-events-auto');
+            requestAnimationFrame(() => {
+                networkBanner.classList.remove('-translate-y-20', 'opacity-0');
+                networkBanner.classList.add('translate-y-0', 'opacity-100');
+            });
         } else {
             // ONLINE RESTORED
             networkContent.className = 'flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl shadow-xl backdrop-blur-md border text-xs font-semibold bg-emerald-600/95 dark:bg-emerald-950/90 text-white dark:text-emerald-100 border-emerald-500/40 dark:border-emerald-700/60';
@@ -146,13 +150,22 @@
             networkText.textContent = 'Terhubung Kembali — Jaringan internet aktif.';
             if (networkRetryBtn) networkRetryBtn.classList.add('hidden');
 
-            networkBanner.classList.remove('-translate-y-20', 'opacity-0');
-            networkBanner.classList.add('translate-y-0', 'opacity-100');
+            networkBanner.classList.remove('hidden', 'pointer-events-none');
+            networkBanner.classList.add('pointer-events-auto');
+            requestAnimationFrame(() => {
+                networkBanner.classList.remove('-translate-y-20', 'opacity-0');
+                networkBanner.classList.add('translate-y-0', 'opacity-100');
+            });
 
             // Auto dismiss after 3.5 seconds
             networkTimer = setTimeout(() => {
-                networkBanner.classList.remove('translate-y-0', 'opacity-100');
-                networkBanner.classList.add('-translate-y-20', 'opacity-0');
+                networkBanner.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+                networkBanner.classList.add('-translate-y-20', 'opacity-0', 'pointer-events-none');
+                setTimeout(() => {
+                    if (networkBanner.classList.contains('opacity-0')) {
+                        networkBanner.classList.add('hidden');
+                    }
+                }, 350);
             }, 3500);
         }
     }
@@ -173,6 +186,11 @@
         deferredInstallPrompt = e;
         window.pwaDeferredPrompt = e;
 
+        // Never auto-show floating install prompt card on POS screen to prevent blocking checkout buttons
+        if (window.location.pathname.startsWith('/pos')) {
+            return;
+        }
+
         // If standalone or dismissed recently in this session, do not show card
         if (isStandalone || sessionStorage.getItem('pwa_prompt_dismissed') === 'true') {
             return;
@@ -181,17 +199,26 @@
         // Show card after 3 seconds of navigation
         setTimeout(() => {
             if (installCard && deferredInstallPrompt && !isStandalone) {
-                installCard.classList.remove('translate-y-32', 'opacity-0');
-                installCard.classList.add('translate-y-0', 'opacity-100');
-                if (typeof lucide !== 'undefined') lucide.createIcons();
+                installCard.classList.remove('hidden', 'pointer-events-none');
+                installCard.classList.add('pointer-events-auto');
+                requestAnimationFrame(() => {
+                    installCard.classList.remove('translate-y-32', 'opacity-0');
+                    installCard.classList.add('translate-y-0', 'opacity-100');
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                });
             }
         }, 3000);
     });
 
     function hideInstallCard(remember = true) {
         if (!installCard) return;
-        installCard.classList.remove('translate-y-0', 'opacity-100');
-        installCard.classList.add('translate-y-32', 'opacity-0');
+        installCard.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
+        installCard.classList.add('translate-y-32', 'opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+            if (installCard.classList.contains('opacity-0')) {
+                installCard.classList.add('hidden');
+            }
+        }, 350);
         if (remember) {
             sessionStorage.setItem('pwa_prompt_dismissed', 'true');
         }
@@ -241,9 +268,13 @@
     // -------------------------------------------------------------
     window.addEventListener('pwa-update-available', () => {
         if (updateBanner) {
-            updateBanner.classList.remove('translate-y-24', 'opacity-0');
-            updateBanner.classList.add('translate-y-0', 'opacity-100');
-            if (typeof lucide !== 'undefined') lucide.createIcons();
+            updateBanner.classList.remove('hidden', 'pointer-events-none');
+            updateBanner.classList.add('pointer-events-auto');
+            requestAnimationFrame(() => {
+                updateBanner.classList.remove('translate-y-24', 'opacity-0');
+                updateBanner.classList.add('translate-y-0', 'opacity-100');
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            });
         }
     });
 
