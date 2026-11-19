@@ -25,12 +25,23 @@
                     print-color-adjust: exact;
                 }
             }
-            button {
-                user-select: none;
-                -webkit-user-select: none;
+            button, button * {
+                user-select: none !important;
+                -webkit-user-select: none !important;
             }
             button > * {
-                pointer-events: none;
+                pointer-events: none !important;
+            }
+            #payLaterBtn, #checkoutBtn {
+                cursor: pointer !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+            }
+            #payLaterBtn *, #checkoutBtn * {
+                pointer-events: none !important;
+                user-select: none !important;
+                -webkit-user-select: none !important;
+                cursor: pointer !important;
             }
         </style>
     </head>

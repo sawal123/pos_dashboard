@@ -427,28 +427,32 @@
                 </div>
 
                 {{-- Checkout Trigger Buttons: Bayar Nanti & Bayar Sekarang --}}
-                <div class="grid grid-cols-2 gap-2 pt-1">
+                <div id="posActionBtnContainer" class="grid grid-cols-2 gap-2 pt-1">
                     <button
                         type="button"
                         id="payLaterBtn"
                         disabled
                         onclick="handlePayLaterClick()"
+                        onmousedown="event.preventDefault()"
+                        style="cursor: pointer; user-select: none; -webkit-user-select: none;"
                         class="w-full py-3 px-3 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500/30 border border-amber-500/30 text-amber-700 dark:text-amber-400 disabled:opacity-40 disabled:pointer-events-none text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer select-none"
                         title="Simpan pesanan dengan status Belum Lunas (Bayar Nanti)"
                     >
-                        <i data-lucide="clock" class="w-4 h-4 text-amber-500 pointer-events-none"></i>
-                        <span class="pointer-events-none select-none">Bayar Nanti</span>
+                        <i data-lucide="clock" class="w-4 h-4 text-amber-500 pointer-events-none" style="pointer-events: none !important;"></i>
+                        <span class="pointer-events-none select-none" onclick="handlePayLaterClick()" style="pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; cursor: pointer !important;">Bayar Nanti</span>
                     </button>
                     <button
                         type="button"
                         id="checkoutBtn"
                         disabled
                         onclick="openPaymentModal()"
+                        onmousedown="event.preventDefault()"
+                        style="cursor: pointer; user-select: none; -webkit-user-select: none;"
                         class="w-full py-3 px-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-40 disabled:pointer-events-none text-white text-xs sm:text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
                         title="Buka pilihan pembayaran (Tunai, QRIS, Transfer, Debit)"
                     >
-                        <i data-lucide="credit-card" class="w-4 h-4 pointer-events-none"></i>
-                        <span class="pointer-events-none select-none">Bayar Sekarang (F2)</span>
+                        <i data-lucide="credit-card" class="w-4 h-4 pointer-events-none" style="pointer-events: none !important;"></i>
+                        <span class="pointer-events-none select-none" onclick="openPaymentModal()" style="pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; cursor: pointer !important;">Bayar Sekarang (F2)</span>
                     </button>
                 </div>
             </div>
@@ -2200,7 +2204,7 @@
             } finally {
                 if (payLaterBtn) {
                     payLaterBtn.disabled = false;
-                    payLaterBtn.innerHTML = `<i data-lucide="clock" class="w-4 h-4 text-amber-500"></i><span>Bayar Nanti</span>`;
+                    payLaterBtn.innerHTML = `<i data-lucide="clock" class="w-4 h-4 text-amber-500 pointer-events-none" style="pointer-events: none !important;"></i><span class="pointer-events-none select-none" onclick="handlePayLaterClick()" style="pointer-events: none !important; user-select: none !important; -webkit-user-select: none !important; cursor: pointer !important;">Bayar Nanti</span>`;
                 }
                 if (checkoutBtn) checkoutBtn.disabled = false;
                 if (typeof window.initIcons === 'function') window.initIcons();
@@ -2599,10 +2603,35 @@
                 cashInput.addEventListener('input', calculateCashChange);
             }
 
-            // Checkout & Pay Later buttons direct event listeners
+            // Checkout & Pay Later buttons direct & delegated event listeners
+            const actionContainer = document.getElementById('posActionBtnContainer');
+            if (actionContainer && !actionContainer.dataset.delegated) {
+                actionContainer.dataset.delegated = '1';
+                actionContainer.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
+                actionContainer.addEventListener('click', (e) => {
+                    const payBtn = e.target.closest('#payLaterBtn');
+                    if (payBtn && !payBtn.disabled) {
+                        e.preventDefault();
+                        handlePayLaterClick();
+                        return;
+                    }
+                    const coBtn = e.target.closest('#checkoutBtn');
+                    if (coBtn && !coBtn.disabled) {
+                        e.preventDefault();
+                        openPaymentModal();
+                        return;
+                    }
+                });
+            }
+
             const checkoutBtnEl = document.getElementById('checkoutBtn');
             if (checkoutBtnEl && !checkoutBtnEl.dataset.clickBound) {
                 checkoutBtnEl.dataset.clickBound = '1';
+                checkoutBtnEl.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
                 checkoutBtnEl.addEventListener('click', (e) => {
                     e.preventDefault();
                     openPaymentModal();
@@ -2612,6 +2641,9 @@
             const payLaterBtnEl = document.getElementById('payLaterBtn');
             if (payLaterBtnEl && !payLaterBtnEl.dataset.clickBound) {
                 payLaterBtnEl.dataset.clickBound = '1';
+                payLaterBtnEl.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                });
                 payLaterBtnEl.addEventListener('click', (e) => {
                     e.preventDefault();
                     handlePayLaterClick();
