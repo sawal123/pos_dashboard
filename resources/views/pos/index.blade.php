@@ -649,6 +649,50 @@
         </div>
     </div>
 
+    {{-- ==================== BAYAR NANTI CONFIRMATION MODAL ==================== --}}
+    <div id="payLaterConfirmModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
+        <div class="w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-scale-in flex flex-col">
+            <div class="p-6 text-center space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto shadow-xs">
+                    <i data-lucide="clock" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black text-slate-900 dark:text-white">Konfirmasi Bayar Nanti</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Simpan pesanan dengan status <span class="font-bold text-amber-600 dark:text-amber-400">Belum Lunas</span>?
+                    </p>
+                </div>
+                <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60">
+                    <span class="text-[11px] text-slate-400 font-medium block">Total Tagihan:</span>
+                    <span id="payLaterConfirmTotal" class="text-2xl font-black text-indigo-600 dark:text-indigo-400 tabular-nums">
+                        Rp 0
+                    </span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">
+                    Pesanan akan disimpan dengan status <b>Proses</b> dan tagihan dapat dilunasi nanti melalui kasir atau riwayat transaksi.
+                </p>
+            </div>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/30 flex items-center gap-2">
+                <button
+                    type="button"
+                    onclick="closePayLaterConfirmModal()"
+                    class="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                    Batal
+                </button>
+                <button
+                    type="button"
+                    id="btnConfirmPayLater"
+                    onclick="executePayLaterConfirmed()"
+                    class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold text-xs shadow-md shadow-amber-500/25 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    <span>Ya, Simpan</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     {{-- ==================== SUCCESS / RECEIPT MODAL ==================== --}}
     <div id="successModal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs hidden flex items-center justify-center p-3 md:p-4">
         <div class="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[92vh] animate-scale-in">
@@ -2060,8 +2104,8 @@
             }
         }
 
-        // ==================== PAY LATER QUICK ACTION ====================
-        async function handlePayLaterClick() {
+        // ==================== PAY LATER QUICK ACTION (MODAL) ====================
+        function handlePayLaterClick() {
             if (!POS_CONFIG.hasOpenShift) {
                 showToast('warning', 'Shift kasir belum dibuka. Silakan buka shift terlebih dahulu.');
                 openOpenShiftModal();
@@ -2074,8 +2118,23 @@
             }
 
             const totals = computeCartTotals();
-            const confirmed = confirm('Simpan pesanan sebesar ' + formatRp(totals.total) + ' dengan status Belum Lunas (Bayar Nanti)?');
-            if (!confirmed) return;
+            const totalEl = document.getElementById('payLaterConfirmTotal');
+            if (totalEl) totalEl.textContent = formatRp(totals.total);
+
+            const modal = document.getElementById('payLaterConfirmModal');
+            if (modal) modal.classList.remove('hidden');
+            if (typeof window.initIcons === 'function') window.initIcons();
+        }
+        window.handlePayLaterClick = handlePayLaterClick;
+
+        function closePayLaterConfirmModal() {
+            const modal = document.getElementById('payLaterConfirmModal');
+            if (modal) modal.classList.add('hidden');
+        }
+        window.closePayLaterConfirmModal = closePayLaterConfirmModal;
+
+        async function executePayLaterConfirmed() {
+            closePayLaterConfirmModal();
 
             const payLaterBtn = document.getElementById('payLaterBtn');
             const checkoutBtn = document.getElementById('checkoutBtn');
@@ -2145,7 +2204,7 @@
                 if (typeof window.initIcons === 'function') window.initIcons();
             }
         }
-        window.handlePayLaterClick = handlePayLaterClick;
+        window.executePayLaterConfirmed = executePayLaterConfirmed;
 
         // ==================== SUCCESS / RECEIPT MODAL ====================
         function showSuccessModal(sale) {
@@ -2568,6 +2627,7 @@
                             return;
                         }
                         closePaymentModal();
+                        closePayLaterConfirmModal();
                         closeSuccessModal();
                         closeOpenShiftModal();
                         closeCloseShiftModal();

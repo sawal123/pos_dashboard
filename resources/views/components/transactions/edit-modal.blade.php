@@ -75,37 +75,89 @@
                     </div>
 
                     {{-- Status Pembayaran (Refund, Belum Lunas, Lunas) --}}
-                    <div>
-                        <label for="editPaymentStatus" class="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                    <div class="space-y-1.5">
+                        <label class="block font-semibold text-slate-800 dark:text-slate-200">
                             Status Pembayaran
                         </label>
-                        <select
-                            name="payment_status"
-                            id="editPaymentStatus"
-                            required
-                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        >
-                            <option value="paid">Lunas (Paid)</option>
-                            <option value="unpaid">Belum Lunas (Unpaid)</option>
-                            <option value="refund">Refund</option>
-                        </select>
+                        <input type="hidden" name="payment_status" id="editPaymentStatus" value="paid" required />
+                        <div class="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                class="edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="unpaid"
+                                onclick="selectEditPaymentStatus('unpaid')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Belum Lunas</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="paid"
+                                onclick="selectEditPaymentStatus('paid')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Lunas</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="refund"
+                                onclick="selectEditPaymentStatus('refund')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Refund</span>
+                            </button>
+                        </div>
                     </div>
 
                     {{-- Status Pesanan (Batal, Proses, Siap) --}}
-                    <div>
-                        <label for="editStatus" class="block font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+                    <div class="space-y-1.5">
+                        <label class="block font-semibold text-slate-800 dark:text-slate-200">
                             Status Pesanan
                         </label>
-                        <select
-                            name="status"
-                            id="editStatus"
-                            required
-                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                        >
-                            <option value="siap">Siap (Siap / Selesai)</option>
-                            <option value="proses">Proses (Sedang Dikerjakan)</option>
-                            <option value="batal">Batal (Dibatalkan)</option>
-                        </select>
+                        <input type="hidden" name="status" id="editStatus" value="proses" required />
+                        <div class="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                class="edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="proses"
+                                onclick="selectEditOrderStatus('proses')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Proses</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="siap"
+                                onclick="selectEditOrderStatus('siap')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Siap</span>
+                            </button>
+                            <button
+                                type="button"
+                                class="edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer"
+                                data-status="batal"
+                                onclick="selectEditOrderStatus('batal')"
+                            >
+                                <span class="edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors">
+                                    <i data-lucide="check" class="w-3 h-3 text-white hidden"></i>
+                                </span>
+                                <span class="font-bold text-xs truncate">Batal</span>
+                            </button>
+                        </div>
                         <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
                             Pilih perkembangan pengerjaan pesanan pelanggan.
                         </p>

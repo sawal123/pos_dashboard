@@ -609,6 +609,70 @@
                 editCashReceived.addEventListener('input', syncCashFields);
             }
 
+            function selectEditPaymentStatus(status) {
+                const input = document.getElementById('editPaymentStatus');
+                if (input) input.value = status;
+
+                document.querySelectorAll('.edit-payment-status-btn').forEach(btn => {
+                    const btnStatus = btn.getAttribute('data-status');
+                    const box = btn.querySelector('.edit-check-box');
+                    const checkIcon = btn.querySelector('.edit-check-box i, .edit-check-box svg');
+
+                    // Reset to neutral
+                    btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer';
+                    if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors';
+                    if (checkIcon) checkIcon.classList.add('hidden');
+
+                    if (btnStatus === status) {
+                        if (status === 'unpaid') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-amber-500 border-amber-500 transition-colors';
+                        } else if (status === 'paid') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-emerald-500 border-emerald-500 transition-colors';
+                        } else if (status === 'refund') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-purple-500 bg-purple-50/70 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-purple-500 border-purple-500 transition-colors';
+                        }
+                        if (checkIcon) checkIcon.classList.remove('hidden');
+                    }
+                });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            window.selectEditPaymentStatus = selectEditPaymentStatus;
+
+            function selectEditOrderStatus(status) {
+                const input = document.getElementById('editStatus');
+                if (input) input.value = status;
+
+                document.querySelectorAll('.edit-order-status-btn').forEach(btn => {
+                    const btnStatus = btn.getAttribute('data-status');
+                    const box = btn.querySelector('.edit-check-box');
+                    const checkIcon = btn.querySelector('.edit-check-box i, .edit-check-box svg');
+
+                    // Reset to neutral
+                    btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer';
+                    if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors';
+                    if (checkIcon) checkIcon.classList.add('hidden');
+
+                    if (btnStatus === status) {
+                        if (status === 'proses') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-blue-500 border-blue-500 transition-colors';
+                        } else if (status === 'siap') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-emerald-500 border-emerald-500 transition-colors';
+                        } else if (status === 'batal') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-rose-500 bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-rose-500 border-rose-500 transition-colors';
+                        }
+                        if (checkIcon) checkIcon.classList.remove('hidden');
+                    }
+                });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+            window.selectEditOrderStatus = selectEditOrderStatus;
+
             function openEditModal(data) {
                 if (!editModal || !data) return;
                 currentTrxData = data;
@@ -642,28 +706,24 @@
                     }
                 }
 
-                if (editPaymentStatus) {
-                    const rawPayStatus = (data.payment_status_raw || data.payment_status || '').toLowerCase();
-                    if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
-                        editPaymentStatus.value = 'paid';
-                    } else if (rawPayStatus === 'refund' || rawPayStatus === 'refunded' || data.payment_status === 'Refund') {
-                        editPaymentStatus.value = 'refund';
-                    } else {
-                        editPaymentStatus.value = 'unpaid';
-                    }
+                let targetPayStatus = 'unpaid';
+                const rawPayStatus = (data.payment_status_raw || data.payment_status || '').toLowerCase();
+                if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
+                    targetPayStatus = 'paid';
+                } else if (rawPayStatus === 'refund' || rawPayStatus === 'refunded' || data.payment_status === 'Refund') {
+                    targetPayStatus = 'refund';
                 }
+                selectEditPaymentStatus(targetPayStatus);
 
-                if (editStatus) {
-                    const rawStatus = (data.status_raw || data.status || '').toLowerCase();
-                    const rawOrder = (data.order_status_raw || data.order_status || '').toLowerCase();
-                    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'batal' || rawOrder === 'batal' || data.status === 'Batal' || data.status === 'Dibatalkan') {
-                        editStatus.value = 'batal';
-                    } else if (rawStatus === 'processing' || rawStatus === 'proses' || rawOrder === 'proses' || data.status === 'Proses') {
-                        editStatus.value = 'proses';
-                    } else {
-                        editStatus.value = 'siap';
-                    }
+                let targetOrderStatus = 'siap';
+                const rawStatus = (data.status_raw || data.status || '').toLowerCase();
+                const rawOrder = (data.order_status_raw || data.order_status || '').toLowerCase();
+                if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'batal' || rawOrder === 'batal' || data.status === 'Batal' || data.status === 'Dibatalkan') {
+                    targetOrderStatus = 'batal';
+                } else if (rawStatus === 'processing' || rawStatus === 'proses' || rawOrder === 'proses' || data.status === 'Proses') {
+                    targetOrderStatus = 'proses';
                 }
+                selectEditOrderStatus(targetOrderStatus);
 
                 if (editCashReceived) {
                     editCashReceived.value = (data.cash_received !== null && data.cash_received !== undefined) ? data.cash_received : '';

@@ -141,23 +141,22 @@
                             <div class="inline-flex items-center gap-1.5 justify-center">
                                 <button
                                     type="button"
-                                    class="view-detail-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                                    class="view-detail-btn inline-flex items-center justify-center p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 shadow-2xs cursor-pointer"
                                     data-id="{{ $trx['id'] }}"
+                                    title="Lihat Detail Transaksi"
                                     aria-label="Lihat detail transaksi {{ $trx['transaction_number'] }}"
                                 >
-                                    <span>Lihat Detail</span>
-                                    <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
                                 </button>
                                 @if($canEdit)
                                     <button
                                         type="button"
-                                        class="edit-trx-btn inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+                                        class="edit-trx-btn inline-flex items-center justify-center p-2 rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/60 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-700 dark:text-amber-300 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 shadow-2xs cursor-pointer"
                                         data-id="{{ $trx['id'] }}"
+                                        title="Edit Status & Data Transaksi"
                                         aria-label="Edit transaksi {{ $trx['transaction_number'] }}"
-                                        title="Edit Transaksi"
                                     >
-                                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                                        <span>Edit</span>
+                                        <i data-lucide="edit-3" class="w-4 h-4"></i>
                                     </button>
                                 @endif
                             </div>
