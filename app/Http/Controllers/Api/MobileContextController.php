@@ -124,6 +124,30 @@ class MobileContextController extends Controller
                     'enabled' => (bool) $business->tax_enabled,
                     'rate' => (float) ($business->tax_rate ?? 11.0),
                 ],
+                'table_settings' => [
+                    'enabled' => (bool) $business->table_management_enabled,
+                ],
+                'dining_tables' => $business->diningTables()
+                    ->when($role === Business::ROLE_CASHIER && $assignedOutletId !== null, function ($q) use ($assignedOutletId) {
+                        $q->where(function ($sub) use ($assignedOutletId) {
+                            $sub->whereNull('outlet_id')
+                                ->orWhere('outlet_id', (int) $assignedOutletId);
+                        });
+                    })
+                    ->orderBy('outlet_id')
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(static fn ($t): array => [
+                        'id' => $t->id,
+                        'outlet_id' => $t->outlet_id,
+                        'name' => $t->name,
+                        'capacity' => (int) ($t->capacity ?? 4),
+                        'status' => $t->status,
+                        'sort_order' => (int) $t->sort_order,
+                    ])
+                    ->values()
+                    ->all(),
                 'cashier_pin' => (string) ($business->cashier_pin ?? '123456'),
                 'shift_settings' => [
                     'auto_open' => (bool) ($business->auto_open_shift ?? true),

@@ -122,6 +122,41 @@ class GuideChatbotTest extends TestCase
         $this->assertStringContainsString('cafe', $prompt);
     }
 
+    public function test_05b_knowledge_base_contains_all_latest_features_and_navigation_links(): void
+    {
+        $prompt = NexaPosKnowledgeBase::buildSystemPrompt([
+            'business_name' => 'Temuan Space',
+            'business_type' => 'cafe',
+            'active_outlet_name' => 'Cabang USU',
+            'table_management_enabled' => true,
+            'user_role' => 'Owner',
+            'user_name' => 'Admin',
+            'current_path' => '/tables',
+            'page_title' => 'Nomor Meja',
+        ]);
+
+        // Context awareness
+        $this->assertStringContainsString('Cabang USU', $prompt);
+        $this->assertStringContainsString('Status Fitur Nomor Meja: Aktif', $prompt);
+
+        // Quick navigation links
+        $this->assertStringContainsString('[Buka Nomor Meja](/tables)', $prompt);
+        $this->assertStringContainsString('[Buka Tab Template Varian](/products?tab=variants)', $prompt);
+        $this->assertStringContainsString('[Buka Pengaturan Profil & Keamanan](/profile)', $prompt);
+
+        // Latest features documentation
+        $this->assertStringContainsString('Nomor Meja', $prompt);
+        $this->assertStringContainsString('Nama Pelanggan Bebas', $prompt);
+        $this->assertStringContainsString('Harga Khusus Cabang', $prompt);
+        $this->assertStringContainsString('Harga Promo Khusus Cabang', $prompt);
+        $this->assertStringContainsString('Pembatalan Transaksi Selesai (Void / Batal)', $prompt);
+        $this->assertStringContainsString('Ubah Metode Pembayaran Transaksi Selesai', $prompt);
+        $this->assertStringContainsString('Bayar Nanti (Tempo / Unpaid)', $prompt);
+        $this->assertStringContainsString('Kode Pairing 4 Digit', $prompt);
+        $this->assertStringContainsString('DEVICE_LIMIT_EXCEEDED', $prompt);
+        $this->assertStringContainsString('30 menit', $prompt);
+    }
+
     public function test_06_server_error_from_openai_returns_graceful_error_message(): void
     {
         [$business, $user] = $this->setupAuthenticatedUser();

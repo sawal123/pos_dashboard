@@ -10,6 +10,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
@@ -39,13 +40,28 @@ class AppServiceProvider extends ServiceProvider
 
     private function configurePasswordResetUrl(): void
     {
-        ResetPassword::createUrlUsing(static function (mixed $notifiable, string $token): string {
+        $buildResetUrl = static function (mixed $notifiable, string $token): string {
             $path = route('password.reset', [
                 'token' => $token,
                 'email' => $notifiable->getEmailForPasswordReset(),
             ], false);
 
             return rtrim((string) (config('auth.password_reset_url') ?: config('app.url')), '/').$path;
+        };
+
+        ResetPassword::createUrlUsing($buildResetUrl);
+
+        ResetPassword::toMailUsing(static function (mixed $notifiable, string $token) use ($buildResetUrl) {
+            $url = $buildResetUrl($notifiable, $token);
+            $expire = (int) config('auth.passwords.'.config('auth.defaults.passwords', 'users').'.expire', 30);
+
+            return (new MailMessage)
+                ->subject('Reset Kata Sandi Akun - NexaPOS')
+                ->view('emails.auth.reset-password', [
+                    'url' => $url,
+                    'user' => $notifiable,
+                    'count' => $expire,
+                ]);
         });
     }
 

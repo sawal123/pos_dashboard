@@ -243,6 +243,14 @@
                         :locked="$isCashier && !$can($P::BUSINESS_SETTINGS_MANAGE)"
                     />
                 @endif
+                @if($can($P::BUSINESS_SETTINGS_MANAGE) || $isCashier)
+                    <x-ui.sidebar-item
+                        icon="layout-grid"
+                        label="Nomor Meja"
+                        route="tables.index"
+                        :locked="$isCashier && !$can($P::BUSINESS_SETTINGS_MANAGE)"
+                    />
+                @endif
                 @if($can($P::USERS_VIEW) || $isCashier)
                     <x-ui.sidebar-item
                         icon="user-cog"
@@ -287,53 +295,53 @@
             />
         </x-ui.sidebar-section>
 
-    </nav>
-
-    {{-- Compact Redesigned Cloud Plan Card (Owner-only / default: hidden for cashier and members) --}}
-    @if(!$isCashier && ($can($P::SUBSCRIPTION_MANAGE) || empty($dashboardCurrentBusiness)))
-    <div class="px-3 pb-3 shrink-0">
-        {{-- Expanded State Card --}}
-        <div class="sidebar-cloud-card rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 p-3">
-            <div class="flex items-center justify-between gap-2 mb-1.5">
-                <div class="flex items-center gap-1.5">
-                    <i data-lucide="cloud" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400"></i>
-                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paket Cloud</span>
+        {{-- Compact Redesigned Cloud Plan Card inside menu flow at bottom of sidebar --}}
+        @if(!$isCashier && ($can($P::SUBSCRIPTION_MANAGE) || empty($dashboardCurrentBusiness)))
+        <div class="pt-2">
+            {{-- Expanded State Card --}}
+            <div class="sidebar-cloud-card rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 p-3">
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                    <div class="flex items-center gap-1.5">
+                        <i data-lucide="cloud" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400"></i>
+                        <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">Paket Cloud</span>
+                    </div>
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold {{ $subConfig['badgeClass'] }}">
+                        <span class="w-1 h-1 rounded-full {{ $subConfig['dotClass'] }}"></span>
+                        {{ $subConfig['badgeText'] }}
+                    </span>
                 </div>
-                <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[10px] font-bold {{ $subConfig['badgeClass'] }}">
-                    <span class="w-1 h-1 rounded-full {{ $subConfig['dotClass'] }}"></span>
-                    {{ $subConfig['badgeText'] }}
-                </span>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                    {{ $subConfig['description'] }}
+                </p>
+                {{-- Owner-only action: mirrors the subscriptions.index authorization. --}}
+                <a
+                    href="{{ route('subscriptions.index') }}"
+                    wire:navigate
+                    id="managePlanBtn"
+                    class="mt-2 block w-full py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                >
+                    {{ $subConfig['buttonText'] }}
+                </a>
             </div>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                {{ $subConfig['description'] }}
-            </p>
-            {{-- Owner-only action: mirrors the subscriptions.index authorization. --}}
-            <a
-                href="{{ route('subscriptions.index') }}"
-                wire:navigate
-                id="managePlanBtn"
-                class="mt-2 block w-full py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-200 text-xs font-medium text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-            >
-                {{ $subConfig['buttonText'] }}
-            </a>
-        </div>
 
-        {{-- Collapsed State Mini Icon (owner-only action) --}}
-        <div class="sidebar-cloud-mini hidden justify-center py-2">
-            <a
-                href="{{ route('subscriptions.index') }}"
-                wire:navigate
-                id="managePlanMiniBtn"
-                class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                data-tooltip-right="{{ $subConfig['miniTooltip'] }}"
-                aria-label="{{ $subConfig['miniAria'] }}"
-            >
-                <i data-lucide="cloud" class="w-4 h-4"></i>
-                <span class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full {{ $subConfig['miniDotClass'] }}"></span>
-            </a>
+            {{-- Collapsed State Mini Icon (owner-only action) --}}
+            <div class="sidebar-cloud-mini hidden justify-center py-1">
+                <a
+                    href="{{ route('subscriptions.index') }}"
+                    wire:navigate
+                    id="managePlanMiniBtn"
+                    class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors relative focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                    data-tooltip-right="{{ $subConfig['miniTooltip'] }}"
+                    aria-label="{{ $subConfig['miniAria'] }}"
+                >
+                    <i data-lucide="cloud" class="w-4 h-4"></i>
+                    <span class="absolute top-2 right-2 w-1.5 h-1.5 rounded-full {{ $subConfig['miniDotClass'] }}"></span>
+                </a>
+            </div>
         </div>
-    </div>
-    @endif
+        @endif
+
+    </nav>
 
     {{-- PWA Install Action --}}
     <div id="sidebarPwaInstallRow" class="px-3 py-1.5 border-t border-slate-200/60 dark:border-slate-800/60">

@@ -41,8 +41,12 @@ final class ReportDatasetBuilder
 
         $salesQuery = Sale::query()
             ->where('business_id', $businessId)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid');
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(payment_status)'), ['paid', 'lunas']);
         $this->applyFilters($salesQuery, 'sold_at', $filters, $window);
 
         $expenseQuery = Expense::query()

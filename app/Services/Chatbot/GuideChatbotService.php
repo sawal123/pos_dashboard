@@ -73,7 +73,7 @@ class GuideChatbotService
                     'model' => $model,
                     'messages' => $messages,
                     'temperature' => 0.3,
-                    'max_tokens' => 850,
+                    'max_tokens' => 1000,
                 ]);
 
             if ($response->successful()) {

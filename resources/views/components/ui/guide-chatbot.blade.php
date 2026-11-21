@@ -72,7 +72,7 @@
                     <div>
                         <p class="font-bold text-slate-800 dark:text-slate-100 text-xs">Halo! Saya NexaBot 👋</p>
                         <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
-                            Saya siap memandu seluruh fitur Net Kasir (Kasir POS, Stok, Resep & HPP, Promo, Laporan, dll). Ada yang ingin Anda tanyakan?
+                            Saya siap memandu seluruh fitur NexaPOS / Net Kasir (Kasir POS, Nomor Meja, Harga Cabang & Promo, Stok, Resep HPP, Void/Ubah Bayar, Pairing Mobile, dll). Ada yang ingin Anda tanyakan?
                         </p>
                     </div>
                 </div>
@@ -90,24 +90,38 @@
                         </button>
                         <button
                             type="button"
-                            onclick="sendQuickPrompt('Bagaimana cara buka shift dan melayani transaksi di Zona Kasir?')"
+                            onclick="sendQuickPrompt('Bagaimana cara mengatur Nomor Meja dan mengaktifkannya di POS?')"
                             class="text-left text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-colors"
                         >
-                            🛒 Cara pakai Zona Kasir POS?
+                            🪑 Cara atur Nomor Meja?
                         </button>
                         <button
                             type="button"
-                            onclick="sendQuickPrompt('Apa perbedaan Produk Siap Jual, Persediaan Bahan Baku, dan Layanan?')"
+                            onclick="sendQuickPrompt('Bagaimana aturan harga promo dan harga khusus per cabang?')"
                             class="text-left text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-colors"
                         >
-                            📦 Beda Produk & Persediaan?
+                            🏷️ Harga promo & per cabang?
                         </button>
                         <button
                             type="button"
-                            onclick="sendQuickPrompt('Bagaimana alur melakukan Stock Opname di gudang?')"
+                            onclick="sendQuickPrompt('Bagaimana cara membatalkan transaksi selesai atau mengubah metode pembayaran?')"
                             class="text-left text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-colors"
                         >
-                            📋 Alur Stock Opname?
+                            🔄 Batal transaksi & ubah bayar?
+                        </button>
+                        <button
+                            type="button"
+                            onclick="sendQuickPrompt('Di mana cara menambah stok bahan baku masuk agar terlacak?')"
+                            class="text-left text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-colors"
+                        >
+                            📦 Tambah stok bahan baku?
+                        </button>
+                        <button
+                            type="button"
+                            onclick="sendQuickPrompt('Bagaimana cara menghubungkan aplikasi POS Mobile Android dengan kode pairing 4 digit?')"
+                            class="text-left text-[11px] px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 hover:border-indigo-300 dark:hover:border-indigo-700 text-slate-700 dark:text-slate-300 transition-colors"
+                        >
+                            📱 Pairing POS Mobile?
                         </button>
                     </div>
                 </div>
@@ -180,7 +194,7 @@
                     return `<a href="${cleanUrl}" class="inline-flex items-center gap-1 px-2.5 py-1 my-1 rounded-xl font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 transition-colors shadow-xs text-[11px] cursor-pointer"><span>${label}</span><i data-lucide="arrow-up-right" class="w-3.5 h-3.5 inline"></i></a>`;
                 })
                 // Path in parentheses like (/products) or (/pos)
-                .replace(/\((\/(?:products|pos|stock|stock\/history|stock\/opname|promos|transactions|laundry-orders|cash|shifts|customers|outlets|users|devices|sync|subscription|reports|business-settings|profile|dashboard)[^)\s]*)\)/g, (match, path) => {
+                .replace(/\((\/(?:products|pos|stock|stock\/history|stock\/opname|promos|transactions|laundry-orders|cash|shifts|customers|outlets|tables|users|devices|sync|subscription|reports|business-settings|profile|dashboard)[^)\s]*)\)/g, (match, path) => {
                     return `(<a href="${path}" class="font-bold underline text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300">${path} ↗</a>)`;
                 })
                 // Headings

@@ -33,11 +33,14 @@ class GuideChatController extends Controller
         $business = $request->attributes->get('dashboard_business');
         $businessType = $request->attributes->get('dashboard_business_type');
         $businessRole = $request->attributes->get('dashboard_business_role');
+        $activeOutlet = $request->attributes->get('dashboard_active_outlet');
 
         $context = [
             'user_name' => $user?->name ?? 'Pengguna',
             'business_name' => $business?->name ?? 'Bisnis Net Kasir',
             'business_type' => $businessType ?? ($business?->normalizedBusinessType() ?? 'Umum'),
+            'active_outlet_name' => $activeOutlet?->name ?? 'Semua / Outlet Utama',
+            'table_management_enabled' => (bool) ($business?->table_management_enabled ?? false),
             'user_role' => $businessRole ?? 'Pengguna',
             'current_path' => $validated['current_path'] ?? $request->header('Referer', '/dashboard'),
             'page_title' => $validated['page_title'] ?? 'Net Kasir',

@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class DashboardTransactionsData
 {
@@ -30,7 +31,7 @@ class DashboardTransactionsData
 
         $filteredQuery = $this->applyFilters(clone $baseQuery, $filters);
 
-        $metrics = $this->buildMetrics(clone $filteredQuery);
+        $metrics = $this->buildMetrics(clone $filteredQuery, $filters);
 
         /** @var LengthAwarePaginator<int, Sale> $transactions */
         $transactions = (clone $filteredQuery)
@@ -221,31 +222,59 @@ class DashboardTransactionsData
 
     /**
      * Build aggregated metrics from the filtered query.
+     * Cancelled and refunded transactions are excluded from revenue / successful metrics.
      *
      * @param  Builder<Sale>  $query
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function buildMetrics(Builder $query): array
+    private function buildMetrics(Builder $query, array $filters = []): array
     {
-        $metricsQuery = clone $query;
+        $statusFilter = isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all'
+            ? strtolower((string) $filters['status'])
+            : null;
+        $isFilteringBatal = in_array($statusFilter, ['batal', 'cancelled', 'canceled', 'dibatalkan'], true);
 
-        $totalTransactions = $metricsQuery->count();
-        $totalSales = (int) (clone $query)->sum('total_amount');
-        $averageTransaction = $totalTransactions > 0 ? (int) round($totalSales / $totalTransactions) : 0;
+        $payStatusFilter = isset($filters['payment_status']) && $filters['payment_status'] !== '' && $filters['payment_status'] !== 'all'
+            ? strtolower((string) $filters['payment_status'])
+            : null;
+        $isFilteringRefund = in_array($payStatusFilter, ['refund', 'refunded'], true);
 
-        // Top payment method by count (non-null only)
-        $paymentCounts = (clone $query)
-            ->whereNotNull('payment_method')
-            ->selectRaw('payment_method, COUNT(*) as cnt')
-            ->groupBy('payment_method')
-            ->orderByDesc('cnt')
-            ->limit(1)
-            ->first();
+        // Valid sales query excludes cancelled and refunded transactions
+        $validSalesQuery = (clone $query)
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
 
-        $topPaymentMethodRaw = $paymentCounts !== null ? (string) $paymentCounts->payment_method : null;
-        $topPaymentMethod = $topPaymentMethodRaw !== null ? $this->presentPaymentMethod($topPaymentMethodRaw) : '-';
-        $topCount = $paymentCounts !== null ? (int) $paymentCounts->getAttribute('cnt') : 0;
-        $topPaymentPercentage = $totalTransactions > 0 ? (int) round(($topCount / $totalTransactions) * 100) : 0;
+        if ($isFilteringBatal || $isFilteringRefund) {
+            // When user explicitly filters by Batal or Refund, count shows the filtered count, but sales revenue is 0
+            $totalTransactions = (clone $query)->count();
+            $totalSales = 0;
+            $averageTransaction = 0;
+            $topPaymentMethod = '-';
+            $topPaymentPercentage = 0;
+        } else {
+            // Standard/default view: only non-cancelled valid sales count towards revenue and transaction counts
+            $totalTransactions = (clone $validSalesQuery)->count();
+            $totalSales = (int) (clone $validSalesQuery)->sum('total_amount');
+            $averageTransaction = $totalTransactions > 0 ? (int) round($totalSales / $totalTransactions) : 0;
+
+            $paymentCounts = (clone $validSalesQuery)
+                ->whereNotNull('payment_method')
+                ->selectRaw('payment_method, COUNT(*) as cnt')
+                ->groupBy('payment_method')
+                ->orderByDesc('cnt')
+                ->limit(1)
+                ->first();
+
+            $topPaymentMethodRaw = $paymentCounts !== null ? (string) $paymentCounts->payment_method : null;
+            $topPaymentMethod = $topPaymentMethodRaw !== null ? $this->presentPaymentMethod($topPaymentMethodRaw) : '-';
+            $topCount = $paymentCounts !== null ? (int) $paymentCounts->getAttribute('cnt') : 0;
+            $topPaymentPercentage = $totalTransactions > 0 ? (int) round(($topCount / $totalTransactions) * 100) : 0;
+        }
 
         return [
             'total_transactions' => $totalTransactions,
@@ -346,6 +375,7 @@ class DashboardTransactionsData
         $items = $sale->items->map(fn ($item) => [
             'product_name' => $item->product_name,
             'product_sku' => $item->product_sku,
+            'variant_summary' => $item->variant_summary,
             'unit_price' => $item->unit_price,
             'quantity' => $item->quantity, // decimal:3 — do not cast to int
             'unit' => $item->unit,
@@ -358,6 +388,7 @@ class DashboardTransactionsData
 
         return [
             'id' => $sale->id,
+            'outlet_id' => $sale->outlet_id,
             'transaction_number' => $sale->transaction_number,
 
             'sold_at' => $soldAt,

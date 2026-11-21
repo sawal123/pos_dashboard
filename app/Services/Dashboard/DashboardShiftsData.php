@@ -237,8 +237,12 @@ class DashboardShiftsData
         $sales = DB::table('sales')
             ->where('business_id', $businessId)
             ->whereIn('shift_id', $shiftIds)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas'])
             ->select('shift_id', DB::raw('COUNT(*) as aggregate_count'), DB::raw('COALESCE(SUM(total_amount), 0) as aggregate_total'))
             ->groupBy('shift_id')
             ->get();

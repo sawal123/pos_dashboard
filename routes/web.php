@@ -10,6 +10,7 @@ use App\Http\Controllers\Dashboard\CashController;
 use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
+use App\Http\Controllers\Dashboard\DiningTablesController;
 use App\Http\Controllers\Dashboard\GuideChatController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
@@ -163,6 +164,14 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('sale')
         ->middleware(['business.permission:'.BusinessPermission::TRANSACTIONS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('transactions.update');
+    Route::get('transactions/{sale}/addable-products', [TransactionsController::class, 'addableProducts'])
+        ->whereNumber('sale')
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('transactions.addable-products');
+    Route::post('transactions/{sale}/items', [TransactionsController::class, 'addItems'])
+        ->whereNumber('sale')
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('transactions.add-items');
 
     Route::get('products', [ProductsController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::PRODUCTS_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
@@ -491,13 +500,37 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::patch('business-settings/device-limit', [BusinessSettingsController::class, 'updateDeviceLimit'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.device-limit.update');
-    Route::patch('business-settings/tables-toggle', [BusinessSettingsController::class, 'updateTableSettings'])
+
+    // DASH-TABLES — dedicated dining tables & POS table toggle management
+    Route::get('tables', [DiningTablesController::class, 'index'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.index');
+    Route::patch('tables/toggle', [DiningTablesController::class, 'updateToggle'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.toggle');
+    Route::post('tables', [DiningTablesController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.store');
+    Route::post('tables/bulk', [DiningTablesController::class, 'storeBulk'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.bulk');
+    Route::patch('tables/{tableId}', [DiningTablesController::class, 'update'])
+        ->whereNumber('tableId')
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.update');
+    Route::delete('tables/{tableId}', [DiningTablesController::class, 'destroy'])
+        ->whereNumber('tableId')
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('tables.destroy');
+
+    // Legacy / alias table routes for backward compatibility
+    Route::patch('business-settings/tables-toggle', [DiningTablesController::class, 'updateToggle'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.tables.toggle');
-    Route::post('business-settings/tables', [BusinessSettingsController::class, 'storeTable'])
+    Route::post('business-settings/tables', [DiningTablesController::class, 'store'])
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.tables.store');
-    Route::delete('business-settings/tables/{tableId}', [BusinessSettingsController::class, 'destroyTable'])
+    Route::delete('business-settings/tables/{tableId}', [DiningTablesController::class, 'destroy'])
         ->whereNumber('tableId')
         ->middleware('business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE)
         ->name('business-settings.tables.destroy');

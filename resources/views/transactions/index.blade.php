@@ -19,6 +19,14 @@
             </div>
         </div>
 
+        {{-- Flash Notification --}}
+        @if(session('status'))
+            <div class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2.5 shadow-xs">
+                <i data-lucide="check-circle" class="w-4 h-4 shrink-0"></i>
+                <span>{{ session('status') }}</span>
+            </div>
+        @endif
+
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
         <x-transactions.summary-cards :metrics="$metrics" />
 
@@ -96,11 +104,16 @@
         @endif
 
         {{-- ==================== 5. DETAIL DRAWER ==================== --}}
-        <x-transactions.detail-drawer :canEdit="$canEdit ?? false" />
+        <x-transactions.detail-drawer :canEdit="$canEdit ?? false" :canAddItems="$canAddItems ?? false" />
 
         {{-- ==================== 6. EDIT TRANSACTION MODAL (OWNER ONLY) ==================== --}}
         @if($canEdit ?? false)
             <x-transactions.edit-modal />
+        @endif
+
+        {{-- ==================== 7. ADD ITEMS TO PROCESSING ORDER MODAL ==================== --}}
+        @if($canAddItems ?? false)
+            <x-transactions.add-items-modal />
         @endif
 
     </main>
@@ -430,6 +443,12 @@
                         metaP.appendChild(metaText);
 
                         infoDiv.appendChild(nameP);
+                        if (item.variant_summary) {
+                            const varP = document.createElement('p');
+                            varP.className = 'text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5';
+                            varP.textContent = item.variant_summary;
+                            infoDiv.appendChild(varP);
+                        }
                         infoDiv.appendChild(skuP);
                         infoDiv.appendChild(metaP);
 
@@ -495,6 +514,20 @@
                     document.getElementById('detailNote').textContent = `"${data.note}"`;
                 } else {
                     noteSection.classList.add('hidden');
+                }
+
+                // Show/Hide "+ Tambah Pesanan" button (only for orders still in Proses)
+                const drawerAddItemsBtnEl = document.getElementById('drawerAddItemsBtn');
+                if (drawerAddItemsBtnEl) {
+                    const stLower = String(data.status_raw || data.status || '').toLowerCase();
+                    const ordLower = String(data.order_status_raw || data.order_status || '').toLowerCase();
+                    const isCancelled = ['cancelled', 'canceled', 'batal', 'dibatalkan'].includes(stLower) || ['batal', 'cancelled', 'canceled', 'dibatalkan'].includes(ordLower);
+                    const isProses = !isCancelled && (['proses', 'diproses', 'masuk', 'processing'].includes(ordLower) || ['processing', 'proses'].includes(stLower));
+                    if (isProses) {
+                        drawerAddItemsBtnEl.classList.remove('hidden');
+                    } else {
+                        drawerAddItemsBtnEl.classList.add('hidden');
+                    }
                 }
 
                 // Show Drawer with Smooth Animation & Focus Management
@@ -594,6 +627,9 @@
                 const method = (editPaymentMethod.value || '').toLowerCase();
                 if (method === 'tunai' || method === 'cash') {
                     editCashSection.classList.remove('hidden');
+                    if (!editCashReceived.value || parseFloat(editCashReceived.value) <= 0) {
+                        editCashReceived.value = activeEditTrxTotal > 0 ? activeEditTrxTotal : '';
+                    }
                     const received = parseFloat(editCashReceived.value || 0);
                     const change = Math.max(0, received - activeEditTrxTotal);
                     if (editChangeAmountDisplay) {
@@ -647,6 +683,19 @@
                 const input = document.getElementById('editStatus');
                 if (input) input.value = status;
 
+                // When user selects Batal, automatically select Refund so payment is properly marked
+                if (status === 'batal') {
+                    const payStatusInput = document.getElementById('editPaymentStatus');
+                    if (payStatusInput && payStatusInput.value === 'paid') {
+                        selectEditPaymentStatus('refund');
+                    }
+                } else if (status === 'siap' || status === 'proses') {
+                    const payStatusInput = document.getElementById('editPaymentStatus');
+                    if (payStatusInput && payStatusInput.value === 'refund') {
+                        selectEditPaymentStatus('paid');
+                    }
+                }
+
                 document.querySelectorAll('.edit-order-status-btn').forEach(btn => {
                     const btnStatus = btn.getAttribute('data-status');
                     const box = btn.querySelector('.edit-check-box');
@@ -695,16 +744,36 @@
 
                 if (editPaymentMethod) {
                     const rawMethod = (data.payment_method_raw || data.payment_method || '').toLowerCase();
+                    let targetMethod = 'Tunai';
                     if (rawMethod === 'cash' || rawMethod === 'tunai') {
-                        editPaymentMethod.value = 'Tunai';
+                        targetMethod = 'Tunai';
                     } else if (rawMethod === 'qris') {
-                        editPaymentMethod.value = 'QRIS';
+                        targetMethod = 'QRIS';
                     } else if (rawMethod === 'transfer') {
-                        editPaymentMethod.value = 'Transfer';
+                        targetMethod = 'Transfer';
                     } else if (rawMethod === 'card' || rawMethod === 'kartu') {
-                        editPaymentMethod.value = 'Kartu';
-                    } else {
-                        editPaymentMethod.value = data.payment_method || 'Tunai';
+                        targetMethod = 'Kartu';
+                    } else if (rawMethod === 'debit') {
+                        targetMethod = 'Debit';
+                    } else if (data.payment_method) {
+                        targetMethod = data.payment_method;
+                    }
+
+                    // Ensure target option exists in select dropdown
+                    let optionExists = false;
+                    for (let i = 0; i < editPaymentMethod.options.length; i++) {
+                        if (editPaymentMethod.options[i].value.toLowerCase() === targetMethod.toLowerCase()) {
+                            editPaymentMethod.selectedIndex = i;
+                            optionExists = true;
+                            break;
+                        }
+                    }
+                    if (!optionExists && targetMethod) {
+                        const opt = document.createElement('option');
+                        opt.value = targetMethod;
+                        opt.textContent = targetMethod;
+                        editPaymentMethod.appendChild(opt);
+                        editPaymentMethod.value = targetMethod;
                     }
                 }
 
@@ -802,6 +871,474 @@
                     }
                 };
             });
+
+            // ==================== ADD ITEMS TO PROCESSING ORDER MODAL ====================
+            const addItemsModal = document.getElementById('addItemsModal');
+            const addItemsBackdrop = document.getElementById('addItemsBackdrop');
+            const addItemsDialog = document.getElementById('addItemsDialog');
+            const closeAddItemsModalBtn = document.getElementById('closeAddItemsModalBtn');
+            const cancelAddItemsModalBtn = document.getElementById('cancelAddItemsModalBtn');
+            const drawerAddItemsBtn = document.getElementById('drawerAddItemsBtn');
+            const addItemsSearchInput = document.getElementById('addItemsSearchInput');
+            const addItemsCatalogList = document.getElementById('addItemsCatalogList');
+            const addItemsCatalogCount = document.getElementById('addItemsCatalogCount');
+            const addItemsSelectedList = document.getElementById('addItemsSelectedList');
+            const addItemsSelectedCount = document.getElementById('addItemsSelectedCount');
+            const addItemsErrorAlert = document.getElementById('addItemsErrorAlert');
+            const addItemsMarkUnpaidWrapper = document.getElementById('addItemsMarkUnpaidWrapper');
+            const addItemsMarkUnpaidCheckbox = document.getElementById('addItemsMarkUnpaidCheckbox');
+            const submitAddItemsBtn = document.getElementById('submitAddItemsBtn');
+            const submitAddItemsBtnText = document.getElementById('submitAddItemsBtnText');
+
+            let addItemsTargetTrx = null;
+            let addItemsCatalog = [];
+            let addItemsTaxEnabled = @js($taxEnabled ?? false);
+            let addItemsTaxRate = @js($taxRate ?? 0);
+            let addItemsCart = []; // { key, product_id, name, unit_price, quantity, variant_option_ids, variant_summary }
+            let isSubmittingAddItems = false;
+
+            function showAddItemsError(msg) {
+                if (!addItemsErrorAlert) return;
+                if (msg) {
+                    addItemsErrorAlert.textContent = msg;
+                    addItemsErrorAlert.classList.remove('hidden');
+                } else {
+                    addItemsErrorAlert.textContent = '';
+                    addItemsErrorAlert.classList.add('hidden');
+                }
+            }
+
+            function renderAddItemsSummary() {
+                if (!addItemsTargetTrx) return;
+                const currentTotal = Number(addItemsTargetTrx.total_amount || 0);
+                const addedSubtotal = addItemsCart.reduce((sum, it) => sum + (it.unit_price * it.quantity), 0);
+                const addedTax = addItemsTaxEnabled ? Math.round((addedSubtotal * addItemsTaxRate) / 100) : 0;
+                const newTotal = currentTotal + addedSubtotal + addedTax;
+
+                document.getElementById('addItemsCurrentTotalDisplay').textContent = formatRupiah(currentTotal);
+                document.getElementById('addItemsAddedSubtotalDisplay').textContent = '+ ' + formatRupiah(addedSubtotal);
+
+                const taxRow = document.getElementById('addItemsTaxRow');
+                if (addItemsTaxEnabled && addedTax > 0) {
+                    taxRow.classList.remove('hidden');
+                    document.getElementById('addItemsTaxLabel').textContent = `Estimasi Pajak Tambahan (${addItemsTaxRate}%)`;
+                    document.getElementById('addItemsAddedTaxDisplay').textContent = '+ ' + formatRupiah(addedTax);
+                } else {
+                    taxRow.classList.add('hidden');
+                }
+
+                document.getElementById('addItemsNewTotalDisplay').textContent = formatRupiah(newTotal);
+
+                const totalQty = addItemsCart.reduce((sum, it) => sum + it.quantity, 0);
+                if (addItemsSelectedCount) {
+                    addItemsSelectedCount.textContent = `${totalQty} item`;
+                }
+                if (submitAddItemsBtn) {
+                    submitAddItemsBtn.disabled = addItemsCart.length === 0 || isSubmittingAddItems;
+                }
+            }
+
+            function renderAddItemsSelected() {
+                if (!addItemsSelectedList) return;
+                addItemsSelectedList.innerHTML = '';
+
+                if (addItemsCart.length === 0) {
+                    addItemsSelectedList.innerHTML = '<div class="p-4 text-center text-xs text-slate-400">Belum ada menu tambahan dipilih. Klik menu di atas untuk menambahkan.</div>';
+                    renderAddItemsSummary();
+                    return;
+                }
+
+                addItemsCart.forEach((item, idx) => {
+                    const row = document.createElement('div');
+                    row.className = 'p-3 flex items-center justify-between gap-3';
+
+                    const info = document.createElement('div');
+                    info.className = 'min-w-0 flex-1';
+                    const nameEl = document.createElement('p');
+                    nameEl.className = 'font-bold text-slate-900 dark:text-white text-xs truncate';
+                    nameEl.textContent = item.name;
+                    info.appendChild(nameEl);
+
+                    if (item.variant_summary) {
+                        const varEl = document.createElement('p');
+                        varEl.className = 'text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold truncate';
+                        varEl.textContent = item.variant_summary;
+                        info.appendChild(varEl);
+                    }
+
+                    const priceEl = document.createElement('p');
+                    priceEl.className = 'text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums';
+                    priceEl.textContent = `${formatRupiah(item.unit_price)} × ${item.quantity} = ${formatRupiah(item.unit_price * item.quantity)}`;
+                    info.appendChild(priceEl);
+
+                    const controls = document.createElement('div');
+                    controls.className = 'flex items-center gap-1.5 shrink-0';
+
+                    const minusBtn = document.createElement('button');
+                    minusBtn.type = 'button';
+                    minusBtn.className = 'w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center cursor-pointer';
+                    minusBtn.textContent = '−';
+                    minusBtn.onclick = () => {
+                        if (item.quantity > 1) {
+                            item.quantity -= 1;
+                        } else {
+                            addItemsCart.splice(idx, 1);
+                        }
+                        renderAddItemsSelected();
+                    };
+
+                    const qtyBadge = document.createElement('span');
+                    qtyBadge.className = 'w-7 text-center font-extrabold text-xs text-slate-900 dark:text-white tabular-nums';
+                    qtyBadge.textContent = String(item.quantity);
+
+                    const plusBtn = document.createElement('button');
+                    plusBtn.type = 'button';
+                    plusBtn.className = 'w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center justify-center cursor-pointer';
+                    plusBtn.textContent = '+';
+                    plusBtn.onclick = () => {
+                        item.quantity += 1;
+                        renderAddItemsSelected();
+                    };
+
+                    const delBtn = document.createElement('button');
+                    delBtn.type = 'button';
+                    delBtn.className = 'ml-1 w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center cursor-pointer';
+                    delBtn.textContent = '×';
+                    delBtn.title = 'Hapus item';
+                    delBtn.onclick = () => {
+                        addItemsCart.splice(idx, 1);
+                        renderAddItemsSelected();
+                    };
+
+                    controls.appendChild(minusBtn);
+                    controls.appendChild(qtyBadge);
+                    controls.appendChild(plusBtn);
+                    controls.appendChild(delBtn);
+
+                    row.appendChild(info);
+                    row.appendChild(controls);
+                    addItemsSelectedList.appendChild(row);
+                });
+
+                renderAddItemsSummary();
+            }
+
+            function addProductToAddItemsCart(product, selectedOptions = []) {
+                const optionIds = selectedOptions.map(o => o.id).sort((a, b) => a - b);
+                const key = `${product.id}::${optionIds.join(',')}`;
+                const priceAdj = selectedOptions.reduce((sum, o) => sum + Number(o.price_adjustment || 0), 0);
+                const variantSummary = selectedOptions.map(o => o.name + (o.price_adjustment > 0 ? ` (+${formatRupiah(o.price_adjustment)})` : '')).join(', ');
+
+                const existing = addItemsCart.find(it => it.key === key);
+                if (existing) {
+                    existing.quantity += 1;
+                } else {
+                    addItemsCart.push({
+                        key,
+                        product_id: product.id,
+                        name: product.name,
+                        unit_price: Number(product.price) + priceAdj,
+                        quantity: 1,
+                        variant_option_ids: optionIds,
+                        variant_summary: variantSummary || null,
+                    });
+                }
+                showAddItemsError('');
+                renderAddItemsSelected();
+            }
+
+            function renderAddItemsCatalog(query = '') {
+                if (!addItemsCatalogList) return;
+                const q = query.trim().toLowerCase();
+                const filtered = q === ''
+                    ? addItemsCatalog
+                    : addItemsCatalog.filter(p =>
+                        (p.name || '').toLowerCase().includes(q)
+                        || (p.sku || '').toLowerCase().includes(q)
+                        || (p.category || '').toLowerCase().includes(q)
+                    );
+
+                if (addItemsCatalogCount) {
+                    addItemsCatalogCount.textContent = `${filtered.length} menu tersedia`;
+                }
+
+                addItemsCatalogList.innerHTML = '';
+                if (filtered.length === 0) {
+                    addItemsCatalogList.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Menu tidak ditemukan.</div>';
+                    return;
+                }
+
+                filtered.forEach(product => {
+                    const row = document.createElement('div');
+                    row.className = 'p-3 flex flex-col gap-2 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors';
+
+                    const top = document.createElement('div');
+                    top.className = 'flex items-center justify-between gap-3';
+
+                    const left = document.createElement('div');
+                    left.className = 'min-w-0 flex-1';
+
+                    const nameEl = document.createElement('p');
+                    nameEl.className = 'font-bold text-slate-900 dark:text-white text-xs truncate';
+                    nameEl.textContent = product.name;
+                    left.appendChild(nameEl);
+
+                    const metaEl = document.createElement('p');
+                    metaEl.className = 'text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2 flex-wrap';
+                    const priceSpan = document.createElement('span');
+                    priceSpan.className = 'font-bold text-indigo-600 dark:text-indigo-400 tabular-nums';
+                    priceSpan.textContent = formatRupiah(product.price);
+                    metaEl.appendChild(priceSpan);
+
+                    if (product.is_promo && product.base_price > product.price) {
+                        const baseSpan = document.createElement('span');
+                        baseSpan.className = 'line-through text-slate-400 text-[10px] tabular-nums';
+                        baseSpan.textContent = formatRupiah(product.base_price);
+                        metaEl.appendChild(baseSpan);
+                    }
+
+                    const catSpan = document.createElement('span');
+                    catSpan.textContent = `• ${product.category}`;
+                    metaEl.appendChild(catSpan);
+                    left.appendChild(metaEl);
+
+                    const hasVariants = Array.isArray(product.variant_groups) && product.variant_groups.length > 0;
+
+                    const addBtn = document.createElement('button');
+                    addBtn.type = 'button';
+                    addBtn.className = 'px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-600 hover:text-white text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 font-bold text-[11px] transition-colors shrink-0 cursor-pointer';
+                    addBtn.textContent = hasVariants ? 'Pilih Varian' : '+ Tambah';
+
+                    top.appendChild(left);
+                    top.appendChild(addBtn);
+                    row.appendChild(top);
+
+                    if (hasVariants) {
+                        const variantBox = document.createElement('div');
+                        variantBox.className = 'hidden p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700 space-y-2';
+
+                        const selectedMap = {};
+                        product.variant_groups.forEach(group => {
+                            const gWrap = document.createElement('div');
+                            const gLabel = document.createElement('p');
+                            gLabel.className = 'text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase mb-1';
+                            gLabel.textContent = group.name + (group.is_required ? ' *' : '');
+                            gWrap.appendChild(gLabel);
+
+                            const optsWrap = document.createElement('div');
+                            optsWrap.className = 'flex flex-wrap gap-1.5';
+                            (group.options || []).forEach(opt => {
+                                const optBtn = document.createElement('button');
+                                optBtn.type = 'button';
+                                optBtn.className = 'px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] font-semibold text-slate-700 dark:text-slate-200 cursor-pointer transition-colors';
+                                optBtn.textContent = opt.name + (opt.price_adjustment > 0 ? ` (+${formatRupiah(opt.price_adjustment)})` : '');
+                                optBtn.onclick = () => {
+                                    if (group.selection_type === 'multiple') {
+                                        selectedMap[group.id] = selectedMap[group.id] || [];
+                                        const existsIdx = selectedMap[group.id].findIndex(o => o.id === opt.id);
+                                        if (existsIdx >= 0) {
+                                            selectedMap[group.id].splice(existsIdx, 1);
+                                            optBtn.classList.remove('!bg-indigo-600', '!text-white', '!border-indigo-600');
+                                        } else {
+                                            selectedMap[group.id].push(opt);
+                                            optBtn.classList.add('!bg-indigo-600', '!text-white', '!border-indigo-600');
+                                        }
+                                    } else {
+                                        optsWrap.querySelectorAll('button').forEach(b => b.classList.remove('!bg-indigo-600', '!text-white', '!border-indigo-600'));
+                                        selectedMap[group.id] = [opt];
+                                        optBtn.classList.add('!bg-indigo-600', '!text-white', '!border-indigo-600');
+                                    }
+                                };
+                                optsWrap.appendChild(optBtn);
+                            });
+                            gWrap.appendChild(optsWrap);
+                            variantBox.appendChild(gWrap);
+                        });
+
+                        const confirmVarBtn = document.createElement('button');
+                        confirmVarBtn.type = 'button';
+                        confirmVarBtn.className = 'w-full py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] cursor-pointer';
+                        confirmVarBtn.textContent = '+ Tambahkan Menu dengan Varian';
+                        confirmVarBtn.onclick = () => {
+                            const flatOpts = Object.values(selectedMap).flat();
+                            addProductToAddItemsCart(product, flatOpts);
+                            variantBox.classList.add('hidden');
+                        };
+                        variantBox.appendChild(confirmVarBtn);
+
+                        addBtn.onclick = () => {
+                            variantBox.classList.toggle('hidden');
+                        };
+                        row.appendChild(variantBox);
+                    } else {
+                        addBtn.onclick = () => {
+                            addProductToAddItemsCart(product, []);
+                        };
+                    }
+
+                    addItemsCatalogList.appendChild(row);
+                });
+            }
+
+            async function openAddItemsModal(data) {
+                if (!addItemsModal || !data) return;
+                addItemsTargetTrx = data;
+                addItemsCart = [];
+                showAddItemsError('');
+
+                document.getElementById('addItemsTrxNumberDisplay').textContent = data.transaction_number || '';
+                const tableStr = data.table_number ? ` • Meja ${data.table_number}` : '';
+                document.getElementById('addItemsTrxMetaDisplay').textContent = `${data.customer_name || 'Walk-in Customer'}${tableStr} • ${data.outlet_name || ''}`;
+
+                if (addItemsSearchInput) addItemsSearchInput.value = '';
+                if (addItemsMarkUnpaidCheckbox) addItemsMarkUnpaidCheckbox.checked = false;
+
+                // Show "Tandai Belum Lunas" toggle only if current order is paid
+                const payStatusLower = String(data.payment_status_raw || data.payment_status || '').toLowerCase();
+                if (addItemsMarkUnpaidWrapper) {
+                    if (['paid', 'lunas'].includes(payStatusLower)) {
+                        addItemsMarkUnpaidWrapper.classList.remove('hidden');
+                    } else {
+                        addItemsMarkUnpaidWrapper.classList.add('hidden');
+                    }
+                }
+
+                renderAddItemsSelected();
+
+                addItemsModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    if (addItemsBackdrop) {
+                        addItemsBackdrop.classList.remove('opacity-0');
+                        addItemsBackdrop.classList.add('opacity-100');
+                    }
+                    if (addItemsDialog) {
+                        addItemsDialog.classList.remove('scale-95', 'opacity-0');
+                        addItemsDialog.classList.add('scale-100', 'opacity-100');
+                    }
+                });
+
+                // Fetch fresh branch-priced products
+                if (addItemsCatalogList) {
+                    addItemsCatalogList.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Memuat daftar menu cabang...</div>';
+                }
+                try {
+                    const res = await fetch(`/transactions/${data.id}/addable-products`, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    const json = await res.json();
+                    if (!res.ok || !json.success) {
+                        throw new Error(json.message || 'Gagal memuat katalog menu.');
+                    }
+                    addItemsCatalog = json.products || [];
+                    addItemsTaxEnabled = Boolean(json.tax_enabled);
+                    addItemsTaxRate = Number(json.tax_rate || 0);
+                    renderAddItemsCatalog('');
+                    renderAddItemsSummary();
+                    if (addItemsSearchInput) addItemsSearchInput.focus();
+                } catch (err) {
+                    showAddItemsError(err.message || 'Gagal memuat daftar menu.');
+                    if (addItemsCatalogList) {
+                        addItemsCatalogList.innerHTML = '<div class="p-6 text-center text-xs text-rose-500">Gagal memuat daftar menu.</div>';
+                    }
+                }
+            }
+
+            function closeAddItemsModal() {
+                if (!addItemsModal) return;
+                if (addItemsBackdrop) {
+                    addItemsBackdrop.classList.remove('opacity-100');
+                    addItemsBackdrop.classList.add('opacity-0');
+                }
+                if (addItemsDialog) {
+                    addItemsDialog.classList.remove('scale-100', 'opacity-100');
+                    addItemsDialog.classList.add('scale-95', 'opacity-0');
+                }
+                setTimeout(() => {
+                    addItemsModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 200);
+            }
+
+            if (addItemsSearchInput) {
+                addItemsSearchInput.oninput = (e) => {
+                    renderAddItemsCatalog(e.target.value);
+                };
+            }
+            if (closeAddItemsModalBtn) closeAddItemsModalBtn.onclick = closeAddItemsModal;
+            if (cancelAddItemsModalBtn) cancelAddItemsModalBtn.onclick = closeAddItemsModal;
+            if (addItemsBackdrop) addItemsBackdrop.onclick = closeAddItemsModal;
+
+            if (drawerAddItemsBtn) {
+                drawerAddItemsBtn.onclick = () => {
+                    if (currentTrxData) {
+                        const target = currentTrxData;
+                        closeDrawer();
+                        setTimeout(() => {
+                            openAddItemsModal(target);
+                        }, 280);
+                    }
+                };
+            }
+
+            if (submitAddItemsBtn) {
+                submitAddItemsBtn.onclick = async () => {
+                    if (!addItemsTargetTrx || addItemsCart.length === 0 || isSubmittingAddItems) return;
+
+                    isSubmittingAddItems = true;
+                    submitAddItemsBtn.disabled = true;
+                    if (submitAddItemsBtnText) submitAddItemsBtnText.textContent = 'Menyimpan...';
+                    showAddItemsError('');
+
+                    try {
+                        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                        const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '{{ csrf_token() }}';
+
+                        const payload = {
+                            items: addItemsCart.map(it => ({
+                                product_id: it.product_id,
+                                quantity: it.quantity,
+                                variant_option_ids: it.variant_option_ids || [],
+                            })),
+                        };
+
+                        if (addItemsMarkUnpaidCheckbox && addItemsMarkUnpaidCheckbox.checked) {
+                            payload.mark_unpaid = true;
+                        }
+
+                        const res = await fetch(`/transactions/${addItemsTargetTrx.id}/items`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
+                            },
+                            body: JSON.stringify(payload),
+                        });
+
+                        const json = await res.json();
+                        if (!res.ok || !json.success) {
+                            const firstErr = json.errors ? Object.values(json.errors).flat()[0] : null;
+                            throw new Error(firstErr || json.message || 'Gagal menyimpan tambahan pesanan.');
+                        }
+
+                        if (typeof showToast === 'function') {
+                            showToast('success', json.message || 'Tambahan pesanan berhasil disimpan.');
+                        }
+
+                        closeAddItemsModal();
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 300);
+                    } catch (err) {
+                        showAddItemsError(err.message || 'Terjadi kesalahan saat menyimpan tambahan pesanan.');
+                    } finally {
+                        isSubmittingAddItems = false;
+                        if (submitAddItemsBtnText) submitAddItemsBtnText.textContent = 'Simpan Tambahan Pesanan';
+                        renderAddItemsSummary();
+                    }
+                };
+            }
         }
 
         initTransactionsPage();

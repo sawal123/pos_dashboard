@@ -1,5 +1,6 @@
 @props([
     'canEdit' => false,
+    'canAddItems' => false,
 ])
 
 {{-- ==================== TRANSACTION DETAIL DRAWER ==================== --}}
@@ -178,7 +179,17 @@
         </div>
 
         {{-- Drawer Footer: Actions --}}
-        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex items-center gap-2 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+        <div class="p-4 border-t border-slate-200/80 dark:border-slate-800 flex flex-wrap items-center gap-2 bg-slate-50/50 dark:bg-slate-900/60 shrink-0">
+            @if($canAddItems)
+                <button
+                    type="button"
+                    id="drawerAddItemsBtn"
+                    class="hidden w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 min-h-[42px]"
+                >
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>+ Tambah Pesanan (Status Proses)</span>
+                </button>
+            @endif
             <button
                 type="button"
                 id="drawerPrintBtn"

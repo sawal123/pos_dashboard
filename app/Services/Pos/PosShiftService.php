@@ -150,20 +150,22 @@ class PosShiftService
     {
         $openingCash = (int) $shift->opening_cash;
 
-        $cashSales = (int) DB::table('sales')
+        $validSalesBase = DB::table('sales')
             ->where('business_id', $business->id)
             ->where('shift_id', $shift->id)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
-            ->where('payment_method', 'cash')
+            ->whereIn(DB::raw('LOWER(status)'), ['completed', 'paid', 'siap'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereIn(DB::raw('LOWER(payment_status)'), ['paid', 'lunas']);
+
+        $cashSales = (int) (clone $validSalesBase)
+            ->whereIn(DB::raw('LOWER(payment_method)'), ['cash', 'tunai'])
             ->sum('total_amount');
 
-        $nonCashSales = (int) DB::table('sales')
-            ->where('business_id', $business->id)
-            ->where('shift_id', $shift->id)
-            ->where('status', 'completed')
-            ->where('payment_status', 'paid')
-            ->where('payment_method', '!=', 'cash')
+        $nonCashSales = (int) (clone $validSalesBase)
+            ->whereNotIn(DB::raw('LOWER(payment_method)'), ['cash', 'tunai'])
             ->sum('total_amount');
 
         $totalSales = $cashSales + $nonCashSales;
@@ -176,11 +178,7 @@ class PosShiftService
 
         $expectedCashInDrawer = $openingCash + $cashSales - $cashExpenses;
 
-        $transactionsCount = (int) DB::table('sales')
-            ->where('business_id', $business->id)
-            ->where('shift_id', $shift->id)
-            ->where('status', 'completed')
-            ->count();
+        $transactionsCount = (int) (clone $validSalesBase)->count();
 
         return [
             'opening_cash' => $openingCash,

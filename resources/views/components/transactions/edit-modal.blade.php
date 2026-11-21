@@ -71,6 +71,7 @@
                             <option value="QRIS">QRIS</option>
                             <option value="Transfer">Transfer Bank</option>
                             <option value="Kartu">Kartu Debit / Kredit</option>
+                            <option value="Debit">Debit</option>
                         </select>
                     </div>
 

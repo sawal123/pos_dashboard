@@ -113,7 +113,7 @@ final class PasswordRecoveryService
 
         if ($record !== null && $record->created_at !== null) {
             $expiresAt = Carbon::parse($record->created_at)
-                ->addMinutes((int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 60));
+                ->addMinutes((int) config('auth.passwords.'.config('auth.defaults.passwords').'.expire', 30));
 
             if ($expiresAt->isPast()) {
                 return 'PASSWORD_RESET_EXPIRED';
@@ -129,6 +129,10 @@ final class PasswordRecoveryService
         $allowedMailers = (array) config('auth_otp.allowed_mailers', []);
 
         if (app()->environment('testing') && Notification::getFacadeRoot() instanceof NotificationFake) {
+            return;
+        }
+
+        if (app()->environment('local') && in_array($mailer, ['log', 'array'], true)) {
             return;
         }
 
