@@ -429,7 +429,10 @@
 
                         const qtySpan = document.createElement('span');
                         qtySpan.className = 'font-semibold text-slate-700 dark:text-slate-300';
-                        const qtyStr = String(item.quantity ?? '');
+                        const qtyNum = Number(item.quantity);
+                        const qtyStr = Number.isFinite(qtyNum)
+                            ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(qtyNum) < 1e-7 ? 0 : qtyNum)
+                            : String(item.quantity ?? '');
                         const unitLabel = item.unit ? ` ${item.unit}` : '';
                         qtySpan.textContent = `${qtyStr}${unitLabel}`;
 

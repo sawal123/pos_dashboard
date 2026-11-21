@@ -84,7 +84,7 @@
                                         <p class="font-mono text-[11px] text-slate-400 dark:text-slate-500">{{ $item['product_sku'] }}</p>
                                     </td>
                                     <td class="py-3 px-4 text-center tabular-nums text-slate-600 dark:text-slate-300">
-                                        {{ number_format((float) $item['system_stock'], 3, ',', '.') }} {{ $item['unit'] }}
+                                        {{ \App\Support\NumberFormat::quantity($item['system_stock']) }} {{ $item['unit'] }}
                                     </td>
                                     <td class="py-3 px-4 text-center">
                                         <input type="hidden" name="items[{{ $index }}][id]" value="{{ $item['id'] }}">
@@ -93,13 +93,13 @@
                                             step="0.001"
                                             min="0"
                                             name="items[{{ $index }}][counted_stock]"
-                                            value="{{ $item['counted_stock'] !== null ? (float) $item['counted_stock'] : '' }}"
+                                            value="{{ $item['counted_stock'] !== null ? \App\Support\NumberFormat::input($item['counted_stock']) : '' }}"
                                             @if(!$isDraft || !($canManageStock ?? false)) disabled @endif
                                             class="w-28 h-9 px-2 text-center rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
                                         >
                                     </td>
                                     <td class="py-3 px-4 text-center tabular-nums font-bold {{ $varianceClass }}">
-                                        {{ $variance > 0 ? '+' : '' }}{{ number_format($variance, 3, ',', '.') }}
+                                        {{ \App\Support\NumberFormat::signedQuantity($variance) }}
                                     </td>
                                 </tr>
                             @endforeach

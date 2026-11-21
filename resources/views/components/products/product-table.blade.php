@@ -186,7 +186,7 @@
                         <td class="py-3 px-4 text-center">
                             <div class="inline-flex flex-col items-center">
                                 <span class="font-extrabold tabular-nums {{ $stockStatusKey === 'negative' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
-                                    {{ $product['stock'] }} {{ $product['unit'] }}
+                                    {{ \App\Support\NumberFormat::quantity($product['stock']) }} {{ $product['unit'] }}
                                 </span>
                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] {{ $stockBadge['class'] }} mt-0.5">
                                     <span class="w-1.5 h-1.5 rounded-full {{ $stockBadge['dot'] }}"></span>

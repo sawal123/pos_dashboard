@@ -3,11 +3,7 @@
 ])
 
 @php
-    $formatQuantity = function (string $value): string {
-        $number = (float) $value;
-
-        return number_format($number, fmod($number, 1.0) === 0.0 ? 0 : 3, ',', '.');
-    };
+    $formatQuantity = fn (mixed $value): string => \App\Support\NumberFormat::quantity($value);
 @endphp
 
 <div class="hidden md:block rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">

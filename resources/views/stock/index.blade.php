@@ -170,10 +170,16 @@
                 if (!drawerWrapper || !itemData || !movementsUrl) return;
 
                 // Set product summary headers
+                function formatStockQty(val) {
+                    const num = Number(val);
+                    if (!Number.isFinite(num) || Math.abs(num) < 1e-7) return '0';
+                    return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(num);
+                }
+
                 document.getElementById('stockDrawerTitle').textContent = itemData.name || '-';
                 document.getElementById('stockDetailSku').textContent = itemData.sku || '-';
-                document.getElementById('stockDetailCurrent').textContent = `${itemData.current_stock} ${itemData.unit}`;
-                document.getElementById('stockDetailMin').textContent = `${itemData.min_stock} ${itemData.unit}`;
+                document.getElementById('stockDetailCurrent').textContent = `${formatStockQty(itemData.current_stock)} ${itemData.unit}`;
+                document.getElementById('stockDetailMin').textContent = `${formatStockQty(itemData.min_stock)} ${itemData.unit}`;
 
                 // Deterministic Status Badge (DOM Safe)
                 const badgeEl = document.getElementById('stockDetailBadge');
@@ -285,7 +291,9 @@
 
                         const qtySpan = document.createElement('span');
                         const qtyNum = Number(m.quantity_change);
-                        let qtyDisplay = String(m.quantity_change ?? '');
+                        let qtyDisplay = Number.isFinite(qtyNum)
+                            ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(qtyNum) < 1e-7 ? 0 : qtyNum)
+                            : String(m.quantity_change ?? '');
                         let qtyClass = 'text-slate-600 dark:text-slate-400';
 
                         if (qtyNum > 0) {
@@ -308,8 +316,12 @@
                         const balanceRow = document.createElement('div');
                         balanceRow.className = 'flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400';
 
+                        const fmtBal = (v) => {
+                            const n = Number(v);
+                            return Number.isFinite(n) ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(n) < 1e-7 ? 0 : n) : String(v ?? '0');
+                        };
                         const changeP = document.createElement('p');
-                        changeP.textContent = `${m.stock_before} → ${m.stock_after} ${itemData.unit}`;
+                        changeP.textContent = `${fmtBal(m.stock_before)} → ${fmtBal(m.stock_after)} ${itemData.unit}`;
 
                         const dateP = document.createElement('p');
                         dateP.className = 'font-mono text-[10px] text-slate-400';

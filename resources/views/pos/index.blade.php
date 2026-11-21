@@ -1450,15 +1450,18 @@
                     variantBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">Varian</span>`;
                 }
 
+                const formattedStock = Number.isFinite(Number(p.stock))
+                    ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(Number(p.stock)) < 1e-7 ? 0 : Number(p.stock))
+                    : p.stock;
                 let stockBadge = '';
                 if (p.kind === 'service') {
                     stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400">Jasa</span>`;
                 } else if (p.is_out_of_stock) {
                     stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400">Habis</span>`;
                 } else if (p.is_low_stock) {
-                    stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">Sisa ${p.stock}</span>`;
+                    stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">Sisa ${formattedStock}</span>`;
                 } else {
-                    stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">Stok ${p.stock}</span>`;
+                    stockBadge = `<span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500">Stok ${formattedStock}</span>`;
                 }
 
                 let imageHtml = '';

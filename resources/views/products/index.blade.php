@@ -490,7 +490,11 @@
                     let minQtyText = '-';
                     if (itemData.min_quantity !== null && itemData.min_quantity !== undefined && itemData.min_quantity !== '') {
                         const unitPart = itemData.unit ? ` ${itemData.unit}` : '';
-                        minQtyText = `${itemData.min_quantity}${unitPart}`;
+                        const mqNum = Number(itemData.min_quantity);
+                        const mqFmt = Number.isFinite(mqNum)
+                            ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(mqNum) < 1e-7 ? 0 : mqNum)
+                            : itemData.min_quantity;
+                        minQtyText = `${mqFmt}${unitPart}`;
                     }
                     document.getElementById('detailServiceMinQty').textContent = minQtyText;
                     document.getElementById('detailServiceDuration').textContent = itemData.estimated_duration || '-';
@@ -584,9 +588,13 @@
                     const stockNum = parseFloat(itemData.stock || 0);
                     const minStockNum = parseFloat(itemData.min_stock || 0);
                     const unit = itemData.unit || 'pcs';
+                    const fmtQty = (v) => {
+                        const n = Number(v);
+                        return Number.isFinite(n) ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(n) < 1e-7 ? 0 : n) : '0';
+                    };
 
-                    document.getElementById('detailItemStock').textContent = `${itemData.stock} ${unit}`;
-                    document.getElementById('detailItemMinStock').textContent = `${itemData.min_stock} ${unit}`;
+                    document.getElementById('detailItemStock').textContent = `${fmtQty(itemData.stock)} ${unit}`;
+                    document.getElementById('detailItemMinStock').textContent = `${fmtQty(itemData.min_stock)} ${unit}`;
                     document.getElementById('detailItemUnit').textContent = unit;
 
                     // Deterministic stock status badge
@@ -1405,7 +1413,7 @@
 
                     if (kind === 'service') {
                         setValue(form, 'pricing_unit', raw.pricing_unit || '');
-                        setValue(form, 'min_quantity', raw.min_quantity ?? '0');
+                        setValue(form, 'min_quantity', raw.min_quantity !== null && raw.min_quantity !== undefined ? (parseFloat(raw.min_quantity) || 0) : '0');
                         setValue(form, 'estimated_duration', raw.estimated_duration || '');
                         applyKind(form, kind, true);
                         applySupplyMode(false, false);
@@ -1415,9 +1423,9 @@
                         currentEditingProductId = raw.id || null;
                         currentHppCalculated = parseFloat(raw.hpp) || 0;
                         setValue(form, 'barcode', raw.barcode || '');
-                        setValue(form, 'cost', raw.cost ?? '0');
+                        setValue(form, 'cost', raw.cost !== null && raw.cost !== undefined ? (parseFloat(raw.cost) || 0) : '0');
                         setValue(form, 'stock', raw.stock !== null && raw.stock !== undefined ? (parseFloat(raw.stock) || 0) : '0');
-                        setValue(form, 'min_stock', raw.min_stock ?? '0');
+                        setValue(form, 'min_stock', raw.min_stock !== null && raw.min_stock !== undefined ? (parseFloat(raw.min_stock) || 0) : '0');
                         setValue(form, 'cost_source', raw.cost_source || 'manual');
                         setValue(form, 'hpp_method', raw.hpp_method || 'average');
                         setValue(form, 'hpp_overhead_fixed', raw.hpp_overhead_fixed ?? '0');

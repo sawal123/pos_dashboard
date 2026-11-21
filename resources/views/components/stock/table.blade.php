@@ -89,13 +89,13 @@
                         {{-- 4. Stok Saat Ini --}}
                         <td class="py-3 px-4 text-center">
                             <span class="text-sm font-extrabold tabular-nums {{ $isNegative ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
-                                {{ $item['current_stock'] }}
+                                {{ \App\Support\NumberFormat::quantity($item['current_stock']) }}
                             </span>
                         </td>
 
                         {{-- 5. Batas Minimum --}}
                         <td class="py-3 px-4 text-center tabular-nums text-slate-500 dark:text-slate-400">
-                            {{ $item['min_stock'] }}
+                            {{ \App\Support\NumberFormat::quantity($item['min_stock']) }}
                         </td>
 
                         {{-- 6. Satuan --}}

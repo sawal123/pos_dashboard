@@ -102,7 +102,7 @@
                             <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Stok Saat Ini</span>
                             <div class="flex items-center justify-end gap-1.5 mt-0.5">
                                 <span class="font-extrabold tabular-nums {{ $stockStatusKey === 'negative' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
-                                    {{ $product['stock'] }} {{ $product['unit'] }}
+                                    {{ \App\Support\NumberFormat::quantity($product['stock']) }} {{ $product['unit'] }}
                                 </span>
                                 <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] {{ $stockBadge['class'] }}">
                                     <span>{{ $stockBadge['label'] }}</span>

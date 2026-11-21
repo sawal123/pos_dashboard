@@ -74,7 +74,7 @@
                             </div>
                             <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
                                 <span>SKU: {{ $item['sku'] }}</span>
-                                <span class="tabular-nums">Stok: {{ number_format((float) $item['stock'], 3, ',', '.') }} {{ $item['unit'] }} / Min: {{ number_format((float) $item['min_stock'], 3, ',', '.') }} {{ $item['unit'] }}</span>
+                                <span class="tabular-nums">Stok: {{ \App\Support\NumberFormat::quantity($item['stock']) }} {{ $item['unit'] }} / Min: {{ \App\Support\NumberFormat::quantity($item['min_stock']) }} {{ $item['unit'] }}</span>
                             </div>
                         </div>
                     </div>

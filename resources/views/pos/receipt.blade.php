@@ -147,7 +147,7 @@
                 </div>
             @endif
             <div class="item-sub">
-                {{ $item->quantity }} {{ $item->unit }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}
+                {{ \App\Support\NumberFormat::quantity($item->quantity) }} {{ $item->unit }} x Rp {{ number_format($item->unit_price, 0, ',', '.') }}
             </div>
         @endforeach
     </div>

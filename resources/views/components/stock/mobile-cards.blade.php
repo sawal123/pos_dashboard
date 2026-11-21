@@ -63,13 +63,13 @@
                 <div>
                     <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Stok Saat Ini</span>
                     <span class="text-sm font-extrabold tabular-nums {{ $isNegative ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
-                        {{ $item['current_stock'] }} {{ $item['unit'] }}
+                        {{ \App\Support\NumberFormat::quantity($item['current_stock']) }} {{ $item['unit'] }}
                     </span>
                 </div>
                 <div class="text-right">
                     <span class="text-[11px] text-slate-400 dark:text-slate-500 block">Batas Minimum</span>
                     <span class="font-semibold text-slate-600 dark:text-slate-400 tabular-nums">
-                        {{ $item['min_stock'] }} {{ $item['unit'] }}
+                        {{ \App\Support\NumberFormat::quantity($item['min_stock']) }} {{ $item['unit'] }}
                     </span>
                 </div>
             </div>
