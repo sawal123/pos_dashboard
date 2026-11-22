@@ -61,6 +61,12 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+/* Prevent parent space-y-* utilities from pushing fixed inset-0 modal/drawer overlays down from top: 0 */
+.fixed.inset-0 {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */

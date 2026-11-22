@@ -1,4 +1,4 @@
-<x-layouts::pos :business="$business" :outlets="$outlets" :active-outlet="$activeOutlet" :current-shift="$currentShift">
+<x-layouts::pos :business="$business" :outlets="$outlets" :active-outlet="$activeOutlet" :current-shift="$currentShift" :active-queue-count="$activeQueueCount ?? 0">
     {{-- Main POS Work Area --}}
     <div class="flex-1 flex flex-col lg:flex-row h-[calc(100vh-3.5rem)] md:h-[calc(100vh-4rem)] overflow-hidden">
 
@@ -363,19 +363,88 @@
                             </button>
                         </div>
 
-                        {{-- Member Dropdown (Toggled if kasir wants to pick registered member) --}}
-                        <div id="memberSelectContainer" class="hidden">
-                            <select
-                                id="cartCustomerSelect"
-                                class="w-full text-xs bg-indigo-50/70 dark:bg-slate-800/90 border border-indigo-200 dark:border-indigo-800/70 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                            >
+                        {{-- Searchable Member Dropdown (Toggled if kasir wants to pick registered member) --}}
+                        <div id="memberSelectContainer" class="hidden relative">
+                            {{-- Hidden native select preserved for full backward compatibility --}}
+                            <select id="cartCustomerSelect" class="hidden" aria-hidden="true" tabindex="-1">
                                 <option value="">-- Batal Pilih Member (Gunakan Nama Bebas) --</option>
                                 @foreach($customers as $c)
-                                    <option value="{{ $c['id'] }}" data-name="{{ $c['name'] }}">
-                                        👤 {{ $c['name'] }} {{ $c['phone'] ? '('.$c['phone'].')' : '' }}
+                                    <option value="{{ $c['id'] }}" data-name="{{ $c['name'] }}" data-phone="{{ $c['phone'] ?? '' }}">
+                                        {{ $c['name'] }} {{ $c['phone'] ? '('.$c['phone'].')' : '' }}
                                     </option>
                                 @endforeach
                             </select>
+
+                            {{-- Custom Searchable Dropdown Box --}}
+                            <div class="rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-white dark:bg-slate-900 shadow-lg overflow-hidden">
+                                {{-- Search Input inside Dropdown --}}
+                                <div class="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/60">
+                                    <div class="relative">
+                                        <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                                        <input
+                                            type="text"
+                                            id="memberSearchInput"
+                                            placeholder="Cari nama member atau no. HP..."
+                                            autocomplete="off"
+                                            class="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        >
+                                        <button
+                                            type="button"
+                                            id="memberSearchClearBtn"
+                                            class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                                            aria-label="Bersihkan pencarian member"
+                                        >
+                                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {{-- Clear / Use Freeform Name Option --}}
+                                <button
+                                    type="button"
+                                    id="clearSelectedMemberBtn"
+                                    class="w-full text-left px-3 py-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/80 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 transition-colors cursor-pointer"
+                                >
+                                    <i data-lucide="user-x" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
+                                    <span>-- Batal Pilih Member (Gunakan Nama Bebas) --</span>
+                                </button>
+
+                                {{-- Scrollable Member Options --}}
+                                <div id="memberOptionsList" class="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/70">
+                                    @forelse($customers as $c)
+                                        <button
+                                            type="button"
+                                            class="member-option-item w-full text-left px-3 py-2 text-xs hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors flex items-center justify-between gap-2 cursor-pointer"
+                                            data-id="{{ $c['id'] }}"
+                                            data-name="{{ $c['name'] }}"
+                                            data-phone="{{ $c['phone'] ?? '' }}"
+                                            data-search="{{ strtolower(trim($c['name'].' '.($c['phone'] ?? ''))) }}"
+                                        >
+                                            <span class="flex items-center gap-2 min-w-0">
+                                                <span class="w-6 h-6 rounded-full bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                                                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                                                </span>
+                                                <span class="min-w-0 truncate">
+                                                    <span class="font-semibold text-slate-800 dark:text-slate-100 block truncate">{{ $c['name'] }}</span>
+                                                    @if(!empty($c['phone']))
+                                                        <span class="text-[10px] text-slate-400 dark:text-slate-500 font-mono block truncate">{{ $c['phone'] }}</span>
+                                                    @endif
+                                                </span>
+                                            </span>
+                                            <i data-lucide="check" class="member-check-icon hidden w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0"></i>
+                                        </button>
+                                    @empty
+                                        <div class="px-3 py-4 text-center text-[11px] text-slate-400 dark:text-slate-500">
+                                            Belum ada member terdaftar.
+                                        </div>
+                                    @endforelse
+                                </div>
+
+                                {{-- No Search Results State --}}
+                                <div id="memberEmptySearchState" class="hidden px-3 py-4 text-center text-[11px] text-slate-400 dark:text-slate-500">
+                                    Member tidak ditemukan.
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -590,49 +659,48 @@
                     </div>
                 </div>
 
-                {{-- Payment Method Selector --}}
+                {{-- Payment Method Selector (Dynamic per Active Outlet) --}}
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-700 dark:text-slate-300">Metode Pembayaran</label>
-                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    @php
+                        $posPaymentMethods = !empty($paymentMethods) ? $paymentMethods : [
+                            ['code' => 'cash', 'name' => 'Tunai', 'category' => 'cash', 'is_cash' => true],
+                            ['code' => 'qris', 'name' => 'QRIS', 'category' => 'qris', 'is_cash' => false],
+                            ['code' => 'transfer', 'name' => 'Transfer', 'category' => 'transfer', 'is_cash' => false],
+                            ['code' => 'debit', 'name' => 'Debit', 'category' => 'card', 'is_cash' => false],
+                        ];
+                    @endphp
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-h-44 overflow-y-auto pr-0.5">
+                        @foreach($posPaymentMethods as $pmIdx => $pm)
+                            @php
+                                $pmIcon = match($pm['category'] ?? 'other') {
+                                    'cash' => 'banknote',
+                                    'qris' => 'qr-code',
+                                    'transfer' => 'landmark',
+                                    'card' => 'credit-card',
+                                    'online_food' => 'utensils',
+                                    default => 'wallet',
+                                };
+                            @endphp
+                            <button
+                                type="button"
+                                class="payment-method-btn p-2.5 rounded-xl border-2 {{ $pmIdx === 0 ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50' }} font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center"
+                                data-method="{{ $pm['code'] }}"
+                                data-is-cash="{{ !empty($pm['is_cash']) ? '1' : '0' }}"
+                                @if(!empty($pm['description'])) title="{{ $pm['description'] }}" @endif
+                            >
+                                <i data-lucide="{{ $pmIcon }}" class="w-5 h-5 shrink-0"></i>
+                                <span class="leading-tight line-clamp-2">{{ $pm['name'] }}</span>
+                            </button>
+                        @endforeach
                         <button
                             type="button"
-                            class="payment-method-btn p-2.5 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
-                            data-method="cash"
-                        >
-                            <i data-lucide="banknote" class="w-5 h-5"></i>
-                            <span>Tunai</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
-                            data-method="qris"
-                        >
-                            <i data-lucide="qr-code" class="w-5 h-5"></i>
-                            <span>QRIS</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
-                            data-method="transfer"
-                        >
-                            <i data-lucide="landmark" class="w-5 h-5"></i>
-                            <span>Transfer</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
-                            data-method="debit"
-                        >
-                            <i data-lucide="credit-card" class="w-5 h-5"></i>
-                            <span>Debit</span>
-                        </button>
-                        <button
-                            type="button"
-                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer"
+                            class="payment-method-btn p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-bold text-xs flex flex-col items-center gap-1.5 transition-all cursor-pointer text-center"
                             data-method="unpaid"
+                            data-is-cash="0"
                         >
-                            <i data-lucide="clock" class="w-5 h-5 text-amber-500"></i>
-                            <span class="text-amber-600 dark:text-amber-400">Bayar Nanti</span>
+                            <i data-lucide="clock" class="w-5 h-5 text-amber-500 shrink-0"></i>
+                            <span class="text-amber-600 dark:text-amber-400 leading-tight">Bayar Nanti</span>
                         </button>
                     </div>
                 </div>
@@ -2044,8 +2112,10 @@
 
         function selectPaymentMethod(method) {
             selectedPaymentMethod = method;
+            let isCashMethod = method === 'cash';
             document.querySelectorAll('.payment-method-btn').forEach(btn => {
                 if (btn.getAttribute('data-method') === method) {
+                    isCashMethod = btn.getAttribute('data-is-cash') === '1' || method === 'cash';
                     btn.classList.add('border-indigo-600', 'bg-indigo-50/50', 'dark:bg-indigo-950/40', 'text-indigo-600', 'dark:text-indigo-400');
                     btn.classList.remove('border-slate-200', 'dark:border-slate-700', 'bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-300');
                 } else {
@@ -2056,7 +2126,7 @@
 
             const cashSection = document.getElementById('cashInputSection');
             const submitBtn = document.getElementById('submitCheckoutBtn');
-            if (method === 'cash') {
+            if (isCashMethod) {
                 if (cashSection) cashSection.classList.remove('hidden');
                 if (submitBtn) submitBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i><span>Selesaikan Transaksi</span>`;
             } else if (method === 'unpaid') {
@@ -2361,6 +2431,7 @@
 
             document.getElementById('successModal').classList.remove('hidden');
             if (typeof window.initIcons === 'function') window.initIcons();
+            if (typeof window.refreshPosQueueBadge === 'function') window.refreshPosQueueBadge();
         }
 
         function closeSuccessModal() {
@@ -2624,39 +2695,151 @@
                 promoSelect.addEventListener('change', evaluateCartPromo);
             }
 
-            // Customer change & Member Select toggle
+            // Customer change & Searchable Member Dropdown toggle
             const toggleMemberSelectBtn = document.getElementById('toggleMemberSelectBtn');
             const memberSelectContainer = document.getElementById('memberSelectContainer');
             const customerSelect = document.getElementById('cartCustomerSelect');
             const customerNameInput = document.getElementById('cartCustomerNameInput');
             const customerIdInput = document.getElementById('cartCustomerIdInput');
+            const memberSearchInput = document.getElementById('memberSearchInput');
+            const memberSearchClearBtn = document.getElementById('memberSearchClearBtn');
+            const clearSelectedMemberBtn = document.getElementById('clearSelectedMemberBtn');
+            const memberEmptySearchState = document.getElementById('memberEmptySearchState');
+            const memberOptionItems = Array.from(document.querySelectorAll('.member-option-item'));
+
+            function syncMemberOptionActiveState(activeId) {
+                const target = activeId ? String(activeId) : '';
+                memberOptionItems.forEach((btn) => {
+                    const isSelected = target !== '' && btn.getAttribute('data-id') === target;
+                    btn.classList.toggle('bg-indigo-50/90', isSelected);
+                    btn.classList.toggle('dark:bg-indigo-950/60', isSelected);
+                    const checkIcon = btn.querySelector('.member-check-icon');
+                    if (checkIcon) checkIcon.classList.toggle('hidden', !isSelected);
+                });
+                if (toggleMemberSelectBtn) {
+                    toggleMemberSelectBtn.classList.toggle('border-indigo-400', target !== '');
+                    toggleMemberSelectBtn.classList.toggle('dark:border-indigo-600', target !== '');
+                    toggleMemberSelectBtn.classList.toggle('text-indigo-700', target !== '');
+                    toggleMemberSelectBtn.classList.toggle('dark:text-indigo-300', target !== '');
+                }
+            }
+
+            function filterMemberOptions(query) {
+                const q = String(query || '').trim().toLowerCase();
+                let visibleCount = 0;
+                memberOptionItems.forEach((btn) => {
+                    const hay = btn.getAttribute('data-search') || '';
+                    const matched = q === '' || hay.includes(q);
+                    btn.classList.toggle('hidden', !matched);
+                    if (matched) visibleCount += 1;
+                });
+                if (memberSearchClearBtn) {
+                    memberSearchClearBtn.classList.toggle('hidden', q === '');
+                }
+                if (memberEmptySearchState) {
+                    memberEmptySearchState.classList.toggle('hidden', memberOptionItems.length === 0 || visibleCount > 0);
+                }
+            }
+
+            function selectMemberByData(id, name) {
+                if (customerIdInput) customerIdInput.value = id ? String(id) : '';
+                if (customerSelect) customerSelect.value = id ? String(id) : '';
+                if (id && customerNameInput) {
+                    customerNameInput.value = name || '';
+                }
+                syncMemberOptionActiveState(id);
+                evaluateCartPromo();
+            }
+
+            function closeMemberDropdown() {
+                if (memberSelectContainer) memberSelectContainer.classList.add('hidden');
+            }
 
             if (toggleMemberSelectBtn && memberSelectContainer) {
-                toggleMemberSelectBtn.addEventListener('click', () => {
+                toggleMemberSelectBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const willOpen = memberSelectContainer.classList.contains('hidden');
                     memberSelectContainer.classList.toggle('hidden');
+                    if (willOpen) {
+                        syncMemberOptionActiveState(customerIdInput?.value || customerSelect?.value || '');
+                        if (memberSearchInput) {
+                            memberSearchInput.value = '';
+                            filterMemberOptions('');
+                            setTimeout(() => memberSearchInput.focus(), 30);
+                        }
+                    }
                 });
             }
+
+            if (memberSearchInput) {
+                memberSearchInput.addEventListener('input', (e) => {
+                    filterMemberOptions(e.target.value);
+                });
+                memberSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        closeMemberDropdown();
+                    } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const firstVisible = memberOptionItems.find((btn) => !btn.classList.contains('hidden'));
+                        if (firstVisible) {
+                            selectMemberByData(firstVisible.getAttribute('data-id'), firstVisible.getAttribute('data-name'));
+                            closeMemberDropdown();
+                        }
+                    }
+                });
+            }
+
+            if (memberSearchClearBtn && memberSearchInput) {
+                memberSearchClearBtn.addEventListener('click', () => {
+                    memberSearchInput.value = '';
+                    filterMemberOptions('');
+                    memberSearchInput.focus();
+                });
+            }
+
+            if (clearSelectedMemberBtn) {
+                clearSelectedMemberBtn.addEventListener('click', () => {
+                    selectMemberByData('', '');
+                    closeMemberDropdown();
+                    if (customerNameInput) customerNameInput.focus();
+                });
+            }
+
+            memberOptionItems.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    selectMemberByData(btn.getAttribute('data-id'), btn.getAttribute('data-name'));
+                    closeMemberDropdown();
+                });
+            });
+
+            document.addEventListener('click', (e) => {
+                if (
+                    memberSelectContainer
+                    && !memberSelectContainer.classList.contains('hidden')
+                    && !memberSelectContainer.contains(e.target)
+                    && toggleMemberSelectBtn
+                    && !toggleMemberSelectBtn.contains(e.target)
+                ) {
+                    closeMemberDropdown();
+                }
+            });
 
             if (customerSelect) {
                 customerSelect.addEventListener('change', () => {
                     if (customerSelect.value) {
                         const selectedOpt = customerSelect.options[customerSelect.selectedIndex];
                         const name = selectedOpt.getAttribute('data-name') || selectedOpt.textContent.trim().replace(/^👤\s*/, '');
-                        if (customerNameInput) customerNameInput.value = name;
-                        if (customerIdInput) customerIdInput.value = customerSelect.value;
+                        selectMemberByData(customerSelect.value, name);
                     } else {
-                        if (customerIdInput) customerIdInput.value = '';
+                        selectMemberByData('', '');
                     }
-                    evaluateCartPromo();
                 });
             }
 
             if (customerNameInput) {
                 customerNameInput.addEventListener('input', () => {
                     if (customerIdInput && customerIdInput.value) {
-                        customerIdInput.value = '';
-                        if (customerSelect) customerSelect.value = '';
-                        evaluateCartPromo();
+                        selectMemberByData('', '');
                     }
                 });
             }
@@ -2798,6 +2981,9 @@
                         closeSuccessModal();
                         closeOpenShiftModal();
                         closeCloseShiftModal();
+                        if (typeof window.closePosQueueModal === 'function') {
+                            window.closePosQueueModal();
+                        }
                         if (typeof closeOutletChooserModal === 'function') {
                             closeOutletChooserModal();
                         }
@@ -2869,6 +3055,464 @@
         }
         document.addEventListener('livewire:navigated', initPosPage);
     </script>
+    {{-- ==================== ACTIVE ORDERS QUEUE MODAL (ANTRIAN) ==================== --}}
+    <div
+        id="posQueueModal"
+        class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 dark:bg-slate-950/75 backdrop-blur-xs"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="posQueueModalTitle"
+    >
+        <div class="w-full max-w-3xl max-h-[88vh] bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col overflow-hidden">
+            {{-- Modal Header --}}
+            <div class="px-5 py-4 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 bg-slate-50/60 dark:bg-slate-900">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/70 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="list-ordered" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <h2 id="posQueueModalTitle" class="text-base font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
+                            Antrian Pesanan Aktif
+                        </h2>
+                        <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                            {{ $activeOutlet->name ?? 'Outlet Aktif' }} &bull; Pesanan berstatus Proses atau Belum Lunas
+                        </p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <button
+                        type="button"
+                        id="refreshPosQueueBtn"
+                        onclick="window.loadPosQueue && window.loadPosQueue()"
+                        class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                        title="Muat Ulang Antrian"
+                        aria-label="Muat Ulang Antrian"
+                    >
+                        <i data-lucide="refresh-cw" id="refreshPosQueueIcon" class="w-4 h-4"></i>
+                    </button>
+                    <button
+                        type="button"
+                        onclick="window.closePosQueueModal && window.closePosQueueModal()"
+                        class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors cursor-pointer"
+                        aria-label="Tutup Modal Antrian"
+                    >
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            {{-- Filter Tabs & Search Bar --}}
+            <div class="px-5 py-3 border-b border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shrink-0 bg-white dark:bg-slate-900">
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                    <button
+                        type="button"
+                        data-queue-tab="all"
+                        class="pos-queue-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-indigo-600 text-white"
+                    >
+                        Semua (<span id="posQueueTabCountAll">0</span>)
+                    </button>
+                    <button
+                        type="button"
+                        data-queue-tab="proses"
+                        class="pos-queue-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                        Proses (<span id="posQueueTabCountProses">0</span>)
+                    </button>
+                    <button
+                        type="button"
+                        data-queue-tab="unpaid"
+                        class="pos-queue-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+                    >
+                        Belum Lunas (<span id="posQueueTabCountUnpaid">0</span>)
+                    </button>
+                </div>
+
+                <div class="relative sm:w-56">
+                    <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                    <input
+                        type="text"
+                        id="posQueueSearchInput"
+                        placeholder="Cari invoice, nama, meja..."
+                        autocomplete="off"
+                        class="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                </div>
+            </div>
+
+            {{-- Scrollable Queue List --}}
+            <div id="posQueueListContainer" class="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 bg-slate-50/50 dark:bg-slate-950/30">
+                <div class="py-12 text-center text-xs text-slate-400">Memuat antrian pesanan...</div>
+            </div>
+
+            {{-- Footer --}}
+            <div class="px-5 py-3 border-t border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between gap-2 shrink-0 text-xs">
+                <a
+                    href="{{ route('transactions.index') }}"
+                    class="font-semibold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                >
+                    Buka Halaman Transaksi Lengkap <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                </a>
+                <button
+                    type="button"
+                    onclick="window.closePosQueueModal && window.closePosQueueModal()"
+                    class="px-4 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-semibold transition-colors cursor-pointer"
+                >
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    @php
+        $queuePaymentMethods = collect($paymentMethods ?? [])
+            ->map(fn ($pm) => [
+                'code' => data_get($pm, 'code'),
+                'name' => data_get($pm, 'name'),
+            ])
+            ->values();
+    @endphp
+    <script>
+        (function() {
+            const QUEUE_URL = @json(route('pos.queue'));
+            const QUEUE_PAYMENT_METHODS = @json($queuePaymentMethods);
+            let queueOrders = [];
+            let activeQueueTab = 'all';
+            let queueSearchTerm = '';
+
+            function formatRupiahQueue(num) {
+                return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Number(num || 0));
+            }
+
+            function formatQtyQueue(qty) {
+                const n = Number(qty);
+                if (!Number.isFinite(n)) return String(qty ?? '');
+                return new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(n) < 1e-7 ? 0 : n);
+            }
+
+            function escapeHtmlQueue(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function updateQueueBadge(count) {
+                const badge = document.getElementById('posQueueCountBadge');
+                if (!badge) return;
+                const val = Number(count || 0);
+                badge.textContent = val;
+                badge.classList.toggle('hidden', val <= 0);
+            }
+
+            function renderQueueTabs() {
+                document.querySelectorAll('.pos-queue-tab-btn').forEach(btn => {
+                    const tab = btn.getAttribute('data-queue-tab');
+                    if (tab === activeQueueTab) {
+                        btn.className = 'pos-queue-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-indigo-600 text-white';
+                    } else {
+                        btn.className = 'pos-queue-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700';
+                    }
+                });
+            }
+
+            function renderQueueList() {
+                const container = document.getElementById('posQueueListContainer');
+                if (!container) return;
+
+                const q = queueSearchTerm.trim().toLowerCase();
+                const filtered = queueOrders.filter(order => {
+                    if (activeQueueTab === 'proses' && !order.is_proses) return false;
+                    if (activeQueueTab === 'unpaid' && !order.is_unpaid) return false;
+                    if (q !== '') {
+                        const hay = `${order.transaction_number} ${order.customer_name} ${order.table_number || ''} ${order.note || ''}`.toLowerCase();
+                        if (!hay.includes(q)) return false;
+                    }
+                    return true;
+                });
+
+                if (filtered.length === 0) {
+                    container.innerHTML = `
+                        <div class="py-12 text-center flex flex-col items-center justify-center">
+                            <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mb-3 border border-slate-200/70 dark:border-slate-700">
+                                <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                            </div>
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">Tidak Ada Antrian Aktif</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Semua pesanan pada kategori ini sudah selesai dan lunas.</p>
+                        </div>
+                    `;
+                    if (typeof window.initIcons === 'function') window.initIcons();
+                    return;
+                }
+
+                const methodOptionsHtml = (QUEUE_PAYMENT_METHODS.length > 0
+                    ? QUEUE_PAYMENT_METHODS
+                    : [{ name: 'Tunai' }, { name: 'QRIS' }, { name: 'Transfer' }, { name: 'Kartu' }]
+                ).map(m => `<option value="${escapeHtmlQueue(m.name)}">${escapeHtmlQueue(m.name)}</option>`).join('');
+
+                container.innerHTML = filtered.map((order, idx) => {
+                    const itemsHtml = (order.items || []).map(it => `
+                        <div class="flex items-start justify-between gap-2 text-xs py-1">
+                            <div class="min-w-0">
+                                <span class="font-bold text-slate-700 dark:text-slate-200">${formatQtyQueue(it.quantity)}${it.unit ? ' ' + escapeHtmlQueue(it.unit) : ''} &times;</span>
+                                <span class="text-slate-800 dark:text-slate-100 font-medium">${escapeHtmlQueue(it.product_name)}</span>
+                                ${it.variant_summary ? `<span class="text-[11px] text-indigo-600 dark:text-indigo-400 ml-1">(${escapeHtmlQueue(it.variant_summary)})</span>` : ''}
+                            </div>
+                            <span class="font-semibold text-slate-700 dark:text-slate-300 tabular-nums shrink-0">${formatRupiahQueue(it.line_total)}</span>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4 shadow-2xs space-y-3" data-queue-sale-id="${order.id}">
+                            <div class="flex flex-wrap items-start justify-between gap-2 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-xs font-extrabold text-slate-900 dark:text-white">${escapeHtmlQueue(order.transaction_number)}</span>
+                                        <span class="text-[11px] text-slate-400 font-mono">${escapeHtmlQueue(order.sold_at_time)}</span>
+                                        ${order.table_number ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold border border-indigo-200/70 dark:border-indigo-800/60">Meja ${escapeHtmlQueue(order.table_number)}</span>` : ''}
+                                    </div>
+                                    <p class="text-xs font-semibold text-slate-600 dark:text-slate-300 mt-1">${escapeHtmlQueue(order.customer_name)}</p>
+                                </div>
+                                <div class="flex items-center gap-1.5 shrink-0">
+                                    ${order.is_unpaid
+                                        ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60">Belum Lunas</span>`
+                                        : `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">Lunas</span>`
+                                    }
+                                    ${order.is_proses
+                                        ? `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/60">Proses</span>`
+                                        : `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">Siap</span>`
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="divide-y divide-slate-100/80 dark:divide-slate-800/60">
+                                ${itemsHtml}
+                            </div>
+
+                            ${order.note ? `<p class="text-[11px] italic text-amber-700 dark:text-amber-400 bg-amber-50/70 dark:bg-amber-950/30 px-2.5 py-1.5 rounded-lg border border-amber-200/60 dark:border-amber-800/50">Catatan: "${escapeHtmlQueue(order.note)}"</p>` : ''}
+
+                            <div class="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <span class="text-[11px] text-slate-400 block">Total (${escapeHtmlQueue(order.payment_method || '-')})</span>
+                                    <span class="text-sm font-extrabold text-slate-900 dark:text-white tabular-nums">${formatRupiahQueue(order.total_amount)}</span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    ${order.is_proses ? `
+                                        <button
+                                            type="button"
+                                            onclick="window.posQueueMarkReady(${order.id}, this)"
+                                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                                        >
+                                            <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                                            <span>Tandai Siap</span>
+                                        </button>
+                                    ` : ''}
+                                    ${order.is_unpaid ? `
+                                        <button
+                                            type="button"
+                                            onclick="window.togglePosQueuePayBox(${order.id})"
+                                            class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                                        >
+                                            <i data-lucide="wallet" class="w-3.5 h-3.5"></i>
+                                            <span>Lunasi</span>
+                                        </button>
+                                    ` : ''}
+                                    <a
+                                        href="${escapeHtmlQueue(order.receipt_url)}"
+                                        target="_blank"
+                                        rel="noopener"
+                                        class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                                        title="Cetak Struk"
+                                    >
+                                        <i data-lucide="printer" class="w-4 h-4"></i>
+                                    </a>
+                                    <a
+                                        href="${escapeHtmlQueue(order.transaction_url)}"
+                                        class="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+                                        title="Buka di Halaman Transaksi"
+                                    >
+                                        <i data-lucide="external-link" class="w-4 h-4"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            ${order.is_unpaid ? `
+                                <div id="posQueuePayBox-${order.id}" class="hidden p-3 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/60 flex flex-wrap items-center gap-2">
+                                    <select id="posQueuePayMethod-${order.id}" class="flex-1 min-w-[140px] px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-100">
+                                        ${methodOptionsHtml}
+                                    </select>
+                                    <button
+                                        type="button"
+                                        onclick="window.posQueueConfirmPaid(${order.id}, this)"
+                                        class="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer"
+                                    >
+                                        Konfirmasi Lunas
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+
+                if (typeof window.initIcons === 'function') window.initIcons();
+            }
+
+            async function loadPosQueue(silent = false) {
+                const icon = document.getElementById('refreshPosQueueIcon');
+                if (icon && !silent) icon.classList.add('animate-spin');
+
+                try {
+                    const res = await fetch(QUEUE_URL, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        cache: 'no-store',
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Gagal memuat antrian.');
+                    }
+
+                    queueOrders = data.orders || [];
+                    const counts = data.counts || { all: 0, proses: 0, unpaid: 0 };
+                    updateQueueBadge(counts.all);
+
+                    const elAll = document.getElementById('posQueueTabCountAll');
+                    const elProses = document.getElementById('posQueueTabCountProses');
+                    const elUnpaid = document.getElementById('posQueueTabCountUnpaid');
+                    if (elAll) elAll.textContent = counts.all;
+                    if (elProses) elProses.textContent = counts.proses;
+                    if (elUnpaid) elUnpaid.textContent = counts.unpaid;
+
+                    if (!silent) {
+                        renderQueueTabs();
+                        renderQueueList();
+                    }
+                } catch (err) {
+                    if (!silent && typeof window.showToast === 'function') {
+                        window.showToast('error', err.message || 'Gagal memuat antrian pesanan.');
+                    }
+                } finally {
+                    if (icon) icon.classList.remove('animate-spin');
+                }
+            }
+
+            window.loadPosQueue = () => loadPosQueue(false);
+            window.refreshPosQueueBadge = () => loadPosQueue(true);
+
+            window.openPosQueueModal = function() {
+                const modal = document.getElementById('posQueueModal');
+                if (!modal) return;
+                modal.classList.remove('hidden');
+                if (typeof window.initIcons === 'function') window.initIcons();
+                loadPosQueue(false);
+            };
+
+            window.closePosQueueModal = function() {
+                const modal = document.getElementById('posQueueModal');
+                if (modal) modal.classList.add('hidden');
+            };
+
+            window.togglePosQueuePayBox = function(saleId) {
+                const box = document.getElementById(`posQueuePayBox-${saleId}`);
+                if (box) box.classList.toggle('hidden');
+            };
+
+            window.posQueueMarkReady = async function(saleId, btn) {
+                if (btn) btn.disabled = true;
+                try {
+                    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const res = await fetch(`/pos/queue/${saleId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({ action: 'mark_ready' }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal memperbarui status.');
+                    if (typeof window.showToast === 'function') window.showToast('success', data.message || 'Pesanan ditandai Siap.');
+                    await loadPosQueue(false);
+                } catch (err) {
+                    if (typeof window.showToast === 'function') window.showToast('error', err.message || 'Terjadi kesalahan.');
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            };
+
+            window.posQueueConfirmPaid = async function(saleId, btn) {
+                if (btn) btn.disabled = true;
+                const methodSel = document.getElementById(`posQueuePayMethod-${saleId}`);
+                const paymentMethod = methodSel ? methodSel.value : 'Tunai';
+                try {
+                    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const res = await fetch(`/pos/queue/${saleId}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf,
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            action: 'mark_paid',
+                            payment_method: paymentMethod,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) throw new Error(data.message || 'Gagal melunasi pesanan.');
+                    if (typeof window.showToast === 'function') window.showToast('success', data.message || 'Pesanan berhasil dilunasi.');
+                    await loadPosQueue(false);
+                } catch (err) {
+                    if (typeof window.showToast === 'function') window.showToast('error', err.message || 'Terjadi kesalahan.');
+                } finally {
+                    if (btn) btn.disabled = false;
+                }
+            };
+
+            function bindPosQueueEvents() {
+                const modal = document.getElementById('posQueueModal');
+                if (modal && modal.dataset.backdropBound !== 'true') {
+                    modal.dataset.backdropBound = 'true';
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) window.closePosQueueModal();
+                    });
+                }
+
+                document.querySelectorAll('.pos-queue-tab-btn').forEach(btn => {
+                    if (btn.dataset.tabBound === 'true') return;
+                    btn.dataset.tabBound = 'true';
+                    btn.addEventListener('click', () => {
+                        activeQueueTab = btn.getAttribute('data-queue-tab') || 'all';
+                        renderQueueTabs();
+                        renderQueueList();
+                    });
+                });
+
+                const searchInput = document.getElementById('posQueueSearchInput');
+                if (searchInput && searchInput.dataset.searchBound !== 'true') {
+                    searchInput.dataset.searchBound = 'true';
+                    searchInput.addEventListener('input', () => {
+                        queueSearchTerm = searchInput.value || '';
+                        renderQueueList();
+                    });
+                }
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', bindPosQueueEvents);
+            } else {
+                bindPosQueueEvents();
+            }
+            document.addEventListener('livewire:navigated', bindPosQueueEvents);
+        })();
+    </script>
+
     {{-- Reusable Camera Scanner Modal --}}
     <x-ui.camera-scanner-modal />
 </x-layouts::pos>

@@ -260,6 +260,16 @@ class Business extends Model
     }
 
     /**
+     * Master payment methods configured for this business.
+     *
+     * @return HasMany<PaymentMethod, $this>
+     */
+    public function paymentMethods(): HasMany
+    {
+        return $this->hasMany(PaymentMethod::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
      * The primary outlet (covered by the business-level subscription).
      *
      * @return HasOne<Outlet, $this>

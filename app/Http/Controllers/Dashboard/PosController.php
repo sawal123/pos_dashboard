@@ -81,6 +81,11 @@ class PosController extends Controller
 
         $data['needsOutletSelection'] = $needsOutletSelection;
 
+        $activeOutletId = isset($data['activeOutlet']) && $data['activeOutlet'] instanceof Outlet
+            ? (int) $data['activeOutlet']->id
+            : null;
+        $data['activeQueueCount'] = $this->activeQueueQuery($business->id, $activeOutletId)->count();
+
         return view('pos.index', $data);
     }
 
@@ -316,7 +321,7 @@ class PosController extends Controller
             ],
             'customer_name' => ['nullable', 'string', 'max:100'],
             'table_number' => ['nullable', 'string', 'max:50'],
-            'payment_method' => ['required', 'string', Rule::in(['cash', 'qris', 'transfer', 'debit', 'later', 'tempo', 'unpaid'])],
+            'payment_method' => ['required', 'string', 'max:50'],
             'pay_later' => ['nullable', 'boolean'],
             'cash_received' => ['nullable', 'integer', 'min:0'],
             'promo_id' => [
@@ -378,6 +383,183 @@ class PosController extends Controller
                 ]),
             ],
         ]);
+    }
+
+    /**
+     * Active orders queue (orders still Proses or Belum Lunas) for the current POS outlet.
+     */
+    public function queue(Request $request): JsonResponse
+    {
+        $business = $this->activeBusiness($request);
+        $role = $request->attributes->get('dashboard_business_role');
+        $cashierOutletId = $request->attributes->get('dashboard_cashier_outlet_id');
+
+        $outletId = ($role === Business::ROLE_CASHIER && $cashierOutletId !== null)
+            ? (int) $cashierOutletId
+            : (session('pos.active_outlet_id') ? (int) session('pos.active_outlet_id') : null);
+
+        $sales = $this->activeQueueQuery($business->id, $outletId)
+            ->with(['customer', 'outlet', 'items'])
+            ->orderByDesc('sold_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $prosesCount = 0;
+        $unpaidCount = 0;
+
+        $orders = $sales->map(function (Sale $sale) use ($tz, &$prosesCount, &$unpaidCount) {
+            $customerName = 'Pelanggan Umum';
+            if (is_array($sale->customer_snapshot) && ! empty($sale->customer_snapshot['name'])) {
+                $customerName = (string) $sale->customer_snapshot['name'];
+            } elseif ($sale->customer?->name !== null && trim($sale->customer->name) !== '') {
+                $customerName = $sale->customer->name;
+            }
+
+            $soldAtCarbon = Carbon::parse($sale->sold_at)->setTimezone($tz);
+            $statusLower = strtolower(trim((string) ($sale->status ?? '')));
+            $orderStatusLower = strtolower(trim((string) ($sale->order_status ?? '')));
+            $paymentStatusLower = strtolower(trim((string) ($sale->payment_status ?? '')));
+
+            $isProses = in_array($orderStatusLower, ['proses', 'diproses', 'masuk', 'processing'], true)
+                || in_array($statusLower, ['processing', 'proses'], true);
+            $isUnpaid = in_array($paymentStatusLower, ['unpaid', 'belum lunas'], true);
+
+            if ($isProses) {
+                $prosesCount++;
+            }
+            if ($isUnpaid) {
+                $unpaidCount++;
+            }
+
+            return [
+                'id' => $sale->id,
+                'transaction_number' => $sale->transaction_number,
+                'sold_at' => $soldAtCarbon->format('d M Y, H:i'),
+                'sold_at_time' => $soldAtCarbon->format('H:i').' WIB',
+                'customer_name' => $customerName,
+                'table_number' => $sale->table_number,
+                'outlet_name' => $sale->outlet?->name ?? '-',
+                'payment_method' => $sale->payment_method,
+                'payment_status' => $isUnpaid ? 'Belum Lunas' : ($paymentStatusLower === 'refund' ? 'Refund' : 'Lunas'),
+                'payment_status_raw' => $sale->payment_status,
+                'order_status' => $isProses ? 'Proses' : 'Siap',
+                'is_proses' => $isProses,
+                'is_unpaid' => $isUnpaid,
+                'total_amount' => (int) $sale->total_amount,
+                'note' => $sale->note,
+                'receipt_url' => route('pos.receipt', ['saleId' => $sale->id]),
+                'transaction_url' => route('transactions.index', ['q' => $sale->transaction_number]),
+                'items' => $sale->items->map(fn ($item) => [
+                    'product_name' => $item->product_name,
+                    'variant_summary' => $item->variant_summary,
+                    'quantity' => (float) $item->quantity,
+                    'unit' => $item->unit,
+                    'line_total' => (int) $item->line_total,
+                ])->values()->toArray(),
+            ];
+        })->values()->toArray();
+
+        return response()->json([
+            'success' => true,
+            'counts' => [
+                'all' => count($orders),
+                'proses' => $prosesCount,
+                'unpaid' => $unpaidCount,
+            ],
+            'orders' => $orders,
+        ]);
+    }
+
+    /**
+     * Quick status/payment action for an order directly from the POS Queue modal.
+     */
+    public function updateQueueOrder(Request $request, int $saleId): JsonResponse
+    {
+        $business = $this->activeBusiness($request);
+
+        $sale = Sale::query()
+            ->where('business_id', $business->id)
+            ->where('id', $saleId)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'action' => ['required', 'string', Rule::in(['mark_ready', 'mark_paid'])],
+            'payment_method' => ['nullable', 'string', 'max:50'],
+            'cash_received' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        if ($validated['action'] === 'mark_ready') {
+            $sale->update([
+                'status' => 'completed',
+                'order_status' => 'Siap',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Pesanan '.$sale->transaction_number.' ditandai Siap.',
+            ]);
+        }
+
+        // mark_paid
+        $rawMethod = trim((string) ($validated['payment_method'] ?? 'Tunai'));
+        $canonicalMethod = match (strtolower($rawMethod)) {
+            'cash', 'tunai' => 'Tunai',
+            'qris' => 'QRIS',
+            'transfer' => 'Transfer',
+            'card', 'kartu' => 'Kartu',
+            'debit' => 'Debit',
+            default => $rawMethod !== '' ? ucwords($rawMethod) : 'Tunai',
+        };
+
+        $cashReceived = null;
+        $changeAmount = null;
+        if (strtolower($canonicalMethod) === 'tunai') {
+            $cashReceived = isset($validated['cash_received']) && $validated['cash_received'] !== ''
+                ? (int) round((float) $validated['cash_received'])
+                : (int) $sale->total_amount;
+            $changeAmount = max(0, $cashReceived - (int) $sale->total_amount);
+        }
+
+        $sale->update([
+            'payment_method' => $canonicalMethod,
+            'payment_status' => 'paid',
+            'paid_at' => $sale->paid_at ?? now(),
+            'cash_received' => $cashReceived,
+            'change_amount' => $changeAmount,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Pembayaran '.$sale->transaction_number.' berhasil dilunasi ('.$canonicalMethod.').',
+        ]);
+    }
+
+    /**
+     * Base query for active orders queue (not cancelled/batal, and either Proses or Belum Lunas).
+     */
+    private function activeQueueQuery(int $businessId, ?int $outletId = null)
+    {
+        $query = Sale::query()
+            ->where('business_id', $businessId)
+            ->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereNotIn(\Illuminate\Support\Facades\DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded'])
+            ->where(function ($q) {
+                $q->whereIn(\Illuminate\Support\Facades\DB::raw('LOWER(COALESCE(order_status, ""))'), ['proses', 'diproses', 'masuk', 'processing'])
+                    ->orWhereIn(\Illuminate\Support\Facades\DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+                    ->orWhereIn(\Illuminate\Support\Facades\DB::raw('LOWER(COALESCE(payment_status, ""))'), ['unpaid', 'belum lunas']);
+            });
+
+        if ($outletId !== null) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        return $query;
     }
 
     /**

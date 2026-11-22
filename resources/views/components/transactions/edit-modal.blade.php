@@ -1,3 +1,7 @@
+@props([
+    'paymentMethods' => [],
+])
+
 {{-- ==================== EDIT TRANSACTION MODAL ==================== --}}
 <div
     id="editTransactionModal"
@@ -72,6 +76,11 @@
                             <option value="Transfer">Transfer Bank</option>
                             <option value="Kartu">Kartu Debit / Kredit</option>
                             <option value="Debit">Debit</option>
+                            @foreach($paymentMethods as $pm)
+                                @if(!in_array(strtolower($pm->code), ['cash', 'qris', 'transfer', 'debit', 'card'], true))
+                                    <option value="{{ $pm->name }}">{{ $pm->name }}</option>
+                                @endif
+                            @endforeach
                         </select>
                     </div>
 

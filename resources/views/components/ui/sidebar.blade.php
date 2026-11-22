@@ -250,6 +250,12 @@
                         route="tables.index"
                         :locked="$isCashier && !$can($P::BUSINESS_SETTINGS_MANAGE)"
                     />
+                    <x-ui.sidebar-item
+                        icon="wallet"
+                        label="Metode Pembayaran"
+                        route="payment-methods.index"
+                        :locked="$isCashier && !$can($P::BUSINESS_SETTINGS_MANAGE)"
+                    />
                 @endif
                 @if($can($P::USERS_VIEW) || $isCashier)
                     <x-ui.sidebar-item

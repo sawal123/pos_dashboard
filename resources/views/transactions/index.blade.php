@@ -108,7 +108,7 @@
 
         {{-- ==================== 6. EDIT TRANSACTION MODAL (OWNER ONLY) ==================== --}}
         @if($canEdit ?? false)
-            <x-transactions.edit-modal />
+            <x-transactions.edit-modal :paymentMethods="$paymentMethods ?? collect()" />
         @endif
 
         {{-- ==================== 7. ADD ITEMS TO PROCESSING ORDER MODAL ==================== --}}

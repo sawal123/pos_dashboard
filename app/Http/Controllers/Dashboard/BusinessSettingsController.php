@@ -54,6 +54,15 @@ class BusinessSettingsController extends Controller
     {
         $business = $this->activeBusiness($request);
 
+        // Lock business type once already chosen to prevent data/workflow corruption.
+        if ($business->business_type !== null && trim((string) $business->business_type) !== '') {
+            return redirect()
+                ->route('business-settings.edit')
+                ->withErrors([
+                    'business_type' => 'Tipe bisnis sudah terkunci permanen sebagai '.$business->businessTypeLabel().' dan tidak dapat diubah agar data operasional tetap aman.',
+                ]);
+        }
+
         $type = BusinessType::from((string) $request->validated('business_type'));
 
         // Only the active business row is updated, and only its `business_type`.
@@ -61,7 +70,7 @@ class BusinessSettingsController extends Controller
 
         return redirect()
             ->route('business-settings.edit')
-            ->with('status', 'Tipe bisnis disimpan sebagai '.$type->label().'.');
+            ->with('status', 'Tipe bisnis disimpan dan dikunci sebagai '.$type->label().'.');
     }
 
     public function updateTax(UpdateBusinessTaxRequest $request): RedirectResponse

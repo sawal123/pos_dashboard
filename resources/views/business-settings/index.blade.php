@@ -55,7 +55,7 @@
                         ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                         : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800' }}"
                 >
-                    {{ $hasType ? 'Sudah ditentukan' : 'Belum ditentukan' }}
+                    {{ $hasType ? 'Terkunci' : 'Belum ditentukan' }}
                 </span>
             </div>
 
@@ -69,6 +69,7 @@
 
         <x-business-settings.business-type-form
             :currentType="$currentType"
+            :currentTypeLabel="$currentTypeLabel"
             :hasType="$hasType"
             :typeOptions="$typeOptions"
         />

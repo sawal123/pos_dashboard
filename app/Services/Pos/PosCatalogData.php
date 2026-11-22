@@ -236,11 +236,25 @@ class PosCatalogData
                 ->all();
         }
 
+        $paymentMethods = app(\App\Services\Payment\PaymentMethodService::class)
+            ->forOutlet($business, $activeOutlet)
+            ->map(fn ($pm) => [
+                'id' => (int) $pm->id,
+                'name' => (string) $pm->name,
+                'code' => (string) $pm->code,
+                'category' => (string) $pm->category,
+                'is_cash' => (bool) $pm->is_cash,
+                'description' => $pm->description,
+            ])
+            ->values()
+            ->all();
+
         return [
             'business' => $business,
             'isGrosir' => $business->normalizedBusinessType() === 'grosir',
             'tableManagementEnabled' => (bool) $business->table_management_enabled,
             'diningTables' => $diningTables,
+            'paymentMethods' => $paymentMethods,
             'outlets' => $outlets,
             'activeOutlet' => $activeOutlet,
             'currentShift' => $currentShift,

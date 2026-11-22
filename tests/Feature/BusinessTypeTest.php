@@ -167,22 +167,22 @@ class BusinessTypeTest extends TestCase
         $this->assertSame('laundry', $business->fresh()->business_type);
     }
 
-    public function test_owner_can_change_an_existing_type_after_confirming(): void
+    public function test_owner_cannot_change_an_existing_type_because_it_is_locked(): void
     {
         [$owner, $business] = $this->businessWithRole('owner', 'cafe');
 
-        // Without the confirmation checkbox the change is rejected.
-        $blocked = $this->submitType($owner, $business, ['business_type' => 'laundry']);
-        $blocked->assertSessionHasErrors('confirm_change');
-        $this->assertSame('cafe', $business->fresh()->business_type);
-
-        // With confirmation it succeeds.
-        $allowed = $this->submitType($owner, $business, [
+        // Attempting to change an already-set type (even with confirm_change) is rejected.
+        $blocked = $this->submitType($owner, $business, [
             'business_type' => 'laundry',
             'confirm_change' => '1',
         ]);
-        $allowed->assertSessionHasNoErrors();
-        $this->assertSame('laundry', $business->fresh()->business_type);
+        $blocked->assertSessionHasErrors('business_type');
+        $this->assertSame('cafe', $business->fresh()->business_type);
+
+        // Attempting to change to grosir is also rejected.
+        $blocked2 = $this->submitType($owner, $business, ['business_type' => 'grosir']);
+        $blocked2->assertSessionHasErrors('business_type');
+        $this->assertSame('cafe', $business->fresh()->business_type);
     }
 
     public function test_arbitrary_or_non_canonical_types_are_rejected(): void
@@ -212,13 +212,21 @@ class BusinessTypeTest extends TestCase
     {
         [$owner, $business] = $this->businessWithRole('owner', 'cafe');
 
+        // When already set, the page shows locked state and hides the submit button.
         $this->actingAs($owner)
             ->withSession([DashboardBusinessContext::SESSION_KEY => $business->id])
             ->get(route('business-settings.edit'))
             ->assertOk()
             ->assertSee('Cafe / UMKM')
-            ->assertSee('Laundry')
-            ->assertSee('Grosir / Toko Kelontong')
+            ->assertSee('Tipe Bisnis Terkunci')
+            ->assertDontSee('Simpan Tipe Bisnis');
+
+        // When unset, the page shows the save button for initial setup.
+        [$newOwner, $unsetBusiness] = $this->businessWithRole('owner', null);
+        $this->actingAs($newOwner)
+            ->withSession([DashboardBusinessContext::SESSION_KEY => $unsetBusiness->id])
+            ->get(route('business-settings.edit'))
+            ->assertOk()
             ->assertSee('Simpan Tipe Bisnis');
 
         foreach (['member', 'cashier', 'supervisor'] as $role) {
@@ -275,17 +283,16 @@ class BusinessTypeTest extends TestCase
 
     public function test_a_foreign_owner_only_changes_their_own_business(): void
     {
-        [$foreignOwner, $foreignBusiness] = $this->businessWithRole('owner', 'cafe');
+        [$foreignOwner, $foreignBusiness] = $this->businessWithRole('owner', null);
         [, $target] = $this->businessWithRole('owner', 'grosir');
 
-        // The foreign owner's active business is their own, so the write lands
+        // The foreign owner's active business is their own unset business, so the write lands
         // there — the unrelated tenant is never touched.
         $response = $this->actingAs($foreignOwner)
             ->withSession([DashboardBusinessContext::SESSION_KEY => $foreignBusiness->id])
             ->patch(route('business-settings.business-type.update'), [
                 'business_type' => 'laundry',
                 'business_id' => $target->id,
-                'confirm_change' => '1',
             ]);
 
         $response->assertSessionHasNoErrors();
@@ -296,7 +303,7 @@ class BusinessTypeTest extends TestCase
     public function test_forged_business_id_is_ignored_and_role_follows_the_active_business(): void
     {
         $user = User::factory()->create(['email_verified_at' => now()]);
-        $ownedBusiness = Business::factory()->create(['business_type' => 'cafe']);
+        $ownedBusiness = Business::factory()->create(['business_type' => null]);
         $memberBusiness = Business::factory()->create(['business_type' => 'grosir']);
         $user->businesses()->attach($ownedBusiness->id, ['role' => 'owner']);
         $user->businesses()->attach($memberBusiness->id, ['role' => 'member']);
@@ -307,21 +314,19 @@ class BusinessTypeTest extends TestCase
             ->patch(route('business-settings.business-type.update'), [
                 'business_type' => 'laundry',
                 'business_id' => $ownedBusiness->id,
-                'confirm_change' => '1',
             ]);
 
         $blocked->assertForbidden();
-        $this->assertSame('cafe', $ownedBusiness->fresh()->business_type);
+        $this->assertNull($ownedBusiness->fresh()->business_type);
         $this->assertSame('grosir', $memberBusiness->fresh()->business_type);
 
-        // Active business = owned one; only it is updated, even when a foreign
+        // Active business = owned one (unset); only it is updated, even when a foreign
         // business_id is supplied.
         $allowed = $this->actingAs($user)
             ->withSession([DashboardBusinessContext::SESSION_KEY => $ownedBusiness->id])
             ->patch(route('business-settings.business-type.update'), [
                 'business_type' => 'laundry',
                 'business_id' => $memberBusiness->id,
-                'confirm_change' => '1',
             ]);
 
         $allowed->assertSessionHasNoErrors();
@@ -348,9 +353,9 @@ class BusinessTypeTest extends TestCase
     // 19, 20. Historical / commercial data is never touched
     // =========================================================================
 
-    public function test_changing_the_type_does_not_alter_data_or_subscription(): void
+    public function test_setting_initial_type_does_not_alter_data_or_subscription(): void
     {
-        [$owner, $business] = $this->businessWithRole('owner', 'cafe');
+        [$owner, $business] = $this->businessWithRole('owner', null);
         $business->update(['name' => 'Toko Uji', 'status' => 'active']);
         $product = Product::factory()->create(['business_id' => $business->id, 'name' => 'Produk Uji']);
         Subscription::factory()->cloud()->create(['business_id' => $business->id]);
@@ -365,7 +370,6 @@ class BusinessTypeTest extends TestCase
 
         $this->submitType($owner, $business, [
             'business_type' => 'laundry',
-            'confirm_change' => '1',
         ])->assertSessionHasNoErrors();
 
         $business->refresh();

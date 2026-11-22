@@ -460,7 +460,7 @@ class DashboardOverviewData
     private function buildRecentTransactions(int $businessId, ?int $outletId = null): array
     {
         $salesQuery = Sale::where('business_id', $businessId)
-            ->with(['customer', 'outlet'])
+            ->with(['customer', 'outlet', 'shift', 'items'])
             ->orderBy('sold_at', 'desc')
             ->orderBy('id', 'desc')
             ->limit(8);
@@ -488,26 +488,100 @@ class DashboardOverviewData
                 $outletName = $sale->outlet->name;
             }
 
+            $shiftName = '-';
+            if ($sale->shift !== null) {
+                $shiftLabel = trim((string) ($sale->shift->cashier_name ?? ''));
+                $shiftName = $shiftLabel !== '' ? $shiftLabel : 'Shift #'.$sale->shift->id;
+            }
+
             $tz = (string) config('app.timezone', 'Asia/Jakarta');
             $soldAtCarbon = Carbon::parse($sale->sold_at)->setTimezone($tz);
+            $soldAtFormatted = $this->formatIndonesianDate($soldAtCarbon, 'd M Y H:i');
+            $paidAtFormatted = $sale->paid_at
+                ? $this->formatIndonesianDate(Carbon::parse($sale->paid_at)->setTimezone($tz), 'd M Y H:i')
+                : null;
+            $estimatedCompletedAt = $sale->estimated_completed_at
+                ? $this->formatIndonesianDate(Carbon::parse($sale->estimated_completed_at)->setTimezone($tz), 'd M Y H:i')
+                : null;
+
+            $paymentMethodLabel = self::presentPaymentMethod($sale->payment_method);
+            $paymentStatusLabel = self::presentPaymentStatus($sale->payment_status);
+            $statusLabel = self::presentStatus($sale->status);
+
+            $statusLower = strtolower(trim((string) ($sale->status ?? '')));
+            $orderStatusLower = strtolower(trim((string) ($sale->order_status ?? '')));
+            $isCancelled = in_array($statusLower, ['cancelled', 'canceled', 'batal', 'dibatalkan'], true)
+                || in_array($orderStatusLower, ['cancelled', 'canceled', 'batal', 'dibatalkan'], true);
+            $isProses = ! $isCancelled && (
+                in_array($orderStatusLower, ['proses', 'diproses', 'masuk', 'processing'], true)
+                || in_array($statusLower, ['processing', 'proses'], true)
+            );
+
+            $items = $sale->items->map(fn ($item) => [
+                'product_name' => $item->product_name,
+                'product_sku' => $item->product_sku,
+                'variant_summary' => $item->variant_summary,
+                'unit_price' => $item->unit_price,
+                'quantity' => $item->quantity,
+                'unit' => $item->unit,
+                'kind' => $item->kind,
+                'pricing_unit' => $item->pricing_unit,
+                'line_total' => $item->line_total,
+                'cost_snapshot' => $item->cost_snapshot,
+                'line_cost' => $item->line_cost,
+            ])->values()->toArray();
+
+            $detailPayload = [
+                'id' => $sale->id,
+                'outlet_id' => $sale->outlet_id,
+                'transaction_number' => $sale->transaction_number,
+                'sold_at' => $soldAtFormatted,
+                'sold_at_raw' => $sale->sold_at,
+                'outlet_name' => $outletName,
+                'shift_name' => $shiftName,
+                'customer_name' => $customerName,
+                'table_number' => $sale->table_number,
+                'payment_method_raw' => $sale->payment_method,
+                'payment_method' => $paymentMethodLabel,
+                'payment_status_raw' => $sale->payment_status,
+                'payment_status' => $paymentStatusLabel,
+                'status_raw' => $sale->status,
+                'status' => $statusLabel,
+                'subtotal' => $sale->subtotal,
+                'discount_amount' => $sale->discount_amount,
+                'tax_amount' => $sale->tax_amount,
+                'total_amount' => $sale->total_amount,
+                'paid_at' => $paidAtFormatted,
+                'cash_received' => $sale->cash_received,
+                'change_amount' => $sale->change_amount,
+                'gross_profit' => $sale->gross_profit,
+                'note' => $sale->note,
+                'order_status' => $sale->order_status,
+                'order_status_raw' => $sale->order_status,
+                'estimated_completed_at' => $estimatedCompletedAt,
+                'items' => $items,
+            ];
 
             return [
                 'id' => $sale->id,
                 'transaction_number' => $sale->transaction_number,
-                'sold_at' => $this->formatIndonesianDate($soldAtCarbon, 'd M Y H:i'),
+                'sold_at' => $soldAtFormatted,
                 'sold_at_time' => $soldAtCarbon->format('H:i').' WIB',
                 'sold_at_raw' => $sale->sold_at,
                 'customer_name' => $customerName,
                 'table_number' => $sale->table_number,
                 'outlet_name' => $outletName,
-                'payment_method' => self::presentPaymentMethod($sale->payment_method),
+                'payment_method' => $paymentMethodLabel,
                 'payment_method_raw' => $sale->payment_method,
-                'payment_status' => self::presentPaymentStatus($sale->payment_status),
+                'payment_status' => $paymentStatusLabel,
                 'payment_status_raw' => $sale->payment_status,
-                'status' => self::presentStatus($sale->status),
+                'status' => $statusLabel,
                 'status_raw' => $sale->status,
+                'order_status_raw' => $sale->order_status,
+                'is_proses' => $isProses,
                 'total_amount' => 'Rp '.number_format($sale->total_amount, 0, ',', '.'),
                 'total_amount_raw' => $sale->total_amount,
+                'detail' => $detailPayload,
             ];
         })->toArray();
     }

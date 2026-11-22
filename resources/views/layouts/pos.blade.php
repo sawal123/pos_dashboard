@@ -124,8 +124,27 @@
                 @endif
             </div>
 
-            {{-- Right: Clock, Theme, Return to Dashboard --}}
+            {{-- Right: Queue, Clock, Theme, Return to Dashboard --}}
             <div class="flex items-center gap-2">
+                {{-- Active Orders Queue Button --}}
+                <button
+                    type="button"
+                    id="btnOpenPosQueue"
+                    onclick="if (typeof window.openPosQueueModal === 'function') { window.openPosQueueModal(); }"
+                    class="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/50 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    title="Lihat Antrian Pesanan Aktif (Proses / Belum Lunas)"
+                    aria-label="Antrian Pesanan"
+                >
+                    <i data-lucide="list-ordered" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+                    <span class="hidden sm:inline">Antrian</span>
+                    <span
+                        id="posQueueCountBadge"
+                        class="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black {{ ($activeQueueCount ?? 0) > 0 ? '' : 'hidden' }}"
+                    >
+                        {{ $activeQueueCount ?? 0 }}
+                    </span>
+                </button>
+
                 {{-- Live Clock --}}
                 <div id="liveClock" class="hidden lg:flex items-center gap-1.5 text-xs font-mono text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <i data-lucide="clock" class="w-3.5 h-3.5 text-slate-400"></i>

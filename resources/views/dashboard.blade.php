@@ -150,32 +150,6 @@
                         </div>
 
                         <div class="flex items-center gap-2 flex-wrap">
-                            {{-- Filter Cabang / Outlet Selector --}}
-                            @if(isset($outlets) && $outlets->count() > 1)
-                                @php
-                                    $currentPeriod = $overview['sales_chart']['period'];
-                                @endphp
-                                <div class="relative">
-                                    <select
-                                        onchange="window.location.href = this.value"
-                                        class="h-8 pl-2.5 pr-7 text-xs font-semibold rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700/80 focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer"
-                                        aria-label="Filter Cabang Grafik Penjualan"
-                                    >
-                                        <option value="{{ route('dashboard', array_filter(['period' => $currentPeriod, 'outlet_id' => 'all'])) }}" @selected(empty($selectedOutletId))>
-                                            🌐 Semua Cabang
-                                        </option>
-                                        @foreach($outlets as $o)
-                                            <option value="{{ route('dashboard', ['period' => $currentPeriod, 'outlet_id' => $o->id]) }}" @selected($selectedOutletId == $o->id)>
-                                                📍 {{ $o->name }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2 text-slate-400">
-                                        <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
-                                    </div>
-                                </div>
-                            @endif
-
                             {{-- Period Selector (GET Navigation) --}}
                             <div class="inline-flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs font-medium self-start sm:self-auto border border-slate-200/60 dark:border-slate-700/60" role="group" aria-label="Pilih Periode Grafik">
                                 @php
@@ -272,154 +246,36 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <a href="{{ route('dashboard', ['period' => $overview['sales_chart']['period']]) }}" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors" title="Muat Ulang Transaksi" aria-label="Refresh Data">
-                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
-                    </a>
+                    <button
+                        type="button"
+                        id="refreshRecentTransactionsBtn"
+                        data-refresh-url="{{ route('dashboard.recent-transactions') }}"
+                        class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer disabled:opacity-50"
+                        title="Muat Ulang Transaksi"
+                        aria-label="Refresh Data"
+                    >
+                        <i data-lucide="refresh-cw" id="refreshRecentTransactionsIcon" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
-            {{-- Content --}}
-            @if(empty($overview['recent_transactions']))
-                <div class="px-5 py-12 text-center flex flex-col items-center justify-center">
-                    <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3 text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60">
-                        <i data-lucide="receipt" class="w-7 h-7"></i>
-                    </div>
-                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200 tracking-tight">Belum Ada Transaksi</h3>
-                    <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mt-1 mb-4 leading-relaxed">
-                        Data transaksi penjualan akan muncul di sini setelah register kasir mencatat penjualan.
-                    </p>
-                    <a href="{{ route('transactions.index') }}" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline text-xs flex items-center gap-1">
-                        Buka Halaman Transaksi <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
-                    </a>
-                </div>
-            @else
-                {{-- 1. Desktop & Tablet Table View --}}
-                <div class="hidden md:block overflow-x-auto">
-                    <table class="w-full text-left text-xs md:text-sm border-collapse">
-                        <thead>
-                            <tr class="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">
-                                <th class="px-4 py-3.5">Invoice</th>
-                                <th class="px-4 py-3.5">Waktu</th>
-                                <th class="px-4 py-3.5">Pelanggan</th>
-                                <th class="px-4 py-3.5">Outlet</th>
-                                <th class="px-4 py-3.5">Pembayaran</th>
-                                <th class="px-4 py-3.5 text-right">Total</th>
-                                <th class="px-4 py-3.5">Status Bayar</th>
-                                <th class="px-4 py-3.5 text-right">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60">
-                            @foreach($overview['recent_transactions'] as $tx)
-                                <tr class="table-row hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                                    <td class="px-4 py-3.5 font-semibold text-slate-900 dark:text-white">
-                                        {{ $tx['transaction_number'] }}
-                                    </td>
-                                    <td class="px-4 py-3.5 text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                        {{ $tx['sold_at'] }}
-                                    </td>
-                                    <td class="px-4 py-3.5 text-slate-700 dark:text-slate-300 font-medium">
-                                        {{ $tx['customer_name'] }}
-                                    </td>
-                                    <td class="px-4 py-3.5 text-slate-600 dark:text-slate-400">
-                                        {{ $tx['outlet_name'] }}
-                                    </td>
-                                    <td class="px-4 py-3.5">
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                                            {{ $tx['payment_method'] }}
-                                        </span>
-                                    </td>
-                                    <td class="px-4 py-3.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
-                                        {{ $tx['total_amount'] }}
-                                    </td>
-                                    <td class="px-4 py-3.5">
-                                        @if($tx['payment_status_raw'] === 'paid')
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
-                                                {{ $tx['payment_status'] }}
-                                            </span>
-                                        @elseif($tx['payment_status_raw'] === 'unpaid')
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60">
-                                                {{ $tx['payment_status'] }}
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                                {{ $tx['payment_status'] }}
-                                            </span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3.5 text-right">
-                                        @if($tx['status_raw'] === 'completed')
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
-                                                {{ $tx['status'] }}
-                                            </span>
-                                        @elseif(in_array($tx['status_raw'], ['cancelled', 'canceled'], true))
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400 border border-rose-200/80 dark:border-rose-800/60">
-                                                {{ $tx['status'] }}
-                                            </span>
-                                        @else
-                                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                                {{ $tx['status'] }}
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- 2. Mobile Responsive Card View --}}
-                <div class="block md:hidden divide-y divide-slate-100 dark:divide-slate-800/80 p-2">
-                    @foreach($overview['recent_transactions'] as $tx)
-                        <div class="p-3.5 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                            <div class="flex items-start justify-between gap-2 mb-1.5">
-                                <div>
-                                    <span class="text-xs font-bold text-slate-900 dark:text-white">{{ $tx['transaction_number'] }}</span>
-                                    <span class="text-[11px] text-slate-400 ml-1.5">{{ $tx['sold_at'] }}</span>
-                                </div>
-                                <span class="text-sm font-bold text-slate-900 dark:text-white tabular-nums">{{ $tx['total_amount'] }}</span>
-                            </div>
-
-                            <div class="flex items-center justify-between text-xs text-slate-600 dark:text-slate-300 mb-2">
-                                <span class="font-medium">{{ $tx['customer_name'] }}</span>
-                                <span class="text-[11px] text-slate-400">Outlet: {{ $tx['outlet_name'] }}</span>
-                            </div>
-
-                            <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/60 text-xs">
-                                <span class="text-slate-500">{{ $tx['payment_method'] }}</span>
-                                <div class="flex items-center gap-1.5">
-                                    @if($tx['payment_status_raw'] === 'paid')
-                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/60">
-                                            {{ $tx['payment_status'] }}
-                                        </span>
-                                    @elseif($tx['payment_status_raw'] === 'unpaid')
-                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400 border border-amber-200/80 dark:border-amber-800/60">
-                                            {{ $tx['payment_status'] }}
-                                        </span>
-                                    @else
-                                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                                            {{ $tx['payment_status'] }}
-                                        </span>
-                                    @endif
-                                    <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold {{ $tx['status_raw'] === 'completed' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400' : (in_array($tx['status_raw'], ['cancelled', 'canceled'], true) ? 'bg-rose-50 text-rose-700 dark:bg-rose-950/50 dark:text-rose-400' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300') }}">
-                                        {{ $tx['status'] }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                {{-- Footer --}}
-                <div class="px-5 py-3.5 border-t border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-                    <p>Menampilkan {{ count($overview['recent_transactions']) }} transaksi terbaru</p>
-                    <a href="{{ route('transactions.index') }}" class="font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
-                        Lihat Semua Transaksi <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
-                    </a>
-                </div>
-            @endif
+            {{-- Content (Partial-refreshable container) --}}
+            <div id="recentTransactionsContainer" class="transition-opacity duration-200">
+                <x-dashboard.recent-transactions-content
+                    :transactions="$overview['recent_transactions']"
+                    :canEdit="$canEdit ?? false"
+                    :canAddItems="$canAddItems ?? false"
+                />
+            </div>
         </div>
 
     </main>
+
+    {{-- Transaction Detail Drawer & Edit Modal --}}
+    <x-transactions.detail-drawer :canEdit="$canEdit ?? false" :canAddItems="false" />
+    @if($canEdit ?? false)
+        <x-transactions.edit-modal :paymentMethods="$paymentMethods ?? collect()" />
+    @endif
 
     {{-- ==================== DASHBOARD JAVASCRIPT LOGIC ==================== --}}
     @push('scripts')
@@ -530,16 +386,563 @@
             }
         }
 
+        function initRecentTransactionsRefresh() {
+            const btn = document.getElementById('refreshRecentTransactionsBtn');
+            const container = document.getElementById('recentTransactionsContainer');
+            if (!btn || !container || btn.dataset.refreshBound === 'true') return;
+            btn.dataset.refreshBound = 'true';
+
+            btn.addEventListener('click', async () => {
+                if (btn.disabled) return;
+                const url = btn.getAttribute('data-refresh-url');
+                if (!url) return;
+
+                btn.disabled = true;
+                const icon = btn.querySelector('svg, [data-lucide="refresh-cw"]');
+                if (icon) icon.classList.add('animate-spin');
+                container.classList.add('opacity-50');
+
+                try {
+                    const res = await fetch(url, {
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        cache: 'no-store',
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.message || 'Gagal memuat ulang transaksi terbaru.');
+                    }
+                    container.innerHTML = data.html || '';
+                    if (typeof window.initIcons === 'function') {
+                        window.initIcons();
+                    } else if (typeof lucide !== 'undefined') {
+                        lucide.createIcons();
+                    }
+                } catch (err) {
+                    if (typeof showToast === 'function') {
+                        showToast('error', err.message || 'Gagal memuat ulang tabel transaksi.');
+                    }
+                } finally {
+                    btn.disabled = false;
+                    const currentIcon = btn.querySelector('svg, [data-lucide="refresh-cw"]');
+                    if (currentIcon) currentIcon.classList.remove('animate-spin');
+                    container.classList.remove('opacity-50');
+                }
+            });
+        }
+
+        function initRecentTransactionsActions() {
+            const container = document.getElementById('recentTransactionsContainer');
+            if (!container || container.dataset.actionsBound === 'true') return;
+            container.dataset.actionsBound = 'true';
+
+            const drawerWrapper = document.getElementById('transactionDrawerWrapper');
+            const drawerBackdrop = document.getElementById('transactionDrawerBackdrop');
+            const drawerPanel = document.getElementById('transactionDrawerPanel');
+            const closeDrawerBtn = document.getElementById('closeDrawerBtn');
+            const drawerCloseFooterBtn = document.getElementById('drawerCloseFooterBtn');
+            const drawerPrintBtn = document.getElementById('drawerPrintBtn');
+            const drawerEditBtn = document.getElementById('drawerEditBtn');
+
+            const editModal = document.getElementById('editTransactionModal');
+            const editBackdrop = document.getElementById('editTransactionBackdrop');
+            const editDialog = document.getElementById('editTransactionDialog');
+            const editForm = document.getElementById('editTransactionForm');
+            const closeEditModalBtn = document.getElementById('closeEditModalBtn');
+            const cancelEditModalBtn = document.getElementById('cancelEditModalBtn');
+            const editPaymentMethod = document.getElementById('editPaymentMethod');
+            const editCashSection = document.getElementById('editCashSection');
+            const editCashReceived = document.getElementById('editCashReceived');
+            const editChangeAmountDisplay = document.getElementById('editChangeAmountDisplay');
+            const editNote = document.getElementById('editNote');
+            const editTrxNumberDisplay = document.getElementById('editTrxNumberDisplay');
+            const editTrxTotalDisplay = document.getElementById('editTrxTotalDisplay');
+            const editTrxOutletTimeDisplay = document.getElementById('editTrxOutletTimeDisplay');
+            const submitEditTrxBtn = document.getElementById('submitEditTrxBtn');
+
+            let currentTrxData = null;
+            let activeEditTrxTotal = 0;
+
+            function formatRupiah(num) {
+                const val = Number(num || 0);
+                const hasFraction = Math.abs(val % 1) > 0.0001;
+                return 'Rp ' + new Intl.NumberFormat('id-ID', {
+                    minimumFractionDigits: hasFraction ? 2 : 0,
+                    maximumFractionDigits: 2,
+                }).format(val);
+            }
+
+            function refreshIcons() {
+                if (typeof window.initIcons === 'function') {
+                    window.initIcons();
+                } else if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+
+            function openDrawer(data) {
+                if (!drawerWrapper || !data) return;
+                currentTrxData = data;
+
+                document.getElementById('detailTrxNumber').textContent = data.transaction_number || '-';
+                document.getElementById('detailSoldAt').textContent = data.sold_at || '-';
+                document.getElementById('detailOutlet').textContent = data.outlet_name || '-';
+                document.getElementById('detailShift').textContent = data.shift_name || '-';
+                document.getElementById('detailCustomer').textContent = data.customer_name || 'Pelanggan Umum';
+                const detailTableEl = document.getElementById('detailTableNumber');
+                if (detailTableEl) detailTableEl.textContent = data.table_number || '-';
+
+                // Payment status badge
+                const payBadge = document.getElementById('detailPaymentStatusBadge');
+                payBadge.textContent = '';
+                const payDot = document.createElement('span');
+                const payText = document.createElement('span');
+                const rawPayStatus = String(data.payment_status_raw || data.payment_status || '').toLowerCase();
+                if (rawPayStatus === 'paid' || data.payment_status === 'Lunas') {
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+                    payText.textContent = 'Lunas';
+                } else if (rawPayStatus === 'unpaid' || data.payment_status === 'Belum Lunas') {
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 border border-amber-200/60 dark:border-amber-800/60 text-amber-700 dark:text-amber-400';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+                    payText.textContent = 'Belum Lunas';
+                } else if (rawPayStatus === 'refund' || rawPayStatus === 'refunded' || data.payment_status === 'Refund') {
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-purple-50 dark:bg-purple-950/60 border border-purple-200/60 dark:border-purple-800/60 text-purple-700 dark:text-purple-400';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-purple-500';
+                    payText.textContent = 'Refund';
+                } else {
+                    payBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300';
+                    payDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
+                    payText.textContent = data.payment_status || '-';
+                }
+                payBadge.appendChild(payDot);
+                payBadge.appendChild(payText);
+
+                // Order / Transaction status badge
+                const txBadge = document.getElementById('detailTransactionStatusBadge');
+                txBadge.textContent = '';
+                const txDot = document.createElement('span');
+                const txText = document.createElement('span');
+                const rawTxStatus = String(data.status_raw || data.status || '').toLowerCase();
+                const rawOrderStatus = String(data.order_status_raw || data.order_status || '').toLowerCase();
+                if (rawTxStatus === 'cancelled' || rawTxStatus === 'canceled' || rawTxStatus === 'batal' || rawOrderStatus === 'batal') {
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 border border-rose-200/60 dark:border-rose-800/60 text-rose-700 dark:text-rose-400';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-rose-500';
+                    txText.textContent = 'Batal';
+                } else if (rawTxStatus === 'processing' || rawTxStatus === 'proses' || rawOrderStatus === 'proses') {
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/60 border border-blue-200/60 dark:border-blue-800/60 text-blue-700 dark:text-blue-400';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-blue-500';
+                    txText.textContent = 'Proses';
+                } else {
+                    txBadge.className = 'inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/60 dark:border-emerald-800/60 text-emerald-700 dark:text-emerald-400';
+                    txDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+                    txText.textContent = data.status || 'Selesai';
+                }
+                txBadge.appendChild(txDot);
+                txBadge.appendChild(txText);
+
+                const orderSection = document.getElementById('detailLaundrySection');
+                if (orderSection) {
+                    if (data.order_status || data.estimated_completed_at) {
+                        orderSection.classList.remove('hidden');
+                        document.getElementById('detailOrderStatus').textContent = data.order_status || '-';
+                        document.getElementById('detailEstimatedCompletedAt').textContent = data.estimated_completed_at || '-';
+                    } else {
+                        orderSection.classList.add('hidden');
+                    }
+                }
+
+                // Items list
+                const itemsContainer = document.getElementById('detailItemsContainer');
+                itemsContainer.textContent = '';
+                if (Array.isArray(data.items) && data.items.length > 0) {
+                    data.items.forEach(item => {
+                        const itemEl = document.createElement('div');
+                        itemEl.className = 'p-3 sm:p-3.5 flex items-start justify-between gap-3 text-xs';
+
+                        const infoDiv = document.createElement('div');
+                        infoDiv.className = 'min-w-0 flex-1';
+
+                        const nameP = document.createElement('p');
+                        nameP.className = 'font-bold text-slate-900 dark:text-white truncate';
+                        nameP.textContent = item.product_name || '-';
+                        infoDiv.appendChild(nameP);
+
+                        if (item.variant_summary) {
+                            const varP = document.createElement('p');
+                            varP.className = 'text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 mt-0.5';
+                            varP.textContent = item.variant_summary;
+                            infoDiv.appendChild(varP);
+                        }
+
+                        if (item.product_sku) {
+                            const skuP = document.createElement('p');
+                            skuP.className = 'text-[11px] text-slate-400 dark:text-slate-500 font-mono mt-0.5';
+                            skuP.textContent = item.product_sku;
+                            infoDiv.appendChild(skuP);
+                        }
+
+                        const metaP = document.createElement('p');
+                        metaP.className = 'text-[11px] text-slate-500 dark:text-slate-400 mt-1';
+                        const qtySpan = document.createElement('span');
+                        qtySpan.className = 'font-semibold text-slate-700 dark:text-slate-300';
+                        const qtyNum = Number(item.quantity);
+                        const qtyStr = Number.isFinite(qtyNum)
+                            ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 3 }).format(Math.abs(qtyNum) < 1e-7 ? 0 : qtyNum)
+                            : String(item.quantity ?? '');
+                        const unitLabel = item.unit ? ` ${item.unit}` : '';
+                        qtySpan.textContent = `${qtyStr}${unitLabel}`;
+                        const pricingUnit = item.pricing_unit ? String(item.pricing_unit) : '';
+                        const priceRate = pricingUnit !== '' ? `/${pricingUnit}` : '';
+                        metaP.appendChild(qtySpan);
+                        metaP.appendChild(document.createTextNode(` × ${formatRupiah(item.unit_price)}${priceRate}`));
+                        infoDiv.appendChild(metaP);
+
+                        const priceDiv = document.createElement('div');
+                        priceDiv.className = 'text-right shrink-0';
+                        const totalSpan = document.createElement('span');
+                        totalSpan.className = 'font-extrabold text-slate-900 dark:text-white tabular-nums';
+                        totalSpan.textContent = formatRupiah(item.line_total);
+                        priceDiv.appendChild(totalSpan);
+
+                        itemEl.appendChild(infoDiv);
+                        itemEl.appendChild(priceDiv);
+                        itemsContainer.appendChild(itemEl);
+                    });
+                } else {
+                    const emptyEl = document.createElement('div');
+                    emptyEl.className = 'p-4 text-center text-xs text-slate-400';
+                    emptyEl.textContent = 'Tidak ada rincian item.';
+                    itemsContainer.appendChild(emptyEl);
+                }
+
+                // Price Summary
+                document.getElementById('detailSubtotal').textContent = formatRupiah(data.subtotal);
+                const discountRow = document.getElementById('detailDiscountRow');
+                if (Number(data.discount_amount || 0) > 0) {
+                    discountRow.classList.remove('hidden');
+                    document.getElementById('detailDiscount').textContent = '- ' + formatRupiah(data.discount_amount);
+                } else {
+                    discountRow.classList.add('hidden');
+                }
+                const taxRow = document.getElementById('detailTaxRow');
+                if (Number(data.tax_amount || 0) > 0) {
+                    taxRow.classList.remove('hidden');
+                    document.getElementById('detailTax').textContent = '+ ' + formatRupiah(data.tax_amount);
+                } else {
+                    taxRow.classList.add('hidden');
+                }
+                document.getElementById('detailTotal').textContent = formatRupiah(data.total_amount);
+
+                // Payment Details
+                document.getElementById('detailPaymentMethod').textContent = data.payment_method || '-';
+                document.getElementById('detailPaymentStatusText').textContent = data.payment_status || '-';
+                document.getElementById('detailPaidAt').textContent = data.paid_at || 'Belum Dibayar';
+
+                const cashSection = document.getElementById('detailCashOnlySection');
+                if (data.payment_method === 'Tunai' && data.cash_received !== null && data.cash_received !== undefined) {
+                    cashSection.classList.remove('hidden');
+                    document.getElementById('detailCashReceived').textContent = formatRupiah(data.cash_received);
+                    document.getElementById('detailChangeAmount').textContent = formatRupiah(data.change_amount);
+                } else {
+                    cashSection.classList.add('hidden');
+                }
+
+                document.getElementById('detailGrossProfit').textContent = formatRupiah(data.gross_profit);
+
+                const noteSection = document.getElementById('detailNoteSection');
+                if (data.note) {
+                    noteSection.classList.remove('hidden');
+                    document.getElementById('detailNote').textContent = `"${data.note}"`;
+                } else {
+                    noteSection.classList.add('hidden');
+                }
+
+                drawerWrapper.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    drawerBackdrop.classList.remove('opacity-0');
+                    drawerBackdrop.classList.add('opacity-100');
+                    drawerPanel.classList.remove('translate-x-full');
+                    drawerPanel.classList.add('translate-x-0');
+                    closeDrawerBtn?.focus();
+                });
+                refreshIcons();
+            }
+
+            function closeDrawer() {
+                if (!drawerWrapper || drawerWrapper.classList.contains('hidden')) return;
+                drawerBackdrop.classList.remove('opacity-100');
+                drawerBackdrop.classList.add('opacity-0');
+                drawerPanel.classList.remove('translate-x-0');
+                drawerPanel.classList.add('translate-x-full');
+                setTimeout(() => {
+                    drawerWrapper.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 300);
+            }
+
+            if (closeDrawerBtn) closeDrawerBtn.onclick = closeDrawer;
+            if (drawerCloseFooterBtn) drawerCloseFooterBtn.onclick = closeDrawer;
+            if (drawerBackdrop) drawerBackdrop.onclick = closeDrawer;
+            if (drawerPrintBtn) {
+                drawerPrintBtn.onclick = () => {
+                    if (currentTrxData && currentTrxData.id) {
+                        window.open(`/pos/receipt/${currentTrxData.id}`, '_blank');
+                    }
+                };
+            }
+
+            // Edit Modal helpers
+            function syncCashFields() {
+                if (!editCashSection || !editPaymentMethod) return;
+                const method = (editPaymentMethod.value || '').toLowerCase();
+                if (method === 'tunai' || method === 'cash') {
+                    editCashSection.classList.remove('hidden');
+                    if (!editCashReceived.value || parseFloat(editCashReceived.value) <= 0) {
+                        editCashReceived.value = activeEditTrxTotal > 0 ? activeEditTrxTotal : '';
+                    }
+                    const received = parseFloat(editCashReceived.value || 0);
+                    const change = Math.max(0, received - activeEditTrxTotal);
+                    if (editChangeAmountDisplay) editChangeAmountDisplay.textContent = formatRupiah(change);
+                } else {
+                    editCashSection.classList.add('hidden');
+                }
+            }
+
+            if (editPaymentMethod) editPaymentMethod.addEventListener('change', syncCashFields);
+            if (editCashReceived) editCashReceived.addEventListener('input', syncCashFields);
+
+            function selectEditPaymentStatus(status) {
+                const input = document.getElementById('editPaymentStatus');
+                if (input) input.value = status;
+                document.querySelectorAll('.edit-payment-status-btn').forEach(btn => {
+                    const btnStatus = btn.getAttribute('data-status');
+                    const box = btn.querySelector('.edit-check-box');
+                    const checkIcon = btn.querySelector('.edit-check-box i, .edit-check-box svg');
+                    btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer';
+                    if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors';
+                    if (checkIcon) checkIcon.classList.add('hidden');
+                    if (btnStatus === status) {
+                        if (status === 'unpaid') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-amber-500 border-amber-500 transition-colors';
+                        } else if (status === 'paid') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-emerald-500 border-emerald-500 transition-colors';
+                        } else if (status === 'refund') {
+                            btn.className = 'edit-payment-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-purple-500 bg-purple-50/70 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-purple-500 border-purple-500 transition-colors';
+                        }
+                        if (checkIcon) checkIcon.classList.remove('hidden');
+                    }
+                });
+                refreshIcons();
+            }
+            window.selectEditPaymentStatus = selectEditPaymentStatus;
+
+            function selectEditOrderStatus(status) {
+                const input = document.getElementById('editStatus');
+                if (input) input.value = status;
+                if (status === 'batal') {
+                    const payStatusInput = document.getElementById('editPaymentStatus');
+                    if (payStatusInput && payStatusInput.value === 'paid') selectEditPaymentStatus('refund');
+                } else if (status === 'siap' || status === 'proses') {
+                    const payStatusInput = document.getElementById('editPaymentStatus');
+                    if (payStatusInput && payStatusInput.value === 'refund') selectEditPaymentStatus('paid');
+                }
+                document.querySelectorAll('.edit-order-status-btn').forEach(btn => {
+                    const btnStatus = btn.getAttribute('data-status');
+                    const box = btn.querySelector('.edit-check-box');
+                    const checkIcon = btn.querySelector('.edit-check-box i, .edit-check-box svg');
+                    btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all cursor-pointer';
+                    if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 transition-colors';
+                    if (checkIcon) checkIcon.classList.add('hidden');
+                    if (btnStatus === status) {
+                        if (status === 'proses') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-blue-500 bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-blue-500 border-blue-500 transition-colors';
+                        } else if (status === 'siap') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-emerald-500 border-emerald-500 transition-colors';
+                        } else if (status === 'batal') {
+                            btn.className = 'edit-order-status-btn flex items-center gap-2 p-2.5 rounded-xl border-2 border-rose-500 bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 transition-all cursor-pointer';
+                            if (box) box.className = 'edit-check-box w-4 h-4 rounded border flex items-center justify-center shrink-0 bg-rose-500 border-rose-500 transition-colors';
+                        }
+                        if (checkIcon) checkIcon.classList.remove('hidden');
+                    }
+                });
+                refreshIcons();
+            }
+            window.selectEditOrderStatus = selectEditOrderStatus;
+
+            function openEditModal(data) {
+                if (!editModal || !editForm || !data) return;
+                currentTrxData = data;
+                activeEditTrxTotal = Number(data.total_amount || 0);
+                editForm.action = `/transactions/${data.id}`;
+
+                if (editTrxNumberDisplay) editTrxNumberDisplay.textContent = data.transaction_number || '';
+                if (editTrxTotalDisplay) editTrxTotalDisplay.textContent = formatRupiah(activeEditTrxTotal);
+                if (editTrxOutletTimeDisplay) editTrxOutletTimeDisplay.textContent = `${data.outlet_name || '-'} • ${data.sold_at || '-'}`;
+
+                if (editPaymentMethod) {
+                    const rawMethod = String(data.payment_method || data.payment_method_raw || 'Tunai').toLowerCase();
+                    let targetVal = data.payment_method || 'Tunai';
+                    if (rawMethod === 'cash' || rawMethod === 'tunai') targetVal = 'Tunai';
+                    else if (rawMethod === 'qris') targetVal = 'QRIS';
+                    else if (rawMethod === 'transfer') targetVal = 'Transfer';
+                    else if (rawMethod === 'card' || rawMethod === 'kartu') targetVal = 'Kartu';
+                    else if (rawMethod === 'debit') targetVal = 'Debit';
+
+                    const hasOpt = Array.from(editPaymentMethod.options).some(opt => opt.value === targetVal);
+                    if (!hasOpt && targetVal) {
+                        const opt = document.createElement('option');
+                        opt.value = targetVal;
+                        opt.textContent = targetVal;
+                        editPaymentMethod.appendChild(opt);
+                    }
+                    editPaymentMethod.value = targetVal;
+                }
+
+                const payRaw = String(data.payment_status_raw || '').toLowerCase();
+                if (payRaw === 'unpaid') selectEditPaymentStatus('unpaid');
+                else if (payRaw === 'refund' || payRaw === 'refunded') selectEditPaymentStatus('refund');
+                else selectEditPaymentStatus('paid');
+
+                const stRaw = String(data.status_raw || '').toLowerCase();
+                const ordRaw = String(data.order_status_raw || '').toLowerCase();
+                if (stRaw === 'cancelled' || stRaw === 'canceled' || ordRaw === 'batal') selectEditOrderStatus('batal');
+                else if (stRaw === 'processing' || ordRaw === 'proses') selectEditOrderStatus('proses');
+                else selectEditOrderStatus('siap');
+
+                if (editCashReceived) editCashReceived.value = data.cash_received !== null && data.cash_received !== undefined ? data.cash_received : '';
+                if (editNote) editNote.value = data.note || '';
+                syncCashFields();
+
+                editModal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    editBackdrop?.classList.remove('opacity-0');
+                    editBackdrop?.classList.add('opacity-100');
+                    editDialog?.classList.remove('scale-95', 'opacity-0');
+                    editDialog?.classList.add('scale-100', 'opacity-100');
+                });
+                refreshIcons();
+            }
+
+            function closeEditModal() {
+                if (!editModal || editModal.classList.contains('hidden')) return;
+                editBackdrop?.classList.remove('opacity-100');
+                editBackdrop?.classList.add('opacity-0');
+                editDialog?.classList.remove('scale-100', 'opacity-100');
+                editDialog?.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    editModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }, 200);
+            }
+
+            if (closeEditModalBtn) closeEditModalBtn.onclick = closeEditModal;
+            if (cancelEditModalBtn) cancelEditModalBtn.onclick = closeEditModal;
+            if (editBackdrop) editBackdrop.onclick = closeEditModal;
+
+            if (drawerEditBtn) {
+                drawerEditBtn.onclick = () => {
+                    const data = currentTrxData;
+                    closeDrawer();
+                    setTimeout(() => openEditModal(data), 220);
+                };
+            }
+
+            if (editForm && editForm.dataset.dashSubmitBound !== 'true') {
+                editForm.dataset.dashSubmitBound = 'true';
+                editForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    if (!editForm.action) return;
+                    if (submitEditTrxBtn) submitEditTrxBtn.disabled = true;
+
+                    try {
+                        const formData = new FormData(editForm);
+                        const res = await fetch(editForm.action, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            body: formData,
+                        });
+                        const data = await res.json();
+                        if (!res.ok || !data.success) {
+                            throw new Error(data.message || 'Gagal memperbarui transaksi.');
+                        }
+                        closeEditModal();
+                        if (typeof showToast === 'function') {
+                            showToast('success', data.message || 'Transaksi berhasil diperbarui.');
+                        }
+                        // Refresh only the Recent Transactions table
+                        const refreshBtn = document.getElementById('refreshRecentTransactionsBtn');
+                        if (refreshBtn) refreshBtn.click();
+                    } catch (err) {
+                        if (typeof showToast === 'function') {
+                            showToast('error', err.message || 'Terjadi kesalahan saat menyimpan.');
+                        }
+                    } finally {
+                        if (submitEditTrxBtn) submitEditTrxBtn.disabled = false;
+                    }
+                });
+            }
+
+            // Event delegation on #recentTransactionsContainer (persists across AJAX refreshes!)
+            container.addEventListener('click', (e) => {
+                const detailBtn = e.target.closest('.dash-tx-detail-btn');
+                const editBtn = e.target.closest('.dash-tx-edit-btn');
+                if (!detailBtn && !editBtn) return;
+
+                const row = (detailBtn || editBtn).closest('.dash-tx-row');
+                if (!row) return;
+                const raw = row.getAttribute('data-detail');
+                if (!raw) return;
+
+                try {
+                    const data = JSON.parse(raw);
+                    if (detailBtn) {
+                        openDrawer(data);
+                    } else if (editBtn) {
+                        openEditModal(data);
+                    }
+                } catch (err) {
+                    console.error('Failed to parse transaction detail payload', err);
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (editModal && !editModal.classList.contains('hidden')) {
+                        closeEditModal();
+                    } else if (drawerWrapper && !drawerWrapper.classList.contains('hidden')) {
+                        closeDrawer();
+                    }
+                }
+            });
+        }
+
         // Global idempotent listeners
         if (!window.__dashboardListenersBound) {
             window.__dashboardListenersBound = true;
 
             document.addEventListener('DOMContentLoaded', () => {
                 initDashboardSalesChart();
+                initRecentTransactionsRefresh();
+                initRecentTransactionsActions();
             });
 
             document.addEventListener('livewire:navigated', () => {
                 initDashboardSalesChart();
+                initRecentTransactionsRefresh();
+                initRecentTransactionsActions();
             });
 
             document.addEventListener('livewire:navigating', () => {
@@ -557,6 +960,8 @@
         window.__dashboardThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
         // Immediate run
+        initRecentTransactionsRefresh();
+        initRecentTransactionsActions();
         setTimeout(initDashboardSalesChart, 150);
     </script>
     @endpush

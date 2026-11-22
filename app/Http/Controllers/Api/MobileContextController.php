@@ -127,6 +127,10 @@ class MobileContextController extends Controller
                 'table_settings' => [
                     'enabled' => (bool) $business->table_management_enabled,
                 ],
+                'payment_methods' => app(\App\Services\Payment\PaymentMethodService::class)->forMobileContext(
+                    $business,
+                    ($role === Business::ROLE_CASHIER && $assignedOutletId !== null) ? (int) $assignedOutletId : null
+                ),
                 'dining_tables' => $business->diningTables()
                     ->when($role === Business::ROLE_CASHIER && $assignedOutletId !== null, function ($q) use ($assignedOutletId) {
                         $q->where(function ($sub) use ($assignedOutletId) {

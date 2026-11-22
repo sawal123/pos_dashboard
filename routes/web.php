@@ -11,6 +11,7 @@ use App\Http\Controllers\Dashboard\CustomersController;
 use App\Http\Controllers\Dashboard\DashboardController;
 use App\Http\Controllers\Dashboard\DevicesController;
 use App\Http\Controllers\Dashboard\DiningTablesController;
+use App\Http\Controllers\Dashboard\PaymentMethodsController;
 use App\Http\Controllers\Dashboard\GuideChatController;
 use App\Http\Controllers\Dashboard\LaundryOrdersController;
 use App\Http\Controllers\Dashboard\OutletsController;
@@ -128,6 +129,9 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('dashboard', [DashboardController::class, 'index'])
         ->middleware('business.permission:'.BusinessPermission::DASHBOARD_VIEW)
         ->name('dashboard');
+    Route::get('dashboard/recent-transactions', [DashboardController::class, 'recentTransactions'])
+        ->middleware('business.permission:'.BusinessPermission::DASHBOARD_VIEW)
+        ->name('dashboard.recent-transactions');
 
     // POS-W01 — Web Cashier Zone (Zona Kasir)
     Route::get('pos', [PosController::class, 'index'])
@@ -152,6 +156,13 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::post('pos/checkout', [PosController::class, 'checkout'])
         ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD, 'throttle:pos-checkout'])
         ->name('pos.checkout');
+    Route::get('pos/queue', [PosController::class, 'queue'])
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.queue');
+    Route::patch('pos/queue/{saleId}', [PosController::class, 'updateQueueOrder'])
+        ->whereNumber('saleId')
+        ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('pos.queue.update');
     Route::get('pos/receipt/{saleId}', [PosController::class, 'receipt'])
         ->whereNumber('saleId')
         ->middleware(['business.permission:'.BusinessPermission::POS_SELL, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
@@ -522,6 +533,27 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
         ->whereNumber('tableId')
         ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
         ->name('tables.destroy');
+
+    // DASH-PAYMENTS — master payment methods & per-outlet activation matrix
+    Route::get('payment-methods', [PaymentMethodsController::class, 'index'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('payment-methods.index');
+    Route::post('payment-methods', [PaymentMethodsController::class, 'store'])
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('payment-methods.store');
+    Route::patch('payment-methods/{paymentMethod}', [PaymentMethodsController::class, 'update'])
+        ->whereNumber('paymentMethod')
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('payment-methods.update');
+    Route::patch('payment-methods/{paymentMethod}/outlets/{outlet}/toggle', [PaymentMethodsController::class, 'toggleOutlet'])
+        ->whereNumber('paymentMethod')
+        ->whereNumber('outlet')
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('payment-methods.toggle-outlet');
+    Route::delete('payment-methods/{paymentMethod}', [PaymentMethodsController::class, 'destroy'])
+        ->whereNumber('paymentMethod')
+        ->middleware(['business.permission:'.BusinessPermission::BUSINESS_SETTINGS_MANAGE, 'premium.access:'.PremiumPolicy::CAPABILITY_WEB_DASHBOARD])
+        ->name('payment-methods.destroy');
 
     // Legacy / alias table routes for backward compatibility
     Route::patch('business-settings/tables-toggle', [DiningTablesController::class, 'updateToggle'])

@@ -38,17 +38,9 @@ class UpdateBusinessTypeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $rules = [
+        return [
             'business_type' => ['required', 'string', Rule::in(BusinessType::values())],
         ];
-
-        // Confirm explicitly when changing a business that already has a type.
-        $business = $this->activeBusiness();
-        if ($business !== null && $business->business_type !== null) {
-            $rules['confirm_change'] = ['required', 'accepted'];
-        }
-
-        return $rules;
     }
 
     /**
@@ -59,7 +51,6 @@ class UpdateBusinessTypeRequest extends FormRequest
         return [
             'business_type.required' => 'Pilih salah satu tipe bisnis.',
             'business_type.in' => 'Tipe bisnis tidak dikenal.',
-            'confirm_change.accepted' => 'Konfirmasi perubahan tipe bisnis wajib dicentang.',
         ];
     }
 

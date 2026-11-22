@@ -83,6 +83,10 @@ class TransactionsController extends Controller
 
         $data = $this->transactionsData->get($currentBusiness, $filters);
 
+        $paymentMethods = $currentBusiness
+            ? app(\App\Services\Payment\PaymentMethodService::class)->ensureDefaults($currentBusiness)
+            : collect();
+
         return view('transactions.index', [
             'transactions' => $data['transactions'],
             'metrics' => $data['metrics'],
@@ -91,6 +95,7 @@ class TransactionsController extends Controller
             'hasAnyTransactions' => $data['hasAnyTransactions'],
             'canEdit' => $canEdit,
             'canAddItems' => $canAddItems,
+            'paymentMethods' => $paymentMethods,
             'taxEnabled' => (bool) ($currentBusiness?->tax_enabled ?? false),
             'taxRate' => (float) ($currentBusiness?->tax_rate ?? 0),
         ]);

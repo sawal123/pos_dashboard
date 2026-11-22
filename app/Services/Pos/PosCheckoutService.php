@@ -395,11 +395,14 @@ class PosCheckoutService
             $totalAmount = $taxableSubtotal + $taxAmount;
 
             $payLater = ! empty($payload['pay_later']) || in_array(($payload['payment_status'] ?? ''), ['unpaid', 'belum lunas'], true) || in_array(($payload['payment_method'] ?? ''), ['later', 'tempo', 'unpaid'], true);
-            $paymentMethod = (string) ($payload['payment_method'] ?? 'cash');
-            $validMethods = ['cash', 'qris', 'transfer', 'debit', 'later', 'tempo', 'unpaid'];
-            if (! in_array($paymentMethod, $validMethods, true)) {
+            $paymentMethod = trim((string) ($payload['payment_method'] ?? 'cash'));
+            $paymentMethodService = app(\App\Services\Payment\PaymentMethodService::class);
+            $legacyMethods = ['cash', 'qris', 'transfer', 'debit', 'later', 'tempo', 'unpaid'];
+            $resolvedMethod = $paymentMethodService->resolveMethod($business, $paymentMethod);
+
+            if (! $payLater && ! $resolvedMethod && ! in_array(strtolower($paymentMethod), $legacyMethods, true)) {
                 throw ValidationException::withMessages([
-                    'payment_method' => 'Metode pembayaran tidak valid.',
+                    'payment_method' => 'Metode pembayaran tidak valid atau tidak terdaftar pada bisnis ini.',
                 ]);
             }
 
@@ -413,8 +416,8 @@ class PosCheckoutService
             } else {
                 $paymentStatus = 'paid';
                 $paidAt = $now;
-                $isCash = ($paymentMethod === 'cash');
-                $salePaymentMethod = $paymentMethod;
+                $isCash = $resolvedMethod ? (bool) $resolvedMethod->is_cash : (strtolower($paymentMethod) === 'cash');
+                $salePaymentMethod = $resolvedMethod ? (string) $resolvedMethod->code : $paymentMethod;
 
                 if ($isCash) {
                     $cashReceived = isset($payload['cash_received'])

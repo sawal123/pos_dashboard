@@ -292,6 +292,12 @@
     .modal-hidden .modal-panel { transform: scale(0.95) translateY(12px); opacity: 0; }
     .modal-hidden .modal-backdrop { opacity: 0; pointer-events: none; }
 
+    /* Prevent parent space-y-* utilities from pushing fixed inset-0 modal/drawer overlays down from top: 0 */
+    .fixed.inset-0 {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
     .toast-enter { animation: slideInRight 0.35s ease-out forwards; }
     .toast-exit { animation: slideOutRight 0.3s ease-in forwards; }
     @keyframes slideInRight { from { opacity: 0; transform: translateX(32px); } to { opacity: 1; transform: translateX(0); } }
