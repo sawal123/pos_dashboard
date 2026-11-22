@@ -346,6 +346,7 @@ class SyncPullService
             ->orderBy('sync_sequence', 'asc')
             ->limit($fetchLimit)
             ->with(['targets.product', 'targets.category', 'targets.customer'])
+            ->withCount('redemptions')
             ->get();
 
         foreach ($promos as $promo) {
@@ -369,6 +370,7 @@ class SyncPullService
                     'end_time' => $promo->end_time,
                     'usage_limit_total' => $promo->usage_limit_total,
                     'usage_limit_per_customer' => $promo->usage_limit_per_customer,
+                    'usage_count' => (int) ($promo->redemptions_count ?? 0),
                     'is_stackable' => (bool) $promo->is_stackable,
                     'status' => $promo->status,
                     'targets' => $promo->targets->map(static function ($target): array {

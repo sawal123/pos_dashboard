@@ -103,14 +103,14 @@ final class SyncAuthorizationPolicy
         $outletId = (int) $context['outlet_id'];
         $violations = [];
 
-        $knownEntities = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'deletions'];
+        $knownEntities = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'deletions'];
         foreach ($changes as $entity => $items) {
             if (! in_array($entity, $knownEntities, true)) {
                 $violations[] = $this->violation((string) $entity, 'upsert', 'unknown_entity');
             }
         }
 
-        foreach (['categories', 'products', 'expenses'] as $entity) {
+        foreach (['categories', 'products', 'expenses', 'promos'] as $entity) {
             if (! empty($changes[$entity])) {
                 $violations[] = $this->violation($entity, 'upsert', 'cashier_entity_not_allowed');
             }
@@ -155,6 +155,7 @@ final class SyncAuthorizationPolicy
                 'expenses' => ['upsert', 'delete'],
                 'cash_ledger' => ['upsert'],
                 'stock_movements' => ['upsert'],
+                'promos' => ['upsert', 'delete'],
             ];
         }
 

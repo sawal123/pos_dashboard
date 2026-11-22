@@ -10,6 +10,7 @@ use App\Models\Device;
 use App\Models\Expense;
 use App\Models\Product;
 use App\Models\Promo;
+use App\Models\PromoTarget;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePromotion;
@@ -91,6 +92,7 @@ class SyncPushService
                 $this->processExpenses($business, $outletId, $changes['expenses'] ?? []);
                 $this->processCashLedger($business, $outletId, $changes['cash_ledger'] ?? []);
                 $this->processStockMovements($business, $outletId, $changes['stock_movements'] ?? [], $cashierSafe);
+                $this->processPromos($business, $changes['promos'] ?? []);
                 $this->processDeletions($business, $outletId, $changes['deletions'] ?? []);
 
                 SyncRequest::create([
@@ -725,6 +727,96 @@ class SyncPushService
     }
 
     /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    protected function processPromos(Business $business, array $items): void
+    {
+        foreach ($items as $item) {
+            $syncId = (string) $item['sync_id'];
+            $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
+
+            $record = Promo::where('business_id', $business->id)
+                ->where('sync_id', $syncId)
+                ->lockForUpdate()
+                ->first();
+
+            $discountType = (string) ($item['discount_type'] ?? 'fixed');
+            $discountValue = (int) ($item['discount_value'] ?? 0);
+            if ($discountType === 'percent' && $discountValue > 0 && $discountValue <= 100) {
+                $discountValue = $discountValue * 100;
+            }
+
+            $attributes = [
+                'name' => trim((string) ($item['name'] ?? '')),
+                'code' => ! empty($item['code']) ? trim((string) $item['code']) : null,
+                'discount_type' => $discountType,
+                'discount_value' => $discountValue,
+                'scope' => (string) ($item['scope'] ?? 'all'),
+                'min_purchase' => (int) ($item['min_purchase'] ?? 0),
+                'max_discount' => isset($item['max_discount']) && $item['max_discount'] !== '' ? (int) $item['max_discount'] : null,
+                'weekdays' => is_array($item['weekdays'] ?? null) ? $item['weekdays'] : (is_string($item['weekdays'] ?? null) ? json_decode($item['weekdays'], true) : null),
+                'starts_at' => ! empty($item['starts_at']) ? $this->parseSyncTimestamp($item['starts_at']) : null,
+                'ends_at' => ! empty($item['ends_at']) ? $this->parseSyncTimestamp($item['ends_at']) : null,
+                'start_time' => ! empty($item['start_time']) ? (string) $item['start_time'] : null,
+                'end_time' => ! empty($item['end_time']) ? (string) $item['end_time'] : null,
+                'usage_limit_total' => isset($item['usage_limit_total']) && $item['usage_limit_total'] !== '' ? (int) $item['usage_limit_total'] : null,
+                'usage_limit_per_customer' => isset($item['usage_limit_per_customer']) && $item['usage_limit_per_customer'] !== '' ? (int) $item['usage_limit_per_customer'] : null,
+                'is_stackable' => ! empty($item['is_stackable']),
+                'status' => (string) ($item['status'] ?? 'active'),
+            ];
+
+            if ($record instanceof Promo) {
+                $this->validateConcurrency('promos', $record, $syncId, $baseVersion);
+                $record->fill($attributes);
+                $record->save();
+                $promo = $record;
+            } else {
+                $this->validateConcurrency('promos', null, $syncId, $baseVersion);
+                $promo = new Promo($attributes);
+                $promo->business_id = $business->id;
+                $promo->sync_id = $syncId;
+                $promo->save();
+            }
+
+            if (isset($item['targets']) && is_array($item['targets'])) {
+                $promo->targets()->delete();
+                foreach ($item['targets'] as $target) {
+                    $targetType = (string) ($target['target_type'] ?? 'product');
+                    $targetSyncId = (string) ($target['target_sync_id'] ?? $target['target_id'] ?? '');
+                    if ($targetSyncId === '') {
+                        continue;
+                    }
+
+                    $targetId = null;
+                    if ($targetType === 'product') {
+                        $targetId = Product::where('business_id', $business->id)
+                            ->where(function ($q) use ($targetSyncId) {
+                                $q->where('sync_id', $targetSyncId)->orWhere('id', $targetSyncId);
+                            })->value('id');
+                    } elseif ($targetType === 'category') {
+                        $targetId = Category::where('business_id', $business->id)
+                            ->where(function ($q) use ($targetSyncId) {
+                                $q->where('sync_id', $targetSyncId)->orWhere('name', $targetSyncId);
+                            })->value('id');
+                    } elseif ($targetType === 'customer') {
+                        $targetId = Customer::where('business_id', $business->id)
+                            ->where('sync_id', $targetSyncId)->value('id');
+                    }
+
+                    if ($targetId) {
+                        PromoTarget::firstOrCreate([
+                            'business_id' => $business->id,
+                            'promo_id' => $promo->id,
+                            'target_type' => $targetType,
+                            'target_id' => $targetId,
+                        ]);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Extract optional product semantic fields present in the payload.
      * Fields absent from the payload are left untouched on update.
      *
@@ -1236,6 +1328,7 @@ class SyncPushService
             'products' => Product::class,
             'customers' => Customer::class,
             'expenses' => Expense::class,
+            'promos' => Promo::class,
         ];
 
         foreach ($items as $item) {

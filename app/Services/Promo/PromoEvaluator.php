@@ -139,9 +139,17 @@ final class PromoEvaluator
     {
         $type = $promo->discountType();
 
+        $applicableSubtotal = $subtotal;
+        if ((string) $promo->scope !== PromoScope::All->value && (string) $promo->scope !== PromoScope::Customer->value) {
+            $applicableSubtotal = 0;
+            foreach ($matching as $line) {
+                $applicableSubtotal += (int) ($line['line_total'] ?? 0);
+            }
+        }
+
         return match ($type) {
-            PromoDiscountType::Percent => intdiv($subtotal * (int) $promo->discount_value, 10000),
-            PromoDiscountType::Fixed => (int) $promo->discount_value,
+            PromoDiscountType::Percent => intdiv($applicableSubtotal * (int) $promo->discount_value, 10000),
+            PromoDiscountType::Fixed => min($applicableSubtotal, (int) $promo->discount_value),
             PromoDiscountType::PriceOverride => $this->priceOverrideDiscount($promo, $matching),
             default => 0,
         };

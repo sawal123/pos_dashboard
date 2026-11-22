@@ -204,9 +204,32 @@ class SyncPushRequest extends FormRequest
             // Tombstone deletions (non-destructive deactivation)
             'changes.deletions' => ['sometimes', 'array', 'max:100'],
             'changes.deletions.*' => ['array'],
-            'changes.deletions.*.entity' => ['required', 'string', 'in:categories,products,customers,expenses'],
+            'changes.deletions.*.entity' => ['required', 'string', 'in:categories,products,customers,expenses,promos'],
             'changes.deletions.*.sync_id' => ['required', 'uuid'],
             'changes.deletions.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
+
+            // Promos (PROMO-D01)
+            'changes.promos' => ['sometimes', 'array', 'max:100'],
+            'changes.promos.*' => ['array'],
+            'changes.promos.*.sync_id' => ['required', 'uuid'],
+            'changes.promos.*.name' => ['required', 'string', 'max:120'],
+            'changes.promos.*.code' => ['nullable', 'string', 'max:40'],
+            'changes.promos.*.discount_type' => ['required', 'string', 'in:percent,fixed,price_override'],
+            'changes.promos.*.discount_value' => ['required', 'numeric', 'min:0'],
+            'changes.promos.*.scope' => ['nullable', 'string', 'in:all,product,category,customer'],
+            'changes.promos.*.min_purchase' => ['nullable', 'numeric', 'min:0'],
+            'changes.promos.*.max_discount' => ['nullable', 'numeric', 'min:0'],
+            'changes.promos.*.weekdays' => ['nullable'],
+            'changes.promos.*.starts_at' => ['nullable', 'date'],
+            'changes.promos.*.ends_at' => ['nullable', 'date'],
+            'changes.promos.*.start_time' => ['nullable', 'string', 'max:5'],
+            'changes.promos.*.end_time' => ['nullable', 'string', 'max:5'],
+            'changes.promos.*.usage_limit_total' => ['nullable', 'integer', 'min:1'],
+            'changes.promos.*.usage_limit_per_customer' => ['nullable', 'integer', 'min:1'],
+            'changes.promos.*.is_stackable' => ['nullable', 'boolean'],
+            'changes.promos.*.status' => ['nullable', 'string', 'in:active,inactive,draft,deleted'],
+            'changes.promos.*.targets' => ['nullable', 'array'],
+            'changes.promos.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
         ];
     }
 
@@ -218,7 +241,7 @@ class SyncPushRequest extends FormRequest
         $validator->after(function (Validator $v): void {
             $changes = $this->input('changes');
             if (is_array($changes)) {
-                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'deletions'];
+                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'deletions'];
                 $unknownKeys = array_diff(array_keys($changes), $allowedKeys);
                 if (! empty($unknownKeys)) {
                     $v->errors()->add('changes', 'The changes payload contains unsupported entity types.');

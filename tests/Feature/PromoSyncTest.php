@@ -120,6 +120,89 @@ class PromoSyncTest extends TestCase
         $this->assertDatabaseCount('sale_promotions', 0);
     }
 
+    public function test_07_push_promo_from_mobile_creates_promo_and_targets(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $product = $this->createProduct($env['business']);
+        $promoSyncId = (string) Str::uuid();
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->postJson('/api/sync/push', [
+                'business_id' => $env['business']->id,
+                'device_identifier' => 'POS-01',
+                'request_id' => (string) Str::uuid(),
+                'changes' => [
+                    'promos' => [
+                        [
+                            'sync_id' => $promoSyncId,
+                            'name' => 'Promo Mobile Kopi',
+                            'code' => 'KOPI20',
+                            'discount_type' => 'percent',
+                            'discount_value' => 20, // 20% in mobile converts to 2000 basis points
+                            'scope' => 'product',
+                            'min_purchase' => 10000,
+                            'max_discount' => 50000,
+                            'usage_limit_total' => 100,
+                            'status' => 'active',
+                            'targets' => [
+                                [
+                                    'target_type' => 'product',
+                                    'target_sync_id' => $product->sync_id,
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('promos', [
+            'business_id' => $env['business']->id,
+            'sync_id' => $promoSyncId,
+            'name' => 'Promo Mobile Kopi',
+            'code' => 'KOPI20',
+            'discount_type' => 'percent',
+            'discount_value' => 2000,
+            'scope' => 'product',
+            'usage_limit_total' => 100,
+        ]);
+
+        $this->assertDatabaseHas('promo_targets', [
+            'business_id' => $env['business']->id,
+            'target_type' => 'product',
+            'target_id' => $product->id,
+        ]);
+    }
+
+    public function test_08_pull_includes_usage_count_from_redemptions(): void
+    {
+        $env = $this->setupSyncEnvironment();
+        $promo = $this->createPromo($env['business'], [
+            'name' => 'Promo Kuota',
+            'usage_limit_total' => 50,
+        ]);
+        $product = $this->createProduct($env['business']);
+
+        // First redemption
+        $this->pushSale($env, $product, [
+            'promo_sync_id' => $promo->sync_id,
+            'discount_amount' => 1000,
+            'total_amount' => 9000,
+        ])->assertStatus(200);
+
+        // Pull promos
+        $response = $this->withHeader('Authorization', 'Bearer '.$env['token'])
+            ->getJson('/api/sync/pull?business_id='.$env['business']->id.'&device_identifier=POS-01');
+
+        $response->assertOk();
+        $records = collect($response->json('data.records'))->where('entity', 'promos');
+        $pulledPromo = $records->firstWhere('data.sync_id', $promo->sync_id);
+
+        $this->assertNotNull($pulledPromo);
+        $this->assertSame(1, (int) $pulledPromo['data']['usage_count']);
+        $this->assertSame(50, (int) $pulledPromo['data']['usage_limit_total']);
+    }
+
     /**
      * @return array{business: Business, outlet: Outlet, token: string}
      */
