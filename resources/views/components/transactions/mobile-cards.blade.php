@@ -12,11 +12,19 @@
             $orderRaw = strtolower($trx['order_status_raw'] ?? $trx['order_status'] ?? '');
             $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
 
-            $isCancelled = in_array($statusRaw, ['cancelled', 'canceled', 'batal']) || in_array($orderRaw, ['batal', 'cancelled', 'canceled']);
-            $isProcessing = in_array($statusRaw, ['processing', 'proses']) || in_array($orderRaw, ['proses', 'diproses', 'masuk']);
+            $isCancelled = in_array($statusRaw, ['cancelled', 'canceled', 'batal', 'dibatalkan']) || in_array($orderRaw, ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            $isRefunded = in_array($payRaw, ['refund', 'refunded']) || ($trx['payment_status'] ?? '') === 'Refund';
+            $isProcessing = ! $isCancelled && (in_array($statusRaw, ['processing', 'proses']) || in_array($orderRaw, ['proses', 'diproses', 'masuk']));
+            $isSuccess = ! $isCancelled && ! $isRefunded && ($payRaw === 'paid' || ($trx['payment_status'] ?? '') === 'Lunas');
+
+            $cardToneClass = $isCancelled
+                ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/70 border-l-4 border-l-rose-500'
+                : ($isRefunded
+                    ? 'bg-purple-50/40 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800/70 border-l-4 border-l-purple-500'
+                    : 'bg-white dark:bg-slate-900 border-slate-200/90 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700');
         @endphp
         <div
-            class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xs hover:border-slate-300 dark:hover:border-slate-700 transition-colors transaction-card space-y-3"
+            class="p-4 rounded-2xl border shadow-xs transition-colors transaction-card space-y-3 {{ $cardToneClass }}"
             data-id="{{ $trx['id'] }}"
             data-trx="{{ $trx['transaction_number'] }}"
             data-customer="{{ strtolower($customer) }}"
@@ -31,12 +39,16 @@
             <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="font-bold text-sm text-slate-900 dark:text-white truncate">
+                        <span class="font-bold text-sm truncate {{ $isCancelled ? 'line-through text-slate-500 dark:text-slate-400' : 'text-slate-900 dark:text-white' }}">
                             {{ $trx['transaction_number'] }}
                         </span>
                         @if($isCancelled)
                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400 border border-rose-200/60 dark:border-rose-800/60">
                                 Batal
+                            </span>
+                        @elseif($isRefunded)
+                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 border border-purple-200/60 dark:border-purple-800/60">
+                                Refund
                             </span>
                         @elseif($isProcessing)
                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60">
@@ -44,7 +56,7 @@
                             </span>
                         @else
                             <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                                Siap
+                                {{ $isSuccess ? 'Sukses' : 'Siap' }}
                             </span>
                         @endif
                     </div>
@@ -53,7 +65,7 @@
                     </p>
                 </div>
                 <div class="text-right shrink-0">
-                    <span class="text-base font-extrabold text-slate-900 dark:text-white tabular-nums tracking-tight">
+                    <span class="text-base font-extrabold tabular-nums tracking-tight {{ $isCancelled ? 'line-through text-rose-600/80 dark:text-rose-400/80' : ($isRefunded ? 'line-through text-purple-600/80 dark:text-purple-400/80' : 'text-slate-900 dark:text-white') }}">
                         Rp {{ number_format($trx['total_amount'], 0, ',', '.') }}
                     </span>
                 </div>

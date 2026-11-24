@@ -131,6 +131,95 @@
             />
         </div>
 
+        {{-- ==================== 1B. STATUS TRANSAKSI HARI INI ==================== --}}
+        @php
+            $dashStatusSummary = $overview['status_summary'] ?? [
+                'success_count' => 0,
+                'success_sales' => 0,
+                'processing_count' => 0,
+                'processing_amount' => 0,
+                'cancelled_refund_count' => 0,
+                'cancelled_refund_amount' => 0,
+            ];
+            $dashTrxBase = array_filter([
+                'date' => 'today',
+                'outlet_id' => $selectedOutletId ?? null,
+            ], fn ($v) => $v !== null && $v !== '');
+        @endphp
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {{-- Transaksi Sukses --}}
+            <a
+                href="{{ route('transactions.index', array_merge($dashTrxBase, ['status' => 'siap', 'payment_status' => 'paid'])) }}"
+                class="group flex items-center justify-between gap-3 p-3.5 sm:px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-800 shadow-xs transition-all"
+            >
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/70 dark:border-emerald-800/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">Transaksi Sukses</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            Rp {{ number_format($dashStatusSummary['success_sales'] ?? 0, 0, ',', '.') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-lg font-extrabold text-emerald-700 dark:text-emerald-400 tabular-nums">
+                        {{ number_format($dashStatusSummary['success_count'] ?? 0, 0, ',', '.') }}
+                    </span>
+                    <span class="block text-[10px] text-slate-400">hari ini</span>
+                </div>
+            </a>
+
+            {{-- Transaksi Proses --}}
+            <a
+                href="{{ route('transactions.index', array_merge($dashTrxBase, ['status' => 'proses', 'payment_status' => 'all'])) }}"
+                class="group flex items-center justify-between gap-3 p-3.5 sm:px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800 shadow-xs transition-all"
+            >
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200/70 dark:border-blue-800/60 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 block">Transaksi Proses</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            Rp {{ number_format($dashStatusSummary['processing_amount'] ?? 0, 0, ',', '.') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-lg font-extrabold text-blue-700 dark:text-blue-400 tabular-nums">
+                        {{ number_format($dashStatusSummary['processing_count'] ?? 0, 0, ',', '.') }}
+                    </span>
+                    <span class="block text-[10px] text-slate-400">hari ini</span>
+                </div>
+            </a>
+
+            {{-- Batal / Refund --}}
+            <a
+                href="{{ route('transactions.index', array_merge($dashTrxBase, ['status' => 'all', 'payment_status' => 'refund'])) }}"
+                class="group flex items-center justify-between gap-3 p-3.5 sm:px-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 shadow-xs transition-all"
+            >
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-9 h-9 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200/70 dark:border-rose-800/60 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-rose-700 dark:text-rose-400 block">Batal / Refund</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                            Rp {{ number_format($dashStatusSummary['cancelled_refund_amount'] ?? 0, 0, ',', '.') }}
+                        </span>
+                    </div>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-lg font-extrabold text-rose-700 dark:text-rose-400 tabular-nums">
+                        {{ number_format($dashStatusSummary['cancelled_refund_count'] ?? 0, 0, ',', '.') }}
+                    </span>
+                    <span class="block text-[10px] text-slate-400">hari ini</span>
+                </div>
+            </a>
+        </div>
+
         {{-- ==================== 2. SALES OVERVIEW & CLOUD STATUS ==================== --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {{-- Sales Overview Chart (2 cols on lg) --}}
@@ -747,8 +836,7 @@
                 const input = document.getElementById('editStatus');
                 if (input) input.value = status;
                 if (status === 'batal') {
-                    const payStatusInput = document.getElementById('editPaymentStatus');
-                    if (payStatusInput && payStatusInput.value === 'paid') selectEditPaymentStatus('refund');
+                    selectEditPaymentStatus('refund');
                 } else if (status === 'siap' || status === 'proses') {
                     const payStatusInput = document.getElementById('editPaymentStatus');
                     if (payStatusInput && payStatusInput.value === 'refund') selectEditPaymentStatus('paid');

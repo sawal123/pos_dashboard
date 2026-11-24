@@ -31,7 +31,12 @@ class DashboardTransactionsData
 
         $filteredQuery = $this->applyFilters(clone $baseQuery, $filters);
 
-        $metrics = $this->buildMetrics(clone $filteredQuery, $filters);
+        $breakdownQuery = $this->applyFilters(clone $baseQuery, array_merge($filters, [
+            'status' => 'all',
+            'payment_status' => 'all',
+        ]));
+
+        $metrics = $this->buildMetrics(clone $filteredQuery, $filters, $breakdownQuery);
 
         /** @var LengthAwarePaginator<int, Sale> $transactions */
         $transactions = (clone $filteredQuery)
@@ -228,7 +233,7 @@ class DashboardTransactionsData
      * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
-    private function buildMetrics(Builder $query, array $filters = []): array
+    private function buildMetrics(Builder $query, array $filters = [], ?Builder $breakdownQuery = null): array
     {
         $statusFilter = isset($filters['status']) && $filters['status'] !== '' && $filters['status'] !== 'all'
             ? strtolower((string) $filters['status'])
@@ -248,6 +253,44 @@ class DashboardTransactionsData
                     ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
             })
             ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+
+        // Status breakdown (Sukses / Proses / Batal & Refund) within the active date/outlet/search/method scope
+        $scopeQuery = $breakdownQuery ?? $query;
+
+        $notCancelledOrRefund = fn (Builder $q) => $q
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+            ->where(function ($sub) {
+                $sub->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+
+        $processingScope = $notCancelledOrRefund(clone $scopeQuery)
+            ->where(function ($q) {
+                $q->whereIn(DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(order_status, ""))'), ['proses', 'diproses', 'masuk', 'processing']);
+            });
+
+        $successScope = $notCancelledOrRefund(clone $scopeQuery)
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['proses', 'diproses', 'masuk', 'processing']);
+            });
+
+        $cancelledRefundScope = (clone $scopeQuery)
+            ->where(function ($q) {
+                $q->whereIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(order_status, ""))'), ['batal', 'cancelled', 'canceled', 'dibatalkan'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+            });
+
+        $successCount = (clone $successScope)->count();
+        $successSales = (int) (clone $successScope)->sum('total_amount');
+        $processingCount = (clone $processingScope)->count();
+        $processingAmount = (int) (clone $processingScope)->sum('total_amount');
+        $cancelledRefundCount = (clone $cancelledRefundScope)->count();
+        $cancelledRefundAmount = (int) (clone $cancelledRefundScope)->sum('total_amount');
 
         if ($isFilteringBatal || $isFilteringRefund) {
             // When user explicitly filters by Batal or Refund, count shows the filtered count, but sales revenue is 0
@@ -282,6 +325,12 @@ class DashboardTransactionsData
             'average_transaction' => $averageTransaction,
             'top_payment_method' => $topPaymentMethod,
             'top_payment_percentage' => $topPaymentPercentage,
+            'success_count' => $successCount,
+            'success_sales' => $successSales,
+            'processing_count' => $processingCount,
+            'processing_amount' => $processingAmount,
+            'cancelled_refund_count' => $cancelledRefundCount,
+            'cancelled_refund_amount' => $cancelledRefundAmount,
         ];
     }
 
@@ -533,6 +582,12 @@ class DashboardTransactionsData
                 'average_transaction' => 0,
                 'top_payment_method' => '-',
                 'top_payment_percentage' => 0,
+                'success_count' => 0,
+                'success_sales' => 0,
+                'processing_count' => 0,
+                'processing_amount' => 0,
+                'cancelled_refund_count' => 0,
+                'cancelled_refund_amount' => 0,
             ],
             'filterOptions' => [
                 'outlets' => [],

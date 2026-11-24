@@ -169,7 +169,7 @@
                             </button>
                         </div>
                         <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                            Pilih perkembangan pengerjaan pesanan pelanggan.
+                            Pilih perkembangan pengerjaan pesanan pelanggan. Memilih <strong>Batal</strong> otomatis memilih status pembayaran <strong>Refund</strong>.
                         </p>
                     </div>
 

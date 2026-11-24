@@ -138,11 +138,9 @@ class TransactionsController extends Controller
             default => 'Siap',
         };
 
-        // When a transaction is cancelled, a previously paid order becomes refunded so it does not count towards revenue
+        // When a transaction is cancelled, automatically mark payment status as refund as well
         if ($canonicalStatus === 'cancelled') {
-            if ($canonicalPaymentStatus === 'paid') {
-                $canonicalPaymentStatus = 'refund';
-            }
+            $canonicalPaymentStatus = 'refund';
             $canonicalOrderStatus = 'Batal';
         }
 

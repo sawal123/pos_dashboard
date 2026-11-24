@@ -86,6 +86,50 @@ class DashboardOverviewData
             ? (int) round($todaySalesTotal / $todayTransactionsCount)
             : 0;
 
+        // 3B. Ringkasan Status Transaksi Hari Ini (Sukses / Proses / Batal & Refund)
+        $todayScopeQuery = Sale::where('business_id', $businessId)
+            ->whereBetween('sold_at', [$todayStart, $todayEnd]);
+        if ($numericOutletId !== null) {
+            $todayScopeQuery->where('outlet_id', $numericOutletId);
+        }
+
+        $notCancelledOrRefund = fn ($q) => $q
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+            ->where(function ($sub) {
+                $sub->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+            })
+            ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+
+        $todayProcessingQuery = $notCancelledOrRefund(clone $todayScopeQuery)
+            ->where(function ($q) {
+                $q->whereIn(DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(order_status, ""))'), ['proses', 'diproses', 'masuk', 'processing']);
+            });
+
+        $todaySuccessQuery = $notCancelledOrRefund(clone $todayScopeQuery)
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['proses', 'diproses', 'masuk', 'processing']);
+            });
+
+        $todayCancelledRefundQuery = (clone $todayScopeQuery)
+            ->where(function ($q) {
+                $q->whereIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(order_status, ""))'), ['batal', 'cancelled', 'canceled', 'dibatalkan'])
+                    ->orWhereIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+            });
+
+        $statusSummary = [
+            'success_count' => (clone $todaySuccessQuery)->count(),
+            'success_sales' => (int) (clone $todaySuccessQuery)->sum('total_amount'),
+            'processing_count' => (clone $todayProcessingQuery)->count(),
+            'processing_amount' => (int) (clone $todayProcessingQuery)->sum('total_amount'),
+            'cancelled_refund_count' => (clone $todayCancelledRefundQuery)->count(),
+            'cancelled_refund_amount' => (int) (clone $todayCancelledRefundQuery)->sum('total_amount'),
+        ];
+
         // KPI Peringatan Stok
         $stockAlertsKpiCount = Product::where('business_id', $businessId)
             ->where('kind', 'product')
@@ -142,6 +186,7 @@ class DashboardOverviewData
             ],
 
             'sales_chart' => $chartData,
+            'status_summary' => $statusSummary,
             'stock_panel' => $stockPanel,
             'cash_summary' => $cashSummary,
             'cloud_panel' => $cloudPanel,
@@ -706,6 +751,15 @@ class DashboardOverviewData
                     'average_label' => $averageLabel,
                     'top_payment_method' => '-',
                 ],
+            ],
+
+            'status_summary' => [
+                'success_count' => 0,
+                'success_sales' => 0,
+                'processing_count' => 0,
+                'processing_amount' => 0,
+                'cancelled_refund_count' => 0,
+                'cancelled_refund_amount' => 0,
             ],
 
             'stock_panel' => [

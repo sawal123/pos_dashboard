@@ -28,7 +28,7 @@
         @endif
 
         {{-- ==================== 1. SUMMARY METRICS ==================== --}}
-        <x-transactions.summary-cards :metrics="$metrics" />
+        <x-transactions.summary-cards :metrics="$metrics" :currentFilters="$currentFilters" />
 
         {{-- ==================== 2. FILTER BAR ==================== --}}
         <x-transactions.filter-bar
@@ -686,12 +686,9 @@
                 const input = document.getElementById('editStatus');
                 if (input) input.value = status;
 
-                // When user selects Batal, automatically select Refund so payment is properly marked
+                // When user selects Batal, ALWAYS automatically select Refund as well
                 if (status === 'batal') {
-                    const payStatusInput = document.getElementById('editPaymentStatus');
-                    if (payStatusInput && payStatusInput.value === 'paid') {
-                        selectEditPaymentStatus('refund');
-                    }
+                    selectEditPaymentStatus('refund');
                 } else if (status === 'siap' || status === 'proses') {
                     const payStatusInput = document.getElementById('editPaymentStatus');
                     if (payStatusInput && payStatusInput.value === 'refund') {

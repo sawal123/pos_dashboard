@@ -28,11 +28,19 @@
                         $orderRaw = strtolower($trx['order_status_raw'] ?? $trx['order_status'] ?? '');
                         $customer = $trx['customer_name'] ?: 'Pelanggan Umum';
 
-                        $isCancelled = in_array($statusRaw, ['cancelled', 'canceled', 'batal']) || in_array($orderRaw, ['batal', 'cancelled', 'canceled']);
-                        $isProcessing = in_array($statusRaw, ['processing', 'proses']) || in_array($orderRaw, ['proses', 'diproses', 'masuk']);
+                        $isCancelled = in_array($statusRaw, ['cancelled', 'canceled', 'batal', 'dibatalkan']) || in_array($orderRaw, ['batal', 'cancelled', 'canceled', 'dibatalkan']);
+                        $isRefunded = in_array($payRaw, ['refund', 'refunded']) || ($trx['payment_status'] ?? '') === 'Refund';
+                        $isProcessing = ! $isCancelled && (in_array($statusRaw, ['processing', 'proses']) || in_array($orderRaw, ['proses', 'diproses', 'masuk']));
+                        $isSuccess = ! $isCancelled && ! $isRefunded && ($payRaw === 'paid' || ($trx['payment_status'] ?? '') === 'Lunas');
+
+                        $rowToneClass = $isCancelled
+                            ? 'bg-rose-50/45 dark:bg-rose-950/20 hover:bg-rose-50/80 dark:hover:bg-rose-950/35 border-l-4 border-l-rose-500'
+                            : ($isRefunded
+                                ? 'bg-purple-50/45 dark:bg-purple-950/20 hover:bg-purple-50/80 dark:hover:bg-purple-950/35 border-l-4 border-l-purple-500'
+                                : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/50 border-l-4 border-l-transparent');
                     @endphp
                     <tr
-                        class="table-row hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors transaction-row"
+                        class="table-row transition-colors transaction-row {{ $rowToneClass }}"
                         data-id="{{ $trx['id'] }}"
                         data-trx="{{ $trx['transaction_number'] }}"
                         data-customer="{{ strtolower($customer) }}"
@@ -46,7 +54,14 @@
                         {{-- Nomor Transaksi --}}
                         <td class="py-3.5 px-4 font-semibold text-slate-900 dark:text-white whitespace-nowrap">
                             <div class="flex items-center gap-1.5">
-                                <span>{{ $trx['transaction_number'] }}</span>
+                                <span class="{{ $isCancelled ? 'line-through text-slate-500 dark:text-slate-400' : '' }}">{{ $trx['transaction_number'] }}</span>
+                                @if($isCancelled)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300">Batal</span>
+                                @elseif($isRefunded)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300">Refund</span>
+                                @elseif($isSuccess)
+                                    <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100/80 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">Sukses</span>
+                                @endif
                             </div>
                         </td>
 
@@ -139,7 +154,7 @@
                         </td>
 
                         {{-- Total --}}
-                        <td class="py-3.5 px-4 whitespace-nowrap text-right font-extrabold text-slate-900 dark:text-white tabular-nums text-sm">
+                        <td class="py-3.5 px-4 whitespace-nowrap text-right font-extrabold tabular-nums text-sm {{ $isCancelled ? 'line-through text-rose-600/80 dark:text-rose-400/80' : ($isRefunded ? 'line-through text-purple-600/80 dark:text-purple-400/80' : 'text-slate-900 dark:text-white') }}">
                             Rp {{ number_format($trx['total_amount'], 0, ',', '.') }}
                         </td>
 

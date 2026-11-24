@@ -1264,11 +1264,11 @@ class TransactionsPageTest extends TestCase
 
         $sale->refresh();
         $this->assertEquals('Tunai', $sale->payment_method);
-        $this->assertEquals('unpaid', $sale->payment_status);
+        $this->assertEquals('refund', $sale->payment_status);
         $this->assertEquals('cancelled', $sale->status);
+        $this->assertEquals('Batal', $sale->order_status);
         $this->assertEquals(100000, $sale->cash_received);
         $this->assertEquals(50000, $sale->change_amount);
-        $this->assertNull($sale->paid_at);
         $this->assertEquals('Dibatalkan atas permintaan pelanggan', $sale->note);
     }
 
