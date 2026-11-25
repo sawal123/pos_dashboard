@@ -488,7 +488,12 @@ class SyncPushService
                     ->value('id');
 
                 if (! $shiftId) {
-                    throw new SyncConflictException('sales', $syncId, $record instanceof Sale ? (int) $record->sync_version : 0);
+                    // Fallback to active open shift for this outlet
+                    $shiftId = Shift::where('business_id', $business->id)
+                        ->where('outlet_id', $outletId)
+                        ->where('status', 'open')
+                        ->latest('opened_at')
+                        ->value('id');
                 }
             }
 
@@ -623,6 +628,18 @@ class SyncPushService
             $productId = Product::where('business_id', $business->id)
                 ->where('sync_id', (string) $item['product_sync_id'])
                 ->value('id');
+
+            if (! $productId && ! empty($item['product_sku'])) {
+                $productId = Product::where('business_id', $business->id)
+                    ->where('sku', (string) $item['product_sku'])
+                    ->value('id');
+            }
+
+            if (! $productId && ! empty($item['product_name'])) {
+                $productId = Product::where('business_id', $business->id)
+                    ->where('name', (string) $item['product_name'])
+                    ->value('id');
+            }
 
             if (! $productId) {
                 throw new SyncConflictException('sale_items', $syncId, $record instanceof SaleItem ? (int) $record->sync_version : 0);

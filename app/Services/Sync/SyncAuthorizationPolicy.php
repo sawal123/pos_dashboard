@@ -428,9 +428,9 @@ final class SyncAuthorizationPolicy
 
             if (! empty($item['shift_sync_id'])) {
                 $shiftSyncId = (string) $item['shift_sync_id'];
-                if (! isset($incomingShifts[$shiftSyncId]) && ! Shift::where('business_id', $business->id)->where('outlet_id', $outletId)->where('sync_id', $shiftSyncId)->exists()) {
-                    $violations[] = $this->violation('sales', 'upsert', 'invalid_shift_relation');
-                }
+                // Graceful shift handling: if the shift sync_id is not yet on server
+                // (e.g. opened offline), do not reject the sale. SyncPushService will
+                // link it to the outlet's active open shift or leave shift_id nullable.
             }
         }
 
@@ -453,6 +453,18 @@ final class SyncAuthorizationPolicy
             $incomingProductId = Product::where('business_id', $business->id)
                 ->where('sync_id', $productSyncId)
                 ->value('id');
+
+            if (! $incomingProductId && ! empty($item['product_sku'])) {
+                $incomingProductId = Product::where('business_id', $business->id)
+                    ->where('sku', (string) $item['product_sku'])
+                    ->value('id');
+            }
+
+            if (! $incomingProductId && ! empty($item['product_name'])) {
+                $incomingProductId = Product::where('business_id', $business->id)
+                    ->where('name', (string) $item['product_name'])
+                    ->value('id');
+            }
 
             $record = SaleItem::where('business_id', $business->id)->where('sync_id', (string) $item['sync_id'])->first();
             if ($record instanceof SaleItem) {
