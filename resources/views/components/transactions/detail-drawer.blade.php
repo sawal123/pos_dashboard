@@ -85,18 +85,22 @@
                 </div>
             </div>
 
-            {{-- 2. Laundry Lifecycle Section (Conditional: Only visible if order_status exists) --}}
+            {{-- 2. Order Status / Lifecycle Section (Conditional: Only visible if order_status exists) --}}
+            @php
+                $bt = $dashboardCurrentBusiness?->business_type;
+                $isLaundryBusiness = strtolower($bt instanceof \BackedEnum ? (string) $bt->value : (string) $bt) === 'laundry';
+            @endphp
             <div id="detailLaundrySection" class="hidden p-4 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-800/60 space-y-2">
                 <div class="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-bold text-xs">
-                    <i data-lucide="washing-machine" class="w-4 h-4"></i>
-                    <span>Informasi Layanan Laundry</span>
+                    <i data-lucide="{{ $isLaundryBusiness ? 'washing-machine' : 'clipboard-list' }}" class="w-4 h-4"></i>
+                    <span>{{ $isLaundryBusiness ? 'Informasi Layanan Laundry' : 'Informasi Pesanan' }}</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+                <div class="grid {{ $isLaundryBusiness ? 'grid-cols-2' : 'grid-cols-1' }} gap-2 text-xs pt-1">
                     <div>
                         <span class="text-[11px] text-slate-500 dark:text-slate-400 block">Status Pesanan</span>
                         <span id="detailOrderStatus" class="font-bold text-indigo-700 dark:text-indigo-300">-</span>
                     </div>
-                    <div>
+                    <div class="{{ $isLaundryBusiness ? '' : 'hidden' }}">
                         <span class="text-[11px] text-slate-500 dark:text-slate-400 block">Estimasi Selesai</span>
                         <span id="detailEstimatedCompletedAt" class="font-semibold text-slate-800 dark:text-slate-200">-</span>
                     </div>
