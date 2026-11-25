@@ -246,17 +246,6 @@ class DashboardTransactionsData
         $isFilteringRefund = in_array($payStatusFilter, ['refund', 'refunded'], true);
 
         // Valid sales query excludes cancelled and refunded transactions
-        $validSalesQuery = (clone $query)
-            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
-            ->where(function ($q) {
-                $q->whereNull('order_status')
-                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
-            })
-            ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
-
-        // Status breakdown (Sukses / Proses / Batal & Refund) within the active date/outlet/search/method scope
-        $scopeQuery = $breakdownQuery ?? $query;
-
         $notCancelledOrRefund = fn (Builder $q) => $q
             ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['cancelled', 'canceled', 'batal', 'dibatalkan'])
             ->where(function ($sub) {
@@ -264,6 +253,19 @@ class DashboardTransactionsData
                     ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['batal', 'cancelled', 'canceled', 'dibatalkan']);
             })
             ->whereNotIn(DB::raw('LOWER(COALESCE(payment_status, ""))'), ['refund', 'refunded']);
+
+        $validSalesQuery = $notCancelledOrRefund(clone $query);
+
+        // Successful sales only (excludes cancelled, refunded, AND still-processing orders)
+        $successFilteredQuery = $notCancelledOrRefund(clone $query)
+            ->whereNotIn(DB::raw('LOWER(COALESCE(status, ""))'), ['processing', 'proses'])
+            ->where(function ($q) {
+                $q->whereNull('order_status')
+                    ->orWhereNotIn(DB::raw('LOWER(order_status)'), ['proses', 'diproses', 'masuk', 'processing']);
+            });
+
+        // Status breakdown (Sukses / Proses / Batal & Refund) within the active date/outlet/search/method scope
+        $scopeQuery = $breakdownQuery ?? $query;
 
         $processingScope = $notCancelledOrRefund(clone $scopeQuery)
             ->where(function ($q) {
@@ -300,10 +302,11 @@ class DashboardTransactionsData
             $topPaymentMethod = '-';
             $topPaymentPercentage = 0;
         } else {
-            // Standard/default view: only non-cancelled valid sales count towards revenue and transaction counts
+            // Standard/default view: Total Penjualan ONLY sums successful transactions (excludes Proses, Batal, Refund)
             $totalTransactions = (clone $validSalesQuery)->count();
-            $totalSales = (int) (clone $validSalesQuery)->sum('total_amount');
-            $averageTransaction = $totalTransactions > 0 ? (int) round($totalSales / $totalTransactions) : 0;
+            $successFilteredCount = (clone $successFilteredQuery)->count();
+            $totalSales = (int) (clone $successFilteredQuery)->sum('total_amount');
+            $averageTransaction = $successFilteredCount > 0 ? (int) round($totalSales / $successFilteredCount) : 0;
 
             $paymentCounts = (clone $validSalesQuery)
                 ->whereNotNull('payment_method')

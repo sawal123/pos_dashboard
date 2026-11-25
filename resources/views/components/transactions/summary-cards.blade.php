@@ -65,7 +65,7 @@
         <div class="text-lg sm:text-2xl font-extrabold text-slate-900 dark:text-white tabular-nums tracking-tight">
             Rp {{ number_format($metrics['total_sales'], 0, ',', '.') }}
         </div>
-        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Volume penjualan kotor</p>
+        <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Hanya transaksi sukses</p>
     </div>
 
     {{-- Card 3: Rata-rata Transaksi --}}
