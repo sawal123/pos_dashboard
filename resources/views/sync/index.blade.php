@@ -1,5 +1,5 @@
 <x-layouts::app :title="'Sinkronisasi'">
-    <main data-sync-page="true" class="space-y-6 pb-12 max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+    <main id="mainContent" data-sync-page="true" class="space-y-6 pb-12 max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {{-- Header & Breadcrumb --}}
         <div class="space-y-1">
             <nav class="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-1" aria-label="Breadcrumb">

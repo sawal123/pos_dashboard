@@ -446,7 +446,7 @@
             </header>
 
             {{-- ==================== PAGE CONTENT ==================== --}}
-            <main class="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
+            <main id="mainContent" class="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
                 {{ $slot }}
             </main>
         </div>
@@ -641,11 +641,126 @@
                     }
                 }
 
+                // ========== AJAX PAGINATION & SCROLL PRESERVATION ==========
+                let isAjaxPaginating = false;
+
+                function loadPaginationPage(targetUrl, pushState = true, targetScrollY = null) {
+                    if (isAjaxPaginating) return;
+                    const currentMain = document.getElementById('mainContent') || document.querySelector('main');
+                    if (!currentMain) {
+                        window.location.href = targetUrl;
+                        return;
+                    }
+
+                    const savedScrollY = targetScrollY !== null ? targetScrollY : window.scrollY;
+                    isAjaxPaginating = true;
+                    currentMain.style.transition = 'opacity 0.15s ease';
+                    currentMain.style.opacity = '0.55';
+                    currentMain.style.pointerEvents = 'none';
+
+                    fetch(targetUrl, {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'text/html, application/xhtml+xml, */*'
+                        }
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error('Network error: ' + res.status);
+                        return res.text();
+                    })
+                    .then(html => {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const newMain = doc.getElementById('mainContent') || doc.querySelector('main');
+
+                        if (!newMain) {
+                            window.location.href = targetUrl;
+                            return;
+                        }
+
+                        document.dispatchEvent(new CustomEvent('livewire:navigating'));
+                        currentMain.replaceWith(newMain);
+
+                        newMain.querySelectorAll('script').forEach(oldScript => {
+                            if (oldScript.type && oldScript.type !== 'text/javascript' && oldScript.type !== 'application/javascript') {
+                                return;
+                            }
+                            const newScript = document.createElement('script');
+                            Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                            newScript.appendChild(document.createTextNode(oldScript.innerHTML));
+                            oldScript.parentNode.replaceChild(newScript, oldScript);
+                        });
+
+                        if (pushState) {
+                            try {
+                                history.pushState({ url: targetUrl, scrollY: savedScrollY }, '', targetUrl);
+                            } catch (e) {}
+                        }
+
+                        if (doc.title) {
+                            document.title = doc.title;
+                        }
+
+                        window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                        requestAnimationFrame(() => {
+                            window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+                        });
+
+                        if (typeof window.initIcons === 'function') {
+                            window.initIcons();
+                        }
+
+                        if (window.Alpine && typeof window.Alpine.initTree === 'function') {
+                            try {
+                                window.Alpine.initTree(newMain);
+                            } catch (e) {}
+                        }
+
+                        document.dispatchEvent(new CustomEvent('livewire:navigated'));
+                        document.dispatchEvent(new CustomEvent('ajax:paginated', { detail: { url: targetUrl, scrollY: savedScrollY } }));
+                    })
+                    .catch(err => {
+                        console.warn('Ajax pagination failed, falling back to full navigation:', err);
+                        window.location.href = targetUrl;
+                    })
+                    .finally(() => {
+                        isAjaxPaginating = false;
+                        const activeMain = document.getElementById('mainContent') || document.querySelector('main');
+                        if (activeMain) {
+                            activeMain.style.opacity = '';
+                            activeMain.style.pointerEvents = '';
+                        }
+                    });
+                }
+                window.loadPaginationPage = loadPaginationPage;
+
                 // ========== GLOBAL EVENT DELEGATION (ATTACHED ONCE) ==========
                 if (!window.__nexaPlatformListenersAttached) {
                     window.__nexaPlatformListenersAttached = true;
 
                     document.addEventListener('click', (e) => {
+                        // 0. Intercept pagination links
+                        const pageLink = e.target.closest('a[href*="page="]');
+                        if (pageLink && !pageLink.hasAttribute('download') && !pageLink.target) {
+                            const href = pageLink.getAttribute('href');
+                            if (href && !href.startsWith('#') && !href.startsWith('javascript:')) {
+                                try {
+                                    const urlObj = new URL(pageLink.href, window.location.origin);
+                                    if (urlObj.origin === window.location.origin) {
+                                        const isPaginationElement = pageLink.closest(
+                                            '[id*="Pagination"], [id*="pagination"], nav[aria-label], nav[role="navigation"], .pagination'
+                                        );
+                                        const isInsideMain = pageLink.closest('#mainContent, main');
+                                        if (isPaginationElement || isInsideMain) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            loadPaginationPage(urlObj.href, true);
+                                            return;
+                                        }
+                                    }
+                                } catch (err) {}
+                            }
+                        }
                         // 1. Theme Toggle Button
                         const themeBtn = e.target.closest('#themeToggleBtn');
                         if (themeBtn) {
@@ -728,6 +843,13 @@
                         });
                         iconObserver.observe(document.documentElement, { childList: true, subtree: true });
                     }
+
+                    window.addEventListener('popstate', (e) => {
+                        const currentUrl = window.location.href;
+                        if (currentUrl.includes('page=') || (e.state && e.state.url)) {
+                            loadPaginationPage(currentUrl, false, e.state?.scrollY ?? null);
+                        }
+                    });
                 }
 
                 // ========== IDEMPOTENT RUN ON EACH PAGE LOAD / NAVIGATION ==========

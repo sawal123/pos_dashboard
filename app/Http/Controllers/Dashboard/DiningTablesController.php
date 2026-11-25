@@ -55,7 +55,8 @@ class DiningTablesController extends Controller
         $globalTablesCount = $allTables->whereNull('outlet_id')->count();
         $outletTablesCount = $totalTables - $globalTablesCount;
 
-        $tables = $query->orderBy('outlet_id', 'asc')
+        $tables = $query->with('outlet')
+            ->orderBy('outlet_id', 'asc')
             ->orderBy('sort_order', 'asc')
             ->orderBy('name', 'asc')
             ->paginate(30)

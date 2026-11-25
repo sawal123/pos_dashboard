@@ -126,8 +126,9 @@ class DashboardDevicesData
             $query->where('platform', $currentFilters['platform']);
         }
 
-        // 5. Default sorting and server-side pagination
-        $paginator = $query->orderByDesc('registered_at')
+        // 5. Default sorting and server-side pagination with eager loaded outlet
+        $paginator = $query->with('outlet')
+            ->orderByDesc('registered_at')
             ->orderByDesc('id')
             ->paginate(self::PER_PAGE)
             ->withQueryString();
