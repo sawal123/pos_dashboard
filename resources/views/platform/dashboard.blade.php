@@ -17,6 +17,16 @@
                     </p>
                 </div>
                 <div class="shrink-0 flex items-center gap-3">
+                    <button
+                        type="button"
+                        id="refreshPlatformBtn"
+                        onclick="refreshPlatformDashboard(this)"
+                        class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 backdrop-blur-md border border-white/20 text-xs font-semibold text-white transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-white/40 cursor-pointer"
+                        title="Segarkan data platform secara interaktif"
+                    >
+                        <i data-lucide="rotate-cw" class="w-4 h-4 transition-transform duration-500" id="refreshIcon"></i>
+                        <span>Segarkan</span>
+                    </button>
                     <div class="px-4 py-3 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 text-right">
                         <p class="text-[11px] font-medium text-indigo-200 uppercase tracking-wider">Role Access</p>
                         <p class="text-sm font-bold text-white flex items-center justify-end gap-1.5 mt-0.5">
@@ -36,7 +46,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
 
             {{-- Metric Card 1: Total Bisnis --}}
-            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all hover:border-indigo-300 dark:hover:border-indigo-800">
+            <div data-kpi-card class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 cursor-default">
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <span class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
@@ -66,7 +76,7 @@
             </div>
 
             {{-- Metric Card 2: Total User --}}
-            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all hover:border-indigo-300 dark:hover:border-indigo-800">
+            <div data-kpi-card class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 cursor-default">
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <span class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold">
@@ -109,7 +119,7 @@
             </div>
 
             {{-- Metric Card 3: Subscription --}}
-            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all hover:border-indigo-300 dark:hover:border-indigo-800">
+            <div data-kpi-card class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 cursor-default">
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <span class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
@@ -141,7 +151,7 @@
             </div>
 
             {{-- Metric Card 4: Total Device --}}
-            <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all hover:border-indigo-300 dark:hover:border-indigo-800">
+            <div data-kpi-card class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-300 dark:hover:border-indigo-800 cursor-default">
                 <div>
                     <div class="flex items-center justify-between mb-3">
                         <span class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold">
@@ -197,6 +207,7 @@
                 <div class="flex items-center gap-2">
                     <a
                         href="{{ route('platform.alerts.index') }}"
+                        wire:navigate.hover
                         class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-xs"
                     >
                         <span>Lihat Semua Alert</span>
@@ -259,6 +270,7 @@
                                 </span>
                                 <a
                                     href="{{ $alert['action_url'] }}"
+                                    wire:navigate.hover
                                     class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1"
                                 >
                                     <span>Detail</span>
@@ -426,6 +438,7 @@
                         <div class="pt-2 border-t border-slate-200/70 dark:border-slate-700/60 flex items-center justify-between gap-2">
                             <a
                                 href="{{ route('platform.revenue.index') }}"
+                                wire:navigate.hover
                                 class="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 inline-flex items-center gap-1"
                             >
                                 <span>Laporan Revenue</span>
@@ -433,6 +446,7 @@
                             </a>
                             <a
                                 href="{{ route('platform.payments.index') }}"
+                                wire:navigate.hover
                                 class="text-xs font-bold text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 inline-flex items-center gap-1"
                             >
                                 <span>Riwayat Pembayaran</span>
@@ -589,4 +603,25 @@
         </div>
 
     </div>
+
+    @push('scripts')
+        <script>
+            function refreshPlatformDashboard(btn) {
+                const icon = document.getElementById('refreshIcon');
+                if (icon) icon.classList.add('animate-spin');
+                if (btn) btn.disabled = true;
+
+                // Subtle skeleton pulse feedback across cards
+                document.querySelectorAll('[data-kpi-card]').forEach(el => {
+                    el.classList.add('animate-pulse', 'opacity-70');
+                });
+
+                if (typeof Livewire !== 'undefined') {
+                    Livewire.navigate(window.location.href);
+                } else {
+                    window.location.reload();
+                }
+            }
+        </script>
+    @endpush
 </x-layouts::platform>

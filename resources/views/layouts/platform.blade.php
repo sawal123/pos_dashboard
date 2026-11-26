@@ -8,6 +8,11 @@
         {{-- ==================== PAGE LOADER ==================== --}}
         <x-ui.page-loader />
 
+        {{-- ==================== LIVEWIRE NAVIGATION PROGRESS BAR ==================== --}}
+        <div id="platformTopProgress" class="fixed top-0 left-0 right-0 h-1 z-[100] pointer-events-none opacity-0 transition-opacity duration-200">
+            <div id="platformTopProgressBar" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-r-full shadow-sm shadow-indigo-500/50 transition-all duration-300 ease-out" style="width: 0%"></div>
+        </div>
+
         {{-- ==================== PLATFORM ADMIN SIDEBAR ==================== --}}
         <aside
             id="sidebar"
@@ -16,7 +21,7 @@
         >
             {{-- Top Branding Header --}}
             <div class="h-16 px-5 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between shrink-0">
-                <a href="{{ route('platform.dashboard') }}" class="flex items-center gap-3 group focus:outline-none">
+                <a href="{{ route('platform.dashboard') }}" wire:navigate.hover class="flex items-center gap-3 group focus:outline-none">
                     <x-app-logo-icon class="w-9 h-9 group-hover:scale-105 transition-transform" />
                     <div class="sidebar-label sidebar-logo-text flex flex-col leading-tight">
                         <span class="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white">
@@ -52,6 +57,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.dashboard') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isOverview ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Overview"
                             >
@@ -70,6 +76,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.alerts.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isAlerts ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Alert Operasional"
                             >
@@ -88,6 +95,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.businesses.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isBusinesses ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Bisnis"
                             >
@@ -106,6 +114,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.users.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isUsers ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Pengguna"
                             >
@@ -124,6 +133,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.subscriptions.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isSubscriptions ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Langganan"
                             >
@@ -142,6 +152,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.subscription-plans.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isSubscriptionPlans ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Paket &amp; Harga"
                             >
@@ -160,6 +171,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.payments.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isPayments ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Pembayaran"
                             >
@@ -178,6 +190,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.devices.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isDevices ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Perangkat"
                             >
@@ -196,6 +209,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.sync.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isSync ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Sinkronisasi"
                             >
@@ -214,6 +228,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.backups.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isBackups ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Backup Cloud"
                             >
@@ -232,6 +247,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.analytics.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isAnalytics ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Analitik"
                             >
@@ -250,6 +266,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.revenue.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isRevenue ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Revenue &amp; Billing"
                             >
@@ -268,6 +285,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.audit-logs.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isAuditLogs ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Audit Log"
                             >
@@ -286,6 +304,7 @@
                         <li>
                             <a
                                 href="{{ route('platform.settings.index') }}"
+                                wire:navigate.hover
                                 class="sidebar-item flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-xs transition-all relative {{ $isSettings ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200' }}"
                                 data-tooltip-right="Pengaturan Platform"
                             >
@@ -351,7 +370,7 @@
 
                     {{-- Breadcrumb --}}
                     <nav class="flex items-center gap-1.5 text-xs md:text-sm font-medium" aria-label="Breadcrumb">
-                        <span class="text-slate-400 dark:text-slate-500">Platform</span>
+                        <a href="{{ route('platform.dashboard') }}" wire:navigate.hover class="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Platform</a>
                         <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-600"></i>
                         <span class="text-slate-800 dark:text-slate-100 font-semibold" aria-current="page">
                             {{ $title ?? 'Overview' }}
@@ -869,6 +888,43 @@
                 document.addEventListener('livewire:navigated', onPageReady);
 
                 // ========== LIVEWIRE INIT & HOOKS ==========
+                let platformProgressInterval = null;
+
+                function startPlatformTopProgress() {
+                    const bar = document.getElementById('platformTopProgressBar');
+                    const container = document.getElementById('platformTopProgress');
+                    if (!bar || !container) return;
+
+                    clearInterval(platformProgressInterval);
+                    container.classList.remove('opacity-0');
+                    container.classList.add('opacity-100');
+                    bar.style.width = '20%';
+
+                    let current = 20;
+                    platformProgressInterval = setInterval(() => {
+                        if (current < 85) {
+                            current += (85 - current) * 0.15;
+                            bar.style.width = current + '%';
+                        }
+                    }, 120);
+                }
+
+                function completePlatformTopProgress() {
+                    const bar = document.getElementById('platformTopProgressBar');
+                    const container = document.getElementById('platformTopProgress');
+                    if (!bar || !container) return;
+
+                    clearInterval(platformProgressInterval);
+                    bar.style.width = '100%';
+                    setTimeout(() => {
+                        container.classList.remove('opacity-100');
+                        container.classList.add('opacity-0');
+                        setTimeout(() => {
+                            bar.style.width = '0%';
+                        }, 300);
+                    }, 180);
+                }
+
                 function registerLivewireHooks() {
                     if (typeof Livewire !== 'undefined' && !window.__livewireHooksRegistered) {
                         window.__livewireHooksRegistered = true;
@@ -891,9 +947,24 @@
                 }
 
                 document.addEventListener('livewire:navigating', () => {
+                    startPlatformTopProgress();
                     window.__activeTheme = getStoredTheme();
+                    const main = document.getElementById('mainContent') || document.querySelector('main');
+                    if (main) {
+                        main.classList.add('opacity-60', 'pointer-events-none', 'transition-opacity', 'duration-150');
+                    }
+                });
+
+                document.addEventListener('livewire:navigated', () => {
+                    completePlatformTopProgress();
+                    const main = document.getElementById('mainContent') || document.querySelector('main');
+                    if (main) {
+                        main.classList.remove('opacity-60', 'pointer-events-none');
+                    }
+                    onPageReady();
                 });
             })();
         </script>
+        @stack('scripts')
     </body>
 </html>
