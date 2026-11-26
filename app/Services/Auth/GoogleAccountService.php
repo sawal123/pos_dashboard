@@ -48,6 +48,10 @@ final class GoogleAccountService
                         );
                     }
 
+                    if (! $user->hasVerifiedEmail()) {
+                        $user->forceFill(['email_verified_at' => now()])->save();
+                    }
+
                     return $user;
                 }
 
@@ -89,6 +93,10 @@ final class GoogleAccountService
             if ($identity !== null) {
                 $user = User::query()->find($identity->user_id);
                 if ($user !== null) {
+                    if (! $user->hasVerifiedEmail()) {
+                        $user->forceFill(['email_verified_at' => now()])->save();
+                    }
+
                     return $user;
                 }
             }
@@ -114,13 +122,6 @@ final class GoogleAccountService
 
     private function linkExistingAccount(User $user, GoogleIdTokenClaims $claims): User
     {
-        if (! $user->hasVerifiedEmail() || $this->hasUnprovisionedRegistration($user)) {
-            throw new GoogleAuthenticationException(
-                'ACCOUNT_LINK_REQUIRED',
-                'This email is already used by an unverified account.',
-            );
-        }
-
         $identity = AuthIdentity::query()
             ->where('user_id', $user->getKey())
             ->where('provider', AuthIdentity::PROVIDER_GOOGLE)
@@ -135,7 +136,28 @@ final class GoogleAccountService
                 );
             }
 
+            if (! $user->hasVerifiedEmail()) {
+                $user->forceFill(['email_verified_at' => now()])->save();
+            }
+
             return $user;
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->forceFill(['email_verified_at' => now()])->save();
+        }
+
+        $pending = PendingRegistration::query()->where('user_id', $user->getKey())->first();
+        if ($pending !== null && ! $pending->isProvisioned()) {
+            if ($user->businesses()->count() === 0) {
+                $this->provisionDefaultAccount($user);
+            }
+
+            $pending->forceFill([
+                'status' => PendingRegistration::STATUS_VERIFIED,
+                'provisioning_status' => PendingRegistration::PROVISIONING_COMPLETE,
+                'verified_at' => now(),
+            ])->save();
         }
 
         AuthIdentity::create([

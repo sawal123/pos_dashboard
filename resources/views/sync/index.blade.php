@@ -1,5 +1,5 @@
 <x-layouts::app :title="'Sinkronisasi'">
-    <main id="mainContent" data-sync-page="true" class="space-y-6 pb-12 max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+    <main id="mainContent" data-sync-page="true" data-sync-detail-url-template="{{ route('sync.show', ['syncRequest' => '__ID__']) }}" class="space-y-6 pb-12 max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
         {{-- Header & Breadcrumb --}}
         <div class="space-y-1">
             <nav class="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 mb-1" aria-label="Breadcrumb">
@@ -90,6 +90,8 @@
             const drawerOutlet = document.getElementById('drawer-sync-outlet');
             const drawerDeviceName = document.getElementById('drawer-sync-device-name');
             const drawerDeviceIdentifier = document.getElementById('drawer-sync-device-identifier');
+            const drawerContent = document.getElementById('drawer-sync-content');
+            const detailUrlTemplate = root.dataset.syncDetailUrlTemplate || '';
 
             let lastFocusedTrigger = null;
 
@@ -121,6 +123,98 @@
             };
 
             // Drawer Controls
+            function escapeHtml(value) {
+                return String(value ?? '')
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#039;');
+            }
+
+            function formatRupiah(value) {
+                const amount = Number(value) || 0;
+                return 'Rp ' + amount.toLocaleString('id-ID');
+            }
+
+            function buildSyncContentHtml(data) {
+                const invoices = data && Array.isArray(data.invoices) ? data.invoices : [];
+
+                if (invoices.length === 0) {
+                    return '<p class="text-sm text-slate-400 dark:text-slate-500">Tidak ada invoice pada push request ini.</p>';
+                }
+
+                let html = '<div class="space-y-3">';
+                html += '<p class="text-xs text-slate-500 dark:text-slate-400">' + invoices.length + ' invoice dalam push request ini.</p>';
+
+                invoices.forEach(function (invoice) {
+                    const itemCount = invoice.items && invoice.items.length ? invoice.items.length : 0;
+                    const meta = [invoice.status, invoice.payment_method, invoice.payment_status]
+                        .filter(Boolean)
+                        .map(escapeHtml)
+                        .join(' · ');
+
+                    html += '<div class="rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/40 p-3 space-y-2">';
+                    html += '<div class="flex items-start justify-between gap-3">';
+                    html += '<div class="min-w-0">';
+                    html += '<p class="text-sm font-semibold text-slate-900 dark:text-slate-100 break-all">' + escapeHtml(invoice.transaction_number) + '</p>';
+                    if (meta) {
+                        html += '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + meta + '</p>';
+                    }
+                    html += '</div>';
+                    html += '<p class="text-sm font-bold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">' + escapeHtml(formatRupiah(invoice.total_amount)) + '</p>';
+                    html += '</div>';
+
+                    if (itemCount > 0) {
+                        html += '<ul class="space-y-1.5 pt-1 border-t border-slate-200/70 dark:border-slate-700/60">';
+                        invoice.items.forEach(function (item) {
+                            const label = item.product_name + ' × ' + item.quantity;
+                            html += '<li class="flex items-start justify-between gap-3 text-xs text-slate-600 dark:text-slate-300">';
+                            html += '<span class="min-w-0">' + escapeHtml(label) + '</span>';
+                            html += '<span class="whitespace-nowrap font-medium">' + escapeHtml(formatRupiah(item.line_total)) + '</span>';
+                            html += '</li>';
+                        });
+                        html += '</ul>';
+                    }
+                    html += '</div>';
+                });
+
+                html += '</div>';
+                return html;
+            }
+
+            function loadSyncContent(id) {
+                if (!drawerContent) return;
+
+                drawerContent.innerHTML = '<p class="text-sm text-slate-400 dark:text-slate-500">Memuat isi sinkronisasi...</p>';
+
+                if (!detailUrlTemplate || !id) {
+                    drawerContent.innerHTML = '<p class="text-sm text-slate-400 dark:text-slate-500">Tidak ada detail isi sinkronisasi.</p>';
+                    return;
+                }
+
+                const url = detailUrlTemplate.replace('__ID__', encodeURIComponent(id));
+
+                fetch(url, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                })
+                    .then(function (response) {
+                        if (!response.ok) {
+                            throw new Error('Request failed with status ' + response.status);
+                        }
+                        return response.json();
+                    })
+                    .then(function (json) {
+                        drawerContent.innerHTML = buildSyncContentHtml(json.data || {});
+                    })
+                    .catch(function () {
+                        drawerContent.innerHTML = '<p class="text-sm text-slate-400 dark:text-slate-500">Gagal memuat isi sinkronisasi.</p>';
+                    });
+            }
+
             function openDrawer(data, triggerEl) {
                 if (!drawer) return;
                 lastFocusedTrigger = triggerEl;
@@ -131,6 +225,8 @@
                 if (drawerOutlet) drawerOutlet.textContent = data.outletName || '-';
                 if (drawerDeviceName) drawerDeviceName.textContent = data.deviceName || '-';
                 if (drawerDeviceIdentifier) drawerDeviceIdentifier.textContent = data.deviceIdentifier || '-';
+
+                loadSyncContent(data.id);
 
                 drawer.classList.remove('hidden');
                 document.body.classList.add('overflow-hidden');
@@ -179,6 +275,7 @@
                     const parent = btn.closest('.sync-row, .sync-card');
                     if (parent) {
                         const data = {
+                            id: parent.dataset.id,
                             requestId: parent.dataset.requestId,
                             processedAt: parent.dataset.processedAt,
                             outletName: parent.dataset.outletName,

@@ -765,6 +765,53 @@ class SyncMonitoringPageTest extends TestCase
         $this->assertSame('-', $presented['outlet_name']);
     }
 
+    public function test_45_sync_show_returns_invoice_content_for_current_business(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $req = $this->createSyncRequest([
+            'business_id' => $business->id,
+            'payload' => [
+                'sales' => [[
+                    'sync_id' => '11111111-1111-1111-1111-111111111111',
+                    'transaction_number' => 'INV/001',
+                    'status' => 'completed',
+                    'total_amount' => 15000,
+                    'payment_method' => 'cash',
+                ]],
+                'sale_items' => [[
+                    'sale_sync_id' => '11111111-1111-1111-1111-111111111111',
+                    'product_name' => 'Kopi',
+                    'product_sku' => 'KP-01',
+                    'quantity' => 2,
+                    'unit_price' => 7500,
+                    'line_total' => 15000,
+                ]],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->get(route('sync.show', $req));
+        $response->assertOk()
+            ->assertJsonPath('data.invoices.0.transaction_number', 'INV/001')
+            ->assertJsonPath('data.invoices.0.items.0.product_name', 'Kopi');
+    }
+
+    public function test_46_sync_show_does_not_expose_foreign_business_request(): void
+    {
+        [$user, $business] = $this->makeUserWithBusiness();
+        $foreign = Business::factory()->create();
+        $foreignReq = $this->createSyncRequest([
+            'business_id' => $foreign->id,
+            'payload' => [
+                'sales' => [[
+                    'transaction_number' => 'SECRET-FOREIGN-INVOICE',
+                ]],
+            ],
+        ]);
+
+        $response = $this->actingAs($user)->get(route('sync.show', $foreignReq));
+        $response->assertNotFound();
+    }
+
     // ============================================================
     // Helpers
     // ============================================================

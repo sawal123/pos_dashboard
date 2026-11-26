@@ -42,7 +42,7 @@ final class GoogleLoginController extends Controller
         }
 
         if (! $user->hasVerifiedEmail()) {
-            return back()->withErrors(['google' => 'Email akun ini belum terverifikasi.']);
+            $user->forceFill(['email_verified_at' => now()])->save();
         }
 
         if ($user->two_factor_confirmed_at !== null

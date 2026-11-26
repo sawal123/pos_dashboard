@@ -103,19 +103,22 @@ class WebGoogleLoginTest extends TestCase
         ]);
     }
 
-    public function test_google_login_does_not_link_an_unverified_existing_account(): void
+    public function test_google_login_links_and_verifies_an_unverified_existing_account(): void
     {
         $existing = User::factory()->unverified()->create(['email' => 'unverified@example.com']);
         $this->fakeVerifier($this->claims('web-sub-unverified', 'unverified@example.com', 'Unverified'));
 
         $response = $this->post(route('auth.google.login'), ['credential' => 'signed-id-token']);
 
-        $response->assertSessionHasErrors('google');
-        $this->assertGuest();
-        $this->assertDatabaseMissing('auth_identities', [
+        $response->assertSessionHasNoErrors()
+            ->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticatedAs($existing);
+        $this->assertNotNull($existing->fresh()->email_verified_at);
+        $this->assertDatabaseHas('auth_identities', [
+            'user_id' => $existing->id,
+            'provider' => AuthIdentity::PROVIDER_GOOGLE,
             'provider_subject' => 'web-sub-unverified',
         ]);
-        $this->assertSame(0, $existing->businesses()->count());
     }
 
     public function test_google_login_with_confirmed_two_factor_routes_through_fortify_challenge(): void

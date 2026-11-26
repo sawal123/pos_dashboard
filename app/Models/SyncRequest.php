@@ -13,12 +13,13 @@ use Illuminate\Support\Carbon;
  * @property int $device_id
  * @property string $request_id
  * @property Carbon $processed_at
+ * @property array<string, mixed>|null $payload
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read Business|null $business
  * @property-read Device|null $device
  */
-#[Fillable(['business_id', 'device_id', 'request_id', 'processed_at'])]
+#[Fillable(['business_id', 'device_id', 'request_id', 'processed_at', 'payload'])]
 class SyncRequest extends Model
 {
     /**
@@ -30,6 +31,7 @@ class SyncRequest extends Model
     {
         return [
             'processed_at' => 'datetime',
+            'payload' => 'array',
         ];
     }
 

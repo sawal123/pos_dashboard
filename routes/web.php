@@ -464,6 +464,10 @@ Route::middleware(['auth', 'verified', ShareDashboardBusinessContext::class])->g
     Route::get('sync', [SyncMonitoringController::class, 'index'])
         ->middleware(['business.permission:'.BusinessPermission::SYNC_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_SYNC])
         ->name('sync.index');
+    Route::get('sync/{syncRequest}', [SyncMonitoringController::class, 'show'])
+        ->whereNumber('syncRequest')
+        ->middleware(['business.permission:'.BusinessPermission::SYNC_VIEW, 'premium.access:'.PremiumPolicy::CAPABILITY_CLOUD_SYNC])
+        ->name('sync.show');
 
     // DASH-12A — subscription overview. Owner-only, aligned with the controller
     // authorization via the shared SUBSCRIPTION_MANAGE permission (DASH-10B2).

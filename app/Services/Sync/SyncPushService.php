@@ -100,6 +100,7 @@ class SyncPushService
                     'device_id' => $device->id,
                     'request_id' => $requestId,
                     'processed_at' => now(),
+                    'payload' => $changes,
                 ]);
             });
         } catch (SyncConflictException $e) {

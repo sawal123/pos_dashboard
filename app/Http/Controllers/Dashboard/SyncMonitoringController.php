@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Business;
+use App\Models\SyncRequest;
 use App\Services\Dashboard\DashboardSyncData;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
@@ -49,5 +51,26 @@ class SyncMonitoringController extends Controller
         $data = $this->syncData->get($currentBusiness, $filters);
 
         return view('sync.index', $data);
+    }
+
+    /**
+     * Read-only sync content for a single committed push request, scoped to the
+     * active business. Returns the normalized payload (invoices and entity
+     * summary) so the detail drawer can render what was actually pushed.
+     */
+    public function show(Request $request, SyncRequest $syncRequest): JsonResponse
+    {
+        /** @var Business|null $currentBusiness */
+        $currentBusiness = $request->attributes->get('dashboard_business');
+
+        if (! $currentBusiness instanceof Business || (int) $syncRequest->business_id !== (int) $currentBusiness->id) {
+            abort(404);
+        }
+
+        return response()->json([
+            'data' => array_merge([
+                'request_id' => (string) $syncRequest->request_id,
+            ], $this->syncData->presentSyncContent($syncRequest->payload)),
+        ]);
     }
 }

@@ -110,16 +110,21 @@ class GoogleAuthenticationTest extends TestCase
         $this->assertSame(0, Business::query()->count());
     }
 
-    public function test_unverified_email_account_still_requires_manual_linking(): void
+    public function test_unverified_email_account_is_auto_verified_and_linked_on_google_auth(): void
     {
         $existing = User::factory()->unverified()->create(['email' => 'unverified@example.com']);
         $this->fakeVerifier($this->claims('google-sub-unverified', 'unverified@example.com', 'Google'));
 
         $response = $this->postJson('/api/v2/auth/google', $this->request());
 
-        $response->assertStatus(409)->assertJsonPath('code', 'ACCOUNT_LINK_REQUIRED');
-        $this->assertDatabaseMissing('auth_identities', ['provider_subject' => 'google-sub-unverified']);
-        $this->assertSame(0, PersonalAccessToken::query()->count());
+        $response->assertOk()->assertJsonPath('data.user.id', $existing->id);
+        $this->assertNotNull($existing->fresh()->email_verified_at);
+        $this->assertDatabaseHas('auth_identities', [
+            'user_id' => $existing->id,
+            'provider' => AuthIdentity::PROVIDER_GOOGLE,
+            'provider_subject' => 'google-sub-unverified',
+        ]);
+        $this->assertSame(1, PersonalAccessToken::query()->where('tokenable_id', $existing->id)->count());
     }
 
     public function test_a_different_google_subject_cannot_replace_an_existing_link(): void

@@ -75,6 +75,15 @@
 
                     <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
                         <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                            Isi Sinkronisasi
+                        </h3>
+                        <div id="drawer-sync-content" class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                            <p class="text-sm text-slate-400 dark:text-slate-500">Memuat isi sinkronisasi...</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                        <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">
                             Informasi Perangkat
                         </h3>
                         <div>

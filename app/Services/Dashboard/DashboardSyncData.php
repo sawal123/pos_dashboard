@@ -238,6 +238,64 @@ class DashboardSyncData
         ];
     }
 
+    /**
+     * Normalize a stored push payload into the drawer's sync-content shape.
+     *
+     * @param  array<string, mixed>|null  $payload
+     * @return array<string, mixed>
+     */
+    public function presentSyncContent(?array $payload): array
+    {
+        $payload = $payload ?? [];
+
+        $summary = [];
+        foreach (['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'deletions'] as $entity) {
+            $summary[$entity] = isset($payload[$entity]) && is_array($payload[$entity])
+                ? count($payload[$entity])
+                : 0;
+        }
+
+        $itemsBySale = [];
+        foreach (($payload['sale_items'] ?? []) as $item) {
+            $saleSyncId = isset($item['sale_sync_id']) ? (string) $item['sale_sync_id'] : '';
+            if ($saleSyncId === '') {
+                continue;
+            }
+
+            $itemsBySale[$saleSyncId][] = [
+                'product_name' => (string) ($item['product_name'] ?? '-'),
+                'product_sku' => (string) ($item['product_sku'] ?? '-'),
+                'quantity' => $item['quantity'] ?? 0,
+                'unit_price' => (int) ($item['unit_price'] ?? 0),
+                'line_total' => (int) ($item['line_total'] ?? 0),
+            ];
+        }
+
+        $invoices = [];
+        foreach (($payload['sales'] ?? []) as $sale) {
+            $syncId = (string) ($sale['sync_id'] ?? '');
+
+            $invoices[] = [
+                'sync_id' => $syncId,
+                'transaction_number' => (string) ($sale['transaction_number'] ?? '-'),
+                'status' => (string) ($sale['status'] ?? ''),
+                'sold_at' => isset($sale['sold_at']) ? (string) $sale['sold_at'] : null,
+                'payment_method' => isset($sale['payment_method']) ? (string) $sale['payment_method'] : null,
+                'payment_status' => isset($sale['payment_status']) ? (string) $sale['payment_status'] : null,
+                'subtotal' => (int) ($sale['subtotal'] ?? 0),
+                'discount_amount' => (int) ($sale['discount_amount'] ?? 0),
+                'tax_amount' => (int) ($sale['tax_amount'] ?? 0),
+                'total_amount' => (int) ($sale['total_amount'] ?? 0),
+                'items' => $itemsBySale[$syncId] ?? [],
+            ];
+        }
+
+        return [
+            'summary' => $summary,
+            'invoices' => $invoices,
+        ];
+    }
+
     protected function formatDateTime(?DateTimeInterface $date): ?string
     {
         if ($date === null) {
