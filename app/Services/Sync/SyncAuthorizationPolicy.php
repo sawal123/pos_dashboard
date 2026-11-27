@@ -50,7 +50,7 @@ final class SyncAuthorizationPolicy
             'push_mode' => $pushMode,
             'allowed_entities' => $this->allowedEntities($pushMode),
             'denied_entities' => $pushMode === self::PUSH_MODE_CASHIER_SAFE
-                ? ['categories', 'products', 'expenses', 'deletions']
+                ? ['categories', 'products', 'expenses', 'promos', 'variant_groups', 'deletions']
                 : [],
             'contract_version' => 'cashier_sync_v1',
         ];
@@ -103,14 +103,14 @@ final class SyncAuthorizationPolicy
         $outletId = (int) $context['outlet_id'];
         $violations = [];
 
-        $knownEntities = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'deletions'];
+        $knownEntities = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'variant_groups', 'deletions'];
         foreach ($changes as $entity => $items) {
             if (! in_array($entity, $knownEntities, true)) {
                 $violations[] = $this->violation((string) $entity, 'upsert', 'unknown_entity');
             }
         }
 
-        foreach (['categories', 'products', 'expenses', 'promos'] as $entity) {
+        foreach (['categories', 'products', 'expenses', 'promos', 'variant_groups'] as $entity) {
             if (! empty($changes[$entity])) {
                 $violations[] = $this->violation($entity, 'upsert', 'cashier_entity_not_allowed');
             }
@@ -156,6 +156,7 @@ final class SyncAuthorizationPolicy
                 'cash_ledger' => ['upsert'],
                 'stock_movements' => ['upsert'],
                 'promos' => ['upsert', 'delete'],
+                'variant_groups' => ['upsert', 'delete'],
             ];
         }
 

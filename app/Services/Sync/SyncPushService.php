@@ -18,6 +18,8 @@ use App\Models\Shift;
 use App\Models\StockMovement;
 use App\Models\SyncRequest;
 use App\Models\User;
+use App\Models\VariantGroup;
+use App\Models\VariantOption;
 use App\Services\Catalog\OutletPricing;
 use App\Services\Catalog\ProductCodeService;
 use Illuminate\Database\Eloquent\Model;
@@ -84,6 +86,7 @@ class SyncPushService
         try {
             DB::transaction(function () use ($business, $outletId, $device, $requestId, $changes, $cashierSafe): void {
                 $this->processCategories($business, $changes['categories'] ?? []);
+                $this->processVariantGroups($business, $changes['variant_groups'] ?? []);
                 $this->processProducts($business, $outletId, $changes['products'] ?? []);
                 $this->processCustomers($business, $changes['customers'] ?? []);
                 $this->processShifts($business, $outletId, $changes['shifts'] ?? []);
@@ -239,6 +242,76 @@ class SyncPushService
     /**
      * @param  list<array<string, mixed>>  $items
      */
+    protected function processVariantGroups(Business $business, array $items): void
+    {
+        foreach ($items as $item) {
+            $syncId = (string) $item['sync_id'];
+            $baseVersion = isset($item['base_sync_version']) ? (int) $item['base_sync_version'] : null;
+
+            $record = VariantGroup::where('business_id', $business->id)
+                ->where('sync_id', $syncId)
+                ->lockForUpdate()
+                ->first();
+
+            $attributes = [
+                'name' => (string) $item['name'],
+                'selection_type' => (string) ($item['selection_type'] ?? 'single'),
+                'is_required' => (bool) ($item['is_required'] ?? true),
+                'min_selection' => isset($item['min_selection']) ? (int) $item['min_selection'] : ((bool) ($item['is_required'] ?? true) ? 1 : 0),
+                'max_selection' => isset($item['max_selection']) && $item['max_selection'] !== null ? (int) $item['max_selection'] : null,
+                'sort_order' => isset($item['sort_order']) ? (int) $item['sort_order'] : 0,
+                'status' => (string) ($item['status'] ?? 'active'),
+            ];
+
+            if ($record instanceof VariantGroup) {
+                $this->validateConcurrency('variant_groups', $record, $syncId, $baseVersion);
+                $record->fill($attributes);
+                $record->save();
+                $group = $record;
+            } else {
+                $this->validateConcurrency('variant_groups', null, $syncId, $baseVersion);
+                $group = new VariantGroup($attributes);
+                $group->business_id = $business->id;
+                $group->sync_id = $syncId;
+                $group->save();
+            }
+
+            // Process nested options if provided
+            if (isset($item['options']) && is_array($item['options'])) {
+                foreach ($item['options'] as $idx => $opt) {
+                    $optSyncId = (string) $opt['sync_id'];
+                    $optRecord = VariantOption::where('variant_group_id', $group->id)
+                        ->where('sync_id', $optSyncId)
+                        ->lockForUpdate()
+                        ->first();
+
+                    $optAttributes = [
+                        'business_id' => $business->id,
+                        'variant_group_id' => $group->id,
+                        'name' => (string) $opt['name'],
+                        'price_adjustment' => isset($opt['price_adjustment']) ? (int) $opt['price_adjustment'] : 0,
+                        'cost_adjustment' => isset($opt['cost_adjustment']) ? (int) $opt['cost_adjustment'] : 0,
+                        'is_default' => (bool) ($opt['is_default'] ?? false),
+                        'sort_order' => isset($opt['sort_order']) ? (int) $opt['sort_order'] : ($idx + 1),
+                        'status' => (string) ($opt['status'] ?? 'active'),
+                    ];
+
+                    if ($optRecord instanceof VariantOption) {
+                        $optRecord->fill($optAttributes);
+                        $optRecord->save();
+                    } else {
+                        $newOpt = new VariantOption($optAttributes);
+                        $newOpt->sync_id = $optSyncId;
+                        $newOpt->save();
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
     protected function processProducts(Business $business, int $outletId, array $items): void
     {
         $isPrimaryOutlet = (bool) $business->outlets()->whereKey($outletId)->value('is_primary');
@@ -349,14 +422,14 @@ class SyncPushService
                     ]);
                 }
 
-                if ($this->attributesMatch($record, $attributes)) {
-                    continue;
+                if (! $this->attributesMatch($record, $attributes)) {
+                    $this->validateConcurrency('products', $record, $syncId, $baseVersion);
+
+                    $record->fill($attributes);
+                    $record->save();
                 }
 
-                $this->validateConcurrency('products', $record, $syncId, $baseVersion);
-
-                $record->fill($attributes);
-                $record->save();
+                $targetProduct = $record;
             } else {
                 $this->validateConcurrency('products', null, $syncId, $baseVersion);
 
@@ -364,6 +437,16 @@ class SyncPushService
                 $product->business_id = $business->id;
                 $product->sync_id = $syncId;
                 $product->save();
+
+                $targetProduct = $product;
+            }
+
+            if (array_key_exists('variant_group_sync_ids', $item) && is_array($item['variant_group_sync_ids']) && $targetProduct instanceof Product) {
+                $vgIds = VariantGroup::where('business_id', $business->id)
+                    ->whereIn('sync_id', $item['variant_group_sync_ids'])
+                    ->pluck('id')
+                    ->all();
+                $targetProduct->variantGroups()->sync($vgIds);
             }
         }
     }
@@ -1347,6 +1430,7 @@ class SyncPushService
             'customers' => Customer::class,
             'expenses' => Expense::class,
             'promos' => Promo::class,
+            'variant_groups' => VariantGroup::class,
         ];
 
         foreach ($items as $item) {

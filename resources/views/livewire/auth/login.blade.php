@@ -53,9 +53,6 @@
             </div>
         @endif
 
-        {{-- ==================== PASSKEY ==================== --}}
-        <x-passkey-verify />
-
         {{-- ==================== LOGIN FORM ==================== --}}
         <form method="POST" action="{{ route('login.store') }}" class="space-y-4" x-data="{ submitting: false }" @submit="submitting = true">
             @csrf

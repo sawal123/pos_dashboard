@@ -78,6 +78,8 @@ class SyncPushRequest extends FormRequest
             'changes.products.*.min_quantity' => ['sometimes', 'numeric', 'min:0'],
             'changes.products.*.estimated_duration' => ['nullable', 'string', 'max:255'],
             'changes.products.*.status' => ['sometimes', 'string'],
+            'changes.products.*.variant_group_sync_ids' => ['sometimes', 'nullable', 'array'],
+            'changes.products.*.variant_group_sync_ids.*' => ['required', 'uuid'],
 
             // Customers
             'changes.customers' => ['sometimes', 'array', 'max:100'],
@@ -204,9 +206,31 @@ class SyncPushRequest extends FormRequest
             // Tombstone deletions (non-destructive deactivation)
             'changes.deletions' => ['sometimes', 'array', 'max:100'],
             'changes.deletions.*' => ['array'],
-            'changes.deletions.*.entity' => ['required', 'string', 'in:categories,products,customers,expenses,promos'],
+            'changes.deletions.*.entity' => ['required', 'string', 'in:categories,products,customers,expenses,promos,variant_groups'],
             'changes.deletions.*.sync_id' => ['required', 'uuid'],
             'changes.deletions.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
+
+            // Variant Groups
+            'changes.variant_groups' => ['sometimes', 'array', 'max:100'],
+            'changes.variant_groups.*' => ['array'],
+            'changes.variant_groups.*.sync_id' => ['required', 'uuid'],
+            'changes.variant_groups.*.base_sync_version' => ['nullable', 'integer', 'min:1'],
+            'changes.variant_groups.*.name' => ['required', 'string', 'max:255'],
+            'changes.variant_groups.*.selection_type' => ['sometimes', 'string', 'in:single,multiple'],
+            'changes.variant_groups.*.is_required' => ['sometimes', 'boolean'],
+            'changes.variant_groups.*.min_selection' => ['sometimes', 'integer', 'min:0'],
+            'changes.variant_groups.*.max_selection' => ['nullable', 'integer', 'min:1'],
+            'changes.variant_groups.*.sort_order' => ['sometimes', 'integer', 'min:0'],
+            'changes.variant_groups.*.status' => ['sometimes', 'string', 'in:active,inactive,deleted'],
+            'changes.variant_groups.*.options' => ['sometimes', 'array'],
+            'changes.variant_groups.*.options.*' => ['array'],
+            'changes.variant_groups.*.options.*.sync_id' => ['required', 'uuid'],
+            'changes.variant_groups.*.options.*.name' => ['required', 'string', 'max:255'],
+            'changes.variant_groups.*.options.*.price_adjustment' => ['sometimes', 'integer', 'min:0'],
+            'changes.variant_groups.*.options.*.cost_adjustment' => ['sometimes', 'integer', 'min:0'],
+            'changes.variant_groups.*.options.*.is_default' => ['sometimes', 'boolean'],
+            'changes.variant_groups.*.options.*.sort_order' => ['sometimes', 'integer', 'min:0'],
+            'changes.variant_groups.*.options.*.status' => ['sometimes', 'string', 'in:active,inactive,deleted'],
 
             // Promos (PROMO-D01)
             'changes.promos' => ['sometimes', 'array', 'max:100'],
@@ -241,7 +265,7 @@ class SyncPushRequest extends FormRequest
         $validator->after(function (Validator $v): void {
             $changes = $this->input('changes');
             if (is_array($changes)) {
-                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'deletions'];
+                $allowedKeys = ['categories', 'products', 'customers', 'shifts', 'sales', 'sale_items', 'expenses', 'cash_ledger', 'stock_movements', 'promos', 'variant_groups', 'deletions'];
                 $unknownKeys = array_diff(array_keys($changes), $allowedKeys);
                 if (! empty($unknownKeys)) {
                     $v->errors()->add('changes', 'The changes payload contains unsupported entity types.');
